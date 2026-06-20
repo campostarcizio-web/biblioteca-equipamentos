@@ -1,13 +1,13 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.4.0",
+    "versao": "0.5.0",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
       { "grupo": "Alimentadores", "subgrupos": ["Tipo Placa", "Tipo Correia"] },
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Transportador de Arraste", "Helicoidal"] },
-      { "grupo": "Britadores", "subgrupos": ["Mandíbula", "Martelo", "Impacto", "Cônico"] },
+      { "grupo": "Britadores", "subgrupos": ["Mandíbula", "Martelo", "Impacto", "Cônico", "Rolos / Destorroador"] },
       { "grupo": "Secadores", "subgrupos": ["Rotativos", "Rapid Dryer", "Outros"] },
       { "grupo": "Moagem e Classificação", "subgrupos": ["Moinhos", "Peneiras", "Hidrociclones e Classificadores"] },
       { "grupo": "Separação e Concentração", "subgrupos": ["Flotação", "Gravítica", "Magnética", "Espessamento"] },
@@ -1125,6 +1125,147 @@
         "criterio": "Área de checker pela vazão de ar e temperatura de sopro alvo; tipicamente 3–4 stoves em ciclo.",
         "formula": "Área de checker ∝ vazão de ar · ΔT / ciclo; nº de stoves pelo regime on-gas/on-blast",
         "variaveis": ["vazão de ar (Nm³/min)", "T de sopro alvo", "PCI do gás", "tempo de ciclo"]
+      }
+    },
+    {
+      "id": "natreb-alimentador-correia",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Correia",
+      "subtipo": "Alimentador de correia sobre roletes",
+      "fabricante": "Natreb",
+      "modelo": "Alimentador de correia (com silo)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correia sobre roletes; capacidade e armazenagem variam com o modelo e o silo acoplado",
+        "customizacao": "Projeto sob medida conforme a necessidade do cliente"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação dosada a partir de silo na mineração e cerâmica",
+        "material": "Minério e matérias-primas cerâmicas",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "contato": "natreb.com (fabricante nacional)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Largura/velocidade pela vazão; silo dimensionado pela autonomia desejada.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ",
+        "variaveis": ["largura", "v", "ρ", "volume do silo"]
+      }
+    },
+    {
+      "id": "natreb-alimentador-placas",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Placa",
+      "subtipo": "Alimentador de esteira de placas de aço",
+      "fabricante": "Natreb",
+      "modelo": "Alimentador de placas (esteira metálica sobre correntes)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Esteira de aço acionada por correntes; concepção robusta para cargas pesadas",
+        "customizacao": "Modelos padrão e projetos sob medida"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação pesada de minério a britadores/destorroadores",
+        "material": "Minério bruto, blocos, material abrasivo",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "contato": "natreb.com (fabricante nacional)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Largura pelo maior bloco; velocidade pela vazão; estrutura para impacto.",
+        "formula_capacidade": "Q = área da seção · velocidade · densidade aparente",
+        "variaveis": ["largura", "velocidade", "altura de leito", "densidade"]
+      }
+    },
+    {
+      "id": "natreb-destorroador",
+      "grupo": "Britadores",
+      "subgrupo": "Rolos / Destorroador",
+      "subtipo": "Destorroador (britador primário de rolos dentados)",
+      "fabricante": "Natreb",
+      "modelo": "Destorroador (2 ou 3 eixos dentados)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Dois ou três eixos com dentes girando em sentidos opostos; rompe torrões de minério",
+        "funcao": "Britagem primária / desagregação de torrões",
+        "customizacao": "Modelos padrão e sob medida"
+      },
+      "aplicacao": {
+        "faixa": "Britagem primária e desagregação de minério argiloso/torrões",
+        "material": "Minério úmido, argiloso, em torrões",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "contato": "natreb.com (fabricante nacional)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela vazão, abertura entre eixos e granulometria de saída.",
+        "formula_capacidade": "Q ≈ abertura entre rolos · comprimento · velocidade periférica · densidade",
+        "variaveis": ["nº de eixos", "abertura entre eixos", "rotação", "Q (t/h)"]
+      }
+    },
+    {
+      "id": "natreb-transportador-correia",
+      "grupo": "Transportadores",
+      "subgrupo": "Correia Transportadora Convencional",
+      "subtipo": "Transportador de correia",
+      "fabricante": "Natreb",
+      "modelo": "Transportador de correia",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correia transportadora para interligação entre máquinas da planta",
+        "customizacao": "Comprimento, largura e inclinação sob medida"
+      },
+      "aplicacao": {
+        "faixa": "Transporte de material entre etapas do processo",
+        "material": "Minério e matérias-primas cerâmicas",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "contato": "natreb.com (fabricante nacional)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Capacidade pela área da seção e velocidade; potência pelo método CEMA/ISO 5048.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ",
+        "variaveis": ["A (m²)", "v (m/s)", "ρ (t/m³)", "L (m)", "H (m)"]
+      }
+    },
+    {
+      "id": "natreb-moinho-rolos-lisos",
+      "grupo": "Moagem e Classificação",
+      "subgrupo": "Moinhos",
+      "subtipo": "Moinho de rolos lisos (laminador)",
+      "fabricante": "Natreb",
+      "modelo": "Moinho de rolos lisos / laminador",
+      "verificado": true,
+      "specs": {
+        "tipo": "Rolos lisos para pré-moagem e acabamento de partículas finas",
+        "modo": "Materiais a seco ou úmidos"
+      },
+      "aplicacao": {
+        "faixa": "Pré-moagem e laminação fina na mineração e cerâmica",
+        "material": "Minério e massas cerâmicas",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "contato": "natreb.com (fabricante nacional)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Abertura entre rolos pela granulometria de saída; capacidade pela largura e velocidade dos rolos.",
+        "formula_capacidade": "Q ≈ abertura · largura do rolo · velocidade periférica · densidade",
+        "variaveis": ["abertura entre rolos", "largura", "rotação", "Q (t/h)"]
       }
     }
   ]
