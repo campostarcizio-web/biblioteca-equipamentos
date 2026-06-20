@@ -1,20 +1,338 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.2.0",
+    "versao": "0.3.0",
     "atualizado_em": "2026-06-20",
-    "observacao": "Campos marcados com verificado=false precisam de conferência no catálogo do fabricante. Especificações são referência de engenharia e não substituem a folha de dados oficial.",
-    "categorias": [
-      "Britagem e moagem",
-      "Transporte e classificação",
-      "Separação e concentração",
-      "Produção de gusa"
+    "observacao": "Campos marcados com verificado=false precisam de conferência no catálogo do fabricante. Especificações são referência de engenharia e não substituem a folha de dados oficial. Informações de catálogos em outros idiomas foram traduzidas para o português.",
+    "menu": [
+      { "grupo": "Alimentadores", "subgrupos": ["Tipo Placa", "Tipo Correia"] },
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Transportador de Arraste", "Helicoidal"] },
+      { "grupo": "Britadores", "subgrupos": ["Mandíbula", "Martelo", "Impacto", "Cônico"] },
+      { "grupo": "Secadores", "subgrupos": ["Rotativos", "Rapid Dryer", "Outros"] },
+      { "grupo": "Moagem e Classificação", "subgrupos": ["Moinhos", "Peneiras", "Hidrociclones e Classificadores"] },
+      { "grupo": "Separação e Concentração", "subgrupos": ["Flotação", "Gravítica", "Magnética", "Espessamento"] },
+      { "grupo": "Produção de Gusa", "subgrupos": ["Redução", "Aglomeração", "Utilidades"] }
     ]
   },
   "equipamentos": [
     {
+      "id": "metso-apron-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Placa",
+      "subtipo": "Alimentador de placas (apron feeder)",
+      "fabricante": "Metso",
+      "modelo": "Apron Feeder",
+      "verificado": true,
+      "specs": {
+        "tipo": "Esteira de placas metálicas sobrepostas em correntes",
+        "aplicacao_tipica": "Extração/alimentação a curta distância em velocidade controlada",
+        "material": "Minério grande, duro e abrasivo; úmido, pegajoso ou argiloso"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação de britadores primários, descarga de silos, retomada sob pilhas",
+        "material": "Cargas severas de impacto e material que outros alimentadores não suportam",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/feeders/apron-feeders/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Largura pelo maior bloco e capacidade pela velocidade da esteira; estrutura para impacto na alimentação.",
+        "formula_capacidade": "Q = área da seção transportada · velocidade · densidade aparente",
+        "variaveis": ["largura (mm)", "velocidade (m/s)", "altura de leito", "densidade (t/m³)"]
+      }
+    },
+    {
+      "id": "flsmidth-afd-apron-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Placa",
+      "subtipo": "Alimentador de placas (apron feeder)",
+      "fabricante": "FLSmidth",
+      "modelo": "Série AFD",
+      "verificado": true,
+      "specs": {
+        "largura_mm": { "min": 900, "max": 4000 },
+        "capacidade_t_h": { "min": null, "max": 12000 },
+        "tipo": "Placas de aço soldado ou manganês fundido sobre correntes"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação pesada de minério a britadores primários",
+        "material": "Minério grosso, duro e abrasivo",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.flsmidth.com/en-gb/products/material-handling/apron-feeder",
+        "contato": "flsmidth.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar largura (900–4000 mm) e velocidade para a capacidade alvo (até >12.000 t/h).",
+        "formula_capacidade": "Q = área da seção · velocidade · densidade aparente",
+        "variaveis": ["largura (mm)", "velocidade", "altura de leito", "densidade (t/m³)"]
+      }
+    },
+    {
+      "id": "tk-apron-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Placa",
+      "subtipo": "Alimentador de placas (apron feeder)",
+      "fabricante": "thyssenkrupp (Polysius)",
+      "modelo": "Apron / Chain Feeder",
+      "verificado": true,
+      "specs": {
+        "tipo": "Alimentador de placas e correntes para aplicações primárias e secundárias",
+        "destaque": "Alta confiabilidade e custo-benefício otimizado"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação primária e secundária de minério",
+        "material": "Minério bruto pesado",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.thyssenkrupp-industrial-solutions.com/en/products-and-services/mineral-processing/feeders",
+        "contato": "thyssenkrupp",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Dimensionar largura/velocidade pela vazão e granulometria de alimentação.",
+        "formula_capacidade": "Q = área da seção · velocidade · densidade aparente",
+        "variaveis": ["largura", "velocidade", "densidade"]
+      }
+    },
+    {
+      "id": "metso-belt-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Correia",
+      "subtipo": "Alimentador de correia (belt feeder)",
+      "fabricante": "Metso",
+      "modelo": "Belt Feeder",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correia de borracha curta sob tremonha para extração controlada",
+        "material": "Materiais finos a médios, baixo impacto"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação dosada a partir de silos/tremonhas",
+        "material": "Minério fino, granel; carvão",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/feeders/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Largura/velocidade pela vazão; comprimento conforme abertura da tremonha.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ",
+        "variaveis": ["largura (mm)", "v (m/s)", "ρ (t/m³)", "altura de corte da tremonha"]
+      }
+    },
+    {
+      "id": "tk-belt-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Correia",
+      "subtipo": "Alimentador de correia (belt feeder)",
+      "fabricante": "thyssenkrupp",
+      "modelo": "Belt Feeder",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correia de borracha para transporte/alimentação contínuos",
+        "material": "Carvão e minério; transporte suave e econômico"
+      },
+      "aplicacao": {
+        "faixa": "Mineração e geração de energia",
+        "material": "Carvão, minério",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.thyssenkrupp-industrial-solutions.com/en/products-and-services/mineral-processing/feeders",
+        "contato": "thyssenkrupp",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Vazão pela largura e velocidade da correia.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ",
+        "variaveis": ["largura", "v", "ρ"]
+      }
+    },
+    {
+      "id": "meka-belt-feeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Correia",
+      "subtipo": "Alimentador de correia (belt feeder)",
+      "fabricante": "MEKA",
+      "modelo": "Belt Feeder",
+      "verificado": false,
+      "specs": {
+        "tipo": "Alimentador de correia para plantas de britagem/peneiramento"
+      },
+      "aplicacao": {
+        "faixa": "Alimentação contínua em plantas de agregados/minério",
+        "material": "Material britado e granel",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.mekaglobal.com/en/products/crushing-screening-plants/feeders/belt-feeder",
+        "contato": "mekaglobal.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Vazão pela largura e velocidade.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ",
+        "variaveis": ["largura", "v", "ρ"]
+      }
+    },
+    {
+      "id": "schenck-weighfeeder",
+      "grupo": "Alimentadores",
+      "subgrupo": "Tipo Correia",
+      "subtipo": "Alimentador pesador (weighfeeder)",
+      "fabricante": "Schenck Process",
+      "modelo": "DMO Weighfeeder",
+      "verificado": true,
+      "specs": {
+        "largura_correia_pol": { "min": 24, "max": 72 },
+        "tipo": "Alimentador de correia com pesagem contínua (dosagem)"
+      },
+      "aplicacao": {
+        "faixa": "Pesagem e dosagem contínua de granéis em processos automatizados",
+        "material": "Granel diverso",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.schenckprocess.com/",
+        "contato": "schenckprocess.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Largura padrão 24–54 pol (especial até 72 pol); vazão pela célula de carga e velocidade.",
+        "formula_capacidade": "Q = carga por metro (célula) · velocidade da correia",
+        "variaveis": ["largura (pol)", "carga linear", "velocidade"]
+      }
+    },
+    {
+      "id": "transportador-correia-generico",
+      "grupo": "Transportadores",
+      "subgrupo": "Correia Transportadora Convencional",
+      "subtipo": "Transportador de correia",
+      "fabricante": "Genérico (CEMA / ISO 5048; Metso, ContiTech, thyssenkrupp)",
+      "modelo": "Correia transportadora convencional",
+      "verificado": true,
+      "specs": {
+        "velocidade_m_s": { "min": 0.5, "max": 6.0 },
+        "tipo": "Correia com roletes em artesa (20°–45°)"
+      },
+      "aplicacao": {
+        "faixa": "Transporte horizontal/levemente inclinado entre etapas da planta",
+        "material": "ROM, produto britado, concentrado",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.global.weir/products/conveyors/",
+        "contato": "—",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Capacidade pela área da seção e velocidade; potência pelo método CEMA/ISO 5048.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ   [t/h]",
+        "formula_potencia": "P = (Fh + Fn + Fst + Fs) · v / η  (ISO 5048)",
+        "variaveis": ["A (m²)", "v (m/s)", "ρ (t/m³)", "L (m)", "H (m)"]
+      }
+    },
+    {
+      "id": "contitech-flexowell",
+      "grupo": "Transportadores",
+      "subgrupo": "Flexowell",
+      "subtipo": "Transportador de correia de alto ângulo / vertical",
+      "fabricante": "Continental (ContiTech)",
+      "modelo": "FLEXOWELL®",
+      "verificado": true,
+      "specs": {
+        "angulo_max_graus": 90,
+        "capacidade_t_h": { "min": 0, "max": 6000 },
+        "elevacao_vertical_m": { "min": null, "max": 500 },
+        "granulometria_max_mm": 400,
+        "tipo": "Correia com paredes laterais corrugadas e travessas (cleats)"
+      },
+      "aplicacao": {
+        "faixa": "Transporte íngreme e vertical (até 90°) de granéis",
+        "material": "Carvão, minério, rocha, areia grossa, fertilizantes; pó até blocos de 400 mm",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.continental-industry.com/getmedia/f20477b3-e0f9-4144-90b8-f7dbb13fd44f/cbg8586-en-flexowell.pdf",
+        "contato": "continental-industry.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela elevação (até 500 m), capacidade (até 6.000 t/h) e granulometria (até 400 mm).",
+        "formula_capacidade": "Q ∝ volume entre travessas · velocidade · densidade",
+        "variaveis": ["ângulo (até 90°)", "altura de parede lateral", "espaçamento de travessas", "velocidade", "densidade"]
+      }
+    },
+    {
+      "id": "transportador-arraste-redler",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste",
+      "subtipo": "Transportador de arraste / corrente (redler, en masse)",
+      "fabricante": "Redler Ltd / Aumund / fabricantes diversos",
+      "modelo": "Drag chain / En Masse (Redler)",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": null, "max": 2000 },
+        "tipo": "Correntes com raspadores em calha fechada (horizontal ou inclinado)",
+        "construcao": "Modular, baixa manutenção, transporte poeira-fechado"
+      },
+      "aplicacao": {
+        "faixa": "Transporte de granéis secos a curta/média distância, horizontal ou inclinado",
+        "material": "Granulados, finos, produtos secos; uso também em mineração subterrânea",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.redler.com/",
+        "contato": "redler.com / aumund.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Seção da calha e velocidade da corrente pela vazão; potência pela carga arrastada e atrito.",
+        "formula_capacidade": "Q = seção de material · velocidade da corrente · densidade · fator de enchimento",
+        "variaveis": ["seção da calha", "velocidade da corrente", "densidade", "fator de enchimento"]
+      }
+    },
+    {
+      "id": "transportador-helicoidal-kws",
+      "grupo": "Transportadores",
+      "subgrupo": "Helicoidal",
+      "subtipo": "Transportador helicoidal (rosca sem-fim)",
+      "fabricante": "KWS Manufacturing",
+      "modelo": "Screw Conveyor (helicoid / sectional)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Rosca helicoidal em calha; helicoid (leve/médio) ou sectional (pesado)",
+        "selecao": "Processo de 5 etapas (material, capacidade, componentes, potência, torque)"
+      },
+      "aplicacao": {
+        "faixa": "Transporte de finos a curta distância, horizontal ou inclinado",
+        "material": "Finos, pós, granéis; mineração, agregados",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.kwsmfg.com/engineering-guides/screw-conveyor/",
+        "contato": "kwsmfg.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Diâmetro/rotação pela capacidade volumétrica e fator de carga do material.",
+        "formula_capacidade": "Q = (π/4)(D² − d²) · passo · rpm · fator de carga · densidade",
+        "variaveis": ["D (diâmetro)", "passo", "rpm", "fator de carga", "densidade"]
+      }
+    },
+    {
       "id": "metso-c-series-jaw",
-      "categoria": "Britagem e moagem",
+      "grupo": "Britadores",
+      "subgrupo": "Mandíbula",
       "subtipo": "Britador de mandíbulas",
       "fabricante": "Metso",
       "modelo": "Nordberg C Series (família)",
@@ -23,8 +341,6 @@
         "capacidade_t_h": { "min": 335, "max": 1435 },
         "potencia_kw": null,
         "peso_kg": null,
-        "abertura_alimentacao_mm": null,
-        "css_mm": null,
         "tipo": "Mandíbula única, excêntrico superior, estrutura aparafusada (não soldada)"
       },
       "aplicacao": {
@@ -38,14 +354,130 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Selecionar pela abertura de alimentação (≥ 0,8 × maior dimensão do bloco) e capacidade pela CSS desejada.",
+        "criterio": "Selecionar pela abertura de alimentação (≥ 0,8 × maior bloco) e capacidade pela CSS.",
         "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)  [kWh/t];  P = W·Q",
-        "variaveis": ["Wi (índice de trabalho de Bond, kWh/t)", "F80 (µm)", "P80 (µm)", "Q (t/h)"]
+        "variaveis": ["Wi (kWh/t)", "F80 (µm)", "P80 (µm)", "Q (t/h)"]
+      }
+    },
+    {
+      "id": "tk-titan-hammer-crusher",
+      "grupo": "Britadores",
+      "subgrupo": "Martelo",
+      "subtipo": "Britador de martelos",
+      "fabricante": "thyssenkrupp (Polysius)",
+      "modelo": "titan® (eixo duplo) / mammut® (eixo único)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Britador de martelos de eixo duplo (titan) ou único (mammut)",
+        "uso": "Britagem fina de materiais de dureza média e frágeis; cimento e mineração",
+        "modo": "Pode operar a seco ou úmido"
+      },
+      "aplicacao": {
+        "faixa": "Britagem primária/secundária de calcário e materiais frágeis",
+        "material": "Rocha de média dureza, não muito abrasiva",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://serviceportal.thyssenkrupp-polysius.com/services/crushing-technologies/hammer-crusher",
+        "contato": "thyssenkrupp-polysius.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela razão de redução e abrasividade; martelos para material não muito abrasivo.",
+        "formula_potencia": "Lei de Bond (estimativa); confirmar curva do fabricante",
+        "variaveis": ["Wi", "F80", "P80", "rotação do rotor"]
+      }
+    },
+    {
+      "id": "pcx-hammer-crusher",
+      "grupo": "Britadores",
+      "subgrupo": "Martelo",
+      "subtipo": "Britador de martelos",
+      "fabricante": "Fabricantes diversos (ex.: PCX)",
+      "modelo": "Britador de martelo série PCX",
+      "verificado": false,
+      "specs": {
+        "tipo": "Rotor com martelos articulados; britagem fina de uma passagem",
+        "uso": "Mineração, metalurgia, materiais de construção, estradas"
+      },
+      "aplicacao": {
+        "faixa": "Britagem fina de material de dureza média e frágil",
+        "material": "Calcário, gesso, carvão e similares",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.miningmachinerys.com/products/hammer-crusher.html",
+        "contato": "—",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela vazão, granulometria de entrada e razão de redução.",
+        "formula_potencia": "Lei de Bond (estimativa)",
+        "variaveis": ["Wi", "F80", "P80"]
+      }
+    },
+    {
+      "id": "metso-np13-impact",
+      "grupo": "Britadores",
+      "subgrupo": "Impacto",
+      "subtipo": "Britador de impacto de eixo horizontal (HSI)",
+      "fabricante": "Metso",
+      "modelo": "Nordberg NP13 (Série NP)",
+      "verificado": true,
+      "specs": {
+        "potencia_kw": 315,
+        "tipo": "Impacto de eixo horizontal (HSI), alta razão de redução",
+        "destaque": "Sistema único de fixação das barras de impacto (blow bars)"
+      },
+      "aplicacao": {
+        "faixa": "Britagem primária, secundária e terciária",
+        "material": "Materiais macios a médios; agregados, mineração, reciclagem",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/nordberg-np-series/nordberg-np13/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela razão de redução e abrasividade (impacto = material menos abrasivo); potência até 315 kW (NP13).",
+        "formula_potencia": "Lei de Bond (estimativa); confirmar tabela do fabricante",
+        "variaveis": ["Wi", "F80", "P80", "rotação do rotor"]
+      }
+    },
+    {
+      "id": "hazemag-hpi-impact",
+      "grupo": "Britadores",
+      "subgrupo": "Impacto",
+      "subtipo": "Britador de impacto primário",
+      "fabricante": "HAZEMAG",
+      "modelo": "HPI (Primary Impactor)",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": null, "max": 2800 },
+        "volume_alimentacao_m3": 3,
+        "tipo": "Impactor primário; ajuste hidráulico de gap controlado por computador"
+      },
+      "aplicacao": {
+        "faixa": "Britagem primária de material de média dureza em uma passagem",
+        "material": "Rocha de média dureza; cimento, agregados, reciclagem",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.hazemag.com/en/products/impactors/primary-impactors-hpi/",
+        "contato": "hazemag.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pelo tamanho de bloco (rotor até 3 m³) e vazão (até 2.800 t/h); ajuste de gap pela granulometria alvo.",
+        "formula_potencia": "Lei de Bond (estimativa); confirmar curva do fabricante",
+        "variaveis": ["bloco máx. (m³)", "gap", "rotação do rotor", "Q (t/h)"]
       }
     },
     {
       "id": "sandvik-ch430",
-      "categoria": "Britagem e moagem",
+      "grupo": "Britadores",
+      "subgrupo": "Cônico",
       "subtipo": "Britador cônico",
       "fabricante": "Sandvik",
       "modelo": "CH430",
@@ -54,7 +486,6 @@
         "capacidade_t_h": { "min": 80, "max": 243 },
         "potencia_kw": 132,
         "peso_kg": 9200,
-        "abertura_alimentacao_mm": null,
         "css_mm": { "min": 6, "max": 38 },
         "tipo": "Cônico de eixo principal, secundário/terciário"
       },
@@ -64,19 +495,20 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.scribd.com/document/348162074/Technical-Data-CH430",
+        "catalogo_url": "https://www.rockprocessing.sandvik/en/products/stationary-crushers/stationary-cone-crushers/ch430-cone-crusher/",
         "contato": "mining.sandvik",
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Escolher CSS pela P80 alvo; verificar capacidade na tabela CSS × t/h e potência ≤ 132 kW.",
+        "criterio": "Escolher CSS pela P80 alvo; capacidade na tabela CSS × t/h e potência ≤ 132 kW.",
         "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)",
         "variaveis": ["Wi (kWh/t)", "F80 (µm)", "P80 (µm)", "CSS (mm)"]
       }
     },
     {
       "id": "sandvik-ch440",
-      "categoria": "Britagem e moagem",
+      "grupo": "Britadores",
+      "subgrupo": "Cônico",
       "subtipo": "Britador cônico",
       "fabricante": "Sandvik",
       "modelo": "CH440",
@@ -86,7 +518,6 @@
         "potencia_kw": 220,
         "peso_kg": 14300,
         "abertura_alimentacao_mm": 250,
-        "css_mm": null,
         "tipo": "Cônico secundário/terciário, design robusto"
       },
       "aplicacao": {
@@ -106,17 +537,212 @@
       }
     },
     {
+      "id": "feeco-rotary-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Rotativos",
+      "subtipo": "Secador rotativo (tambor)",
+      "fabricante": "FEECO International",
+      "modelo": "Rotary Dryer (direto)",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": 1, "max": 200 },
+        "tipo": "Tambor rotativo direto com suspensores (lifters)",
+        "exemplo_operacao": "Umidade entrada ~12,5% → saída ~0,5% a 30 t/h (curto)"
+      },
+      "aplicacao": {
+        "faixa": "Secagem de minerais granulados",
+        "material": "Potassa, calcário, fosfatos e outros",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://feeco.com/wp-content/uploads/2022/07/FEECO-Dryers-and-Coolers.pdf",
+        "contato": "feeco.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Diâmetro/comprimento pelo balanço térmico e tempo de residência para o ΔumIdade alvo.",
+        "formula": "Q_evaporação = vazão · (umid_in − umid_out); volume pelo tempo de residência",
+        "variaveis": ["vazão (t/h)", "umidade in/out (%)", "T do gás", "tempo de residência"]
+      }
+    },
+    {
+      "id": "metso-rotary-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Rotativos",
+      "subtipo": "Secador rotativo (tambor)",
+      "fabricante": "Metso",
+      "modelo": "Rotary Dryer / Cooler",
+      "verificado": true,
+      "specs": {
+        "tipo": "Tambor rotativo com suspensores que cortinam o material no fluxo de gás",
+        "modo": "Secagem ou resfriamento"
+      },
+      "aplicacao": {
+        "faixa": "Secagem/resfriamento de minério e concentrados",
+        "material": "Granéis minerais",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/coolers/rotary-dryers-and-coolers/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Dimensionar por balanço térmico e de massa de água a evaporar.",
+        "formula": "Q_evaporação = vazão · Δumidade; volume pelo tempo de residência",
+        "variaveis": ["vazão", "Δumidade", "T do gás", "inclinação/rpm do tambor"]
+      }
+    },
+    {
+      "id": "fls-flash-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Rapid Dryer",
+      "subtipo": "Secador flash (rapid dryer)",
+      "fabricante": "FLSmidth",
+      "modelo": "Flash Dryer / Heater",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": 1, "max": 750 },
+        "tipo": "Secagem em suspensão (segundos) de materiais finos",
+        "vantagem": "Alta eficiência térmica, compacto, baixa manutenção"
+      },
+      "aplicacao": {
+        "faixa": "Secagem rápida de finos minerais",
+        "material": "Potassa, fosfato, finos de calcário, alumina, argilas",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://fls.com/en/equipment/pyroprocessing/flash-dryers-and-heaters",
+        "contato": "fls.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Vazão de gás e câmara pela carga de evaporação e velocidade de suspensão das partículas.",
+        "formula": "Q_evaporação = vazão · Δumidade; vazão de gás pela transferência de calor",
+        "variaveis": ["vazão (t/h)", "Δumidade", "granulometria", "T do gás"]
+      }
+    },
+    {
+      "id": "allgaier-flash-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Rapid Dryer",
+      "subtipo": "Secador flash (rapid dryer)",
+      "fabricante": "Allgaier Process Technology",
+      "modelo": "Flash Dryer",
+      "verificado": true,
+      "specs": {
+        "tipo": "Secagem em segundos por arraste em fluxo de gás quente",
+        "capacidade": "De poucos kg/h a várias toneladas por hora"
+      },
+      "aplicacao": {
+        "faixa": "Secagem de finos e minerais industriais",
+        "material": "Minerais, químicos, alimentos",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.allgaier-process-technology.com/en/Competencies/Drying/Flash-Dryer",
+        "contato": "allgaier-process-technology.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Carga de evaporação e tempo de suspensão definem a vazão de gás e o duto/câmara.",
+        "formula": "Q_evaporação = vazão · Δumidade",
+        "variaveis": ["vazão", "Δumidade", "T do gás", "granulometria"]
+      }
+    },
+    {
+      "id": "fives-fcb-flash-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Rapid Dryer",
+      "subtipo": "Secador flash (rapid dryer)",
+      "fabricante": "Fives",
+      "modelo": "FCB Flash Dryer / Aerodecantor",
+      "verificado": true,
+      "specs": {
+        "tipo": "Secagem flash integrada à moagem/classificação",
+        "aplicacao": "Especialmente adaptado a finos minerais e subprodutos"
+      },
+      "aplicacao": {
+        "faixa": "Secagem de minerais industriais e calcário",
+        "material": "Cinza volante, escória, pozolana, minerais industriais, calcário",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.fivesgroup.com/cement-minerals/crushing-grinding/flash-drying-fcb-flash-dryer-fcb-aerodecantor",
+        "contato": "fivesgroup.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Balanço térmico de evaporação; integração com moinho quando aplicável.",
+        "formula": "Q_evaporação = vazão · Δumidade",
+        "variaveis": ["vazão", "Δumidade", "T do gás"]
+      }
+    },
+    {
+      "id": "hosokawa-flash-mill-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Outros",
+      "subtipo": "Secador-moinho flash (DMR)",
+      "fabricante": "Hosokawa Micron",
+      "modelo": "Flash Mill Dryer DMR",
+      "verificado": true,
+      "specs": {
+        "tipo": "Secagem e moagem simultâneas em fluxo de gás",
+        "aplicacao": "Materiais pastosos/úmidos com redução simultânea de tamanho"
+      },
+      "aplicacao": {
+        "faixa": "Secagem + cominuição de finos minerais e químicos",
+        "material": "Pastas e tortas de filtro, minerais finos",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.hosokawa-micron-bv.com/process-technologies/dryers/flash-mill-dryer-dmr.html",
+        "contato": "hosokawa-micron.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Balanço térmico + energia de moagem; vazão de gás pela evaporação e classificação.",
+        "formula": "Q_evaporação = vazão · Δumidade",
+        "variaveis": ["vazão", "Δumidade", "finura alvo", "T do gás"]
+      }
+    },
+    {
+      "id": "carrier-vibrating-dryer",
+      "grupo": "Secadores",
+      "subgrupo": "Outros",
+      "subtipo": "Secador de leito vibratório / fluidizado",
+      "fabricante": "Carrier Vibrating Equipment",
+      "modelo": "Fluid Bed / Vibrating Dryer",
+      "verificado": true,
+      "specs": {
+        "tipo": "Leito vibratório/fluidizado para secagem e resfriamento",
+        "aplicacao": "Secagem uniforme de granulados e agregados"
+      },
+      "aplicacao": {
+        "faixa": "Secagem/resfriamento de granulados minerais",
+        "material": "Areia, minério granulado, agregados",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://carriervibrating.com/equipment/dryers/flash/",
+        "contato": "carriervibrating.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área do leito pela carga de evaporação e velocidade de fluidização.",
+        "formula": "Q_evaporação = vazão · Δumidade; área pela taxa específica",
+        "variaveis": ["vazão", "Δumidade", "velocidade de ar", "granulometria"]
+      }
+    },
+    {
       "id": "moinho-bolas-generico",
-      "categoria": "Britagem e moagem",
+      "grupo": "Moagem e Classificação",
+      "subgrupo": "Moinhos",
       "subtipo": "Moinho de bolas",
       "fabricante": "Genérico (Metso / FLSmidth / Outotec)",
       "modelo": "Moinho de bolas (dimensionamento por Bond)",
       "verificado": false,
       "specs": {
-        "capacidade_t_h": null,
-        "potencia_kw": null,
-        "peso_kg": null,
-        "diametro_x_comprimento_m": null,
         "tipo": "Moagem fina, circuito fechado com hidrociclones"
       },
       "aplicacao": {
@@ -130,50 +756,20 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Potência de moagem pela Lei de Bond e dimensionamento do corpo moedor (carga de bolas 30–40% do volume).",
-        "formula_potencia": "W = 10·Wi·(1/√P80 − 1/√F80);  Potência ao eixo via equação de Bond (D^2.5).",
+        "criterio": "Potência pela Lei de Bond; corpo moedor com carga de bolas 30–40% do volume.",
+        "formula_potencia": "W = 10·Wi·(1/√P80 − 1/√F80); potência ao eixo via equação de Bond (D^2.5).",
         "variaveis": ["Wi (kWh/t)", "F80", "P80", "Q (t/h)", "D (m)", "% enchimento"]
       }
     },
     {
-      "id": "transportador-correia-generico",
-      "categoria": "Transporte e classificação",
-      "subtipo": "Transportador de correia",
-      "fabricante": "Genérico (CEMA / ISO 5048)",
-      "modelo": "Transportador de correia",
-      "verificado": true,
-      "specs": {
-        "capacidade_t_h": null,
-        "largura_correia_mm": null,
-        "velocidade_m_s": { "min": 0.5, "max": 6.0 },
-        "tipo": "Correia com roletes em artesa (20°–45°)"
-      },
-      "aplicacao": {
-        "faixa": "Transporte contínuo entre etapas da planta",
-        "material": "ROM, produto britado, concentrado",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://www.global.weir/products/conveyors/",
-        "contato": "—",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Capacidade pela área da seção transportada e velocidade; potência pelo método CEMA/ISO 5048.",
-        "formula_capacidade": "Q = 3,6 · A · v · ρ   [t/h]",
-        "formula_potencia": "P = (Fh + Fn + Fst + Fs) · v / η  (ISO 5048)",
-        "variaveis": ["A (m², área da carga)", "v (m/s)", "ρ (t/m³)", "L (m)", "H (m, elevação)"]
-      }
-    },
-    {
       "id": "metso-cvb-screen",
-      "categoria": "Transporte e classificação",
+      "grupo": "Moagem e Classificação",
+      "subgrupo": "Peneiras",
       "subtipo": "Peneira vibratória inclinada",
       "fabricante": "Metso",
       "modelo": "Premier CVB Series (inclinada)",
       "verificado": true,
       "specs": {
-        "capacidade_t_h": null,
         "decks": { "min": 1, "max": 3 },
         "angulo_graus": { "min": 12, "max": 22 },
         "movimento": "Circular",
@@ -190,21 +786,20 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Área de peneiramento pelo método VSMA: área requerida = alimentação no deck ÷ (capacidade básica × fatores).",
+        "criterio": "Área pelo método VSMA: área = alimentação no deck ÷ (capacidade básica × fatores).",
         "formula_area": "A = T / (Vu · C · D · E · F · G · H · J · K · L · M · N · O · P)",
-        "variaveis": ["T (t/h no deck)", "Vu (capacidade básica t/h·m²)", "fatores VSMA (abertura, % retido, umidade, etc.)"]
+        "variaveis": ["T (t/h no deck)", "Vu (t/h·m²)", "fatores VSMA"]
       }
     },
     {
       "id": "weir-cavex-hydrocyclone",
-      "categoria": "Transporte e classificação",
+      "grupo": "Moagem e Classificação",
+      "subgrupo": "Hidrociclones e Classificadores",
       "subtipo": "Hidrociclone",
       "fabricante": "Weir Minerals",
       "modelo": "Cavex / Cavex 2",
       "verificado": true,
       "specs": {
-        "capacidade_m3_h": null,
-        "diametro_mm": null,
         "geometria_entrada": "Espiral laminar (LIG+ no Cavex 2)",
         "ganho_capacidade": "Cavex 2 classifica até 30% mais polpa no mesmo footprint",
         "tipo": "Classificação por força centrífuga"
@@ -220,21 +815,20 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Selecionar diâmetro pelo d50 alvo e vazão por pressão de alimentação (5–15 psi típico).",
+        "criterio": "Diâmetro pelo d50 alvo e vazão pela pressão de alimentação (5–15 psi típico).",
         "formula_d50": "Correlações de Plitt / Krebs: d50c = f(Dc, Di, Do, Du, pressão, % sólidos)",
-        "variaveis": ["Dc (diâmetro do ciclone)", "Di (inlet)", "Do (vortex)", "Du (apex)", "pressão", "% sólidos"]
+        "variaveis": ["Dc", "Di", "Do", "Du", "pressão", "% sólidos"]
       }
     },
     {
       "id": "classificador-espiral",
-      "categoria": "Transporte e classificação",
+      "grupo": "Moagem e Classificação",
+      "subgrupo": "Hidrociclones e Classificadores",
       "subtipo": "Classificador espiral",
       "fabricante": "Genérico (Metso / FLSmidth)",
       "modelo": "Classificador espiral",
       "verificado": false,
       "specs": {
-        "capacidade_t_h": null,
-        "diametro_espiral_mm": null,
         "tipo": "Classificação por sedimentação"
       },
       "aplicacao": {
@@ -249,20 +843,19 @@
       },
       "dimensionamento": {
         "criterio": "Área de sedimentação e capacidade de areia pelo diâmetro/passo da espiral.",
-        "formula_capacidade": "Capacidade de overflow ∝ área da superfície; capacidade de sands ∝ Ø e rpm da espiral",
+        "formula_capacidade": "Overflow ∝ área da superfície; sands ∝ Ø e rpm da espiral",
         "variaveis": ["Ø espiral", "rpm", "% sólidos", "d50 alvo"]
       }
     },
     {
       "id": "celula-flotacao",
-      "categoria": "Separação e concentração",
+      "grupo": "Separação e Concentração",
+      "subgrupo": "Flotação",
       "subtipo": "Célula de flotação",
       "fabricante": "Genérico (Metso / Outotec / FLSmidth)",
       "modelo": "Célula mecânica / coluna",
       "verificado": false,
       "specs": {
-        "volume_m3": null,
-        "potencia_kw": null,
         "tipo": "Flotação por espuma"
       },
       "aplicacao": {
@@ -277,20 +870,20 @@
       },
       "dimensionamento": {
         "criterio": "Número/volume de células pelo tempo de residência do banco.",
-        "formula_volume": "V_total = Q · t_residência / (1 − fração de ar);  N = V_total / V_célula",
-        "variaveis": ["Q (m³/h de polpa)", "t (min, tempo de flotação do teste)", "V_célula", "fração de ar"]
+        "formula_volume": "V_total = Q · t_residência / (1 − fração de ar); N = V_total / V_célula",
+        "variaveis": ["Q (m³/h)", "t (min)", "V_célula", "fração de ar"]
       }
     },
     {
       "id": "espiral-concentradora",
-      "categoria": "Separação e concentração",
+      "grupo": "Separação e Concentração",
+      "subgrupo": "Gravítica",
       "subtipo": "Espiral concentradora",
       "fabricante": "Genérico (Multotec / Mineral Technologies)",
       "modelo": "Espiral de concentração gravítica",
       "verificado": false,
       "specs": {
         "capacidade_t_h_por_inicio": { "min": 1.5, "max": 3.0 },
-        "voltas": null,
         "tipo": "Concentração gravítica em fluxo laminar"
       },
       "aplicacao": {
@@ -311,14 +904,13 @@
     },
     {
       "id": "separador-magnetico",
-      "categoria": "Separação e concentração",
+      "grupo": "Separação e Concentração",
+      "subgrupo": "Magnética",
       "subtipo": "Separador magnético",
       "fabricante": "Genérico (Eriez / Metso / WHIMS)",
       "modelo": "Tambor / WHIMS",
       "verificado": false,
       "specs": {
-        "intensidade_campo_gauss": null,
-        "capacidade_t_h": null,
         "tipo": "Baixa intensidade (LIMS) ou alta intensidade (WHIMS)"
       },
       "aplicacao": {
@@ -332,21 +924,20 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Selecionar intensidade pela suscetibilidade magnética; capacidade pela largura/velocidade do tambor.",
+        "criterio": "Intensidade pela suscetibilidade magnética; capacidade pela largura/velocidade do tambor.",
         "formula_capacidade": "Q ≈ largura · velocidade · espessura da camada · ρ",
         "variaveis": ["intensidade (Gauss/Tesla)", "largura (m)", "velocidade", "% magnético"]
       }
     },
     {
       "id": "espessador",
-      "categoria": "Separação e concentração",
+      "grupo": "Separação e Concentração",
+      "subgrupo": "Espessamento",
       "subtipo": "Espessador",
       "fabricante": "Genérico (Metso / FLSmidth / McLanahan)",
       "modelo": "Espessador convencional / high-rate",
       "verificado": false,
       "specs": {
-        "diametro_m": null,
-        "capacidade_t_d": null,
         "tipo": "Sedimentação por gravidade com floculante"
       },
       "aplicacao": {
@@ -360,21 +951,20 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Área unitária pelo método de Coe-Clevenger ou Talmage-Fitch a partir de ensaio de sedimentação.",
-        "formula_area": "A_unitária = (1/Cu − 1/Co) / (taxa de sedimentação);  A = A_unitária · Q_sólidos",
-        "variaveis": ["taxa de sedimentação (m/h)", "Co e Cu (% sólidos entrada/underflow)", "Q_sólidos (t/d)"]
+        "criterio": "Área unitária por Coe-Clevenger ou Talmage-Fitch a partir de ensaio de sedimentação.",
+        "formula_area": "A_unitária = (1/Cu − 1/Co) / (taxa de sedimentação); A = A_unitária · Q_sólidos",
+        "variaveis": ["taxa de sedimentação (m/h)", "Co e Cu (%)", "Q_sólidos (t/d)"]
       }
     },
     {
       "id": "alto-forno",
-      "categoria": "Produção de gusa",
+      "grupo": "Produção de Gusa",
+      "subgrupo": "Redução",
       "subtipo": "Alto-forno",
       "fabricante": "Paul Wurth (SMS group) / Danieli / Primetals",
       "modelo": "Alto-forno / Mini Alto-Forno (MAF a carvão vegetal)",
       "verificado": true,
       "specs": {
-        "producao_t_dia": null,
-        "volume_util_m3": null,
         "produtividade_t_m3_dia": { "min": 1.5, "max": 2.5 },
         "redutor": "Coque (grande porte) ou carvão vegetal (MAF, comum no Brasil)",
         "tipo": "Reator de redução em contracorrente"
@@ -392,18 +982,18 @@
       "dimensionamento": {
         "criterio": "Volume útil pela produção alvo e produtividade (t de gusa por m³ de volume útil por dia).",
         "formula_volume": "V_útil = Produção (t/dia) / produtividade (t/m³·dia)",
-        "variaveis": ["Produção (t/dia)", "produtividade (1,5–2,5 t/m³·dia)", "rate de redutor (kg/t)", "% Fe da carga"]
+        "variaveis": ["Produção (t/dia)", "produtividade (1,5–2,5)", "rate de redutor (kg/t)", "% Fe da carga"]
       }
     },
     {
       "id": "planta-sinterizacao",
-      "categoria": "Produção de gusa",
+      "grupo": "Produção de Gusa",
+      "subgrupo": "Aglomeração",
       "subtipo": "Sinterização",
       "fabricante": "Paul Wurth / SMS group / Primetals (Dwight-Lloyd)",
       "modelo": "Máquina de sínter (esteira Dwight-Lloyd)",
       "verificado": true,
       "specs": {
-        "area_sinterizacao_m2": null,
         "produtividade_t_m2_h": { "min": 1.2, "max": 1.5 },
         "tipo": "Esteira contínua de sinterização por sucção"
       },
@@ -413,27 +1003,26 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.sms-group.com/plants/sinter-plants",
+        "catalogo_url": "https://www.sms-group.com/plants/blast-furnace",
         "contato": "sms-group.com",
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Área da esteira pela demanda de sínter do alto-forno e produtividade específica.",
+        "criterio": "Área da esteira pela demanda de sínter e produtividade específica.",
         "formula_area": "A = Produção de sínter (t/h) / produtividade (t/m²·h)",
-        "variaveis": ["Produção de sínter (t/h)", "produtividade (1,2–1,5 t/m²·h)", "altura de camada", "vácuo"]
+        "variaveis": ["Produção (t/h)", "produtividade (1,2–1,5)", "altura de camada", "vácuo"]
       }
     },
     {
       "id": "soprador-ar-alto-forno",
-      "categoria": "Produção de gusa",
+      "grupo": "Produção de Gusa",
+      "subgrupo": "Utilidades",
       "subtipo": "Soprador de ar",
       "fabricante": "Howden / Siemens / MAN Energy Solutions",
       "modelo": "Turbo-soprador / soprador axial de sopro",
       "verificado": false,
       "specs": {
-        "vazao_ar_Nm3_min": null,
         "pressao_bar": { "min": 2.5, "max": 4.5 },
-        "potencia_kw": null,
         "tipo": "Compressor centrífugo/axial para ar de sopro"
       },
       "aplicacao": {
@@ -447,17 +1036,18 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Vazão de ar pela taxa de sopro específica do alto-forno; pressão para vencer a perda de carga da carga + tuyeres.",
+        "criterio": "Vazão pela taxa de sopro específica; pressão para vencer a perda de carga da carga + tuyeres.",
         "formula_vazao": "Q_ar = volume específico de sopro (Nm³/t) · produção (t/min)",
-        "variaveis": ["volume de sopro (Nm³/t gusa)", "produção (t/dia)", "pressão de sopro", "temperatura de sopro"]
+        "variaveis": ["volume de sopro (Nm³/t)", "produção (t/dia)", "pressão", "temperatura"]
       }
     },
     {
       "id": "regenerador-cowper",
-      "categoria": "Produção de gusa",
+      "grupo": "Produção de Gusa",
+      "subgrupo": "Utilidades",
       "subtipo": "Regenerador (hot blast stove)",
       "fabricante": "Paul Wurth / SMS group",
-      "modelo": "Regenerador tipo Cowper / queimador interno ou externo",
+      "modelo": "Regenerador tipo Cowper",
       "verificado": true,
       "specs": {
         "temperatura_sopro_C": { "min": 1100, "max": 1300 },
@@ -475,8 +1065,8 @@
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Área de troca do empilhamento (checker) pela vazão de ar e temperatura de sopro alvo; tipicamente 3–4 stoves em ciclo.",
-        "formula": "Área de checker ∝ vazão de ar · ΔT / (ciclo de troca); número de stoves pelo regime on-gas/on-blast",
+        "criterio": "Área de checker pela vazão de ar e temperatura de sopro alvo; tipicamente 3–4 stoves em ciclo.",
+        "formula": "Área de checker ∝ vazão de ar · ΔT / ciclo; nº de stoves pelo regime on-gas/on-blast",
         "variaveis": ["vazão de ar (Nm³/min)", "T de sopro alvo", "PCI do gás", "tempo de ciclo"]
       }
     }

@@ -7,10 +7,15 @@ cada equipamento traz especificações técnicas, faixas de aplicação, dados c
 
 ## Categorias
 
-- Britagem e moagem
-- Transporte e classificação
-- Separação e concentração
-- Produção de gusa
+O site tem um **menu hambúrguer** com grupos e subgrupos:
+
+- Alimentadores: Tipo Placa, Tipo Correia
+- Transportadores: Correia Convencional, Flexowell, Transportador de Arraste, Helicoidal
+- Britadores: Mandíbula, Martelo, Impacto, Cônico
+- Secadores: Rotativos, Rapid Dryer, Outros
+- Moagem e Classificação: Moinhos, Peneiras, Hidrociclones e Classificadores
+- Separação e Concentração: Flotação, Gravítica, Magnética, Espessamento
+- Produção de Gusa: Redução, Aglomeração, Utilidades
 
 ## Estrutura do projeto
 
