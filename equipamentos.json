@@ -1,9 +1,9 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.3.0",
+    "versao": "0.4.0",
     "atualizado_em": "2026-06-20",
-    "observacao": "Campos marcados com verificado=false precisam de conferência no catálogo do fabricante. Especificações são referência de engenharia e não substituem a folha de dados oficial. Informações de catálogos em outros idiomas foram traduzidas para o português.",
+    "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
       { "grupo": "Alimentadores", "subgrupos": ["Tipo Placa", "Tipo Correia"] },
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Transportador de Arraste", "Helicoidal"] },
@@ -34,7 +34,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.metso.com/portfolio/feeders/apron-feeders/",
+        "catalogo_url": "https://pdf.directindustry.com/pdf/metso-corporation/apron-feeders-brochure/9344-774416.html",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -63,7 +63,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.flsmidth.com/en-gb/products/material-handling/apron-feeder",
+        "catalogo_url": "https://prod.flsmidth.com/globalassets/frontify/2024/9/apronfeeder_brochure.pdf",
         "contato": "flsmidth.com",
         "preco_referencia": null
       },
@@ -291,14 +291,71 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.redler.com/",
-        "contato": "redler.com / aumund.com",
+        "catalogo_url": "https://screwconveyor.com/wp-content/uploads/2021/11/Drag-Conveyors-Catalog.pdf",
+        "contato": "redler.com",
         "preco_referencia": null
       },
       "dimensionamento": {
         "criterio": "Seção da calha e velocidade da corrente pela vazão; potência pela carga arrastada e atrito.",
         "formula_capacidade": "Q = seção de material · velocidade da corrente · densidade · fator de enchimento",
         "variaveis": ["seção da calha", "velocidade da corrente", "densidade", "fator de enchimento"]
+      }
+    },
+    {
+      "id": "rud-drag-conveyor",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste",
+      "subtipo": "Transportador de arraste a corrente (round-link)",
+      "fabricante": "RUD",
+      "modelo": "RUD Conveyor Systems / correntes de elo redondo (mineração)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correntes de elo redondo de alta resistência para transportadores de arraste",
+        "destaque": "Conector RUD DOMINATOR, referência mundial; transmite altíssimos esforços de tração",
+        "aplicacao": "Transportadores de alto desempenho em mineração subterrânea e de superfície"
+      },
+      "aplicacao": {
+        "faixa": "Transporte de granel a corrente em alta carga; mineração",
+        "material": "Carvão, minério e granéis pesados",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.rud.com/fileadmin/user_upload/Conveyor_Drive_Systems/2018_RUD_TECDOS_DRIVE_TECHNOLOGY_EN_web.pdf",
+        "contato": "rud.com (download: web.rud.com/en-us/products/conveyor-systems/download.html)",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar bitola/classe da corrente pela tração de trabalho; seção da calha e velocidade pela vazão.",
+        "formula_capacidade": "Q = seção de material · velocidade da corrente · densidade · fator de enchimento",
+        "variaveis": ["classe/bitola da corrente", "tração de trabalho", "velocidade", "seção da calha", "densidade"]
+      }
+    },
+    {
+      "id": "aumund-drag-conveyor",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste",
+      "subtipo": "Transportador de arraste / arrastador de corrente",
+      "fabricante": "AUMUND",
+      "modelo": "Transportador de corrente / KZB (en masse)",
+      "verificado": false,
+      "specs": {
+        "tipo": "Transportador de corrente fechado para granéis (horizontal/inclinado)",
+        "construcao": "Robusto, baixo desgaste, transporte poeira-fechado"
+      },
+      "aplicacao": {
+        "faixa": "Transporte e extração de granéis (clínquer, calcário, minério)",
+        "material": "Granéis quentes e abrasivos",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.aumund.com/en/products/conveying/",
+        "contato": "aumund.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Seção da calha e velocidade da corrente pela vazão; classe da corrente pela tração.",
+        "formula_capacidade": "Q = seção de material · velocidade · densidade · fator de enchimento",
+        "variaveis": ["seção da calha", "velocidade", "densidade", "fator de enchimento"]
       }
     },
     {
@@ -319,7 +376,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.kwsmfg.com/engineering-guides/screw-conveyor/",
+        "catalogo_url": "https://www.kwsmfg.com/wp-content/themes/va/pdf/Screw-Conveyor-Engineering-Guide.pdf",
         "contato": "kwsmfg.com",
         "preco_referencia": null
       },
@@ -349,7 +406,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.metso.com/portfolio/nordberg-c-series/",
+        "catalogo_url": "https://www.metso.com/globalassets/brochure-nordberg-c-series-4226-04-24-en-agg.pdf",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -435,7 +492,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.metso.com/portfolio/nordberg-np-series/nordberg-np13/",
+        "catalogo_url": "https://www.metso.com/globalassets/pdfs-and-other-downloads/nordberg-np-series-hsi-crushers-4865-01-25-en-agg.pdf",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -495,7 +552,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.rockprocessing.sandvik/en/products/stationary-crushers/stationary-cone-crushers/ch430-cone-crusher/",
+        "catalogo_url": "https://www.lutze-group.com/fileadmin/user_upload/bs-pso/sandvik/brochure-sandvik-ch430-stationary-cone-crusher.pdf",
         "contato": "mining.sandvik",
         "preco_referencia": null
       },

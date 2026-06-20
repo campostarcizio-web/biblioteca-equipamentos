@@ -245,7 +245,7 @@ function openItem(i){
       ${row("Faixa de aplicação",ap.faixa)}${row("Material",ap.material)}${row("Curva de desempenho",ap.curva_desempenho_url)}</table></div>
     <div class="sec"><h4>Comercial / fornecedor</h4><table>
       ${row("Fabricante",e.fabricante)}${row("Modelo",e.modelo)}
-      <tr><td class="k">Catálogo</td><td>${link}</td></tr>${row("Contato",co.contato)}${row("Preço de referência",co.preco_referencia)}</table></div>
+      <tr><td class="k">Catálogo (download)</td><td>${link}</td></tr>${row("Contato",co.contato)}${row("Preço de referência",co.preco_referencia)}</table></div>
     <div class="sec"><h4>Dimensionamento</h4><table>${row("Critério",di.criterio)}</table>${formulas}
       ${vars?`<div class="chips" style="margin-top:8px">${vars}</div>`:""}</div>`;
   $("#modal").classList.add("open");
