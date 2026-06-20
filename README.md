@@ -10,21 +10,21 @@ cada equipamento traz especificações técnicas, faixas de aplicação, dados c
 - Britagem e moagem
 - Transporte e classificação
 - Separação e concentração
+- Produção de gusa
 
 ## Estrutura do projeto
 
 ```
 .
-├── index.html              # Site (busca + filtros + ficha técnica)
-├── data/
-│   └── equipamentos.json   # Banco de dados da biblioteca
-├── .nojekyll               # Garante que o GitHub Pages sirva a pasta data/
+├── index.html          # Site (busca + filtros + ficha técnica)
+├── equipamentos.json   # Banco de dados da biblioteca
+├── .nojekyll           # Desativa o Jekyll no GitHub Pages
 └── README.md
 ```
 
 ## Como adicionar um equipamento
 
-Edite `data/equipamentos.json` e acrescente um objeto ao array `equipamentos`:
+Edite `equipamentos.json` e acrescente um objeto ao array `equipamentos`:
 
 ```json
 {

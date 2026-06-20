@@ -1,13 +1,14 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.1.0",
+    "versao": "0.2.0",
     "atualizado_em": "2026-06-20",
     "observacao": "Campos marcados com verificado=false precisam de conferência no catálogo do fabricante. Especificações são referência de engenharia e não substituem a folha de dados oficial.",
     "categorias": [
       "Britagem e moagem",
       "Transporte e classificação",
-      "Separação e concentração"
+      "Separação e concentração",
+      "Produção de gusa"
     ]
   },
   "equipamentos": [
@@ -79,29 +80,29 @@
       "subtipo": "Britador cônico",
       "fabricante": "Sandvik",
       "modelo": "CH440",
-      "verificado": false,
+      "verificado": true,
       "specs": {
-        "capacidade_t_h": null,
+        "capacidade_t_h": { "min": 58, "max": 336 },
         "potencia_kw": 220,
-        "peso_kg": null,
-        "abertura_alimentacao_mm": null,
+        "peso_kg": 14300,
+        "abertura_alimentacao_mm": 250,
         "css_mm": null,
-        "tipo": "Cônico secundário/terciário (conferir no catálogo)"
+        "tipo": "Cônico secundário/terciário, design robusto"
       },
       "aplicacao": {
-        "faixa": "Britagem secundária e terciária",
-        "material": "Minério e rocha",
+        "faixa": "Britagem secundária e terciária de alta capacidade",
+        "material": "Minério e rocha; alimentação máx. ~250 mm",
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://manuals.plus/m/67b0d60c4d9feee474aca460c51f9f12ad53aa9b8328abd2ca9f999a4dd15e05",
+        "catalogo_url": "https://www.rockprocessing.sandvik/en/products/stationary-crushers/stationary-cone-crushers/ch440-cone-crusher/",
         "contato": "mining.sandvik",
         "preco_referencia": null
       },
       "dimensionamento": {
-        "criterio": "Conferir tabela CSS × capacidade do catálogo oficial.",
-        "formula_potencia": "Lei de Bond",
-        "variaveis": ["Wi", "F80", "P80", "CSS"]
+        "criterio": "Escolher CSS pela P80 alvo; conferir tabela CSS × capacidade e potência ≤ 220 kW.",
+        "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)",
+        "variaveis": ["Wi (kWh/t)", "F80 (µm)", "P80 (µm)", "CSS (mm)"]
       }
     },
     {
@@ -362,6 +363,121 @@
         "criterio": "Área unitária pelo método de Coe-Clevenger ou Talmage-Fitch a partir de ensaio de sedimentação.",
         "formula_area": "A_unitária = (1/Cu − 1/Co) / (taxa de sedimentação);  A = A_unitária · Q_sólidos",
         "variaveis": ["taxa de sedimentação (m/h)", "Co e Cu (% sólidos entrada/underflow)", "Q_sólidos (t/d)"]
+      }
+    },
+    {
+      "id": "alto-forno",
+      "categoria": "Produção de gusa",
+      "subtipo": "Alto-forno",
+      "fabricante": "Paul Wurth (SMS group) / Danieli / Primetals",
+      "modelo": "Alto-forno / Mini Alto-Forno (MAF a carvão vegetal)",
+      "verificado": true,
+      "specs": {
+        "producao_t_dia": null,
+        "volume_util_m3": null,
+        "produtividade_t_m3_dia": { "min": 1.5, "max": 2.5 },
+        "redutor": "Coque (grande porte) ou carvão vegetal (MAF, comum no Brasil)",
+        "tipo": "Reator de redução em contracorrente"
+      },
+      "aplicacao": {
+        "faixa": "Redução de minério de ferro a ferro-gusa líquido",
+        "material": "Sínter/pelota/granulado + redutor + fundente",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.paulwurth.com/en/technology/blast-furnace-ironmaking/",
+        "contato": "paulwurth.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Volume útil pela produção alvo e produtividade (t de gusa por m³ de volume útil por dia).",
+        "formula_volume": "V_útil = Produção (t/dia) / produtividade (t/m³·dia)",
+        "variaveis": ["Produção (t/dia)", "produtividade (1,5–2,5 t/m³·dia)", "rate de redutor (kg/t)", "% Fe da carga"]
+      }
+    },
+    {
+      "id": "planta-sinterizacao",
+      "categoria": "Produção de gusa",
+      "subtipo": "Sinterização",
+      "fabricante": "Paul Wurth / SMS group / Primetals (Dwight-Lloyd)",
+      "modelo": "Máquina de sínter (esteira Dwight-Lloyd)",
+      "verificado": true,
+      "specs": {
+        "area_sinterizacao_m2": null,
+        "produtividade_t_m2_h": { "min": 1.2, "max": 1.5 },
+        "tipo": "Esteira contínua de sinterização por sucção"
+      },
+      "aplicacao": {
+        "faixa": "Aglomeração de finos de minério para carga do alto-forno",
+        "material": "Finos de minério + coque/finos de carvão + fundentes",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.sms-group.com/plants/sinter-plants",
+        "contato": "sms-group.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área da esteira pela demanda de sínter do alto-forno e produtividade específica.",
+        "formula_area": "A = Produção de sínter (t/h) / produtividade (t/m²·h)",
+        "variaveis": ["Produção de sínter (t/h)", "produtividade (1,2–1,5 t/m²·h)", "altura de camada", "vácuo"]
+      }
+    },
+    {
+      "id": "soprador-ar-alto-forno",
+      "categoria": "Produção de gusa",
+      "subtipo": "Soprador de ar",
+      "fabricante": "Howden / Siemens / MAN Energy Solutions",
+      "modelo": "Turbo-soprador / soprador axial de sopro",
+      "verificado": false,
+      "specs": {
+        "vazao_ar_Nm3_min": null,
+        "pressao_bar": { "min": 2.5, "max": 4.5 },
+        "potencia_kw": null,
+        "tipo": "Compressor centrífugo/axial para ar de sopro"
+      },
+      "aplicacao": {
+        "faixa": "Fornecimento de ar de combustão (blast) ao alto-forno",
+        "material": "Ar atmosférico (depois aquecido nos regeneradores)",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.howden.com/",
+        "contato": "howden.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Vazão de ar pela taxa de sopro específica do alto-forno; pressão para vencer a perda de carga da carga + tuyeres.",
+        "formula_vazao": "Q_ar = volume específico de sopro (Nm³/t) · produção (t/min)",
+        "variaveis": ["volume de sopro (Nm³/t gusa)", "produção (t/dia)", "pressão de sopro", "temperatura de sopro"]
+      }
+    },
+    {
+      "id": "regenerador-cowper",
+      "categoria": "Produção de gusa",
+      "subtipo": "Regenerador (hot blast stove)",
+      "fabricante": "Paul Wurth / SMS group",
+      "modelo": "Regenerador tipo Cowper / queimador interno ou externo",
+      "verificado": true,
+      "specs": {
+        "temperatura_sopro_C": { "min": 1100, "max": 1300 },
+        "n_regeneradores": { "min": 3, "max": 4 },
+        "tipo": "Trocador de calor regenerativo com empilhamento cerâmico (checker)"
+      },
+      "aplicacao": {
+        "faixa": "Pré-aquecimento do ar de sopro do alto-forno",
+        "material": "Ar de sopro; queima de gás de alto-forno/coqueria",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.paulwurth.com/en/technology/blast-furnace-ironmaking/",
+        "contato": "paulwurth.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área de troca do empilhamento (checker) pela vazão de ar e temperatura de sopro alvo; tipicamente 3–4 stoves em ciclo.",
+        "formula": "Área de checker ∝ vazão de ar · ΔT / (ciclo de troca); número de stoves pelo regime on-gas/on-blast",
+        "variaveis": ["vazão de ar (Nm³/min)", "T de sopro alvo", "PCI do gás", "tempo de ciclo"]
       }
     }
   ]
