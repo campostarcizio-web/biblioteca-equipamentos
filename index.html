@@ -3,114 +3,169 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Biblioteca de Equipamentos · Mineração e Beneficiamento</title>
+<title>ProjectARK · Biblioteca de Equipamentos</title>
 <style>
   :root{
-    --bg:#0f1419; --panel:#1a212b; --panel2:#222c38; --line:#2e3a48;
-    --txt:#e6edf3; --muted:#9bb0c3; --accent:#f0a020; --accent2:#3b82f6;
-    --ok:#2ea043; --warn:#d29922; --drawer:#141b24;
+    --navy:#0E1B2E; --navy2:#16263d; --navy3:#1d3047;
+    --teal:#1E9BC4; --teal-d:#16789a; --gold:#D9A94A; --gold-d:#bb8f37;
+    --bg:#eef1f4; --card:#ffffff; --ink:#1c2733; --muted:#5f6b78; --line:#d7dde3;
+    --ok:#2e8b4f; --okbg:#e7f4ec; --warn:#9a7a1b; --warnbg:#fbf3dd;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5}
-  header{position:sticky;top:0;z-index:40;background:linear-gradient(135deg,#16202b,#0f1419);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;gap:14px}
-  .burger{background:var(--panel);border:1px solid var(--line);color:var(--txt);width:42px;height:42px;border-radius:8px;font-size:1.3rem;cursor:pointer;flex:none}
-  .burger:hover{border-color:var(--accent)}
-  header h1{margin:0;font-size:1.15rem}
-  header .sub{color:var(--muted);font-size:.8rem;margin:0}
-  /* Drawer */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:45}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  a{color:var(--teal-d);word-break:break-all}
+
+  /* Header */
+  header{position:sticky;top:0;z-index:40;background:var(--navy);border-bottom:3px solid var(--gold);padding:10px 18px;display:flex;align-items:center;gap:18px}
+  .burger{display:none;background:var(--navy2);border:1px solid var(--navy3);color:#fff;width:40px;height:40px;border-radius:7px;font-size:1.2rem;cursor:pointer;flex:none}
+  .brand{display:flex;align-items:center;gap:11px;flex:none}
+  .brand .mark{width:42px;height:42px;flex:none}
+  .brand .wm{line-height:1.05}
+  .brand .wm .t1{font-size:1.25rem;font-weight:800;letter-spacing:.2px}
+  .brand .wm .t1 .p{color:#f4f7fa}
+  .brand .wm .t1 .a{color:var(--teal)}
+  .brand .wm .t2{font-size:.62rem;letter-spacing:.32em;color:var(--gold);font-weight:600}
+  .searchwrap{flex:1;display:flex;justify-content:center}
+  .searchwrap input{width:100%;max-width:640px;background:#fff;border:1px solid var(--navy3);border-radius:6px;padding:11px 14px;font-size:.95rem;color:var(--ink)}
+  .searchwrap input:focus{outline:2px solid var(--teal)}
+  .htag{flex:none;color:#9fb2c4;font-size:.72rem;text-align:right}
+  .htag b{color:var(--gold);font-weight:700}
+
+  /* Layout */
+  .layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:30}
   .overlay.open{display:block}
-  .drawer{position:fixed;top:0;left:0;height:100%;width:300px;background:var(--drawer);border-right:1px solid var(--line);transform:translateX(-100%);transition:transform .22s;z-index:46;overflow-y:auto;padding:16px 0}
-  .drawer.open{transform:translateX(0)}
-  .drawer h2{font-size:.95rem;margin:0 18px 10px;color:var(--accent)}
-  .navitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--txt);padding:9px 18px;cursor:pointer;font-size:.92rem}
-  .navitem.all{font-weight:600}
-  .navitem:hover{background:var(--panel)}
-  .navitem.active{background:var(--panel);color:var(--accent);border-left:3px solid var(--accent);padding-left:15px}
-  .grp{margin-top:6px}
-  .grphead{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;color:var(--txt);padding:11px 18px;cursor:pointer;font-size:.95rem;font-weight:600}
-  .grphead:hover{background:var(--panel)}
-  .grphead .arrow{color:var(--muted);transition:transform .15s}
+  aside{width:264px;flex:none;background:#fff;border-right:1px solid var(--line);min-height:calc(100vh - 65px);padding:14px 0}
+  aside h2{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 16px 8px}
+  .navitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:8px 16px;cursor:pointer;font-size:.9rem;border-left:3px solid transparent}
+  .navitem.all{font-weight:700}
+  .navitem:hover{background:#f1f5f8;color:var(--teal-d)}
+  .navitem.active{background:#eaf4f8;color:var(--teal-d);border-left-color:var(--gold);font-weight:600}
+  .grphead{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;color:var(--ink);padding:10px 16px;cursor:pointer;font-size:.92rem;font-weight:700;border-left:3px solid transparent}
+  .grphead:hover{background:#f1f5f8}
+  .grp.active>.grphead{border-left-color:var(--gold);color:var(--teal-d)}
+  .grphead .arrow{color:var(--muted);transition:transform .15s;font-size:.8rem}
   .grp.open .arrow{transform:rotate(90deg)}
-  .subs{display:none;padding:2px 0 6px}
+  .subs{display:none}
   .grp.open .subs{display:block}
-  .subs .navitem{padding-left:34px;font-size:.88rem;color:var(--muted)}
-  .subs .navitem:hover{color:var(--txt)}
-  .subs .navitem.active{color:var(--accent);padding-left:31px}
+  .subs .navitem{padding-left:34px;font-size:.85rem;color:var(--muted)}
+  .subs .navitem.active{color:var(--teal-d)}
+
   /* Content */
-  .controls{max-width:1200px;margin:0 auto;padding:16px 20px 8px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-  input[type=search],select{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:8px;font-size:.9rem}
-  input[type=search]{flex:1;min-width:220px}
-  .crumb{max-width:1200px;margin:0 auto;padding:4px 20px;color:var(--muted);font-size:.85rem}
-  .crumb b{color:var(--txt)}
-  .count{color:var(--muted);font-size:.85rem;margin-left:auto}
-  main{max-width:1200px;margin:0 auto;padding:8px 20px 60px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:8px}
-  .card:hover{border-color:var(--accent);transform:translateY(-2px)}
-  .card .cat{font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
-  .card h3{margin:0;font-size:1.02rem}
-  .card .fab{color:var(--muted);font-size:.85rem}
-  .badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:600}
-  .b-ok{background:rgba(46,160,67,.15);color:#56d364;border:1px solid rgba(46,160,67,.4)}
-  .b-warn{background:rgba(210,153,34,.15);color:#e3b341;border:1px solid rgba(210,153,34,.4)}
-  .card .quick{font-size:.82rem;color:var(--muted);margin-top:auto}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
+  main{flex:1;min-width:0;padding:0 20px 60px}
+  .crumb{padding:14px 2px 6px;color:var(--muted);font-size:.82rem}
+  .crumb b{color:var(--ink)}
+  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 2px 16px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .toolbar h1{font-size:1.25rem;margin:0;flex:1;min-width:200px}
+  select{background:#fff;border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:6px;font-size:.88rem}
+  .count{color:var(--muted);font-size:.84rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:9px}
+  .card:hover{border-color:var(--teal);box-shadow:0 4px 14px rgba(14,27,46,.08);transform:translateY(-2px)}
+  .card .top{display:flex;gap:12px;align-items:flex-start}
+  .card .icon{width:46px;height:46px;flex:none;color:var(--navy);background:#eef4f8;border:1px solid var(--line);border-radius:8px;padding:7px}
+  .card .cat{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-d);font-weight:700}
+  .card h3{margin:2px 0 0;font-size:1rem}
+  .card .fab{color:var(--muted);font-size:.84rem}
+  .badge{display:inline-block;font-size:.68rem;padding:2px 8px;border-radius:20px;font-weight:700}
+  .b-ok{background:var(--okbg);color:var(--ok);border:1px solid #bfe1cb}
+  .b-warn{background:var(--warnbg);color:var(--warn);border:1px solid #ecd9a3}
+  .card .quick{font-size:.82rem;color:var(--muted);margin-top:auto;padding-top:4px}
+
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(14,27,46,.55);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
   .modal.open{display:flex}
-  .sheet{background:var(--panel2);border:1px solid var(--line);border-radius:14px;max-width:720px;width:100%;padding:26px}
+  .sheet{background:#fff;border:1px solid var(--line);border-radius:12px;max-width:720px;width:100%;padding:26px}
   .sheet h2{margin:0 0 2px}
-  .sheet .subh{color:var(--muted);margin-bottom:18px}
+  .sheet .subh{color:var(--muted);margin-bottom:18px;font-size:.9rem}
   .sec{margin:18px 0}
-  .sec h4{margin:0 0 8px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+  .sec h4{margin:0 0 8px;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d)}
   table{width:100%;border-collapse:collapse;font-size:.88rem}
   td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
   td.k{color:var(--muted);width:42%}
-  .formula{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:Consolas,monospace;font-size:.85rem;white-space:pre-wrap;color:#e3b341;margin-top:6px}
-  a{color:var(--accent2);word-break:break-all}
+  .formula{background:#f6f8fa;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:Consolas,monospace;font-size:.84rem;white-space:pre-wrap;color:#34506b;margin-top:6px}
   .close{float:right;background:none;border:none;color:var(--muted);font-size:1.6rem;cursor:pointer;line-height:1}
-  .chips span{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px;font-size:.8rem}
-  footer{max-width:1200px;margin:0 auto;padding:24px 20px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line)}
+  .chips span{display:inline-block;background:#eef4f8;border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px;font-size:.8rem}
+  footer{background:var(--navy);color:#9fb2c4;font-size:.8rem;padding:18px 20px;text-align:center;border-top:3px solid var(--gold)}
+
+  @media(max-width:900px){
+    .burger{display:block}
+    aside{position:fixed;top:65px;left:0;height:calc(100% - 65px);transform:translateX(-100%);transition:transform .22s;z-index:35}
+    aside.open{transform:translateX(0)}
+    .htag{display:none}
+  }
 </style>
 </head>
 <body>
 <header>
   <button class="burger" id="burger" aria-label="Menu">☰</button>
-  <div>
-    <h1>Biblioteca de Equipamentos · Mineração e Beneficiamento</h1>
-    <p class="sub" id="sub"></p>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="ProjectArk">
+      <g fill="none" stroke="#D9A94A" stroke-width="7">
+        <circle cx="50" cy="52" r="30"/>
+      </g>
+      <g fill="#D9A94A">
+        <rect x="46" y="13" width="8" height="12"/><rect x="46" y="79" width="8" height="12"/>
+        <rect x="11" y="48" width="12" height="8"/><rect x="77" y="48" width="12" height="8"/>
+        <rect x="22" y="22" width="8" height="11" transform="rotate(-45 26 27)"/>
+        <rect x="70" y="22" width="8" height="11" transform="rotate(45 74 27)"/>
+        <rect x="22" y="71" width="8" height="11" transform="rotate(45 26 76)"/>
+        <rect x="70" y="71" width="8" height="11" transform="rotate(-45 74 76)"/>
+      </g>
+      <path d="M30 66 L48 48 L40 44 L62 38 L58 60 L52 52 L34 70 Z" fill="#2f4257"/>
+      <path d="M28 70 L58 40 L52 38 L70 33 L66 51 L60 46 L33 73 Z" fill="#1E9BC4"/>
+    </svg>
+    <div class="wm">
+      <div class="t1"><span class="p">Project</span><span class="a">ARK</span></div>
+      <div class="t2">BIBLIOTECA DE EQUIPAMENTOS</div>
+    </div>
   </div>
+  <div class="searchwrap"><input type="search" id="q" placeholder="Buscar por modelo, fabricante, tipo de equipamento…" /></div>
+  <div class="htag" id="htag"></div>
 </header>
 
 <div class="overlay" id="overlay"></div>
-<nav class="drawer" id="drawer">
-  <h2>Grupos de equipamentos</h2>
-  <button class="navitem all active" data-all="1">Todos os equipamentos</button>
-  <div id="menu"></div>
-</nav>
-
-<div class="controls">
-  <input type="search" id="q" placeholder="Buscar por modelo, fabricante, tipo…" />
-  <select id="fFab"><option value="">Todos os fabricantes</option></select>
-  <span class="count" id="count"></span>
+<div class="layout">
+  <aside id="drawer">
+    <h2>Catálogo</h2>
+    <button class="navitem all active" data-all="1">Todos os equipamentos</button>
+    <div id="menu"></div>
+  </aside>
+  <main>
+    <div class="crumb" id="crumb"></div>
+    <div class="toolbar">
+      <h1 id="title">Todos os equipamentos</h1>
+      <select id="fFab"><option value="">Todos os fabricantes</option></select>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
 </div>
-<div class="crumb" id="crumb"></div>
-<main><div class="grid" id="grid"></div></main>
-<footer>
-  <strong>Aviso:</strong> dados de referência de engenharia, com informações de catálogos traduzidas quando em outro idioma.
-  Itens marcados “A verificar” precisam de conferência na folha de dados oficial do fabricante antes de qualquer especificação de projeto.
-</footer>
+
+<footer id="foot">ProjectARK · Biblioteca de Equipamentos</footer>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 
 <script>
-let DB = {meta:{},equipamentos:[]};
-let curGrupo="", curSub="";
-const $ = s => document.querySelector(s);
+let DB={meta:{},equipamentos:[]};
+let curGrupo="",curSub="";
+const $=s=>document.querySelector(s);
+
+const ICONS={
+  "Alimentadores":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 30 L30 14"/><path d="M10 36 L34 20"/><path d="M6 30 L10 36 L34 20 L30 14 Z"/><path d="M14 26 l3 4M20 22 l3 4M26 18 l3 4"/></svg>',
+  "Transportadores":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/></svg>',
+  "Britadores":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 8 L20 26 L24 22 L28 28 L32 8"/><path d="M14 30 L24 40 L34 30"/></svg>',
+  "Secadores":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="8" y="16" width="32" height="16" rx="8"/><path d="M14 12 c0 -3 4 -3 4 -6 M24 12 c0 -3 4 -3 4 -6"/></svg>',
+  "Moagem e Classificação":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="24" r="14"/><circle cx="19" cy="21" r="2.5"/><circle cx="28" cy="20" r="2.5"/><circle cx="24" cy="28" r="2.5"/></svg>',
+  "Separação e Concentração":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 12 H38 L28 26 V38 L20 34 V26 Z"/></svg>',
+  "Produção de Gusa":'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 10 H32 L36 38 H12 Z"/><path d="M24 18 c-3 3 -3 7 0 9 c3 -2 3 -6 0 -9Z" fill="currentColor"/></svg>'
+};
+function icon(g){return ICONS[g]||'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="10" y="10" width="28" height="28" rx="4"/></svg>';}
 
 function val(v){
-  if(v===null||v===undefined||v==="") return "—";
+  if(v===null||v===undefined||v==="")return "—";
   if(typeof v==="object"){
-    if("min" in v && "max" in v) return (v.min==null?"≤ ":v.min+" – ")+(v.max==null?"—":v.max);
+    if("min" in v&&"max" in v)return (v.min==null?"≤ ":v.min+" – ")+(v.max==null?"—":v.max);
     return Object.entries(v).map(([k,x])=>k+": "+val(x)).join(", ");
   }
   return v;
@@ -124,96 +179,75 @@ function buildMenu(){
     const subs=(g.subgrupos||[]).map(s=>`<button class="navitem" data-grupo="${g.grupo}" data-sub="${s}">${s}</button>`).join("");
     return `<div class="grp" data-grp="${g.grupo}">
       <button class="grphead" data-grupo="${g.grupo}"><span>${g.grupo}</span><span class="arrow">›</span></button>
-      <div class="subs">${subs}</div>
-    </div>`;
+      <div class="subs">${subs}</div></div>`;
   }).join("");
-
   document.querySelectorAll(".grphead").forEach(b=>b.addEventListener("click",()=>{
-    const grp=b.closest(".grp");
-    const wasOpen=grp.classList.contains("open");
-    grp.classList.toggle("open");
+    b.closest(".grp").classList.toggle("open");
     selectFilter(b.dataset.grupo,"");
   }));
   document.querySelectorAll(".subs .navitem").forEach(b=>b.addEventListener("click",()=>{
-    selectFilter(b.dataset.grupo,b.dataset.sub);
-    closeDrawer();
+    selectFilter(b.dataset.grupo,b.dataset.sub);closeDrawer();
   }));
   $(".navitem.all").addEventListener("click",()=>{selectFilter("","");closeDrawer();});
 }
-
 function selectFilter(grupo,sub){
   curGrupo=grupo;curSub=sub;
-  document.querySelectorAll(".navitem").forEach(n=>n.classList.remove("active"));
+  document.querySelectorAll(".navitem,.grp").forEach(n=>n.classList.remove("active"));
   if(!grupo){$(".navitem.all").classList.add("active");}
-  else if(sub){
-    const el=document.querySelector(`.subs .navitem[data-grupo="${CSS.escape(grupo)}"][data-sub="${CSS.escape(sub)}"]`);
-    if(el){el.classList.add("active"); el.closest(".grp").classList.add("open");}
-  } else {
+  else{
     const grp=document.querySelector(`.grp[data-grp="${CSS.escape(grupo)}"]`);
-    if(grp){grp.classList.add("open");}
+    if(grp){grp.classList.add("active","open");}
+    if(sub){const el=document.querySelector(`.subs .navitem[data-grupo="${CSS.escape(grupo)}"][data-sub="${CSS.escape(sub)}"]`);if(el)el.classList.add("active");}
   }
   render();
 }
-
 function openDrawer(){$("#drawer").classList.add("open");$("#overlay").classList.add("open");}
 function closeDrawer(){$("#drawer").classList.remove("open");$("#overlay").classList.remove("open");}
 
 function render(){
-  const q=$("#q").value.toLowerCase(), f=$("#fFab").value;
+  const q=$("#q").value.toLowerCase(),f=$("#fFab").value;
   const list=DB.equipamentos.filter(e=>{
     const hay=(e.modelo+" "+e.fabricante+" "+e.subtipo+" "+(e.grupo||"")+" "+(e.subgrupo||"")+" "+(e.specs&&e.specs.tipo||"")).toLowerCase();
-    return (!q||hay.includes(q)) && (!f||e.fabricante===f) &&
-           (!curGrupo||e.grupo===curGrupo) && (!curSub||e.subgrupo===curSub);
+    return (!q||hay.includes(q))&&(!f||e.fabricante===f)&&(!curGrupo||e.grupo===curGrupo)&&(!curSub||e.subgrupo===curSub);
   });
   $("#count").textContent=list.length+" de "+DB.equipamentos.length+" equipamentos";
-  $("#crumb").innerHTML = curGrupo ? `<b>${curGrupo}</b>${curSub?" › "+curSub:""}` : "<b>Todos os equipamentos</b>";
+  $("#title").textContent=curSub||curGrupo||"Todos os equipamentos";
+  $("#crumb").innerHTML="Catálogo"+(curGrupo?` › <b>${curGrupo}</b>`:"")+(curSub?` › <b>${curSub}</b>`:"");
   $("#grid").innerHTML=list.map(e=>{
-    const idx=DB.equipamentos.indexOf(e);
-    const sp=e.specs||{};
+    const idx=DB.equipamentos.indexOf(e);const sp=e.specs||{};
     let quick="";
-    if(sp.capacidade_t_h) quick="Cap.: "+val(sp.capacidade_t_h)+" t/h";
-    else if(sp.potencia_kw) quick="Pot.: "+sp.potencia_kw+" kW";
-    else if(sp.angulo_max_graus) quick="Até "+sp.angulo_max_graus+"°";
+    if(sp.capacidade_t_h)quick="Cap.: "+val(sp.capacidade_t_h)+" t/h";
+    else if(sp.potencia_kw)quick="Pot.: "+sp.potencia_kw+" kW";
+    else if(sp.angulo_max_graus)quick="Até "+sp.angulo_max_graus+"°";
     return `<div class="card" onclick="openItem(${idx})">
-      <div class="cat">${e.grupo||""}${e.subgrupo?" · "+e.subgrupo:""}</div>
-      <h3>${e.modelo}</h3>
-      <div class="fab">${e.fabricante} · ${e.subtipo}</div>
+      <div class="top">
+        <div class="icon">${icon(e.grupo)}</div>
+        <div><div class="cat">${e.grupo||""}${e.subgrupo?" · "+e.subgrupo:""}</div>
+        <h3>${e.modelo}</h3><div class="fab">${e.fabricante}</div></div>
+      </div>
       <div>${badge(e.verificado)}</div>
-      <div class="quick">${quick||"&nbsp;"}</div>
+      <div class="quick">${e.subtipo}${quick?" — "+quick:""}</div>
     </div>`;
   }).join("")||'<p style="color:var(--muted)">Nenhum equipamento encontrado.</p>';
 }
-
 function row(k,v){return `<tr><td class="k">${k}</td><td>${val(v)}</td></tr>`}
 function openItem(i){
-  const e=DB.equipamentos[i];
-  const sp=e.specs||{}, ap=e.aplicacao||{}, co=e.comercial||{}, di=e.dimensionamento||{};
+  const e=DB.equipamentos[i];const sp=e.specs||{},ap=e.aplicacao||{},co=e.comercial||{},di=e.dimensionamento||{};
   const specRows=Object.entries(sp).map(([k,v])=>row(k.replace(/_/g," "),v)).join("");
   const link=co.catalogo_url?`<a href="${co.catalogo_url}" target="_blank" rel="noopener">${co.catalogo_url}</a>`:"—";
   const formulas=Object.entries(di).filter(([k])=>k.startsWith("formula")).map(([k,v])=>`<div class="formula">${v}</div>`).join("");
   const vars=(di.variaveis||[]).map(v=>`<span>${v}</span>`).join("");
-  $("#sheet").innerHTML=`
-    <button class="close" onclick="closeModal()">×</button>
+  $("#sheet").innerHTML=`<button class="close" onclick="closeModal()">×</button>
     <h2>${e.modelo}</h2>
     <div class="subh">${e.fabricante} · ${e.subtipo} · ${e.grupo||""}${e.subgrupo?" › "+e.subgrupo:""} &nbsp; ${badge(e.verificado)}</div>
     <div class="sec"><h4>Especificações técnicas</h4><table>${specRows}</table></div>
     <div class="sec"><h4>Curvas e faixas de aplicação</h4><table>
-      ${row("Faixa de aplicação",ap.faixa)}
-      ${row("Material",ap.material)}
-      ${row("Curva de desempenho",ap.curva_desempenho_url)}
-    </table></div>
+      ${row("Faixa de aplicação",ap.faixa)}${row("Material",ap.material)}${row("Curva de desempenho",ap.curva_desempenho_url)}</table></div>
     <div class="sec"><h4>Comercial / fornecedor</h4><table>
-      ${row("Fabricante",e.fabricante)}
-      ${row("Modelo",e.modelo)}
-      <tr><td class="k">Catálogo</td><td>${link}</td></tr>
-      ${row("Contato",co.contato)}
-      ${row("Preço de referência",co.preco_referencia)}
-    </table></div>
-    <div class="sec"><h4>Dimensionamento</h4>
-      <table>${row("Critério",di.criterio)}</table>
-      ${formulas}
-      ${vars?`<div class="chips" style="margin-top:8px">${vars}</div>`:""}
-    </div>`;
+      ${row("Fabricante",e.fabricante)}${row("Modelo",e.modelo)}
+      <tr><td class="k">Catálogo</td><td>${link}</td></tr>${row("Contato",co.contato)}${row("Preço de referência",co.preco_referencia)}</table></div>
+    <div class="sec"><h4>Dimensionamento</h4><table>${row("Critério",di.criterio)}</table>${formulas}
+      ${vars?`<div class="chips" style="margin-top:8px">${vars}</div>`:""}</div>`;
   $("#modal").classList.add("open");
 }
 function closeModal(){$("#modal").classList.remove("open")}
@@ -225,21 +259,13 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeD
 
 fetch("equipamentos.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{
   DB=d;
-  $("#sub").textContent="Versão "+d.meta.versao+" · "+d.equipamentos.length+" equipamentos · atualizado "+d.meta.atualizado_em;
+  $("#htag").innerHTML="Versão "+d.meta.versao+"<br>"+d.equipamentos.length+" equipamentos";
+  $("#foot").textContent="ProjectARK · Biblioteca de Equipamentos · v"+d.meta.versao+" · atualizado "+d.meta.atualizado_em;
   buildMenu();
-  fillFab();
-  $("#q").addEventListener("input",render);
-  $("#fFab").addEventListener("input",render);
+  uniq(d.equipamentos.map(e=>e.fabricante)).forEach(o=>{const x=document.createElement("option");x.value=o;x.textContent=o;$("#fFab").appendChild(x);});
+  $("#q").addEventListener("input",render);$("#fFab").addEventListener("input",render);
   render();
-}).catch(()=>{
-  $("#grid").innerHTML='<p style="color:#f85149">Erro ao carregar equipamentos.json — abra o site via GitHub Pages, não pelo arquivo local.</p>';
-});
-
-function fillFab(){
-  uniq(DB.equipamentos.map(e=>e.fabricante)).forEach(o=>{
-    const x=document.createElement("option");x.value=o;x.textContent=o;$("#fFab").appendChild(x);
-  });
-}
+}).catch(()=>{$("#grid").innerHTML='<p style="color:#b33">Erro ao carregar equipamentos.json — abra o site via GitHub Pages.</p>';});
 </script>
 </body>
 </html>

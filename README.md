@@ -1,4 +1,4 @@
-# Biblioteca de Equipamentos · Mineração e Beneficiamento
+# ProjectARK · Biblioteca de Equipamentos
 
 Catálogo técnico pesquisável de equipamentos para plantas de beneficiamento de minérios,
 construído a partir de catálogos online de fornecedores. Foco em **dimensionamento**:
