@@ -235,6 +235,7 @@ function openItem(i){
   const e=DB.equipamentos[i];const sp=e.specs||{},ap=e.aplicacao||{},co=e.comercial||{},di=e.dimensionamento||{};
   const specRows=Object.entries(sp).map(([k,v])=>row(k.replace(/_/g," "),v)).join("");
   const link=co.catalogo_url?`<a href="${co.catalogo_url}" target="_blank" rel="noopener">${co.catalogo_url}</a>`:"—";
+  const row3d=co.desenho_3d_url?`<tr><td class="k">Desenho 3D (download)</td><td><a href="${co.desenho_3d_url}" target="_blank" rel="noopener">${co.desenho_3d_url}</a></td></tr>`:"";
   const formulas=Object.entries(di).filter(([k])=>k.startsWith("formula")).map(([k,v])=>`<div class="formula">${v}</div>`).join("");
   const vars=(di.variaveis||[]).map(v=>`<span>${v}</span>`).join("");
   $("#sheet").innerHTML=`<button class="close" onclick="closeModal()">×</button>
@@ -245,7 +246,7 @@ function openItem(i){
       ${row("Faixa de aplicação",ap.faixa)}${row("Material",ap.material)}${row("Curva de desempenho",ap.curva_desempenho_url)}</table></div>
     <div class="sec"><h4>Comercial / fornecedor</h4><table>
       ${row("Fabricante",e.fabricante)}${row("Modelo",e.modelo)}
-      <tr><td class="k">Catálogo (download)</td><td>${link}</td></tr>${row("Contato",co.contato)}${row("Preço de referência",co.preco_referencia)}</table></div>
+      <tr><td class="k">Catálogo (download)</td><td>${link}</td></tr>${row3d}${row("Contato",co.contato)}${row("Preço de referência",co.preco_referencia)}</table></div>
     <div class="sec"><h4>Dimensionamento</h4><table>${row("Critério",di.criterio)}</table>${formulas}
       ${vars?`<div class="chips" style="margin-top:8px">${vars}</div>`:""}</div>`;
   $("#modal").classList.add("open");

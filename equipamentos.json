@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.5.0",
+    "versao": "0.6.0",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
@@ -35,6 +35,7 @@
       },
       "comercial": {
         "catalogo_url": "https://pdf.directindustry.com/pdf/metso-corporation/apron-feeders-brochure/9344-774416.html",
+        "desenho_3d_url": "https://www.metso.com/campaigns/metso-preconfigured-feeders/",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -120,6 +121,7 @@
       },
       "comercial": {
         "catalogo_url": "https://www.metso.com/portfolio/feeders/",
+        "desenho_3d_url": "https://www.metso.com/campaigns/metso-preconfigured-feeders/",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -377,6 +379,7 @@
       },
       "comercial": {
         "catalogo_url": "https://www.kwsmfg.com/wp-content/themes/va/pdf/Screw-Conveyor-Engineering-Guide.pdf",
+        "desenho_3d_url": "https://www.traceparts.com/en/search/kws-manufacturing-company-ltd?CatalogPath=KWS_1886478394:F_KWS",
         "contato": "kwsmfg.com",
         "preco_referencia": null
       },
@@ -407,6 +410,7 @@
       },
       "comercial": {
         "catalogo_url": "https://www.metso.com/globalassets/brochure-nordberg-c-series-4226-04-24-en-agg.pdf",
+        "desenho_3d_url": "https://www.traceparts.com/goto?CatalogPath=METSO_1300210253",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -493,6 +497,7 @@
       },
       "comercial": {
         "catalogo_url": "https://www.metso.com/globalassets/pdfs-and-other-downloads/nordberg-np-series-hsi-crushers-4865-01-25-en-agg.pdf",
+        "desenho_3d_url": "https://www.traceparts.com/goto?CatalogPath=METSO_1300210253",
         "contato": "metso.com",
         "preco_referencia": null
       },
@@ -839,6 +844,7 @@
       },
       "comercial": {
         "catalogo_url": "https://www.metso.com/portfolio/cvb-series/",
+        "desenho_3d_url": "https://www.traceparts.com/goto?CatalogPath=METSO_1300210253",
         "contato": "metso.com",
         "preco_referencia": null
       },
