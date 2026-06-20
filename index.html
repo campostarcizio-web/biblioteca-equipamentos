@@ -159,7 +159,7 @@ function closeModal(){$("#modal").classList.remove("open")}
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 
-fetch("equipamentos.json").then(r=>r.json()).then(d=>{
+fetch("equipamentos.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{
   DB=d;
   $("#metaBar").innerHTML=
     `<span>Versão ${d.meta.versao}</span><span>Atualizado: ${d.meta.atualizado_em}</span><span>${d.equipamentos.length} equipamentos</span>`;
