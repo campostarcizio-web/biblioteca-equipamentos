@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
+    "versao": "0.1.0",
+    "atualizado_em": "2026-06-20",
+    "observacao": "Campos marcados com verificado=false precisam de conferência no catálogo do fabricante. Especificações são referência de engenharia e não substituem a folha de dados oficial.",
+    "categorias": [
+      "Britagem e moagem",
+      "Transporte e classificação",
+      "Separação e concentração"
+    ]
+  },
+  "equipamentos": [
+    {
+      "id": "metso-c-series-jaw",
+      "categoria": "Britagem e moagem",
+      "subtipo": "Britador de mandíbulas",
+      "fabricante": "Metso",
+      "modelo": "Nordberg C Series (família)",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": 335, "max": 1435 },
+        "potencia_kw": null,
+        "peso_kg": null,
+        "abertura_alimentacao_mm": null,
+        "css_mm": null,
+        "tipo": "Mandíbula única, excêntrico superior, estrutura aparafusada (não soldada)"
+      },
+      "aplicacao": {
+        "faixa": "Britagem primária em mineração, agregados e reciclagem",
+        "material": "Rocha dura e abrasiva",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/nordberg-c-series/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela abertura de alimentação (≥ 0,8 × maior dimensão do bloco) e capacidade pela CSS desejada.",
+        "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)  [kWh/t];  P = W·Q",
+        "variaveis": ["Wi (índice de trabalho de Bond, kWh/t)", "F80 (µm)", "P80 (µm)", "Q (t/h)"]
+      }
+    },
+    {
+      "id": "sandvik-ch430",
+      "categoria": "Britagem e moagem",
+      "subtipo": "Britador cônico",
+      "fabricante": "Sandvik",
+      "modelo": "CH430",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": { "min": 80, "max": 243 },
+        "potencia_kw": 132,
+        "peso_kg": 9200,
+        "abertura_alimentacao_mm": null,
+        "css_mm": { "min": 6, "max": 38 },
+        "tipo": "Cônico de eixo principal, secundário/terciário"
+      },
+      "aplicacao": {
+        "faixa": "Britagem secundária e terciária",
+        "material": "Minério e rocha; capacidade varia com a CSS",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.scribd.com/document/348162074/Technical-Data-CH430",
+        "contato": "mining.sandvik",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Escolher CSS pela P80 alvo; verificar capacidade na tabela CSS × t/h e potência ≤ 132 kW.",
+        "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)",
+        "variaveis": ["Wi (kWh/t)", "F80 (µm)", "P80 (µm)", "CSS (mm)"]
+      }
+    },
+    {
+      "id": "sandvik-ch440",
+      "categoria": "Britagem e moagem",
+      "subtipo": "Britador cônico",
+      "fabricante": "Sandvik",
+      "modelo": "CH440",
+      "verificado": false,
+      "specs": {
+        "capacidade_t_h": null,
+        "potencia_kw": 220,
+        "peso_kg": null,
+        "abertura_alimentacao_mm": null,
+        "css_mm": null,
+        "tipo": "Cônico secundário/terciário (conferir no catálogo)"
+      },
+      "aplicacao": {
+        "faixa": "Britagem secundária e terciária",
+        "material": "Minério e rocha",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://manuals.plus/m/67b0d60c4d9feee474aca460c51f9f12ad53aa9b8328abd2ca9f999a4dd15e05",
+        "contato": "mining.sandvik",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Conferir tabela CSS × capacidade do catálogo oficial.",
+        "formula_potencia": "Lei de Bond",
+        "variaveis": ["Wi", "F80", "P80", "CSS"]
+      }
+    },
+    {
+      "id": "moinho-bolas-generico",
+      "categoria": "Britagem e moagem",
+      "subtipo": "Moinho de bolas",
+      "fabricante": "Genérico (Metso / FLSmidth / Outotec)",
+      "modelo": "Moinho de bolas (dimensionamento por Bond)",
+      "verificado": false,
+      "specs": {
+        "capacidade_t_h": null,
+        "potencia_kw": null,
+        "peso_kg": null,
+        "diametro_x_comprimento_m": null,
+        "tipo": "Moagem fina, circuito fechado com hidrociclones"
+      },
+      "aplicacao": {
+        "faixa": "Moagem secundária/regrinding antes da concentração",
+        "material": "Polpa de minério",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/grinding-mills/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Potência de moagem pela Lei de Bond e dimensionamento do corpo moedor (carga de bolas 30–40% do volume).",
+        "formula_potencia": "W = 10·Wi·(1/√P80 − 1/√F80);  Potência ao eixo via equação de Bond (D^2.5).",
+        "variaveis": ["Wi (kWh/t)", "F80", "P80", "Q (t/h)", "D (m)", "% enchimento"]
+      }
+    },
+    {
+      "id": "transportador-correia-generico",
+      "categoria": "Transporte e classificação",
+      "subtipo": "Transportador de correia",
+      "fabricante": "Genérico (CEMA / ISO 5048)",
+      "modelo": "Transportador de correia",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": null,
+        "largura_correia_mm": null,
+        "velocidade_m_s": { "min": 0.5, "max": 6.0 },
+        "tipo": "Correia com roletes em artesa (20°–45°)"
+      },
+      "aplicacao": {
+        "faixa": "Transporte contínuo entre etapas da planta",
+        "material": "ROM, produto britado, concentrado",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.global.weir/products/conveyors/",
+        "contato": "—",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Capacidade pela área da seção transportada e velocidade; potência pelo método CEMA/ISO 5048.",
+        "formula_capacidade": "Q = 3,6 · A · v · ρ   [t/h]",
+        "formula_potencia": "P = (Fh + Fn + Fst + Fs) · v / η  (ISO 5048)",
+        "variaveis": ["A (m², área da carga)", "v (m/s)", "ρ (t/m³)", "L (m)", "H (m, elevação)"]
+      }
+    },
+    {
+      "id": "metso-cvb-screen",
+      "categoria": "Transporte e classificação",
+      "subtipo": "Peneira vibratória inclinada",
+      "fabricante": "Metso",
+      "modelo": "Premier CVB Series (inclinada)",
+      "verificado": true,
+      "specs": {
+        "capacidade_t_h": null,
+        "decks": { "min": 1, "max": 3 },
+        "angulo_graus": { "min": 12, "max": 22 },
+        "movimento": "Circular",
+        "tipo": "Peneira inclinada, processo seco ou úmido"
+      },
+      "aplicacao": {
+        "faixa": "Classificação de separações grossas a finas",
+        "material": "Minério/agregado, com ou sem lavagem",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/cvb-series/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área de peneiramento pelo método VSMA: área requerida = alimentação no deck ÷ (capacidade básica × fatores).",
+        "formula_area": "A = T / (Vu · C · D · E · F · G · H · J · K · L · M · N · O · P)",
+        "variaveis": ["T (t/h no deck)", "Vu (capacidade básica t/h·m²)", "fatores VSMA (abertura, % retido, umidade, etc.)"]
+      }
+    },
+    {
+      "id": "weir-cavex-hydrocyclone",
+      "categoria": "Transporte e classificação",
+      "subtipo": "Hidrociclone",
+      "fabricante": "Weir Minerals",
+      "modelo": "Cavex / Cavex 2",
+      "verificado": true,
+      "specs": {
+        "capacidade_m3_h": null,
+        "diametro_mm": null,
+        "geometria_entrada": "Espiral laminar (LIG+ no Cavex 2)",
+        "ganho_capacidade": "Cavex 2 classifica até 30% mais polpa no mesmo footprint",
+        "tipo": "Classificação por força centrífuga"
+      },
+      "aplicacao": {
+        "faixa": "Classificação em circuito de moagem; deslamagem",
+        "material": "Polpa de minério",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.global.weir/product-catalogue/hydrocyclones/",
+        "contato": "global.weir",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar diâmetro pelo d50 alvo e vazão por pressão de alimentação (5–15 psi típico).",
+        "formula_d50": "Correlações de Plitt / Krebs: d50c = f(Dc, Di, Do, Du, pressão, % sólidos)",
+        "variaveis": ["Dc (diâmetro do ciclone)", "Di (inlet)", "Do (vortex)", "Du (apex)", "pressão", "% sólidos"]
+      }
+    },
+    {
+      "id": "classificador-espiral",
+      "categoria": "Transporte e classificação",
+      "subtipo": "Classificador espiral",
+      "fabricante": "Genérico (Metso / FLSmidth)",
+      "modelo": "Classificador espiral",
+      "verificado": false,
+      "specs": {
+        "capacidade_t_h": null,
+        "diametro_espiral_mm": null,
+        "tipo": "Classificação por sedimentação"
+      },
+      "aplicacao": {
+        "faixa": "Classificação grossa em circuito de moagem",
+        "material": "Polpa de minério",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/",
+        "contato": "—",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área de sedimentação e capacidade de areia pelo diâmetro/passo da espiral.",
+        "formula_capacidade": "Capacidade de overflow ∝ área da superfície; capacidade de sands ∝ Ø e rpm da espiral",
+        "variaveis": ["Ø espiral", "rpm", "% sólidos", "d50 alvo"]
+      }
+    },
+    {
+      "id": "celula-flotacao",
+      "categoria": "Separação e concentração",
+      "subtipo": "Célula de flotação",
+      "fabricante": "Genérico (Metso / Outotec / FLSmidth)",
+      "modelo": "Célula mecânica / coluna",
+      "verificado": false,
+      "specs": {
+        "volume_m3": null,
+        "potencia_kw": null,
+        "tipo": "Flotação por espuma"
+      },
+      "aplicacao": {
+        "faixa": "Concentração de sulfetos, fosfato, minério de ferro reverso",
+        "material": "Polpa condicionada com reagentes",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/flotation/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Número/volume de células pelo tempo de residência do banco.",
+        "formula_volume": "V_total = Q · t_residência / (1 − fração de ar);  N = V_total / V_célula",
+        "variaveis": ["Q (m³/h de polpa)", "t (min, tempo de flotação do teste)", "V_célula", "fração de ar"]
+      }
+    },
+    {
+      "id": "espiral-concentradora",
+      "categoria": "Separação e concentração",
+      "subtipo": "Espiral concentradora",
+      "fabricante": "Genérico (Multotec / Mineral Technologies)",
+      "modelo": "Espiral de concentração gravítica",
+      "verificado": false,
+      "specs": {
+        "capacidade_t_h_por_inicio": { "min": 1.5, "max": 3.0 },
+        "voltas": null,
+        "tipo": "Concentração gravítica em fluxo laminar"
+      },
+      "aplicacao": {
+        "faixa": "Minério de ferro fino, areias minerais, carvão",
+        "material": "Polpa 25–40% sólidos",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.multotec.com/en/products/gravity-concentration/spiral-concentrators",
+        "contato": "multotec.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Número de inícios (starts) = vazão de alimentação ÷ capacidade por início.",
+        "formula": "N_inícios = Q_alim (t/h) / capacidade por início (t/h)",
+        "variaveis": ["Q (t/h)", "% sólidos", "granulometria", "densidade do minério"]
+      }
+    },
+    {
+      "id": "separador-magnetico",
+      "categoria": "Separação e concentração",
+      "subtipo": "Separador magnético",
+      "fabricante": "Genérico (Eriez / Metso / WHIMS)",
+      "modelo": "Tambor / WHIMS",
+      "verificado": false,
+      "specs": {
+        "intensidade_campo_gauss": null,
+        "capacidade_t_h": null,
+        "tipo": "Baixa intensidade (LIMS) ou alta intensidade (WHIMS)"
+      },
+      "aplicacao": {
+        "faixa": "Concentração de minério de ferro magnético; remoção de contaminantes",
+        "material": "Minério moído (seco ou úmido)",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.eriez.com/",
+        "contato": "eriez.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar intensidade pela suscetibilidade magnética; capacidade pela largura/velocidade do tambor.",
+        "formula_capacidade": "Q ≈ largura · velocidade · espessura da camada · ρ",
+        "variaveis": ["intensidade (Gauss/Tesla)", "largura (m)", "velocidade", "% magnético"]
+      }
+    },
+    {
+      "id": "espessador",
+      "categoria": "Separação e concentração",
+      "subtipo": "Espessador",
+      "fabricante": "Genérico (Metso / FLSmidth / McLanahan)",
+      "modelo": "Espessador convencional / high-rate",
+      "verificado": false,
+      "specs": {
+        "diametro_m": null,
+        "capacidade_t_d": null,
+        "tipo": "Sedimentação por gravidade com floculante"
+      },
+      "aplicacao": {
+        "faixa": "Recuperação de água e adensamento de polpa/rejeito",
+        "material": "Polpa fina de minério/rejeito",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.metso.com/portfolio/thickening/",
+        "contato": "metso.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Área unitária pelo método de Coe-Clevenger ou Talmage-Fitch a partir de ensaio de sedimentação.",
+        "formula_area": "A_unitária = (1/Cu − 1/Co) / (taxa de sedimentação);  A = A_unitária · Q_sólidos",
+        "variaveis": ["taxa de sedimentação (m/h)", "Co e Cu (% sólidos entrada/underflow)", "Q_sólidos (t/d)"]
+      }
+    }
+  ]
+}

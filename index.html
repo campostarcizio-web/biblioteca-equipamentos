@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Biblioteca de Equipamentos · Mineração e Beneficiamento</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#222c38; --line:#2e3a48;
+    --txt:#e6edf3; --muted:#9bb0c3; --accent:#f0a020; --accent2:#3b82f6;
+    --ok:#2ea043; --warn:#d29922;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5}
+  header{background:linear-gradient(135deg,#16202b,#0f1419);border-bottom:1px solid var(--line);padding:28px 20px}
+  header .wrap{max-width:1200px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:1.6rem}
+  header p{margin:0;color:var(--muted);font-size:.95rem}
+  .meta-bar{max-width:1200px;margin:0 auto;padding:12px 20px;color:var(--muted);font-size:.8rem;display:flex;gap:18px;flex-wrap:wrap}
+  .controls{max-width:1200px;margin:0 auto;padding:8px 20px 20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  input[type=search],select{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:8px;font-size:.9rem}
+  input[type=search]{flex:1;min-width:220px}
+  .count{color:var(--muted);font-size:.85rem;margin-left:auto}
+  main{max-width:1200px;margin:0 auto;padding:0 20px 60px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:8px}
+  .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .card .cat{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+  .card h3{margin:0;font-size:1.05rem}
+  .card .fab{color:var(--muted);font-size:.85rem}
+  .badge{display:inline-block;font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:600}
+  .b-ok{background:rgba(46,160,67,.15);color:#56d364;border:1px solid rgba(46,160,67,.4)}
+  .b-warn{background:rgba(210,153,34,.15);color:#e3b341;border:1px solid rgba(210,153,34,.4)}
+  .card .quick{font-size:.82rem;color:var(--muted);margin-top:auto}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
+  .modal.open{display:flex}
+  .sheet{background:var(--panel2);border:1px solid var(--line);border-radius:14px;max-width:720px;width:100%;padding:26px}
+  .sheet h2{margin:0 0 2px}
+  .sheet .sub{color:var(--muted);margin-bottom:18px}
+  .sec{margin:18px 0}
+  .sec h4{margin:0 0 8px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.k{color:var(--muted);width:42%}
+  .formula{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:Consolas,monospace;font-size:.85rem;white-space:pre-wrap;color:#e3b341}
+  a{color:var(--accent2)}
+  .close{float:right;background:none;border:none;color:var(--muted);font-size:1.6rem;cursor:pointer;line-height:1}
+  .chips span{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:2px;font-size:.8rem}
+  footer{max-width:1200px;margin:0 auto;padding:24px 20px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Biblioteca de Equipamentos · Mineração e Beneficiamento</h1>
+    <p>Catálogo técnico pesquisável para dimensionamento de equipamentos de plantas de beneficiamento de minérios.</p>
+  </div>
+</header>
+<div class="meta-bar" id="metaBar"></div>
+<div class="controls">
+  <input type="search" id="q" placeholder="Buscar por modelo, fabricante, tipo…" />
+  <select id="fCat"><option value="">Todas as categorias</option></select>
+  <select id="fSub"><option value="">Todos os tipos</option></select>
+  <select id="fFab"><option value="">Todos os fabricantes</option></select>
+  <span class="count" id="count"></span>
+</div>
+<main><div class="grid" id="grid"></div></main>
+<footer>
+  <strong>Aviso:</strong> dados de referência de engenharia. Itens marcados “A verificar” precisam de conferência na folha de dados oficial do fabricante antes de qualquer especificação de projeto.
+</footer>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+let DB = {meta:{},equipamentos:[]};
+const $ = s => document.querySelector(s);
+
+function val(v){
+  if(v===null||v===undefined||v==="") return "—";
+  if(typeof v==="object"){
+    if("min" in v && "max" in v) return v.min+" – "+v.max;
+    return Object.entries(v).map(([k,x])=>k+": "+val(x)).join(", ");
+  }
+  return v;
+}
+
+function badge(ok){
+  return ok
+   ? '<span class="badge b-ok">Verificado</span>'
+   : '<span class="badge b-warn">A verificar</span>';
+}
+
+function uniq(arr){return [...new Set(arr)].sort()}
+
+function fillSelect(sel,opts){
+  opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e)});
+}
+
+function render(){
+  const q=$("#q").value.toLowerCase();
+  const c=$("#fCat").value, s=$("#fSub").value, f=$("#fFab").value;
+  const list=DB.equipamentos.filter(e=>{
+    const hay=(e.modelo+" "+e.fabricante+" "+e.subtipo+" "+e.categoria+" "+(e.specs?.tipo||"")).toLowerCase();
+    return (!q||hay.includes(q)) && (!c||e.categoria===c) && (!s||e.subtipo===s) && (!f||e.fabricante===f);
+  });
+  $("#count").textContent=list.length+" de "+DB.equipamentos.length+" equipamentos";
+  $("#grid").innerHTML=list.map((e,i)=>{
+    const idx=DB.equipamentos.indexOf(e);
+    const cap=e.specs?.capacidade_t_h?("Cap.: "+val(e.specs.capacidade_t_h)+" t/h"):
+              (e.specs?.volume_m3!=null?"Vol.: "+val(e.specs.volume_m3)+" m³":"");
+    return `<div class="card" onclick="openItem(${idx})">
+      <div class="cat">${e.categoria}</div>
+      <h3>${e.modelo}</h3>
+      <div class="fab">${e.fabricante} · ${e.subtipo}</div>
+      <div>${badge(e.verificado)}</div>
+      <div class="quick">${cap||"&nbsp;"}</div>
+    </div>`;
+  }).join("")||'<p style="color:var(--muted)">Nenhum equipamento encontrado.</p>';
+}
+
+function row(k,v){return `<tr><td class="k">${k}</td><td>${val(v)}</td></tr>`}
+
+function openItem(i){
+  const e=DB.equipamentos[i];
+  const sp=e.specs||{}, ap=e.aplicacao||{}, co=e.comercial||{}, di=e.dimensionamento||{};
+  const specRows=Object.entries(sp).map(([k,v])=>row(k.replace(/_/g," "),v)).join("");
+  const link=co.catalogo_url?`<a href="${co.catalogo_url}" target="_blank" rel="noopener">${co.catalogo_url}</a>`:"—";
+  const formulas=Object.entries(di).filter(([k])=>k.startsWith("formula")).map(([k,v])=>`<div class="formula">${v}</div>`).join("");
+  const vars=(di.variaveis||[]).map(v=>`<span>${v}</span>`).join("");
+  $("#sheet").innerHTML=`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>${e.modelo}</h2>
+    <div class="sub">${e.fabricante} · ${e.subtipo} · ${e.categoria} &nbsp; ${badge(e.verificado)}</div>
+
+    <div class="sec"><h4>Especificações técnicas</h4><table>${specRows}</table></div>
+
+    <div class="sec"><h4>Curvas e faixas de aplicação</h4><table>
+      ${row("Faixa de aplicação",ap.faixa)}
+      ${row("Material",ap.material)}
+      ${row("Curva de desempenho",ap.curva_desempenho_url)}
+    </table></div>
+
+    <div class="sec"><h4>Comercial / fornecedor</h4><table>
+      ${row("Fabricante",e.fabricante)}
+      ${row("Modelo",e.modelo)}
+      <tr><td class="k">Catálogo</td><td>${link}</td></tr>
+      ${row("Contato",co.contato)}
+      ${row("Preço de referência",co.preco_referencia)}
+    </table></div>
+
+    <div class="sec"><h4>Dimensionamento</h4>
+      <table>${row("Critério",di.criterio)}</table>
+      ${formulas}
+      ${vars?`<div class="chips" style="margin-top:8px">${vars}</div>`:""}
+    </div>`;
+  $("#modal").classList.add("open");
+}
+function closeModal(){$("#modal").classList.remove("open")}
+$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+
+fetch("equipamentos.json").then(r=>r.json()).then(d=>{
+  DB=d;
+  $("#metaBar").innerHTML=
+    `<span>Versão ${d.meta.versao}</span><span>Atualizado: ${d.meta.atualizado_em}</span><span>${d.equipamentos.length} equipamentos</span>`;
+  fillSelect($("#fCat"),uniq(d.equipamentos.map(e=>e.categoria)));
+  fillSelect($("#fSub"),uniq(d.equipamentos.map(e=>e.subtipo)));
+  fillSelect($("#fFab"),uniq(d.equipamentos.map(e=>e.fabricante)));
+  ["#q","#fCat","#fSub","#fFab"].forEach(s=>$(s).addEventListener("input",render));
+  render();
+}).catch(err=>{
+  $("#grid").innerHTML='<p style="color:#f85149">Erro ao carregar data/equipamentos.json — abra o site via servidor (GitHub Pages) e não pelo arquivo local.</p>';
+});
+</script>
+</body>
+</html>
