@@ -1,14 +1,25 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.4.0",
+    "versao": "1.5.0",
     "atualizado_em": "2026-06-21",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
-      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Helicoidal"] }
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Helicoidal"] }
     ]
   },
   "equipamentos": [
+    {
+      "id": "transportador-flexowell",
+      "grupo": "Transportadores",
+      "subgrupo": "Flexowell",
+      "subtipo": "Transportador de correia de alto ângulo / vertical (FLEXOWELL®)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Transportador Flexowell",
+      "calculadora": "flexowell",
+      "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo/vertical: capacidade, seleção da parede ondulada, das travessas e da carcaça da correia pelo catálogo, potência e seleção do motoredutor SEW.",
+      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes onduladas L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço); ISO 5048 / DIN 22101"
+    },
     {
       "id": "transportador-correia",
       "grupo": "Transportadores",

@@ -128,7 +128,8 @@ let curGrupo="",curSub="";
 const $=s=>document.querySelector(s);
 const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="18" width="36" height="12" rx="6"/><path d="M10 24c3-5 6 5 9 0s6 5 9 0 6 5 9 0"/></svg>';
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
-function icon(e){return (e&&e.calculadora==="belt_conveyor")?ICON_BELT:ICON_SCREW;}
+const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="35" r="5"/><circle cx="37" cy="13" r="5"/><path d="M12 30 L37 8 M12 40 L37 18"/><path d="M22 31 l3 4 4-3"/></svg>';
+function icon(e){if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -141,7 +142,9 @@ const SEW_MOTORS=[
  {kw:0.55,d:"DRN80S4"},{kw:0.75,d:"DRN80M4"},{kw:1.1,d:"DRN90S4"},{kw:1.5,d:"DRN90L4"},
  {kw:2.2,d:"DRN100L4"},{kw:3.0,d:"DRN100LC4"},{kw:4.0,d:"DRN112M4"},{kw:5.5,d:"DRN132S4"},
  {kw:7.5,d:"DRN132M4"},{kw:11,d:"DRN160M4"},{kw:15,d:"DRN160L4"},{kw:18.5,d:"DRN180M4"},
- {kw:22,d:"DRN180L4"},{kw:30,d:"DRN200L4"},{kw:37,d:"DRN225S4"},{kw:45,d:"DRN225M4"}];
+ {kw:22,d:"DRN180L4"},{kw:30,d:"DRN200L4"},{kw:37,d:"DRN225S4"},{kw:45,d:"DRN225M4"},
+ {kw:55,d:"DRN250M4"},{kw:75,d:"DRN280S4"},{kw:90,d:"DRN280M4"},{kw:110,d:"DRN315S4"},
+ {kw:132,d:"DRN315M4"},{kw:160,d:"DRN315L4"},{kw:200,d:"DRN355M4"}];
 const SEW_R=[
  {s:"R17",t:130},{s:"R27",t:200},{s:"R37",t:300},{s:"R47",t:450},{s:"R57",t:600},
  {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
@@ -359,6 +362,75 @@ const CALCS={
       ];
       return rows;
     }
+  },
+  flexowell:{
+    titulo:"Transportador Flexowell — pré-dimensionamento",
+    referencia:"Catálogo ContiTech FLEXOWELL® (paredes L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço) · ISO 5048 / DIN 22101 · acionamento SEW",
+    campos:[
+      {tipo:"head",label:"Processo"},
+      {id:"Qf",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
+      {id:"rhof",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.01"},
+      {id:"Hf",label:"Altura de elevação (vertical)",unidade:"m",tipo:"number",valor:25},
+      {id:"Lhf",label:"Trecho horizontal (0 = vertical puro)",unidade:"m",tipo:"number",valor:8},
+      {id:"vf",label:"Velocidade da correia",unidade:"m/s",tipo:"number",valor:1.5,step:"0.1"},
+      {tipo:"head",label:"Material e correia"},
+      {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:80},
+      {id:"Bf",label:"Largura da correia base",tipo:"select",valor:"1000",opcoes:[
+        {v:"400",t:"400 mm"},{v:"500",t:"500 mm"},{v:"650",t:"650 mm"},{v:"800",t:"800 mm"},{v:"1000",t:"1000 mm"},{v:"1200",t:"1200 mm"},{v:"1400",t:"1400 mm"},{v:"1600",t:"1600 mm"},{v:"1800",t:"1800 mm"},{v:"2000",t:"2000 mm"},{v:"2200",t:"2200 mm"},{v:"2400",t:"2400 mm"}]},
+      {id:"phif",label:"Fator de enchimento dos bolsões",tipo:"select",valor:"0.8",opcoes:[
+        {v:"0.9",t:"0,90 — material fino/fluido"},{v:"0.8",t:"0,80 — médio"},{v:"0.7",t:"0,70 — grosseiro/difícil"}]},
+      {tipo:"head",label:"Acionamento"},
+      {id:"Dtf",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
+      {id:"Kf",label:"Fator de abraçamento K (Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
+        {v:"0.38",t:"Simples · revestido · gravidade · 210° (0,38)"},{v:"0.30",t:"Simples · revestido · gravidade · 240° (0,30)"},{v:"0.84",t:"Simples · aço · gravidade · 180° (0,84)"}]},
+      {id:"fsf",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
+        {v:"10",t:"10 (têxtil/EP)"},{v:"8",t:"8 (cabo de aço)"},{v:"12",t:"12 (severo)"}]}
+    ],
+    calcular:function(){
+      var Q=num("Qf"),rho=num("rhof"),H=num("Hf"),Lh=num("Lhf"),v=num("vf"),lump=num("lumpf"),Dt=num("Dtf");
+      var B=parseFloat($("#Bf").value),phi=parseFloat($("#phif").value),K=parseFloat($("#Kf").value),FS=parseFloat($("#fsf").value);
+      if([Q,rho,H,Lh,v,lump,Dt].some(function(x){return isNaN(x);})||rho<=0||v<=0||Dt<=0) return null;
+      var ang=(Lh>0)?Math.atan2(H,Lh)*180/Math.PI:(H>0?90:0);
+      var Qv=Q/rho;
+      var SW=[{tp:"L",h:40,bw:30,dv:35},{tp:"N",h:60,bw:50,dv:42},{tp:"N",h:80,bw:50,dv:42},{tp:"N",h:100,bw:50,dv:42},{tp:"N",h:120,bw:50,dv:42},{tp:"S",h:120,bw:78,dv:63},{tp:"S",h:160,bw:78,dv:63},{tp:"S",h:200,bw:78,dv:63},{tp:"S",h:240,bw:78,dv:63},{tp:"S",h:280,bw:78,dv:63},{tp:"S",h:320,bw:78,dv:63},{tp:"ES",h:300,bw:100,dv:84},{tp:"ES",h:400,bw:100,dv:84},{tp:"ES",h:500,bw:100,dv:84},{tp:"ES",h:630,bw:100,dv:84}];
+      var sw=null,selCap=0,bu=0,insuf=false;
+      for(var i=0;i<SW.length;i++){ var b=B-2*SW[i].bw; if(b<=0)continue; var cap=3.6*b*SW[i].h/1000*v*phi; if(cap>=Qv){ sw=SW[i]; selCap=cap; bu=b; break; } }
+      if(!sw){ sw=SW[SW.length-1]; bu=B-2*sw.bw; selCap=3.6*bu*sw.h/1000*v*phi; insuf=true; }
+      var CL=[20,35,40,55,60,75,90,100,110,120,140,160,180,200,220,240,280,300,400,500,600];
+      var cleat=CL[CL.length-1]; for(var c=0;c<CL.length;c++){ if(CL[c]>=sw.h){ cleat=CL[c]; break; } }
+      var lumpOK=(lump<=400)&&(lump<=bu*0.9)&&(lump<=sw.h);
+      var Pelev=Q*H*0.002725, Phoriz=Q*Lh*0.002725*0.5, Peff=(Pelev+Phoriz)/0.85, Pmaj=Peff*1.20;
+      var Te=Peff*1000/v, T1=Te*(1+K), trN=T1/B, carcReq=trN*FS, carcass;
+      if(carcReq<=1000){ var EP=[200,250,315,400,500,630,800,1000]; var e=EP.find(function(x){return x>=carcReq;})||1000; carcass="Têxtil EP "+e+" N/mm (tipo ES)"; }
+      else{ var ST=[1000,1250,1600,2000,2500,3150,4000,5000,6300,8600]; var s=ST.find(function(x){return x>=carcReq;})||8600; carcass="Cabo de aço ST "+s+" N/mm"; }
+      var npul=v*60000/(Math.PI*Dt), sew=selSEW(Pmaj,npul);
+      return [
+        {sec:"Geometria e capacidade"},
+        {k:"Ângulo de inclinação",v:ang.toFixed(0)+"°"+(ang>90?"":"")},
+        {k:"Capacidade volumétrica requerida",v:Qv.toFixed(1)+" m³/h"},
+        {k:"Largura da correia base",v:fmt(B)+" mm"},
+        {k:"Largura útil (entre paredes)",v:fmt(Math.round(bu))+" mm"},
+        {k:"Capacidade da configuração",v:fmt(Math.round(selCap))+" m³/h · "+fmt(Math.round(selCap*rho))+" t/h"+(insuf?"  ⚠ aumentar largura/velocidade":"")},
+        {sec:"Seleção FLEXOWELL® (catálogo ContiTech)"},
+        {k:"Parede ondulada",v:"Tipo "+sw.tp+" · altura "+sw.h+" mm  (largura "+sw.bw+" mm · passo "+sw.dv+" mm)",hi:true},
+        {k:"Travessas (cleats)",v:"T-"+cleat+" mm  ·  espaçamento ≥ "+fmt(Math.round(Math.max(1.5*lump,sw.h)))+" mm",hi:true},
+        {k:"Carcaça da correia",v:carcass,hi:true},
+        {k:"Tamanho máx. de material",v:(lumpOK?"OK (≤ 400 mm e cabe no bolsão)":"⚠ "+(lump>400?"acima de 400 mm (limite do catálogo)":"acima da altura útil da parede — usar parede maior"))},
+        {sec:"Potência"},
+        {k:"Potência de elevação",v:Pelev.toFixed(2)+" kW"},
+        {k:"Potência do trecho horizontal",v:Phoriz.toFixed(2)+" kW"},
+        {k:"Potência efetiva (η 0,85)",v:Peff.toFixed(2)+" kW · "+(Peff/0.7457).toFixed(1)+" HP",hi:true},
+        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
+        {sec:"Tensão e acionamento SEW"},
+        {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
+        {k:"Rotação do tambor de acionamento",v:npul.toFixed(1).replace(".",",")+" rpm"},
+        {k:"Torque no eixo do tambor",v:fmt(Math.round(sew.T))+" N·m"},
+        {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
+        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
+        {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
+        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true}
+      ];
+    }
   }
 };
 
@@ -469,6 +541,28 @@ const ANIM={
             <rect x="430" y="92" width="24" height="32" rx="4" fill="#16789a" stroke="#0e5f7d"/><rect x="426" y="100" width="10" height="16" rx="2" fill="#0e5f7d"/>
           </svg>
           <div class="cap">Transportador de correia em operação — animação ProjectARK</div>
+        </div>`,
+  flexowell:`<div class="vid">
+          <svg viewBox="0 0 470 188" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador Flexowell em operacao">
+            <defs><clipPath id="fw_band"><path d="M151.7 181.4 L279.7 21.4 L256.3 2.6 L128.3 162.6 Z"/></clipPath></defs>
+            <path d="M86 150 L120 150 L116 178 L96 178 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3.5" cx="106" cy="158" fill="#D9A94A"><animate attributeName="cx" values="106;132" dur="0.8s" repeatCount="indefinite"/><animate attributeName="cy" values="158;172" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.8s" repeatCount="indefinite"/></circle>
+            <path d="M151.7 181.4 L279.7 21.4 L256.3 2.6 L128.3 162.6 Z" fill="#1f3147" stroke="#3a4d63"/>
+            <path d="M151.7 181.4 L279.7 21.4" fill="none" stroke="#D9A94A" stroke-width="3"/>
+            <path d="M128.3 162.6 L256.3 2.6" fill="none" stroke="#D9A94A" stroke-width="3"/>
+            <g clip-path="url(#fw_band)"><g fill="#D9A94A">
+              <rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(124,192)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(140,172)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(156,152)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(172,132)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(188,112)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(204,92)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(220,72)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(236,52)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(252,32)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(268,12)"/><rect x="-8" y="-7" width="16" height="14" rx="3" transform="translate(284,-8)"/>
+              <animateTransform attributeName="transform" type="translate" from="0 0" to="16 -20" dur="0.75s" repeatCount="indefinite"/>
+            </g></g>
+            <circle cx="140" cy="172" r="18" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><circle cx="140" cy="172" r="3.5" fill="#3a4d63"/>
+            <g stroke="#5f6e80" stroke-width="2"><line x1="140" y1="157" x2="140" y2="187"/><line x1="125" y1="172" x2="155" y2="172"/><animateTransform attributeName="transform" type="rotate" from="0 140 172" to="360 140 172" dur="0.9s" repeatCount="indefinite"/></g>
+            <circle cx="268" cy="12" r="18" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><circle cx="268" cy="12" r="3.5" fill="#3a4d63"/>
+            <g stroke="#5f6e80" stroke-width="2"><line x1="268" y1="-3" x2="268" y2="27"/><line x1="253" y1="12" x2="283" y2="12"/><animateTransform attributeName="transform" type="rotate" from="0 268 12" to="360 268 12" dur="0.9s" repeatCount="indefinite"/></g>
+            <circle r="3.5" fill="#D9A94A"><animateMotion path="M276 8 q18 -4 28 10 q6 8 8 24" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.6;1" dur="0.8s" repeatCount="indefinite"/></circle>
+            <path d="M300 30 L320 30 L316 60 L306 60 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <rect x="276" y="24" width="22" height="26" rx="4" fill="#16789a" stroke="#0e5f7d"/>
+          </svg>
+          <div class="cap">Transportador Flexowell (alto ângulo) em operação — animação ProjectARK</div>
         </div>`
 };
 
