@@ -132,6 +132,27 @@ const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
 function nextStd(mm){for(const d of DIAM_STD){if(d>=mm)return d;}return DIAM_STD[DIAM_STD.length-1];}
 function num(id){return parseFloat($("#"+id).value);}
 
+/* ---------- Tabela de referência SEW (motores DRN 4 polos + redutores série R) ---------- */
+const SEW_MOTORS=[
+ {kw:0.12,d:"DRN63M4"},{kw:0.18,d:"DRN63L4"},{kw:0.25,d:"DRN71S4"},{kw:0.37,d:"DRN71M4"},
+ {kw:0.55,d:"DRN80S4"},{kw:0.75,d:"DRN80M4"},{kw:1.1,d:"DRN90S4"},{kw:1.5,d:"DRN90L4"},
+ {kw:2.2,d:"DRN100L4"},{kw:3.0,d:"DRN100LC4"},{kw:4.0,d:"DRN112M4"},{kw:5.5,d:"DRN132S4"},
+ {kw:7.5,d:"DRN132M4"},{kw:11,d:"DRN160M4"},{kw:15,d:"DRN160L4"},{kw:18.5,d:"DRN180M4"},
+ {kw:22,d:"DRN180L4"},{kw:30,d:"DRN200L4"},{kw:37,d:"DRN225S4"},{kw:45,d:"DRN225M4"}];
+const SEW_R=[
+ {s:"R17",t:130},{s:"R27",t:200},{s:"R37",t:300},{s:"R47",t:450},{s:"R57",t:600},
+ {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
+ {s:"R137",t:8000},{s:"R147",t:13000},{s:"R167",t:18000}];
+const N_MOTOR=1750, FB=1.4;
+function fmt(x){return x.toLocaleString("pt-BR");}
+function selSEW(Pdrive,nout){
+  const T=9550*Pdrive/nout;                 // torque no eixo de saída (Nm)
+  const Tsel=T*FB;                          // torque de seleção (com fator de serviço)
+  const mot=SEW_MOTORS.find(m=>m.kw>=Pdrive)||SEW_MOTORS[SEW_MOTORS.length-1];
+  const red=SEW_R.find(g=>g.t>=Tsel)||SEW_R[SEW_R.length-1];
+  return {T,Tsel,mot,red,i:N_MOTOR/nout};
+}
+
 const CALCS={
   screw_conveyor:{
     titulo:"Transportador Helicoidal — pré-dimensionamento",
@@ -160,6 +181,7 @@ const CALCS={
       const Pn=(Dstd/1000)*L/20;                        // potência em vazio
       const Ptot=Ph+Pst+Pn;
       const Pdrive=Ptot*1.2/0.9;                        // fator de serviço 1,2 / rend. 0,9
+      const sew=selSEW(Pdrive,n);
       return [
         {k:"Vazão volumétrica requerida",v:Cv.toFixed(1)+" m³/h"},
         {k:"Diâmetro calculado da rosca",v:(Dcalc*1000).toFixed(0)+" mm"},
@@ -168,7 +190,15 @@ const CALCS={
         {k:"Potência no material (P_H)",v:Ph.toFixed(2)+" kW"},
         {k:"Potência de elevação (P_st)",v:Pst.toFixed(2)+" kW"},
         {k:"Potência em vazio (P_N)",v:Pn.toFixed(2)+" kW"},
-        {k:"Potência de acionamento recomendada",v:Pdrive.toFixed(2)+" kW",hi:true}
+        {k:"Potência de acionamento recomendada",v:Pdrive.toFixed(2)+" kW",hi:true},
+        {sec:"Acionamento SEW recomendado"},
+        {k:"Torque no eixo de saída (rosca)",v:fmt(Math.round(sew.T))+" N·m"},
+        {k:"Fator de serviço adotado (fB)",v:"1,4"},
+        {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
+        {k:"Redução necessária (i = n_motor / n_rosca)",v:"≈ "+sew.i.toFixed(1)+" : 1"},
+        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
+        {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
+        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d,hi:true}
       ];
     }
   }
@@ -242,9 +272,11 @@ function runCalc(id){
   const calc=CALCS[id];const r=calc.calcular();
   const box=$("#results");
   if(!r){box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">Verifique os dados de entrada (valores positivos).</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
-  const rows=r.map(x=>`<tr class="${x.hi?"highlight":""}"><td class="k">${x.k}</td><td class="v">${x.v}</td></tr>`).join("");
+  const rows=r.map(x=> x.sec
+    ? `<tr><td colspan="2" style="padding:16px 6px 6px;color:var(--teal-d);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--teal)">${x.sec}</td></tr>`
+    : `<tr class="${x.hi?"highlight":""}"><td class="k">${x.k}</td><td class="v">${x.v}</td></tr>`).join("");
   box.innerHTML=`<div class="sec-t">Resultados</div><table class="res">${rows}</table>
-    <div class="note">Estimativa de <b>pré-dimensionamento</b>. Confirmar com cálculo detalhado e catálogo do fabricante.<br>Referência: ${calc.referencia}</div>`;
+    <div class="note">Estimativa de <b>pré-dimensionamento</b>. A seleção SEW usa torques nominais aproximados de catálogo — confirmar a escolha final no <a href="https://www.sew-eurodrive.com" target="_blank" rel="noopener">configurador oficial SEW</a>.<br>Referência: ${calc.referencia} · SEW-EURODRIVE (série R / motores DRN).</div>`;
 }
 function closeModal(){$("#modal").classList.remove("open");}
 $("#burger").addEventListener("click",openDrawer);
