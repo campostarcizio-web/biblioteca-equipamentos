@@ -1,14 +1,25 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.1.0",
+    "versao": "1.2.0",
     "atualizado_em": "2026-06-21",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
-      { "grupo": "Transportadores", "subgrupos": ["Helicoidal"] }
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Helicoidal"] }
     ]
   },
   "equipamentos": [
+    {
+      "id": "transportador-correia",
+      "grupo": "Transportadores",
+      "subgrupo": "Correia Transportadora Convencional",
+      "subtipo": "Transportador de correia",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Transportador de Correia",
+      "calculadora": "belt_conveyor",
+      "descricao": "Pré-dimensionamento de transportador de correia pelo Método Prático: capacidade volumétrica, seleção de largura e velocidade da correia, potência de acionamento (Ne), tensão efetiva (Te) e seleção do motoredutor SEW.",
+      "referencia": "Manual FAÇO / Stephens-Adamson — Método Prático (Tab. 1-04, 1-05, 1-17 a 1-20); CEMA; ABNT NBR 6172/6177"
+    },
     {
       "id": "transportador-helicoidal",
       "grupo": "Transportadores",
