@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.8.3",
+    "versao": "0.8.4",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
@@ -561,35 +561,6 @@
         "criterio": "Selecionar pela abertura de alimentação (≥ 0,8 × maior bloco) e capacidade pela CSS.",
         "formula_potencia": "Lei de Bond: W = 10·Wi·(1/√P80 − 1/√F80)  [kWh/t];  P = W·Q",
         "variaveis": ["Wi (kWh/t)", "F80 (µm)", "P80 (µm)", "Q (t/h)"]
-      }
-    },
-    {
-      "id": "tk-titan-hammer-crusher",
-      "grupo": "Britadores",
-      "subgrupo": "Martelo",
-      "subtipo": "Britador de martelos",
-      "fabricante": "thyssenkrupp (Polysius)",
-      "modelo": "titan® (eixo duplo) / mammut® (eixo único)",
-      "verificado": true,
-      "specs": {
-        "tipo": "Britador de martelos de eixo duplo (titan) ou único (mammut)",
-        "uso": "Britagem fina de materiais de dureza média e frágeis; cimento e mineração",
-        "modo": "Pode operar a seco ou úmido"
-      },
-      "aplicacao": {
-        "faixa": "Britagem primária/secundária de calcário e materiais frágeis",
-        "material": "Rocha de média dureza, não muito abrasiva",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://serviceportal.thyssenkrupp-polysius.com/services/crushing-technologies/hammer-crusher",
-        "contato": "thyssenkrupp-polysius.com",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Selecionar pela razão de redução e abrasividade; martelos para material não muito abrasivo.",
-        "formula_potencia": "Lei de Bond (estimativa); confirmar curva do fabricante",
-        "variaveis": ["Wi", "F80", "P80", "rotação do rotor"]
       }
     },
     {
