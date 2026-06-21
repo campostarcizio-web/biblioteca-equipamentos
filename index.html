@@ -370,8 +370,10 @@ const CALCS={
       {tipo:"head",label:"Processo"},
       {id:"Qf",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
       {id:"rhof",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.01"},
-      {id:"Hf",label:"Altura de elevação (vertical)",unidade:"m",tipo:"number",valor:25},
-      {id:"Lhf",label:"Trecho horizontal (0 = vertical puro)",unidade:"m",tipo:"number",valor:8},
+      {id:"Lh1f",label:"Trecho horizontal inferior",unidade:"m",tipo:"number",valor:8},
+      {id:"Lif",label:"Trecho inclinado (comprimento)",unidade:"m",tipo:"number",valor:30},
+      {id:"thetaf",label:"Ângulo de inclinação do trecho",unidade:"°",tipo:"number",valor:55},
+      {id:"Lh2f",label:"Trecho horizontal superior",unidade:"m",tipo:"number",valor:5},
       {id:"vf",label:"Velocidade da correia",unidade:"m/s",tipo:"number",valor:1.5,step:"0.1"},
       {tipo:"head",label:"Material e correia"},
       {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:80},
@@ -387,10 +389,12 @@ const CALCS={
         {v:"10",t:"10 (têxtil/EP)"},{v:"8",t:"8 (cabo de aço)"},{v:"12",t:"12 (severo)"}]}
     ],
     calcular:function(){
-      var Q=num("Qf"),rho=num("rhof"),H=num("Hf"),Lh=num("Lhf"),v=num("vf"),lump=num("lumpf"),Dt=num("Dtf");
+      var Q=num("Qf"),rho=num("rhof"),Lh1=num("Lh1f"),Li=num("Lif"),theta=num("thetaf"),Lh2=num("Lh2f"),v=num("vf"),lump=num("lumpf"),Dt=num("Dtf");
       var B=parseFloat($("#Bf").value),phi=parseFloat($("#phif").value),K=parseFloat($("#Kf").value),FS=parseFloat($("#fsf").value);
-      if([Q,rho,H,Lh,v,lump,Dt].some(function(x){return isNaN(x);})||rho<=0||v<=0||Dt<=0) return null;
-      var ang=(Lh>0)?Math.atan2(H,Lh)*180/Math.PI:(H>0?90:0);
+      if([Q,rho,Lh1,Li,theta,Lh2,v,lump,Dt].some(function(x){return isNaN(x);})||rho<=0||v<=0||Dt<=0||theta<0||theta>90) return null;
+      var H=Li*Math.sin(theta*Math.PI/180);
+      var Lh=Lh1+Lh2+Li*Math.cos(theta*Math.PI/180);
+      var Ltot=Lh1+Li+Lh2, ang=theta;
       var Qv=Q/rho;
       var SW=[{tp:"L",h:40,bw:30,dv:35},{tp:"N",h:60,bw:50,dv:42},{tp:"N",h:80,bw:50,dv:42},{tp:"N",h:100,bw:50,dv:42},{tp:"N",h:120,bw:50,dv:42},{tp:"S",h:120,bw:78,dv:63},{tp:"S",h:160,bw:78,dv:63},{tp:"S",h:200,bw:78,dv:63},{tp:"S",h:240,bw:78,dv:63},{tp:"S",h:280,bw:78,dv:63},{tp:"S",h:320,bw:78,dv:63},{tp:"ES",h:300,bw:100,dv:84},{tp:"ES",h:400,bw:100,dv:84},{tp:"ES",h:500,bw:100,dv:84},{tp:"ES",h:630,bw:100,dv:84}];
       var sw=null,selCap=0,bu=0,insuf=false;
@@ -406,7 +410,10 @@ const CALCS={
       var npul=v*60000/(Math.PI*Dt), sew=selSEW(Pmaj,npul);
       return [
         {sec:"Geometria e capacidade"},
-        {k:"Ângulo de inclinação",v:ang.toFixed(0)+"°"+(ang>90?"":"")},
+        {k:"Ângulo de inclinação",v:ang.toFixed(0)+"°"},
+        {k:"Elevação total  H = L_incl·senθ",v:H.toFixed(1)+" m"},
+        {k:"Comprimento horizontal total",v:Lh.toFixed(1)+" m"},
+        {k:"Comprimento total do transportador",v:Ltot.toFixed(1)+" m"},
         {k:"Capacidade volumétrica requerida",v:Qv.toFixed(1)+" m³/h"},
         {k:"Largura da correia base",v:fmt(B)+" mm"},
         {k:"Largura útil (entre paredes)",v:fmt(Math.round(bu))+" mm"},
