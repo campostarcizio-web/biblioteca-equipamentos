@@ -227,6 +227,8 @@ const CALCS={
       {id:"lumpb",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:100},
       {id:"granb",label:"Granulometria (Tab 1-06)",tipo:"select",valor:"5",opcoes:[
         {v:"5",t:"100% pedaços, não classificado (largura ≥ 5× pedaço)"},{v:"3",t:"90% pedaços / 10% finos, classificado (≥ 3×)"}]},
+      {id:"regb",label:"Regime de trabalho dos roletes (Tab 1-07)",tipo:"select",valor:"10a16",opcoes:[
+        {v:"ate6",t:"Até 6 h/dia (intermitente)"},{v:"6a9",t:"6 a 9 h/dia"},{v:"10a16",t:"10 a 16 h/dia"},{v:"16a24",t:"16 a 24 h/dia (contínuo)"}]},
       {tipo:"head",label:"Acionamento"},
       {id:"Dtb",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
       {id:"Lgb",label:"Comprimento das guias laterais (0 = desprezar)",unidade:"m",tipo:"number",valor:0},
@@ -299,6 +301,15 @@ const CALCS={
       var Fg=(Lg>0)?(0.01488*0.5*Lg*B*B+8.92*Lg):0;
       var Tecema=L*(Kx+Ky*(Wm+Wb)+0.015*Wb)+Hs*Math.abs(H)*Wm+Fg;
       var Necema=Tecema*v/75, Necemakw=Necema*0.7457;
+      var reg=$("#regb").value;
+      function fatorA(r,d){ if(r==="ate6")return 6; if(r==="6a9")return d<1.6?6:(d<=1.8?12:15); if(r==="10a16")return d<1.6?15:(d<=1.8?12:15); return 15; }
+      var fatA=fatorA(reg,rho), lumpInch=lump/25.4, fatB=rho*(5*lumpInch+10), Caplic=fatA*fatB;
+      var DIA=[{c:400,mm:89,t:'3"'},{c:1000,mm:108,t:'4" · CEMA B'},{c:1600,mm:133,t:'5" · CEMA C'},{c:2400,mm:159,t:'6" · CEMA D'},{c:9e9,mm:178,t:'7" · CEMA E'}];
+      var di=0; while(di<DIA.length-1 && Caplic>DIA[di].c) di++; if(v>=3 && di<DIA.length-1) di++;
+      var roll=DIA[di];
+      var SPC={16:[1.50,1.50,1.35],20:[1.50,1.20,1.20],24:[1.35,1.20,1.20],30:[1.35,1.20,1.20],36:[1.35,1.20,1.05],42:[1.35,1.00,0.90],48:[1.30,1.00,0.90],54:[1.20,1.00,0.90],60:[1.20,1.00,0.90],72:[1.20,0.90,0.90],84:[1.00,0.75,0.75],96:[1.00,0.75,0.60]};
+      var spw=SPC[B]||SPC[60], aSpan=interp([0.8,1.6,2.4],spw,rho);
+      var Lc=Math.sqrt(L*L+H*H), Ncar=Math.ceil(Lc/aSpan)+1, Nret=Math.ceil(Lc/3.0)+1;
       var rows=[
         {sec:"Capacidade e largura"},
         {k:"Velocidade adotada (v)",v:v.toFixed(2).replace(".",",")+" m/s"},
@@ -308,6 +319,14 @@ const CALCS={
         {k:"Largura da correia adotada",v:B+'"  ('+fmt(Bmm)+" mm) — rege: "+govern,hi:true},
         {k:"Capacidade na largura adotada",v:fmt(Math.round(Bcap))+" m³/h@1m/s  ·  "+fmt(Math.round(Qreal))+" t/h"},
         {k:"Velocidade máx. recomendada (Tab 1-05)",v:(vrec?vrec.toFixed(1).replace(".",",")+" m/s":"—")+(vrec&&v>vrec*1.001?"  ⚠ acima":"")},
+        {sec:"Roletes — quantidade e diâmetro"},
+        {k:"Fator de aplicação C = A·B (Tab 1-07/08)",v:"A "+fatA+" × B "+Math.round(fatB)+" = "+Math.round(Caplic)},
+        {k:"Diâmetro recomendado dos rolos (Gráfico 1-02)",v:roll.mm+" mm  ·  "+roll.t,hi:true},
+        {k:"Espaçamento dos roletes de carga (Tab 1-15)",v:aSpan.toFixed(2).replace(".",",")+" m"},
+        {k:"Espaçamento dos roletes de retorno",v:"3,00 m"},
+        {k:"Comprimento da correia  √(L²+H²)",v:Lc.toFixed(1)+" m"},
+        {k:"Estações de roletes de carga",v:fmt(Ncar)+(cfg==="plano"?"  (1 rolo/estação)":"  (3 rolos/estação)")},
+        {k:"Roletes de retorno",v:fmt(Nret)},
         {sec:"Potência — Método Prático (FAÇO)"},
         {k:"Nv — correia vazia a 1 m/s",v:Nv.toFixed(2)+" HP"},
         {k:"N1 — 100 t/h na horizontal (L)",v:N1.toFixed(2)+" HP"},
