@@ -1,10 +1,24 @@
 {
   "meta": {
-    "titulo": "ProjectARK · Biblioteca de Equipamentos",
-    "versao": "1.0.0-rascunho",
+    "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
+    "versao": "1.0.0",
     "atualizado_em": "2026-06-21",
-    "observacao": "Projeto reiniciado. Base zerada para repaginação completa do site. Nenhum equipamento publicado no momento.",
-    "menu": []
+    "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
+    "menu": [
+      { "grupo": "Transportadores", "subgrupos": ["Helicoidal"] }
+    ]
   },
-  "equipamentos": []
+  "equipamentos": [
+    {
+      "id": "transportador-helicoidal",
+      "grupo": "Transportadores",
+      "subgrupo": "Helicoidal",
+      "subtipo": "Transportador helicoidal (rosca sem-fim)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Transportador Helicoidal",
+      "calculadora": "screw_conveyor",
+      "descricao": "Pré-dimensionamento de transportador helicoidal: a partir da vazão de projeto, calcula a vazão volumétrica, o diâmetro recomendado da rosca, a capacidade real e a potência de acionamento.",
+      "referencia": "CEMA / KWS Screw Conveyor Engineering Guide; DIN 15262 / ISO 7119"
+    }
+  ]
 }
