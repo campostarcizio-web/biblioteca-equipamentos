@@ -265,55 +265,64 @@ function openItem(i){
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
         <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
         <div class="vid">
-          <svg viewBox="0 0 470 184" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador helicoidal em operacao">
+          <svg viewBox="0 0 470 188" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador helicoidal em operacao">
             <defs>
               <linearGradient id="pa_tube" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#2c3e54"/><stop offset="0.5" stop-color="#1a2a3b"/><stop offset="1" stop-color="#0e1c2b"/>
+                <stop offset="0" stop-color="#33465c"/><stop offset="0.5" stop-color="#19293a"/><stop offset="1" stop-color="#0b1726"/>
+              </linearGradient>
+              <linearGradient id="pa_shaft" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#cfdae4"/><stop offset="0.5" stop-color="#8694a4"/><stop offset="1" stop-color="#495768"/>
               </linearGradient>
               <linearGradient id="pa_steel" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#eef3f8"/><stop offset="0.45" stop-color="#9fb1c2"/><stop offset="1" stop-color="#566778"/>
+                <stop offset="0" stop-color="#f2f6fa"/><stop offset="0.45" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/>
               </linearGradient>
               <clipPath id="pa_in"><rect x="70" y="56" width="330" height="70" rx="35"/></clipPath>
+              <g id="pa_blade">
+                <path d="M0,58 C-9,72 -9,110 0,124 C-3,110 -3,72 0,58 Z" fill="#364556"/>
+                <path d="M0,58 C15,72 15,110 0,124 C-8,110 -8,72 0,58 Z" fill="url(#pa_steel)" stroke="#46586b" stroke-width="0.8"/>
+                <path d="M2,62 C12,73 12,109 2,121" fill="none" stroke="#f6fbff" stroke-width="1.4" opacity="0.65"/>
+              </g>
             </defs>
             <!-- boca de carga -->
             <path d="M98 14 L152 14 L138 56 L112 56 Z" fill="#1b2c3e" stroke="#33485e"/>
             <circle r="3.5" cx="125" cy="30" fill="#D9A94A"><animate attributeName="cy" values="20;52" dur="0.9s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.9s" repeatCount="indefinite"/></circle>
             <circle r="3" cx="132" cy="30" fill="#e0b961"><animate attributeName="cy" values="18;52" dur="0.9s" begin="-0.45s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.9s" begin="-0.45s" repeatCount="indefinite"/></circle>
-            <!-- corpo do tubo -->
+            <!-- casca do tubo -->
             <rect x="70" y="56" width="330" height="70" rx="35" fill="url(#pa_tube)" stroke="#3a4d63"/>
+            <ellipse cx="70" cy="91" rx="9" ry="35" fill="#0b1726"/>
             <g clip-path="url(#pa_in)">
-              <rect x="58" y="87" width="384" height="8" rx="4" fill="#3c4a5c"/>
+              <!-- eixo cilindrico -->
+              <rect x="56" y="83" width="388" height="16" rx="8" fill="url(#pa_shaft)"/>
               <!-- material transportado -->
               <g fill="#D9A94A">
-                <circle r="4" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" repeatCount="indefinite"/></circle>
-                <circle r="3.5" cy="113"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-0.7s" repeatCount="indefinite"/></circle>
+                <circle r="4" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" repeatCount="indefinite"/><animate attributeName="cy" values="116;112;116" dur="0.7s" repeatCount="indefinite"/></circle>
+                <circle r="3.5" cy="114"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-0.7s" repeatCount="indefinite"/></circle>
                 <circle r="4" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-1.4s" repeatCount="indefinite"/></circle>
-                <circle r="3" cy="112"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-2.1s" repeatCount="indefinite"/></circle>
+                <circle r="3" cy="113"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-2.1s" repeatCount="indefinite"/></circle>
                 <circle r="3.5" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-1.05s" repeatCount="indefinite"/></circle>
               </g>
-              <!-- rosca (flights) -->
+              <!-- rosca helicoidal -->
               <g>
-                <g fill="url(#pa_steel)" stroke="#43586c" stroke-width="1">
-                  <ellipse cx="36" cy="91" rx="9" ry="34"/><ellipse cx="70" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="104" cy="91" rx="9" ry="34"/><ellipse cx="138" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="172" cy="91" rx="9" ry="34"/><ellipse cx="206" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="240" cy="91" rx="9" ry="34"/><ellipse cx="274" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="308" cy="91" rx="9" ry="34"/><ellipse cx="342" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="376" cy="91" rx="9" ry="34"/><ellipse cx="410" cy="91" rx="9" ry="34"/>
-                  <ellipse cx="444" cy="91" rx="9" ry="34"/>
-                </g>
-                <animateTransform attributeName="transform" type="translate" from="0 0" to="-34 0" dur="1s" repeatCount="indefinite"/>
+                <use href="#pa_blade" transform="translate(-16,0)"/><use href="#pa_blade" transform="translate(18,0)"/>
+                <use href="#pa_blade" transform="translate(52,0)"/><use href="#pa_blade" transform="translate(86,0)"/>
+                <use href="#pa_blade" transform="translate(120,0)"/><use href="#pa_blade" transform="translate(154,0)"/>
+                <use href="#pa_blade" transform="translate(188,0)"/><use href="#pa_blade" transform="translate(222,0)"/>
+                <use href="#pa_blade" transform="translate(256,0)"/><use href="#pa_blade" transform="translate(290,0)"/>
+                <use href="#pa_blade" transform="translate(324,0)"/><use href="#pa_blade" transform="translate(358,0)"/>
+                <use href="#pa_blade" transform="translate(392,0)"/><use href="#pa_blade" transform="translate(426,0)"/>
+                <animateTransform attributeName="transform" type="translate" from="0 0" to="-34 0" dur="1.1s" repeatCount="indefinite"/>
               </g>
             </g>
-            <!-- rim frontal do tubo (corte) -->
-            <path d="M70 91 a35 35 0 0 0 35 35 h260 a35 35 0 0 0 35 -35" fill="none" stroke="#23364a" stroke-width="2"/>
+            <!-- brilho superior e rim frontal -->
+            <path d="M80 60 q155 -7 308 0" fill="none" stroke="#9fb6cc" stroke-width="2" opacity="0.22"/>
+            <path d="M70 91 a35 35 0 0 0 35 35 h260 a35 35 0 0 0 35 -35" fill="none" stroke="#22364a" stroke-width="2"/>
             <!-- descarga -->
             <path d="M338 126 L366 126 L358 162 L346 162 Z" fill="#1b2c3e" stroke="#33485e"/>
             <circle r="3.5" cx="352" cy="135" fill="#D9A94A"><animate attributeName="cy" values="128;160" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.7;1" dur="0.8s" repeatCount="indefinite"/></circle>
             <!-- motoredutor (acionamento) -->
-            <rect x="404" y="70" width="30" height="42" rx="4" fill="#16789a" stroke="#0e5f7d"/>
-            <rect x="432" y="80" width="26" height="22" rx="3" fill="#0e5f7d"/>
-            <circle cx="419" cy="91" r="6" fill="none" stroke="#0e1b2e" stroke-width="2"/>
+            <rect x="404" y="68" width="30" height="46" rx="4" fill="#16789a" stroke="#0e5f7d"/>
+            <rect x="432" y="80" width="28" height="22" rx="3" fill="#0e5f7d"/>
+            <circle cx="419" cy="91" r="6" fill="none" stroke="#0b1726" stroke-width="2"/>
           </svg>
           <div class="cap">Transportador helicoidal em operação — animação ProjectARK</div>
         </div>
