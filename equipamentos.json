@@ -1,12 +1,12 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.6.0",
+    "versao": "0.8.1",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
       { "grupo": "Alimentadores", "subgrupos": ["Tipo Placa", "Tipo Correia"] },
-      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Transportador de Arraste", "Helicoidal"] },
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Transportador de Arraste", "Transportador de Arraste Tubular", "Helicoidal"] },
       { "grupo": "Britadores", "subgrupos": ["Mandíbula", "Martelo", "Impacto", "Cônico", "Rolos / Destorroador"] },
       { "grupo": "Secadores", "subgrupos": ["Rotativos", "Rapid Dryer", "Outros"] },
       { "grupo": "Moagem e Classificação", "subgrupos": ["Moinhos", "Peneiras", "Hidrociclones e Classificadores"] },
@@ -264,7 +264,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.continental-industry.com/getmedia/f20477b3-e0f9-4144-90b8-f7dbb13fd44f/cbg8586-en-flexowell.pdf",
+        "catalogo_url": "https://www.continental-industry.com/en/solutions/conveyor-belt-systems/material-handling/steep-incline-conveyor-belts",
         "contato": "continental-industry.com",
         "preco_referencia": null
       },
@@ -272,6 +272,91 @@
         "criterio": "Selecionar pela elevação (até 500 m), capacidade (até 6.000 t/h) e granulometria (até 400 mm).",
         "formula_capacidade": "Q ∝ volume entre travessas · velocidade · densidade",
         "variaveis": ["ângulo (até 90°)", "altura de parede lateral", "espaçamento de travessas", "velocidade", "densidade"]
+      }
+    },
+    {
+      "id": "beumer-sidewall-belt",
+      "grupo": "Transportadores",
+      "subgrupo": "Flexowell",
+      "subtipo": "Correia de parede ondulada / alto ângulo",
+      "fabricante": "BEUMER Group",
+      "modelo": "Sidewall Belt Conveyor (alto ângulo)",
+      "verificado": false,
+      "specs": {
+        "tipo": "Correia com paredes laterais onduladas e travessas para transporte íngreme/vertical",
+        "destaque": "Sistemas completos de transporte para grandes elevações"
+      },
+      "aplicacao": {
+        "faixa": "Transporte íngreme/vertical de granéis em mineração e cimento",
+        "material": "Minério, carvão, agregados",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.beumergroup.com/",
+        "contato": "beumergroup.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar pela elevação, capacidade e granulometria; paredes/travessas pela inclinação.",
+        "formula_capacidade": "Q ∝ volume entre travessas · velocidade · densidade",
+        "variaveis": ["ângulo", "altura de parede", "espaçamento de travessas", "velocidade", "densidade"]
+      }
+    },
+    {
+      "id": "dunlop-sidewall-belt",
+      "grupo": "Transportadores",
+      "subgrupo": "Flexowell",
+      "subtipo": "Correia de parede ondulada / alto ângulo",
+      "fabricante": "Dunlop Conveyor Belting",
+      "modelo": "Sidewall Belts",
+      "verificado": true,
+      "specs": {
+        "angulo_max_graus": 90,
+        "tipo": "Correias de parede lateral ondulada com travessas (cleats)",
+        "destaque": "Transporte horizontal, em alto ângulo e até 90° (vertical)"
+      },
+      "aplicacao": {
+        "faixa": "Transporte íngreme e vertical de granéis",
+        "material": "Granéis em geral; mineração e indústria",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.fennerdunlop.com/",
+        "contato": "fennerdunlop.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Altura da parede lateral e travessas pela inclinação; capacidade pelo volume entre travessas e velocidade.",
+        "formula_capacidade": "Q ∝ volume entre travessas · velocidade · densidade",
+        "variaveis": ["ângulo (até 90°)", "altura de parede", "espaçamento de travessas", "velocidade", "densidade"]
+      }
+    },
+    {
+      "id": "apache-sidewall-belt",
+      "grupo": "Transportadores",
+      "subgrupo": "Flexowell",
+      "subtipo": "Correia de parede ondulada / alto ângulo",
+      "fabricante": "Apache",
+      "modelo": "DUROWALL™ / PAC-WALL® (Sidewall Belting)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Correias de parede ondulada DUROWALL e PAC-WALL com travessas",
+        "destaque": "Dois tipos de correia de parede ondulada para alto ângulo"
+      },
+      "aplicacao": {
+        "faixa": "Transporte em alto ângulo de granéis",
+        "material": "Granéis diversos",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.apache-inc.com/CMS/WSCentral.nsf/weblinks/AHBD-9N7PTW/$File/AHBD-9N7PTW.pdf",
+        "contato": "apache-inc.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar o tipo de parede (DUROWALL/PAC-WALL) e travessas pela inclinação e produto.",
+        "formula_capacidade": "Q ∝ volume entre travessas · velocidade · densidade",
+        "variaveis": ["ângulo", "altura de parede", "espaçamento de travessas", "velocidade", "densidade"]
       }
     },
     {
@@ -322,8 +407,8 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.rud.com/fileadmin/user_upload/Conveyor_Drive_Systems/2018_RUD_TECDOS_DRIVE_TECHNOLOGY_EN_web.pdf",
-        "contato": "rud.com (download: web.rud.com/en-us/products/conveyor-systems/download.html)",
+        "catalogo_url": "https://www.rud.com/",
+        "contato": "rud.com",
         "preco_referencia": null
       },
       "dimensionamento": {
@@ -350,7 +435,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.aumund.com/en/products/conveying/",
+        "catalogo_url": "https://www.aumund.com/",
         "contato": "aumund.com",
         "preco_referencia": null
       },
@@ -358,6 +443,92 @@
         "criterio": "Seção da calha e velocidade da corrente pela vazão; classe da corrente pela tração.",
         "formula_capacidade": "Q = seção de material · velocidade · densidade · fator de enchimento",
         "variaveis": ["seção da calha", "velocidade", "densidade", "fator de enchimento"]
+      }
+    },
+    {
+      "id": "cablevey-tubular-drag",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste Tubular",
+      "subtipo": "Transportador de arraste tubular (cabo e discos)",
+      "fabricante": "Cablevey Conveyors",
+      "modelo": "Tubular Drag Cable & Disc",
+      "verificado": true,
+      "specs": {
+        "diametro_tubo_pol": { "min": 2, "max": 8 },
+        "capacidade_m3_h": { "min": null, "max": 56 },
+        "tipo": "Tubo fechado com discos puxados por cabo de aço revestido",
+        "destaque": "Transporte suave, limpo e fechado; preserva o produto e reduz pó"
+      },
+      "aplicacao": {
+        "faixa": "Transporte fechado de granéis frágeis e finos (curtas/médias distâncias, com curvas)",
+        "material": "Concentrados, pós e granulados sensíveis; +1000 tipos de materiais",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://cablevey.com/",
+        "contato": "cablevey.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Selecionar diâmetro do tubo (2\"–8\") pela vazão (até ~56 m³/h) e traçado (curvas/comprimento).",
+        "formula_capacidade": "Q ≈ área do tubo · espaçamento entre discos · velocidade do cabo · densidade",
+        "variaveis": ["Ø do tubo (pol)", "velocidade do cabo", "espaçamento de discos", "densidade", "traçado/curvas"]
+      }
+    },
+    {
+      "id": "spiroflow-cableflow",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste Tubular",
+      "subtipo": "Transportador de arraste tubular (cabo e discos)",
+      "fabricante": "Spiroflow",
+      "modelo": "Cableflow (Cable Drag Conveyor)",
+      "verificado": true,
+      "specs": {
+        "tipo": "Arraste tubular a cabo com discos, projetado para material frágil",
+        "destaque": "Minimiza quebra de produto; sistema fechado e higiênico"
+      },
+      "aplicacao": {
+        "faixa": "Transporte fechado de materiais frágeis sujeitos a quebra",
+        "material": "Granéis frágeis, finos e produtos sensíveis",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.spiroflow.com/",
+        "contato": "spiroflow.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Diâmetro do tubo pela vazão e fragilidade; velocidade do cabo baixa para preservar o produto.",
+        "formula_capacidade": "Q ≈ área do tubo · espaçamento entre discos · velocidade do cabo · densidade",
+        "variaveis": ["Ø do tubo", "velocidade do cabo", "espaçamento de discos", "densidade"]
+      }
+    },
+    {
+      "id": "unitrak-tubuflow",
+      "grupo": "Transportadores",
+      "subgrupo": "Transportador de Arraste Tubular",
+      "subtipo": "Transportador de arraste tubular (corrente e discos)",
+      "fabricante": "UniTrak",
+      "modelo": "Tubu-Flow (Tubular Drag)",
+      "verificado": false,
+      "specs": {
+        "tipo": "Tubo fechado com discos puxados por corrente; versão para cargas mais altas",
+        "construcao": "Sistema fechado, layout flexível com curvas"
+      },
+      "aplicacao": {
+        "faixa": "Transporte fechado de pós e granulados em layouts com curvas",
+        "material": "Pós, finos e granulados",
+        "curva_desempenho_url": null
+      },
+      "comercial": {
+        "catalogo_url": "https://www.unitrak.com/",
+        "contato": "unitrak.com",
+        "preco_referencia": null
+      },
+      "dimensionamento": {
+        "criterio": "Diâmetro do tubo e velocidade da corrente pela vazão; traçado conforme curvas.",
+        "formula_capacidade": "Q ≈ área do tubo · espaçamento entre discos · velocidade da corrente · densidade",
+        "variaveis": ["Ø do tubo", "velocidade da corrente", "espaçamento de discos", "densidade"]
       }
     },
     {
@@ -496,7 +667,7 @@
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://www.metso.com/globalassets/pdfs-and-other-downloads/nordberg-np-series-hsi-crushers-4865-01-25-en-agg.pdf",
+        "catalogo_url": "https://www.metso.com/portfolio/nordberg-np-series/",
         "desenho_3d_url": "https://www.traceparts.com/goto?CatalogPath=METSO_1300210253",
         "contato": "metso.com",
         "preco_referencia": null
