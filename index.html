@@ -170,7 +170,8 @@ const CALCS={
       const Pn=(Dstd/1000)*L/20;                        // potência em vazio
       const Ptot=Ph+Pst+Pn;
       const Pdrive=Ptot*1.2/0.9;                        // fator de serviço 1,2 / rend. 0,9
-      const sew=selSEW(Pdrive,n);
+      const Pmaj=Pdrive*1.20;                           // majoração de 20% (margem de projeto)
+      const sew=selSEW(Pmaj,n);
       return [
         {k:"Vazão volumétrica requerida",v:Cv.toFixed(1)+" m³/h"},
         {k:"Diâmetro calculado da rosca",v:(Dcalc*1000).toFixed(0)+" mm"},
@@ -179,8 +180,9 @@ const CALCS={
         {k:"Potência no material (P_H)",v:Ph.toFixed(2)+" kW"},
         {k:"Potência de elevação (P_st)",v:Pst.toFixed(2)+" kW"},
         {k:"Potência em vazio (P_N)",v:Pn.toFixed(2)+" kW"},
-        {k:"Potência de acionamento recomendada",v:Pdrive.toFixed(2)+" kW",hi:true},
-        {sec:"Acionamento SEW recomendado"},
+        {k:"Potência de acionamento (calculada)",v:Pdrive.toFixed(2)+" kW"},
+        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
+        {sec:"Acionamento SEW recomendado (sobre a potência majorada)"},
         {k:"Torque no eixo de saída (rosca)",v:fmt(Math.round(sew.T))+" N·m"},
         {k:"Fator de serviço adotado (fB)",v:"1,4"},
         {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
@@ -265,7 +267,7 @@ function runCalc(id){
     ? `<tr><td colspan="2" style="padding:16px 6px 6px;color:var(--teal-d);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--teal)">${x.sec}</td></tr>`
     : `<tr class="${x.hi?"highlight":""}"><td class="k">${x.k}</td><td class="v">${x.v}</td></tr>`).join("");
   box.innerHTML=`<div class="sec-t">Resultados</div><table class="res">${rows}</table>
-    <div class="note">Estimativa de <b>pré-dimensionamento</b>. A seleção SEW usa torques nominais aproximados de catálogo — confirmar a escolha final no <a href="https://www.sew-eurodrive.com" target="_blank" rel="noopener">configurador oficial SEW</a>.<br>Referência: ${calc.referencia} · SEW-EURODRIVE (série R / motores DRN).</div>`;
+    <div class="note">Estimativa de <b>pré-dimensionamento</b>. A seleção SEW usa torques nominais aproximados de catálogo — confirmar a escolha final no <a href="https://www.sew-eurodrive.com" target="_blank" rel="noopener">configurador oficial SEW</a>.<br><b>Resultado final majorado em 20%</b> (margem de projeto) — a seleção do motor/redutor SEW considera a potência majorada.<br>Referência: ${calc.referencia} · SEW-EURODRIVE (série R / motores DRN).</div>`;
 }
 function closeModal(){$("#modal").classList.remove("open");}
 $("#burger").addEventListener("click",openDrawer);
