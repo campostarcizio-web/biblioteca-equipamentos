@@ -14,15 +14,15 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
   a{color:var(--teal-d)}
-  header{position:sticky;top:0;z-index:40;background:#15243c;border-bottom:3px solid var(--gold);padding:6px 18px;display:flex;align-items:center;gap:18px}
+  header{position:sticky;top:0;z-index:40;background:#15243c;border-bottom:3px solid var(--gold);padding:6px 18px;display:flex;align-items:center;justify-content:center;gap:18px}
   .logo{height:105px;display:block}
   .burger{display:none;background:var(--navy2);border:1px solid var(--navy3);color:#fff;width:40px;height:40px;border-radius:7px;font-size:1.2rem;cursor:pointer;flex:none}
-  .brand{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center}
+  .brand{display:flex;align-items:center}
   .brand .mark{width:42px;height:42px;flex:none}
   .brand .t1{font-size:1.25rem;font-weight:800}
   .brand .t1 .p{color:#f4f7fa}.brand .t1 .a{color:var(--teal)}
   .brand .t2{font-size:.62rem;letter-spacing:.26em;color:var(--gold);font-weight:600}
-  .htag{margin-left:auto;color:#9fb2c4;font-size:.72rem;text-align:right}
+  .htag{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#9fb2c4;font-size:.72rem;text-align:right}
   .layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:30}
   .overlay.open{display:block}
@@ -82,7 +82,7 @@
   .placeholder{color:var(--muted);font-size:.9rem;text-align:center;padding:30px 10px}
   .note{font-size:.76rem;color:var(--muted);margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
   footer{background:var(--navy);color:#9fb2c4;font-size:.8rem;padding:16px 20px;text-align:center;border-top:3px solid var(--gold)}
-  @media(max-width:900px){.burger{display:block}aside{position:fixed;top:65px;left:0;height:calc(100% - 65px);transform:translateX(-100%);transition:.22s;z-index:35}aside.open{transform:translateX(0)}.htag{display:none}.calcbody{grid-template-columns:1fr}.inputs{border-right:none;border-bottom:1px solid var(--line)}}
+  @media(max-width:900px){.burger{display:block;position:absolute;left:14px;top:50%;transform:translateY(-50%)}.logo{height:74px}aside{position:fixed;top:90px;left:0;height:calc(100% - 90px);transform:translateX(-100%);transition:.22s;z-index:35}aside.open{transform:translateX(0)}.htag{display:none}.calcbody{grid-template-columns:1fr}.inputs{border-right:none;border-bottom:1px solid var(--line)}}
 </style>
 </head>
 <body>
