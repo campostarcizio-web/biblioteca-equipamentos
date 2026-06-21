@@ -76,6 +76,9 @@
   .field input:focus,.field select:focus{outline:2px solid var(--teal)}
   .btn{width:100%;margin-top:6px;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:.95rem;font-weight:700;cursor:pointer}
   .btn:hover{background:var(--teal-d)}
+  .vid{position:relative;margin-top:18px;padding-bottom:56.25%;height:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .vid .cap{position:static}
   table.res{width:100%;border-collapse:collapse;font-size:.9rem}
   table.res td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
   table.res td.k{color:var(--muted)}
@@ -260,7 +263,9 @@ function openItem(i){
       <button class="close" onclick="closeModal()">×</button></div>
     <div class="calcbody">
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
-        <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button></div>
+        <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
+        <div class="vid"><iframe src="https://www.youtube.com/embed/MItJ7Ne0q6A?autoplay=1&mute=1&loop=1&playlist=MItJ7Ne0q6A&controls=1&modestbranding=1&rel=0&playsinline=1" title="ProjectARK" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+      </div>
       <div class="results" id="results"><div class="sec-t">Resultados</div>
         <div class="placeholder">Preencha os dados e clique em <b>Calcular</b>.</div>
         <div class="note">Referência: ${calc.referencia}</div></div>
