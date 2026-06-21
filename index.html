@@ -76,9 +76,9 @@
   .field input:focus,.field select:focus{outline:2px solid var(--teal)}
   .btn{width:100%;margin-top:6px;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:.95rem;font-weight:700;cursor:pointer}
   .btn:hover{background:var(--teal-d)}
-  .vid{position:relative;margin-top:18px;padding-bottom:56.25%;height:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
-  .vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .vid .cap{position:static}
+  .vid{margin-top:18px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#0e1b2e}
+  .vid svg{width:100%;height:auto;display:block}
+  .vid .cap{color:#9fb2c4;font-size:.72rem;text-align:center;padding:7px 8px;border-top:1px solid #22344a}
   table.res{width:100%;border-collapse:collapse;font-size:.9rem}
   table.res td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
   table.res td.k{color:var(--muted)}
@@ -264,7 +264,59 @@ function openItem(i){
     <div class="calcbody">
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
         <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
-        <div class="vid"><iframe src="https://www.youtube.com/embed/MItJ7Ne0q6A?autoplay=1&mute=1&loop=1&playlist=MItJ7Ne0q6A&controls=1&modestbranding=1&rel=0&playsinline=1" title="ProjectARK" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+        <div class="vid">
+          <svg viewBox="0 0 470 184" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador helicoidal em operacao">
+            <defs>
+              <linearGradient id="pa_tube" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2c3e54"/><stop offset="0.5" stop-color="#1a2a3b"/><stop offset="1" stop-color="#0e1c2b"/>
+              </linearGradient>
+              <linearGradient id="pa_steel" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#eef3f8"/><stop offset="0.45" stop-color="#9fb1c2"/><stop offset="1" stop-color="#566778"/>
+              </linearGradient>
+              <clipPath id="pa_in"><rect x="70" y="56" width="330" height="70" rx="35"/></clipPath>
+            </defs>
+            <!-- boca de carga -->
+            <path d="M98 14 L152 14 L138 56 L112 56 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3.5" cx="125" cy="30" fill="#D9A94A"><animate attributeName="cy" values="20;52" dur="0.9s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.9s" repeatCount="indefinite"/></circle>
+            <circle r="3" cx="132" cy="30" fill="#e0b961"><animate attributeName="cy" values="18;52" dur="0.9s" begin="-0.45s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.9s" begin="-0.45s" repeatCount="indefinite"/></circle>
+            <!-- corpo do tubo -->
+            <rect x="70" y="56" width="330" height="70" rx="35" fill="url(#pa_tube)" stroke="#3a4d63"/>
+            <g clip-path="url(#pa_in)">
+              <rect x="58" y="87" width="384" height="8" rx="4" fill="#3c4a5c"/>
+              <!-- material transportado -->
+              <g fill="#D9A94A">
+                <circle r="4" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" repeatCount="indefinite"/></circle>
+                <circle r="3.5" cy="113"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-0.7s" repeatCount="indefinite"/></circle>
+                <circle r="4" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-1.4s" repeatCount="indefinite"/></circle>
+                <circle r="3" cy="112"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-2.1s" repeatCount="indefinite"/></circle>
+                <circle r="3.5" cy="116"><animate attributeName="cx" values="80;372" dur="2.8s" begin="-1.05s" repeatCount="indefinite"/></circle>
+              </g>
+              <!-- rosca (flights) -->
+              <g>
+                <g fill="url(#pa_steel)" stroke="#43586c" stroke-width="1">
+                  <ellipse cx="36" cy="91" rx="9" ry="34"/><ellipse cx="70" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="104" cy="91" rx="9" ry="34"/><ellipse cx="138" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="172" cy="91" rx="9" ry="34"/><ellipse cx="206" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="240" cy="91" rx="9" ry="34"/><ellipse cx="274" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="308" cy="91" rx="9" ry="34"/><ellipse cx="342" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="376" cy="91" rx="9" ry="34"/><ellipse cx="410" cy="91" rx="9" ry="34"/>
+                  <ellipse cx="444" cy="91" rx="9" ry="34"/>
+                </g>
+                <animateTransform attributeName="transform" type="translate" from="0 0" to="-34 0" dur="1s" repeatCount="indefinite"/>
+              </g>
+            </g>
+            <!-- rim frontal do tubo (corte) -->
+            <path d="M70 91 a35 35 0 0 0 35 35 h260 a35 35 0 0 0 35 -35" fill="none" stroke="#23364a" stroke-width="2"/>
+            <!-- descarga -->
+            <path d="M338 126 L366 126 L358 162 L346 162 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3.5" cx="352" cy="135" fill="#D9A94A"><animate attributeName="cy" values="128;160" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.7;1" dur="0.8s" repeatCount="indefinite"/></circle>
+            <!-- motoredutor (acionamento) -->
+            <rect x="404" y="70" width="30" height="42" rx="4" fill="#16789a" stroke="#0e5f7d"/>
+            <rect x="432" y="80" width="26" height="22" rx="3" fill="#0e5f7d"/>
+            <circle cx="419" cy="91" r="6" fill="none" stroke="#0e1b2e" stroke-width="2"/>
+          </svg>
+          <div class="cap">Transportador helicoidal em operação — animação ProjectARK</div>
+        </div>
       </div>
       <div class="results" id="results"><div class="sec-t">Resultados</div>
         <div class="placeholder">Preencha os dados e clique em <b>Calcular</b>.</div>
