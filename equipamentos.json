@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.8.4",
+    "versao": "0.8.5",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
@@ -104,34 +104,6 @@
       }
     },
     {
-      "id": "tk-belt-feeder",
-      "grupo": "Alimentadores",
-      "subgrupo": "Tipo Correia",
-      "subtipo": "Alimentador de correia (belt feeder)",
-      "fabricante": "thyssenkrupp",
-      "modelo": "Belt Feeder",
-      "verificado": true,
-      "specs": {
-        "tipo": "Correia de borracha para transporte/alimentação contínuos",
-        "material": "Carvão e minério; transporte suave e econômico"
-      },
-      "aplicacao": {
-        "faixa": "Mineração e geração de energia",
-        "material": "Carvão, minério",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://www.thyssenkrupp-industrial-solutions.com/en/products-and-services/mineral-processing/feeders",
-        "contato": "thyssenkrupp",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Vazão pela largura e velocidade da correia.",
-        "formula_capacidade": "Q = 3,6 · A · v · ρ",
-        "variaveis": ["largura", "v", "ρ"]
-      }
-    },
-    {
       "id": "meka-belt-feeder",
       "grupo": "Alimentadores",
       "subgrupo": "Tipo Correia",
@@ -156,34 +128,6 @@
         "criterio": "Vazão pela largura e velocidade.",
         "formula_capacidade": "Q = 3,6 · A · v · ρ",
         "variaveis": ["largura", "v", "ρ"]
-      }
-    },
-    {
-      "id": "schenck-weighfeeder",
-      "grupo": "Alimentadores",
-      "subgrupo": "Tipo Correia",
-      "subtipo": "Alimentador pesador (weighfeeder)",
-      "fabricante": "Schenck Process",
-      "modelo": "DMO Weighfeeder",
-      "verificado": true,
-      "specs": {
-        "largura_correia_pol": { "min": 24, "max": 72 },
-        "tipo": "Alimentador de correia com pesagem contínua (dosagem)"
-      },
-      "aplicacao": {
-        "faixa": "Pesagem e dosagem contínua de granéis em processos automatizados",
-        "material": "Granel diverso",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://www.schenckprocess.com/",
-        "contato": "schenckprocess.com",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Largura padrão 24–54 pol (especial até 72 pol); vazão pela célula de carga e velocidade.",
-        "formula_capacidade": "Q = carga por metro (célula) · velocidade da correia",
-        "variaveis": ["largura (pol)", "carga linear", "velocidade"]
       }
     },
     {
@@ -1245,34 +1189,6 @@
         "criterio": "Área de checker pela vazão de ar e temperatura de sopro alvo; tipicamente 3–4 stoves em ciclo.",
         "formula": "Área de checker ∝ vazão de ar · ΔT / ciclo; nº de stoves pelo regime on-gas/on-blast",
         "variaveis": ["vazão de ar (Nm³/min)", "T de sopro alvo", "PCI do gás", "tempo de ciclo"]
-      }
-    },
-    {
-      "id": "natreb-alimentador-correia",
-      "grupo": "Alimentadores",
-      "subgrupo": "Tipo Correia",
-      "subtipo": "Alimentador de correia sobre roletes",
-      "fabricante": "Natreb",
-      "modelo": "Alimentador de correia (com silo)",
-      "verificado": true,
-      "specs": {
-        "tipo": "Correia sobre roletes; capacidade e armazenagem variam com o modelo e o silo acoplado",
-        "customizacao": "Projeto sob medida conforme a necessidade do cliente"
-      },
-      "aplicacao": {
-        "faixa": "Alimentação dosada a partir de silo na mineração e cerâmica",
-        "material": "Minério e matérias-primas cerâmicas",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
-        "contato": "natreb.com (fabricante nacional)",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Largura/velocidade pela vazão; silo dimensionado pela autonomia desejada.",
-        "formula_capacidade": "Q = 3,6 · A · v · ρ",
-        "variaveis": ["largura", "v", "ρ", "volume do silo"]
       }
     },
     {
