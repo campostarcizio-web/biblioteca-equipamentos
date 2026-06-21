@@ -14,7 +14,8 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
   a{color:var(--teal-d)}
-  header{position:sticky;top:0;z-index:40;background:var(--navy);border-bottom:3px solid var(--gold);padding:10px 18px;display:flex;align-items:center;gap:18px}
+  header{position:sticky;top:0;z-index:40;background:#15233a;border-bottom:3px solid var(--gold);padding:8px 18px;display:flex;align-items:center;gap:18px}
+  .logo{height:54px;display:block}
   .burger{display:none;background:var(--navy2);border:1px solid var(--navy3);color:#fff;width:40px;height:40px;border-radius:7px;font-size:1.2rem;cursor:pointer;flex:none}
   .brand{display:flex;align-items:center;gap:11px;flex:none}
   .brand .mark{width:42px;height:42px;flex:none}
@@ -87,19 +88,7 @@
 <body>
 <header>
   <button class="burger" id="burger">☰</button>
-  <div class="brand">
-    <svg class="mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <g fill="none" stroke="#D9A94A" stroke-width="7"><circle cx="50" cy="52" r="30"/></g>
-      <g fill="#D9A94A">
-        <rect x="46" y="13" width="8" height="12"/><rect x="46" y="79" width="8" height="12"/>
-        <rect x="11" y="48" width="12" height="8"/><rect x="77" y="48" width="12" height="8"/>
-      </g>
-      <path d="M30 66 L48 48 L40 44 L62 38 L58 60 L52 52 L34 70 Z" fill="#2f4257"/>
-      <path d="M28 70 L58 40 L52 38 L70 33 L66 51 L60 46 L33 73 Z" fill="#1E9BC4"/>
-    </svg>
-    <div><div class="t1"><span class="p">Project</span><span class="a">ARK</span></div>
-    <div class="t2">PRÉ-DIMENSIONAMENTO</div></div>
-  </div>
+  <div class="brand"><img class="logo" src="logo.png.png?v=1" alt="ProjectArk Engenharia" /></div>
   <div class="htag" id="htag"></div>
 </header>
 
