@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.8.2",
+    "versao": "0.8.3",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
@@ -72,34 +72,6 @@
         "criterio": "Selecionar largura (900–4000 mm) e velocidade para a capacidade alvo (até >12.000 t/h).",
         "formula_capacidade": "Q = área da seção · velocidade · densidade aparente",
         "variaveis": ["largura (mm)", "velocidade", "altura de leito", "densidade (t/m³)"]
-      }
-    },
-    {
-      "id": "tk-apron-feeder",
-      "grupo": "Alimentadores",
-      "subgrupo": "Tipo Placa",
-      "subtipo": "Alimentador de placas (apron feeder)",
-      "fabricante": "thyssenkrupp (Polysius)",
-      "modelo": "Apron / Chain Feeder",
-      "verificado": true,
-      "specs": {
-        "tipo": "Alimentador de placas e correntes para aplicações primárias e secundárias",
-        "destaque": "Alta confiabilidade e custo-benefício otimizado"
-      },
-      "aplicacao": {
-        "faixa": "Alimentação primária e secundária de minério",
-        "material": "Minério bruto pesado",
-        "curva_desempenho_url": null
-      },
-      "comercial": {
-        "catalogo_url": "https://www.thyssenkrupp-industrial-solutions.com/en/products-and-services/mineral-processing/feeders",
-        "contato": "thyssenkrupp",
-        "preco_referencia": null
-      },
-      "dimensionamento": {
-        "criterio": "Dimensionar largura/velocidade pela vazão e granulometria de alimentação.",
-        "formula_capacidade": "Q = área da seção · velocidade · densidade aparente",
-        "variaveis": ["largura", "velocidade", "densidade"]
       }
     },
     {
