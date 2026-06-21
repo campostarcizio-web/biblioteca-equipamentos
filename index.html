@@ -71,6 +71,7 @@
   .sec-t{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin:0 0 12px}
   .field{margin-bottom:13px}
   .field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:4px}
+  .fhead{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:3px}
   .field .u{color:#9aa6b2;font-weight:400}
   .field input,.field select{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:.92rem;color:var(--ink);background:#fff}
   .field input:focus,.field select:focus{outline:2px solid var(--teal)}
@@ -210,6 +211,7 @@ const CALCS={
     titulo:"Transportador de Correia — pré-dimensionamento",
     referencia:"Manual FAÇO / Stephens-Adamson — Método Prático (Tab. 1-04, 1-05, 1-17 a 1-20) · CEMA · ABNT NBR 6172/6177",
     campos:[
+      {tipo:"head",label:"Processo"},
       {id:"Qb",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:500},
       {id:"rhob",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.01"},
       {id:"Lb",label:"Comprimento (projeção horizontal)",unidade:"m",tipo:"number",valor:60},
@@ -217,12 +219,29 @@ const CALCS={
       {id:"vb",label:"Velocidade da correia",unidade:"m/s",tipo:"number",valor:2.0,step:"0.1"},
       {id:"matb",label:"Classe do material (velocidade — Tab 1-05)",tipo:"select",valor:"pouco",opcoes:[
         {v:"facil",t:"Escoamento fácil, não abrasivo (cereais, etc.)"},{v:"pouco",t:"Pouco abrasivo (carvão, terra, britado fino)"},{v:"muito",t:"Duro/pesado, muito abrasivo (minério, pedra)"}]},
+      {tipo:"head",label:"Correia, roletes e granulometria"},
       {id:"cfgb",label:"Configuração dos roletes (Tab 1-04)",tipo:"select",valor:"3x45",opcoes:[
         {v:"3x45",t:"3 roletes iguais — 45°"},{v:"3x20",t:"3 roletes iguais — 20°"},{v:"2x35",t:"2 roletes iguais — 35°"},{v:"plano",t:"Roletes planos — 0°"}]},
       {id:"alfab",label:"Ângulo de acomodação do material (α)",tipo:"select",valor:"20",opcoes:[
         {v:"0",t:"0°"},{v:"5",t:"5°"},{v:"10",t:"10°"},{v:"15",t:"15°"},{v:"20",t:"20°"},{v:"25",t:"25°"},{v:"30",t:"30°"}]},
+      {id:"lumpb",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:100},
+      {id:"granb",label:"Granulometria (Tab 1-06)",tipo:"select",valor:"5",opcoes:[
+        {v:"5",t:"100% pedaços, não classificado (largura ≥ 5× pedaço)"},{v:"3",t:"90% pedaços / 10% finos, classificado (≥ 3×)"}]},
+      {tipo:"head",label:"Acionamento"},
       {id:"Dtb",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
-      {id:"Lgb",label:"Comprimento das guias laterais (0 = desprezar)",unidade:"m",tipo:"number",valor:0}
+      {id:"Lgb",label:"Comprimento das guias laterais (0 = desprezar)",unidade:"m",tipo:"number",valor:0},
+      {id:"Kb",label:"Fator de abraçamento K (Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
+        {v:"0.38",t:"Simples · tambor revestido · gravidade · 210° (K=0,38)"},
+        {v:"0.30",t:"Simples · tambor revestido · gravidade · 240° (K=0,30)"},
+        {v:"0.84",t:"Simples · tambor de aço · gravidade · 180° (K=0,84)"},
+        {v:"0.70",t:"Simples · tambor revestido · parafuso · 210° (K=0,70)"},
+        {v:"0.11",t:"Duplo · tambor revestido · gravidade · 380° (K=0,11)"}]},
+      {id:"fsb",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
+        {v:"10",t:"10 (correia têxtil / EP — padrão)"},{v:"8",t:"8 (serviço leve)"},{v:"12",t:"12 (serviço severo)"}]},
+      {tipo:"head",label:"Avançado — Método CEMA (refinar p/ Tab 1-25 e 1-26)"},
+      {id:"Wbb",label:"Peso da correia Wb",unidade:"kgf/m",tipo:"number",valor:16},
+      {id:"Kxb",label:"Kx — resist. roletes/deslizamento (Tab 1-25)",unidade:"kgf/m",tipo:"number",valor:0.8,step:"0.01"},
+      {id:"Kyb",label:"Ky — resist. à flexão (Tab 1-26)",tipo:"number",valor:0.025,step:"0.001"}
     ],
     calcular:function(){
       var Q=num("Qb"),rho=num("rhob"),L=num("Lb"),H=num("Hb"),v=num("vb"),Dt=num("Dtb"),Lg=num("Lgb");
@@ -243,9 +262,16 @@ const CALCS={
       var VW=[16,20,24,30,36,42,48,54,60,66,72];
       var VEL={facil:[2.5,3.0,3.0,3.6,4.1,4.1,4.6,5.1,5.1,null,null],pouco:[1.6,2.0,2.5,3.0,3.3,3.6,3.6,3.6,3.6,4.1,4.1],muito:[1.6,1.8,2.3,2.8,3.0,3.0,3.3,3.3,3.3,3.8,3.8]};
       var Creq=Q/(v*rho);
-      var t=CAP[cfg],row=t.r[alfa],B=null,Bcap=null;
-      for(var i=0;i<t.w.length;i++){ if(row[i]>=Creq){ B=t.w[i]; Bcap=row[i]; break; } }
-      var insuf=false; if(B===null){ B=t.w[t.w.length-1]; Bcap=row[row.length-1]; insuf=true; }
+      var t=CAP[cfg],row=t.r[alfa];
+      var Bcapw=null; for(var i=0;i<t.w.length;i++){ if(row[i]>=Creq){ Bcapw=t.w[i]; break; } }
+      var insuf=false; if(Bcapw===null){ Bcapw=t.w[t.w.length-1]; insuf=true; }
+      var lump=num("lumpb"), gf=parseFloat($("#granb").value);
+      var lumpIn=(lump>0?lump*gf:0)/25.4;
+      var Bgran=t.w[t.w.length-1]; for(var j=0;j<t.w.length;j++){ if(t.w[j]>=lumpIn){ Bgran=t.w[j]; break; } }
+      var granInsuf=lumpIn>t.w[t.w.length-1];
+      var B=Math.max(Bcapw,Bgran);
+      var Bcap=row[t.w.indexOf(B)];
+      var govern=(Bgran>Bcapw)?"granulometria":"capacidade";
       var Bmm=Math.round(B*25.4);
       var Qreal=Bcap*v*rho;
       var Nvkeys=[16,20,24,30,36,42,48], nvB=B; if(B>48)nvB=48;
@@ -261,11 +287,26 @@ const CALCS={
       var Pmaj=Nekw*1.20;
       var npul=v*60000/(Math.PI*Dt);
       var sew=selSEW(Pmaj,npul);
+      var K=parseFloat($("#Kb").value), FS=parseFloat($("#fsb").value);
+      var T1=(1+K)*Te, T2=K*Te;
+      var trN=T1*9.80665/Bmm;
+      var carcReq=trN*FS;
+      var EP=[200,250,315,400,500,630,800,1000,1250,1600,2000];
+      var EPsel=EP.find(function(x){return x>=carcReq;})||EP[EP.length-1];
+      var servico=(mat==="muito")?"pesado":(mat==="facil")?"leve":"médio";
+      var Wm=Q/(3.6*v);
+      var Wb=num("Wbb"), Kx=num("Kxb"), Ky=num("Kyb");
+      var Fg=(Lg>0)?(0.01488*0.5*Lg*B*B+8.92*Lg):0;
+      var Tecema=L*(Kx+Ky*(Wm+Wb)+0.015*Wb)+Hs*Math.abs(H)*Wm+Fg;
+      var Necema=Tecema*v/75, Necemakw=Necema*0.7457;
       var rows=[
+        {sec:"Capacidade e largura"},
         {k:"Velocidade adotada (v)",v:v.toFixed(2).replace(".",",")+" m/s"},
         {k:"Capacidade volumétrica requerida (a 1 m/s)",v:Creq.toFixed(1)+" m³/h"},
-        {k:"Largura da correia selecionada",v:B+'"  ('+fmt(Bmm)+" mm)"+(insuf?"  ⚠ insuficiente":""),hi:true},
-        {k:"Capacidade da correia (largura · α)",v:fmt(Math.round(Bcap))+" m³/h@1m/s  ·  "+fmt(Math.round(Qreal))+" t/h"},
+        {k:"Largura mínima por capacidade",v:Bcapw+'"'+(insuf?"  ⚠ acima da tabela":"")},
+        {k:"Largura mínima por granulometria",v:(lump>0?Bgran+'"':"—")+(granInsuf?"  ⚠ acima da tabela":"")},
+        {k:"Largura da correia adotada",v:B+'"  ('+fmt(Bmm)+" mm) — rege: "+govern,hi:true},
+        {k:"Capacidade na largura adotada",v:fmt(Math.round(Bcap))+" m³/h@1m/s  ·  "+fmt(Math.round(Qreal))+" t/h"},
         {k:"Velocidade máx. recomendada (Tab 1-05)",v:(vrec?vrec.toFixed(1).replace(".",",")+" m/s":"—")+(vrec&&v>vrec*1.001?"  ⚠ acima":"")},
         {sec:"Potência — Método Prático (FAÇO)"},
         {k:"Nv — correia vazia a 1 m/s",v:Nv.toFixed(2)+" HP"},
@@ -274,6 +315,18 @@ const CALCS={
         {k:"Ng — guias laterais",v:Ng.toFixed(2)+" HP"},
         {k:"Potência efetiva Ne",v:Ne.toFixed(2)+" HP  ·  "+Nekw.toFixed(2)+" kW",hi:true},
         {k:"Tensão efetiva Te = 75·Ne/v",v:fmt(Math.round(Te))+" kgf  ("+fmt(Math.round(Te*9.81))+" N)"},
+        {sec:"Verificação — Método CEMA"},
+        {k:"Peso do material Wm = Q/(3,6·v)",v:Wm.toFixed(1)+" kgf/m"},
+        {k:"Tensão efetiva Te (CEMA)",v:fmt(Math.round(Tecema))+" kgf"},
+        {k:"Potência efetiva Ne (CEMA)",v:Necema.toFixed(2)+" HP  ·  "+Necemakw.toFixed(2)+" kW"},
+        {sec:"Tensões e seleção da correia"},
+        {k:"Fator de abraçamento (K)",v:K.toFixed(2).replace(".",",")},
+        {k:"Tensão máxima T1 = (1+K)·Te",v:fmt(Math.round(T1))+" kgf  ("+fmt(Math.round(T1*9.81))+" N)",hi:true},
+        {k:"Tensão mínima T2 = K·Te",v:fmt(Math.round(T2))+" kgf"},
+        {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
+        {k:"Resistência de carcaça requerida (FS "+FS+")",v:Math.round(carcReq)+" N/mm"},
+        {k:"Classe de correia recomendada",v:"EP "+EPsel+" N/mm  ·  serviço "+servico,hi:true},
+        {sec:"Potência de acionamento"},
         {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
         {sec:"Acionamento SEW recomendado (sobre a potência majorada)"},
         {k:"Rotação do tambor de acionamento",v:npul.toFixed(1).replace(".",",")+" rpm"},
@@ -405,6 +458,7 @@ function openItem(i){
   const calc=CALCS[e.calculadora];
   if(!calc){return;}
   const campos=calc.campos.map(f=>{
+    if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
     if(f.tipo==="select"){
       const ops=f.opcoes.map(o=>`<option value="${o.v}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
       return `<div class="field"><label>${f.label}</label><select id="${f.id}">${ops}</select></div>`;
