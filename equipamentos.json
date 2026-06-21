@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "Biblioteca de Equipamentos para Mineração e Beneficiamento",
-    "versao": "0.8.1",
+    "versao": "0.8.2",
     "atualizado_em": "2026-06-20",
     "observacao": "Os links de catálogo apontam, sempre que possível, para o PDF/datasheet de download. Quando o PDF é restrito (cadastro), usa-se a página oficial de download. Campos verificado=false precisam de conferência no catálogo do fabricante. Conteúdo em outros idiomas foi traduzido para o português.",
     "menu": [
@@ -1338,19 +1338,26 @@
       "subgrupo": "Tipo Placa",
       "subtipo": "Alimentador de esteira de placas de aço",
       "fabricante": "Natreb",
-      "modelo": "Alimentador de placas (esteira metálica sobre correntes)",
+      "modelo": "Alimentador de Sapatas MN-8/1500 ECO (esteira de lagarta de aço)",
       "verificado": true,
       "specs": {
-        "tipo": "Esteira de aço acionada por correntes; concepção robusta para cargas pesadas",
-        "customizacao": "Modelos padrão e projetos sob medida"
+        "tipo": "Caixão dosador com esteira de lagarta de aço sobre correntes (modelo MN)",
+        "producao_t_h": 90,
+        "potencia": "7,5 cv (1150 rpm, eixo picador) + 20 cv (1750 rpm, esteira)",
+        "peso_kg": 7590,
+        "dimensoes_LxAxC_mm": "2967 x 1728 x 8000",
+        "dimensoes_cocho_LxAxC_mm": "1500 x 665 x 6354",
+        "capacidade_m3": "sem silo: 6,31 / com silo: 23,31",
+        "distancia_entre_eixos_mm": 6435,
+        "destaque": "Lagarta de aço resistente a material grosseiro e úmido; eixo picador estabiliza a alimentação"
       },
       "aplicacao": {
-        "faixa": "Alimentação pesada de minério a britadores/destorroadores",
-        "material": "Minério bruto, blocos, material abrasivo",
+        "faixa": "Dosagem uniforme de materiais secos ou úmidos para linhas de processamento",
+        "material": "Minério bruto, blocos, material grosseiro e úmido; mineração e cerâmica",
         "curva_desempenho_url": null
       },
       "comercial": {
-        "catalogo_url": "https://natreb.com/conheca-a-linha-natreb-de-equipamentos-para-mineracao/",
+        "catalogo_url": "https://natreb.com/produtos/alimentador-de-sapatas-mn-8-1500-eco/",
         "contato": "natreb.com (fabricante nacional)",
         "preco_referencia": null
       },
