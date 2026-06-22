@@ -1,11 +1,12 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.6.0",
-    "atualizado_em": "2026-06-21",
+    "versao": "1.7.0",
+    "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
-      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Helicoidal"] }
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Helicoidal"] },
+      { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] }
     ]
   },
   "equipamentos": [
@@ -41,6 +42,26 @@
       "calculadora": "screw_conveyor",
       "descricao": "Pré-dimensionamento de transportador helicoidal: a partir da vazão de projeto, calcula a vazão volumétrica, o diâmetro recomendado da rosca, a capacidade real e a potência de acionamento.",
       "referencia": "CEMA / KWS Screw Conveyor Engineering Guide; DIN 15262 / ISO 7119"
+    },
+    {
+      "id": "silo-circular",
+      "grupo": "Silos",
+      "subgrupo": "Silo Circular",
+      "subtipo": "Silo cilíndrico com tremonha cônica",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Silo Circular",
+      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis: volume e capacidade, geometria (corpo + cone), pressões nas paredes e fundo (Janssen) e dimensão de descarga. Calculadora em desenvolvimento.",
+      "referencia": "A definir (ex.: Janssen; ABNT NBR 11700; DIN 1055-6 / EN 1991-4 Eurocode 1 Parte 4)"
+    },
+    {
+      "id": "silo-retangular",
+      "grupo": "Silos",
+      "subgrupo": "Silo Retangular",
+      "subtipo": "Silo prismático com tremonha piramidal",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Silo Retangular",
+      "descricao": "Pré-dimensionamento de silo prismático (seção retangular) com tremonha piramidal para armazenagem de granéis: volume e capacidade, geometria (corpo + tremonha), pressões nas paredes e fundo (Janssen) e dimensão de descarga. Calculadora em desenvolvimento.",
+      "referencia": "A definir (ex.: Janssen; ABNT NBR 11700; DIN 1055-6 / EN 1991-4 Eurocode 1 Parte 4)"
     }
   ]
 }
