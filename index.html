@@ -127,7 +127,7 @@
 <script>
 let DB={meta:{},equipamentos:[]};
 let curGrupo="",curSub="",CUR_EQ=null;
-const REPORT_LOGO=new Image(); REPORT_LOGO.src="logo.png.png";
+const REPORT_LOGO=new Image(); REPORT_LOGO.src="logo2.png";
 const $=s=>document.querySelector(s);
 const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="18" width="36" height="12" rx="6"/><path d="M10 24c3-5 6 5 9 0s6 5 9 0 6 5 9 0"/></svg>';
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
@@ -643,11 +643,11 @@ function gerarRelatorio(){
   if(!window.jspdf||!window.jspdf.jsPDF){alert("Biblioteca de PDF ainda carregando — tente novamente em instantes.");return;}
   var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}); var W=210;
   doc.setFillColor(14,27,46); doc.rect(0,0,W,26,"F");
-  try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3.5,30,19); }catch(e){}
-  doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(15);
-  doc.text("Relatório de Pré-dimensionamento",46,13);
+  try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,4,50,18); }catch(e){}
+  doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(13);
+  doc.text("Relatório de Pré-dimensionamento",66,12);
   doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(159,178,196);
-  doc.text(san(CUR_EQ.modelo),46,19.5);
+  doc.text(san(CUR_EQ.modelo),66,18.5);
   doc.setDrawColor(217,169,74); doc.setLineWidth(1); doc.line(0,26,W,26);
   doc.setTextColor(70); doc.setFontSize(8.5);
   doc.text("Grupo: "+san(CUR_EQ.grupo+" / "+CUR_EQ.subgrupo),14,33);
