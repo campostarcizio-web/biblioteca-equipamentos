@@ -379,6 +379,12 @@ const CALCS={
       {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:80},
       {id:"Bf",label:"Largura da correia base",tipo:"select",valor:"1000",opcoes:[
         {v:"400",t:"400 mm"},{v:"500",t:"500 mm"},{v:"650",t:"650 mm"},{v:"800",t:"800 mm"},{v:"1000",t:"1000 mm"},{v:"1200",t:"1200 mm"},{v:"1400",t:"1400 mm"},{v:"1600",t:"1600 mm"},{v:"1800",t:"1800 mm"},{v:"2000",t:"2000 mm"},{v:"2200",t:"2200 mm"},{v:"2400",t:"2400 mm"}]},
+      {id:"swf",label:"Altura da parede ondulada (catálogo)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela capacidade)"},
+        {v:"L:40",t:"L · 40 mm"},
+        {v:"N:60",t:"N · 60 mm"},{v:"N:80",t:"N · 80 mm"},{v:"N:100",t:"N · 100 mm"},{v:"N:120",t:"N · 120 mm"},
+        {v:"S:120",t:"S · 120 mm"},{v:"S:160",t:"S · 160 mm"},{v:"S:200",t:"S · 200 mm"},{v:"S:240",t:"S · 240 mm"},{v:"S:280",t:"S · 280 mm"},{v:"S:320",t:"S · 320 mm"},
+        {v:"ES:300",t:"ES · 300 mm"},{v:"ES:400",t:"ES · 400 mm"},{v:"ES:500",t:"ES · 500 mm"},{v:"ES:630",t:"ES · 630 mm"}]},
       {id:"phif",label:"Fator de enchimento dos bolsões",tipo:"select",valor:"0.8",opcoes:[
         {v:"0.9",t:"0,90 — material fino/fluido"},{v:"0.8",t:"0,80 — médio"},{v:"0.7",t:"0,70 — grosseiro/difícil"}]},
       {tipo:"head",label:"Acionamento"},
@@ -397,9 +403,16 @@ const CALCS={
       var Ltot=Lh1+Li+Lh2, ang=theta;
       var Qv=Q/rho;
       var SW=[{tp:"L",h:40,bw:30,dv:35},{tp:"N",h:60,bw:50,dv:42},{tp:"N",h:80,bw:50,dv:42},{tp:"N",h:100,bw:50,dv:42},{tp:"N",h:120,bw:50,dv:42},{tp:"S",h:120,bw:78,dv:63},{tp:"S",h:160,bw:78,dv:63},{tp:"S",h:200,bw:78,dv:63},{tp:"S",h:240,bw:78,dv:63},{tp:"S",h:280,bw:78,dv:63},{tp:"S",h:320,bw:78,dv:63},{tp:"ES",h:300,bw:100,dv:84},{tp:"ES",h:400,bw:100,dv:84},{tp:"ES",h:500,bw:100,dv:84},{tp:"ES",h:630,bw:100,dv:84}];
-      var sw=null,selCap=0,bu=0,insuf=false;
-      for(var i=0;i<SW.length;i++){ var b=B-2*SW[i].bw; if(b<=0)continue; var cap=3.6*b*SW[i].h/1000*v*phi; if(cap>=Qv){ sw=SW[i]; selCap=cap; bu=b; break; } }
-      if(!sw){ sw=SW[SW.length-1]; bu=B-2*sw.bw; selCap=3.6*bu*sw.h/1000*v*phi; insuf=true; }
+      var swSel=$("#swf").value, sw=null,selCap=0,bu=0,insuf=false;
+      if(swSel!=="auto"){
+        var pp=swSel.split(":"),stp=pp[0],sh=parseFloat(pp[1]);
+        for(var i=0;i<SW.length;i++){ if(SW[i].tp===stp&&SW[i].h===sh){ sw=SW[i]; break; } }
+        if(sw){ bu=B-2*sw.bw; selCap=(bu>0)?3.6*bu*sw.h/1000*v*phi:0; insuf=(selCap<Qv); }
+      }
+      if(!sw){
+        for(var i=0;i<SW.length;i++){ var b=B-2*SW[i].bw; if(b<=0)continue; var cap=3.6*b*SW[i].h/1000*v*phi; if(cap>=Qv){ sw=SW[i]; selCap=cap; bu=b; break; } }
+        if(!sw){ sw=SW[SW.length-1]; bu=B-2*sw.bw; selCap=3.6*bu*sw.h/1000*v*phi; insuf=true; }
+      }
       var CL=[20,35,40,55,60,75,90,100,110,120,140,160,180,200,220,240,280,300,400,500,600];
       var cleat=CL[CL.length-1]; for(var c=0;c<CL.length;c++){ if(CL[c]>=sw.h){ cleat=CL[c]; break; } }
       var lumpOK=(lump<=400)&&(lump<=bu*0.9)&&(lump<=sw.h);
