@@ -99,7 +99,6 @@
     <img class="emblem" src="logo1.png.png?v=2" alt="ProjectArk" />
     <div class="wm">
       <div class="l1"><span class="p">Project</span><span class="a">ARK</span> <span class="e">Engenharia</span></div>
-      <div class="l2">Dimensionamento de Equipamentos</div>
     </div>
   </div>
   <div class="htag" id="htag"></div>
@@ -113,8 +112,7 @@
     <div id="menu"></div>
   </aside>
   <main>
-    <div class="crumb" id="crumb"></div>
-    <div class="toolbar"><h1 id="title">Equipamentos</h1><span class="count" id="count"></span></div>
+    <div class="toolbar"><h1 id="title">Dimensionamento de Equipamentos</h1><span class="count" id="count"></span></div>
     <div class="grid" id="grid"></div>
   </main>
 </div>
@@ -484,8 +482,7 @@ function closeDrawer(){$("#drawer").classList.remove("open");$("#overlay").class
 function render(){
   const list=DB.equipamentos.filter(e=>(!curGrupo||e.grupo===curGrupo)&&(!curSub||e.subgrupo===curSub));
   $("#count").textContent=list.length+" equipamento"+(list.length!==1?"s":"");
-  $("#title").textContent=curSub||curGrupo||"Equipamentos";
-  $("#crumb").innerHTML="Equipamentos"+(curGrupo?` › <b>${curGrupo}</b>`:"")+(curSub?` › <b>${curSub}</b>`:"");
+  $("#title").textContent=curSub||curGrupo||"Dimensionamento de Equipamentos";
   $("#grid").innerHTML=list.map(e=>{
     const idx=DB.equipamentos.indexOf(e);
     return `<div class="card" onclick="openItem(${idx})">
