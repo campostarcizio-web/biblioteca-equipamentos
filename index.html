@@ -365,7 +365,7 @@ const CALCS={
   },
   flexowell:{
     titulo:"Transportador Flexowell — pré-dimensionamento",
-    referencia:"Catálogo ContiTech FLEXOWELL® (paredes L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço) · ISO 5048 / DIN 22101 · acionamento SEW",
+    referencia:"Catálogo ContiTech FLEXOWELL® (paredes L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço) · cálculo de potência conforme ISO 5048 / DIN 22101 · acionamento SEW-EURODRIVE",
     campos:[
       {tipo:"head",label:"Processo"},
       {id:"Qf",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
@@ -403,7 +403,9 @@ const CALCS={
       var CL=[20,35,40,55,60,75,90,100,110,120,140,160,180,200,220,240,280,300,400,500,600];
       var cleat=CL[CL.length-1]; for(var c=0;c<CL.length;c++){ if(CL[c]>=sw.h){ cleat=CL[c]; break; } }
       var lumpOK=(lump<=400)&&(lump<=bu*0.9)&&(lump<=sw.h);
-      var Pelev=Q*H*0.002725, Phoriz=Q*Lh*0.002725*0.5, Peff=(Pelev+Phoriz)/0.85, Pmaj=Peff*1.20;
+      var f=0.5, qB=30, qG=Q/(3.6*v), qRol=Math.round(0.018*B);
+      var Fp=f*Ltot*9.81*(qB+qRol+qG), Fst=qG*9.81*H, Fsec=0.15*Fp, Fu=Fp+Fsec+Fst;
+      var Peff=Fu*v/0.85/1000, Pmaj=Peff*1.20;
       var Te=Peff*1000/v, T1=Te*(1+K), trN=T1/B, carcReq=trN*FS, carcass;
       if(carcReq<=1000){ var EP=[200,250,315,400,500,630,800,1000]; var e=EP.find(function(x){return x>=carcReq;})||1000; carcass="Têxtil EP "+e+" N/mm (tipo ES)"; }
       else{ var ST=[1000,1250,1600,2000,2500,3150,4000,5000,6300,8600]; var s=ST.find(function(x){return x>=carcReq;})||8600; carcass="Cabo de aço ST "+s+" N/mm"; }
@@ -423,10 +425,13 @@ const CALCS={
         {k:"Travessas (cleats)",v:"T-"+cleat+" mm  ·  espaçamento ≥ "+fmt(Math.round(Math.max(1.5*lump,sw.h)))+" mm",hi:true},
         {k:"Carcaça da correia",v:carcass,hi:true},
         {k:"Tamanho máx. de material",v:(lumpOK?"OK (≤ 400 mm e cabe no bolsão)":"⚠ "+(lump>400?"acima de 400 mm (limite do catálogo)":"acima da altura útil da parede — usar parede maior"))},
-        {sec:"Potência"},
-        {k:"Potência de elevação",v:Pelev.toFixed(2)+" kW"},
-        {k:"Potência do trecho horizontal",v:Phoriz.toFixed(2)+" kW"},
-        {k:"Potência efetiva (η 0,85)",v:Peff.toFixed(2)+" kW · "+(Peff/0.7457).toFixed(1)+" HP",hi:true},
+        {sec:"Potência — ISO 5048 / DIN 22101"},
+        {k:"Massa por metro: correia · roletes · material",v:qB+" · "+qRol+" · "+Math.round(qG)+" kgf/m"},
+        {k:"Resist. principal Fp = f·L·g·(qB+qRol+qG), f = 0,5",v:fmt(Math.round(Fp))+" N"},
+        {k:"Resist. de elevação Fst = qG·g·H",v:fmt(Math.round(Fst))+" N"},
+        {k:"Resistências secundárias (15% de Fp)",v:fmt(Math.round(Fsec))+" N"},
+        {k:"Força tangencial total Fu",v:fmt(Math.round(Fu))+" N"},
+        {k:"Potência efetiva  P = Fu·v/η  (η 0,85)",v:Peff.toFixed(2)+" kW · "+(Peff/0.7457).toFixed(1)+" HP",hi:true},
         {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
         {sec:"Tensão e acionamento SEW"},
         {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
