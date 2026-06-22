@@ -77,6 +77,8 @@
   .field input:focus,.field select:focus{outline:2px solid var(--teal)}
   .btn{width:100%;margin-top:6px;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:11px;font-size:.95rem;font-weight:700;cursor:pointer}
   .btn:hover{background:var(--teal-d)}
+  .btn2{background:#fff;color:var(--teal-d);border:1px solid var(--teal);margin-top:8px}
+  .btn2:hover{background:#eef7fb}
   .vid{margin-top:18px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#0e1b2e}
   .vid svg{width:100%;height:auto;display:block}
   .vid .cap{color:#9fb2c4;font-size:.72rem;text-align:center;padding:7px 8px;border-top:1px solid #22344a}
@@ -120,9 +122,12 @@
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 let DB={meta:{},equipamentos:[]};
-let curGrupo="",curSub="";
+let curGrupo="",curSub="",CUR_EQ=null;
+const REPORT_LOGO=new Image(); REPORT_LOGO.src="logo.png.png";
 const $=s=>document.querySelector(s);
 const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="18" width="36" height="12" rx="6"/><path d="M10 24c3-5 6 5 9 0s6 5 9 0 6 5 9 0"/></svg>';
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
@@ -590,6 +595,7 @@ const ANIM={
 
 function openItem(i){
   const e=DB.equipamentos[i];
+  CUR_EQ=e;
   const calc=CALCS[e.calculadora];
   if(!calc){return;}
   const campos=calc.campos.map(f=>{
@@ -608,6 +614,7 @@ function openItem(i){
     <div class="calcbody">
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
         <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
+        <button class="btn btn2" onclick="gerarRelatorio()">Gerar relatório (PDF)</button>
         ${ANIM[e.calculadora]||""}
       </div>
       <div class="results" id="results"><div class="sec-t">Resultados</div>
@@ -626,6 +633,38 @@ function runCalc(id){
     : `<tr class="${x.hi?"highlight":""}"><td class="k">${x.k}</td><td class="v">${x.v}</td></tr>`).join("");
   box.innerHTML=`<div class="sec-t">Resultados</div><table class="res">${rows}</table>
     <div class="note">Estimativa de <b>pré-dimensionamento</b>. A seleção SEW usa torques nominais aproximados de catálogo — confirmar a escolha final no <a href="https://www.sew-eurodrive.com" target="_blank" rel="noopener">configurador oficial SEW</a>.<br><b>Resultado final majorado em 20%</b> (margem de projeto) — a seleção do motor/redutor SEW considera a potência majorada.<br>Referência: ${calc.referencia} · SEW-EURODRIVE (série R / motores DRN).</div>`;
+}
+function san(s){return String(s==null?"":s).replace(/³/g,"3").replace(/²/g,"2").replace(/·/g,"-").replace(/≥/g,">=").replace(/≤/g,"<=").replace(/→/g,"->").replace(/⚠/g,"(!)").replace(/×/g,"x").replace(/√/g,"raiz").replace(/µ/g,"u").replace(/α/g,"alfa").replace(/θ/g,"teta").replace(/Δ/g,"D").replace(/[Øø]/g,"O").replace(/[–—]/g,"-");}
+function inputVal(f){var el=document.getElementById(f.id);if(!el)return "";if(f.tipo==="select")return el.options[el.selectedIndex].text;return el.value+(f.unidade?" "+f.unidade:"");}
+function gerarRelatorio(){
+  if(!CUR_EQ){return;}
+  var calc=CALCS[CUR_EQ.calculadora]; var r=calc.calcular();
+  if(!r){alert("Preencha os dados e clique em Calcular antes de gerar o relatório.");return;}
+  if(!window.jspdf||!window.jspdf.jsPDF){alert("Biblioteca de PDF ainda carregando — tente novamente em instantes.");return;}
+  var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}); var W=210;
+  doc.setFillColor(14,27,46); doc.rect(0,0,W,26,"F");
+  try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3.5,30,19); }catch(e){}
+  doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  doc.text("Relatório de Pré-dimensionamento",46,13);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(159,178,196);
+  doc.text(san(CUR_EQ.modelo),46,19.5);
+  doc.setDrawColor(217,169,74); doc.setLineWidth(1); doc.line(0,26,W,26);
+  doc.setTextColor(70); doc.setFontSize(8.5);
+  doc.text("Grupo: "+san(CUR_EQ.grupo+" / "+CUR_EQ.subgrupo),14,33);
+  doc.text("Data: "+new Date().toLocaleString("pt-BR"),W-14,33,{align:"right"});
+  var inputs=calc.campos.filter(function(f){return f.id;}).map(function(f){return [san(f.label),san(inputVal(f))];});
+  doc.autoTable({startY:37,theme:"grid",margin:{left:14,right:14},head:[["Dados de entrada",""]],body:inputs,
+    headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},alternateRowStyles:{fillColor:[244,247,250]},
+    columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right"}}});
+  var body=r.map(function(x){return x.sec?[{content:san(x.sec),colSpan:2,styles:{fillColor:[30,155,196],textColor:255,fontStyle:"bold"}}]:[san(x.k),san(x.v)];});
+  doc.autoTable({startY:doc.lastAutoTable.finalY+5,theme:"grid",margin:{left:14,right:14},head:[["Resultados",""]],body:body,
+    headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+    columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+  var fy=doc.lastAutoTable.finalY+6; doc.setFontSize(7); doc.setTextColor(110);
+  doc.text(doc.splitTextToSize("Estimativa de pré-dimensionamento — não substitui o cálculo detalhado nem a folha de dados do fabricante. Referência: "+san(calc.referencia),W-28),14,fy);
+  doc.setFontSize(7); doc.setTextColor(150);
+  doc.text("ProjectARK Engenharia · Dimensionamento de Equipamentos",14,290);
+  doc.save("ProjectARK-"+CUR_EQ.calculadora+".pdf");
 }
 function closeModal(){$("#modal").classList.remove("open");}
 $("#burger").addEventListener("click",openDrawer);
