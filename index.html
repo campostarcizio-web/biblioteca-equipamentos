@@ -56,6 +56,7 @@
   .card h3{margin:2px 0 4px;font-size:1.02rem}
   .card .desc{color:var(--muted);font-size:.82rem}
   .card .calcflag{display:inline-block;margin-top:7px;font-size:.68rem;font-weight:700;color:var(--teal-d);background:#e8f5fa;border:1px solid #bfe3f0;border-radius:20px;padding:2px 8px}
+  .card .calcflag.soon{color:#8a6d1f;background:#fbf3df;border-color:#ecd9a6}
 
   .modal{position:fixed;inset:0;background:rgba(14,27,46,.55);display:none;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto;z-index:50}
   .modal.open{display:flex}
@@ -132,7 +133,8 @@ const $=s=>document.querySelector(s);
 const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="18" width="36" height="12" rx="6"/><path d="M10 24c3-5 6 5 9 0s6 5 9 0 6 5 9 0"/></svg>';
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
 const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="35" r="5"/><circle cx="37" cy="13" r="5"/><path d="M12 30 L37 8 M12 40 L37 18"/><path d="M22 31 l3 4 4-3"/></svg>';
-function icon(e){if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+const ICON_SILO='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 16 v20 M34 16 v20"/><path d="M14 16 a10 5 0 0 1 20 0"/><path d="M14 36 l10 8 10 -8"/><path d="M19 16 v20 M24 16 v22 M29 16 v20"/></svg>';
+function icon(e){if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -494,7 +496,7 @@ function render(){
       <div class="icon">${icon(e)}</div>
       <div><div class="cat">${e.grupo} · ${e.subgrupo}</div>
       <h3>${e.modelo}</h3><div class="desc">${e.descricao||e.subtipo}</div>
-      ${e.calculadora?'<span class="calcflag">▸ Abrir cálculo de pré-dimensionamento</span>':''}</div>
+      ${e.calculadora?'<span class="calcflag">▸ Abrir cálculo de pré-dimensionamento</span>':'<span class="calcflag soon">⋯ Calculadora em desenvolvimento</span>'}</div>
     </div>`;
   }).join("")||'<p style="color:var(--muted)">Nenhum equipamento neste grupo ainda.</p>';
 }
@@ -597,7 +599,18 @@ function openItem(i){
   const e=DB.equipamentos[i];
   CUR_EQ=e;
   const calc=CALCS[e.calculadora];
-  if(!calc){return;}
+  if(!calc){
+    $("#sheet").innerHTML=`
+      <div class="head"><div class="ic">${icon(e)}</div>
+        <div><h2>${e.modelo}</h2><div class="sub">${e.subtipo}</div></div>
+        <button class="close" onclick="closeModal()">×</button></div>
+      <div class="calcbody"><div class="inputs">
+        <div class="placeholder" style="padding:8px 0"><b>Calculadora em desenvolvimento.</b><br>${e.descricao||""}</div>
+        <div class="note">Referência prevista: ${e.referencia||"—"}</div>
+      </div></div>`;
+    $("#modal").classList.add("open");
+    return;
+  }
   const campos=calc.campos.map(f=>{
     if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
     if(f.tipo==="select"){
