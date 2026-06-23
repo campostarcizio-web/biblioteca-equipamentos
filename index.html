@@ -140,6 +140,21 @@ function icon(e){if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora===
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
 function nextStd(mm){for(const d of DIAM_STD){if(d>=mm)return d;}return DIAM_STD[DIAM_STD.length-1];}
 function num(id){return parseFloat($("#"+id).value);}
+/* Pré-seleção de materiais típicos de mineração (valores representativos de literatura — confirmar em ensaio Jenike Shear) */
+const SILO_MAT={
+  fe_gran:{rho:2.5,phi:35,delta:25,c:0.3,d50:12},
+  fe_fino:{rho:2.6,phi:42,delta:28,c:2.0,d50:0.1},
+  pelota:{rho:2.3,phi:32,delta:22,c:0,d50:12},
+  sinter:{rho:1.8,phi:38,delta:30,c:0.2,d50:20},
+  carvao:{rho:0.9,phi:45,delta:30,c:1.5,d50:6},
+  coque:{rho:0.5,phi:40,delta:30,c:0.3,d50:25},
+  calcario:{rho:1.5,phi:38,delta:28,c:0.5,d50:10}
+};
+function siloPreset(){
+  var p=SILO_MAT[$("#siMat").value]; if(!p) return;
+  $("#siRho").value=p.rho; $("#siPhi").value=p.phi; $("#siDelta").value=p.delta; $("#siCoes").value=p.c; $("#siD50").value=p.d50;
+  runCalc("silo_circular");
+}
 
 /* ---------- Tabela de referência SEW (motores DRN 4 polos + redutores série R) ---------- */
 const SEW_MOTORS=[
@@ -464,13 +479,22 @@ const CALCS={
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
-    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Fase 1: Etapas 1-2 (dados e capacidade) e 4-5 (regime de fluxo e descarga).",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 1: Etapas 1-2 (dados e capacidade) e 4-5 (regime de fluxo e descarga).",
     campos:[
       {tipo:"head",label:"Etapa 1 — Dados operacionais"},
       {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
       {id:"siT",label:"Tempo de autonomia  t",unidade:"h",tipo:"number",valor:2,step:"0.5"},
       {id:"siEta",label:"Fator de enchimento  η",unidade:"-",tipo:"number",valor:0.9,step:"0.05"},
       {tipo:"head",label:"Etapa 1 — Propriedades do minério"},
+      {id:"siMat",label:"Material (pré-seleção típica — preenche ρ, φi, δ, c, d50)",tipo:"select",valor:"custom",onchange:"siloPreset()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
+        {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
+        {v:"pelota",t:"Pelotas de minério de ferro"},
+        {v:"sinter",t:"Sínter"},
+        {v:"carvao",t:"Carvão (ROM, fino úmido)"},
+        {v:"coque",t:"Coque"},
+        {v:"calcario",t:"Calcário britado"}]},
       {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:2.2,step:"0.05"},
       {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:35},
       {id:"siDelta",label:"Atrito parede-material  δ",unidade:"°",tipo:"number",valor:25},
@@ -685,7 +709,7 @@ function openItem(i){
     if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
     if(f.tipo==="select"){
       const ops=f.opcoes.map(o=>`<option value="${o.v}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
-      return `<div class="field"><label>${f.label}</label><select id="${f.id}">${ops}</select></div>`;
+      return `<div class="field"><label>${f.label}</label><select id="${f.id}"${f.onchange?` onchange="${f.onchange}"`:""}>${ops}</select></div>`;
     }
     return `<div class="field"><label>${f.label} ${f.unidade?`<span class="u">(${f.unidade})</span>`:""}</label>
       <input id="${f.id}" type="number" value="${f.valor}" step="${f.step||"any"}"/></div>`;
