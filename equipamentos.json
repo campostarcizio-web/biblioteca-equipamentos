@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.9.0",
+    "versao": "1.10.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -51,7 +51,7 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Silo Circular",
       "calculadora": "silo_circular",
-      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis. Etapas 1-7: caracterização do minério (com presets), capacidade (massa e volume útil), Flow Function (Jenike), regime de fluxo, ângulo da moega e descarga mínima, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen e fatores de descarga (EN 1991-4). Próximas fases: distribuição de pressões e dimensionamento estrutural (NBR 8800).",
+      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis. Etapas 1-9: caracterização do minério (com presets), capacidade (massa e volume útil), Flow Function (Jenike), regime de fluxo, ângulo da moega e descarga mínima, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões na parede e dimensionamento das chapas (tração circunferencial, NBR 8800). Próximas fases: reforços, montantes, moega, descarga excêntrica e fadiga/dinâmica.",
       "referencia": "A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; ABNT NBR 8800 (estrutura)"
     },
     {

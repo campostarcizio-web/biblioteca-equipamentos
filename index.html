@@ -479,7 +479,7 @@ const CALCS={
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
-    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 2: Etapas 1-7 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen e fatores de descarga (EN 1991-4). Próximas: distribuição de pressões e dimensionamento estrutural (NBR 8800).",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 3: Etapas 1-9 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões na parede e dimensionamento das chapas (tração circunferencial, NBR 8800). Próximas: reforços, montantes, moega, descarga excêntrica e fadiga/dinâmica.",
     campos:[
       {tipo:"head",label:"Etapa 1 — Dados operacionais"},
       {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
@@ -504,7 +504,13 @@ const CALCS={
       {id:"siSc",label:"σc medido (0 = estimar de c e φi)",unidade:"kPa",tipo:"number",valor:0,step:"0.1"},
       {id:"siS1",label:"Tensão de consolidação  σ1",unidade:"kPa",tipo:"number",valor:10,step:"0.5"},
       {tipo:"head",label:"Etapa 3 — Geometria do silo"},
-      {id:"siD",label:"Diâmetro interno do silo  D",unidade:"m",tipo:"number",valor:6,step:"0.1"}
+      {id:"siD",label:"Diâmetro interno do silo  D",unidade:"m",tipo:"number",valor:6,step:"0.1"},
+      {tipo:"head",label:"Etapa 9 — Material estrutural (aço)"},
+      {id:"siFy",label:"Aço — tensão de escoamento  fy",tipo:"select",valor:"345",opcoes:[
+        {v:"250",t:"ASTM A36 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr.50 (fy 345 MPa)"},
+        {v:"415",t:"ASTM A572 Gr.60 (fy 415 MPa)"}]},
+      {id:"siAbr",label:"Sobre-espessura de abrasão/corrosão",unidade:"mm",tipo:"number",valor:2,step:"0.5"}
     ],
     calcular:function(){
       var g=9.81;
@@ -555,6 +561,21 @@ const CALCS={
       // Etapa 7 — fatores de descarga EN 1991-4 (parede vertical, Classe 2)
       var Ch=1.15, Cw=1.10;
       var phD=Ch*ph, pwD=Cw*pw;
+      // Etapa 8 — distribuição de pressões (perfil de Janssen no enchimento)
+      function jph(zz){return Kj*pvAsym*(1-Math.exp(-mu*Kj*zz/Rh));}
+      var phMid=jph(z/2);
+      // Etapa 9 — dimensionamento das chapas (tensão circunferencial de membrana)
+      var Rc=D/2;
+      var ntheta=phD*Rc;            // kN/m = N/mm  (esforço de membrana com pressão de descarga)
+      var fy=parseFloat($("#siFy").value); if(isNaN(fy))fy=345;
+      var abr=num("siAbr"); if(isNaN(abr))abr=0;
+      var sadm=0.90*fy;             // MPa = N/mm²  (NBR 8800, escoamento, φ=0,90)
+      var tcalc=ntheta/sadm;        // mm
+      var tmin=6.0;                 // mm — mínimo prático em silos de minério
+      var treq=Math.max(tcalc+abr,tmin);
+      var COM=[6.3,8.0,9.5,12.5,16.0,19.0,22.4,25.0,31.5];
+      var tcom=COM[COM.length-1]; for(var ti=0;ti<COM.length;ti++){ if(COM[ti]>=treq){ tcom=COM[ti]; break; } }
+      var govMin=(tcalc+abr<tmin);
       return [
         {sec:"Etapa 2 — Capacidade do silo"},
         {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
@@ -590,6 +611,17 @@ const CALCS={
         {sec:"Etapa 7 — Pressões de descarga (EN 1991-4)"},
         {k:"Pressão horizontal de descarga  ph,d = Ch·ph  (Ch=1,15)",v:phD.toFixed(1).replace(".",",")+" kPa",hi:true},
         {k:"Atrito de parede na descarga  pw,d = Cw·pw  (Cw=1,10)",v:pwD.toFixed(1).replace(".",",")+" kPa"},
+        {sec:"Etapa 8 — Distribuição de pressões na parede (perfil de Janssen)"},
+        {k:"Pressão horizontal a meia altura  (z = H/2)",v:phMid.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Pressão horizontal na transição  (z = H, máx.)",v:ph.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Pressão de projeto na parede (descarga, transição)",v:phD.toFixed(1).replace(".",",")+" kPa",hi:true},
+        {sec:"Etapa 9 — Dimensionamento das chapas (tensão circunferencial)"},
+        {k:"Raio  R = D/2",v:Rc.toFixed(2).replace(".",",")+" m"},
+        {k:"Esforço de membrana circunferencial  nθ = ph,d·R",v:ntheta.toFixed(1).replace(".",",")+" kN/m"},
+        {k:"Tensão admissível  σadm = 0,90·fy  (NBR 8800)",v:fy+" MPa → "+sadm.toFixed(0)+" MPa"},
+        {k:"Espessura por tração  t = nθ/σadm",v:tcalc.toFixed(2).replace(".",",")+" mm  (+ "+abr.toFixed(1).replace(".",",")+" mm abrasão/corrosão)"},
+        {k:"Espessura recomendada (chapa comercial)",v:tcom.toFixed(1).replace(".",",")+" mm"+(govMin?"  (governada pelo mínimo prático 6 mm)":""),hi:true},
+        {k:"Observação estrutural",v:"⚠ Espessura por tração circunferencial. A flambagem axial (atrito acumulado + peso próprio) e os reforços/montantes (Etapas 10-11/14) podem governar e exigir maior espessura."},
         {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
       ];
     }
