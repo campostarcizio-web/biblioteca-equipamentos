@@ -479,7 +479,7 @@ const CALCS={
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
-    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 3: Etapas 1-9 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões na parede e dimensionamento das chapas (tração circunferencial, NBR 8800). Próximas: reforços, montantes, moega, descarga excêntrica e fadiga/dinâmica.",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 4: Etapas 1-11 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas, anéis de reforço e montantes verticais (NBR 8800). Próximas: moega, descarga excêntrica e fadiga/dinâmica.",
     campos:[
       {tipo:"head",label:"Etapa 1 — Dados operacionais"},
       {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
@@ -510,7 +510,14 @@ const CALCS={
         {v:"250",t:"ASTM A36 (fy 250 MPa)"},
         {v:"345",t:"ASTM A572 Gr.50 (fy 345 MPa)"},
         {v:"415",t:"ASTM A572 Gr.60 (fy 415 MPa)"}]},
-      {id:"siAbr",label:"Sobre-espessura de abrasão/corrosão",unidade:"mm",tipo:"number",valor:2,step:"0.5"}
+      {id:"siAbr",label:"Sobre-espessura de abrasão/corrosão",unidade:"mm",tipo:"number",valor:2,step:"0.5"},
+      {tipo:"head",label:"Etapas 10-11 — Reforços e montantes"},
+      {id:"siQext",label:"Pressão externa de projeto (vento/vácuo)",unidade:"kPa",tipo:"number",valor:1.0,step:"0.1"},
+      {id:"siLs",label:"Espaçamento entre anéis de reforço  L_s",unidade:"m",tipo:"number",valor:3,step:"0.5"},
+      {id:"siNcol",label:"Número de montantes (colunas)",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 montantes"},{v:"4",t:"4 montantes"},{v:"6",t:"6 montantes"},{v:"8",t:"8 montantes"}]},
+      {id:"siHleg",label:"Altura livre dos montantes  L",unidade:"m",tipo:"number",valor:6,step:"0.5"},
+      {id:"siSelf",label:"Fator de peso próprio + sobrecargas",unidade:"-",tipo:"number",valor:1.15,step:"0.05"}
     ],
     calcular:function(){
       var g=9.81;
@@ -576,6 +583,25 @@ const CALCS={
       var COM=[6.3,8.0,9.5,12.5,16.0,19.0,22.4,25.0,31.5];
       var tcom=COM[COM.length-1]; for(var ti=0;ti<COM.length;ti++){ if(COM[ti]>=treq){ tcom=COM[ti]; break; } }
       var govMin=(tcalc+abr<tmin);
+      // Etapa 10 — anéis de reforço (estabilidade do casco sob pressão externa, modo de anel n=2)
+      var qext=num("siQext"); if(isNaN(qext)||qext<0)qext=0;
+      var Ls=num("siLs"); if(isNaN(Ls)||Ls<=0)Ls=3;
+      var Eaco=200e6;                       // kPa (200 GPa)
+      var Ireq=qext*Math.pow(Rc,3)*Ls/(3*Eaco); // m⁴
+      var Ireq_cm4=Ireq*1e8;                // cm⁴
+      var nAneis=Math.max(1,Math.ceil(Hcil/Ls)-1);
+      // Etapa 11 — montantes verticais (colunas de apoio)
+      var Ncol=parseFloat($("#siNcol").value); if(isNaN(Ncol)||Ncol<1)Ncol=4;
+      var Hleg=num("siHleg"); if(isNaN(Hleg)||Hleg<=0)Hleg=6;
+      var fself=num("siSelf"); if(isNaN(fself)||fself<1)fself=1.15;
+      var Wmat=massa*g;                      // kN (massa em t × g)
+      var Wtot=Wmat*fself;                   // kN (material + peso próprio/sobrecargas)
+      var Pcol=Wtot/Ncol;                    // kN por montante
+      var chi=0.6;                           // redução de flambagem assumida (pré-dim)
+      var fy_kNcm2=fy/10;                    // MPa → kN/cm²
+      var Areq=Pcol/(chi*0.90*fy_kNcm2);     // cm²
+      var lamMax=120, Kbuc=2.0;              // engastado-livre (montante em balanço)
+      var imin=Kbuc*(Hleg*100)/lamMax;       // cm
       return [
         {sec:"Etapa 2 — Capacidade do silo"},
         {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
@@ -621,7 +647,20 @@ const CALCS={
         {k:"Tensão admissível  σadm = 0,90·fy  (NBR 8800)",v:fy+" MPa → "+sadm.toFixed(0)+" MPa"},
         {k:"Espessura por tração  t = nθ/σadm",v:tcalc.toFixed(2).replace(".",",")+" mm  (+ "+abr.toFixed(1).replace(".",",")+" mm abrasão/corrosão)"},
         {k:"Espessura recomendada (chapa comercial)",v:tcom.toFixed(1).replace(".",",")+" mm"+(govMin?"  (governada pelo mínimo prático 6 mm)":""),hi:true},
-        {k:"Observação estrutural",v:"⚠ Espessura por tração circunferencial. A flambagem axial (atrito acumulado + peso próprio) e os reforços/montantes (Etapas 10-11/14) podem governar e exigir maior espessura."},
+        {sec:"Etapa 10 — Anéis de reforço (estabilidade sob pressão externa)"},
+        {k:"Pressão externa de projeto (vento/vácuo)",v:qext.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Espaçamento entre anéis  L_s",v:Ls.toFixed(1).replace(".",",")+" m"},
+        {k:"Momento de inércia requerido  I = q·R³·L_s/(3E)",v:Ireq_cm4.toFixed(1).replace(".",",")+" cm⁴  (E = 200 GPa)",hi:true},
+        {k:"Número estimado de anéis no corpo",v:nAneis.toFixed(0)},
+        {k:"Recomendação do anel",v:"Barra chata / cantoneira soldada com I ≥ I_req; verificar também ação do vento (NBR 8800)."},
+        {sec:"Etapa 11 — Montantes verticais (colunas de apoio)"},
+        {k:"Peso do material  W = m·g",v:fmt(Math.round(Wmat))+" kN"},
+        {k:"Carga total (× peso próprio/sobrecargas)",v:fmt(Math.round(Wtot))+" kN  (fator "+fself.toFixed(2).replace(".",",")+")"},
+        {k:"Carga por montante  P = Wtot / N",v:fmt(Math.round(Pcol))+" kN  ("+Ncol.toFixed(0)+" montantes)",hi:true},
+        {k:"Área bruta requerida  A ≈ P/(χ·0,90·fy)",v:Areq.toFixed(0)+" cm²  (χ ≈ 0,6)"},
+        {k:"Raio de giração mínimo  i = K·L/λ  (K=2, λ=120)",v:imin.toFixed(1).replace(".",",")+" cm"},
+        {k:"Recomendação do montante",v:"Perfil tubular ou I com A ≥ "+Areq.toFixed(0)+" cm² e i ≥ "+imin.toFixed(1).replace(".",",")+" cm; verificar flambagem, excentricidade, vento e sismo (NBR 8800)."},
+        {k:"Observação estrutural",v:"⚠ Pré-dimensionamento. A flambagem axial detalhada do casco, a moega, a descarga excêntrica e a fadiga/dinâmica (Etapas 12-14) ainda devem ser verificadas (NBR 8800)."},
         {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
       ];
     }
@@ -811,7 +850,7 @@ function runCalc(id){
   box.innerHTML=`<div class="sec-t">Resultados</div><table class="res">${rows}</table>
     <div class="note">Estimativa de <b>pré-dimensionamento</b>. A seleção SEW usa torques nominais aproximados de catálogo — confirmar a escolha final no <a href="https://www.sew-eurodrive.com" target="_blank" rel="noopener">configurador oficial SEW</a>.<br><b>Resultado final majorado em 20%</b> (margem de projeto) — a seleção do motor/redutor SEW considera a potência majorada.<br>Referência: ${calc.referencia} · SEW-EURODRIVE (série R / motores DRN).</div>`;
 }
-function san(s){return String(s==null?"":s).replace(/³/g,"3").replace(/²/g,"2").replace(/·/g,"-").replace(/≥/g,">=").replace(/≤/g,"<=").replace(/→/g,"->").replace(/⚠/g,"(!)").replace(/×/g,"x").replace(/√/g,"raiz").replace(/µ/g,"u").replace(/α/g,"alfa").replace(/θ/g,"teta").replace(/Δ/g,"D").replace(/[Øø]/g,"O").replace(/[–—]/g,"-");}
+function san(s){return String(s==null?"":s).replace(/³/g,"3").replace(/²/g,"2").replace(/⁴/g,"4").replace(/·/g,"-").replace(/≥/g,">=").replace(/≤/g,"<=").replace(/→/g,"->").replace(/⚠/g,"(!)").replace(/×/g,"x").replace(/√/g,"raiz").replace(/µ/g,"u").replace(/α/g,"alfa").replace(/θ/g,"teta").replace(/Δ/g,"D").replace(/[Øø]/g,"O").replace(/[–—]/g,"-");}
 function inputVal(f){var el=document.getElementById(f.id);if(!el)return "";if(f.tipo==="select")return el.options[el.selectedIndex].text;return el.value+(f.unidade?" "+f.unidade:"");}
 function gerarRelatorio(){
   if(!CUR_EQ){return;}
