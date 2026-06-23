@@ -479,7 +479,7 @@ const CALCS={
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
-    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 4: Etapas 1-11 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas, anéis de reforço e montantes verticais (NBR 8800). Próximas: moega, descarga excêntrica e fadiga/dinâmica.",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 5: Etapas 1-13 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas, anéis de reforço, montantes verticais, moega (tração meridional) e descarga excêntrica (NBR 8800 / EN 1991-4). Próxima: fadiga e dinâmica.",
     campos:[
       {tipo:"head",label:"Etapa 1 — Dados operacionais"},
       {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
@@ -517,7 +517,9 @@ const CALCS={
       {id:"siNcol",label:"Número de montantes (colunas)",tipo:"select",valor:"4",opcoes:[
         {v:"3",t:"3 montantes"},{v:"4",t:"4 montantes"},{v:"6",t:"6 montantes"},{v:"8",t:"8 montantes"}]},
       {id:"siHleg",label:"Altura livre dos montantes  L",unidade:"m",tipo:"number",valor:6,step:"0.5"},
-      {id:"siSelf",label:"Fator de peso próprio + sobrecargas",unidade:"-",tipo:"number",valor:1.15,step:"0.05"}
+      {id:"siSelf",label:"Fator de peso próprio + sobrecargas",unidade:"-",tipo:"number",valor:1.15,step:"0.05"},
+      {tipo:"head",label:"Etapa 13 — Descarga excêntrica"},
+      {id:"siEcc",label:"Excentricidade da boca de descarga  e0",unidade:"m",tipo:"number",valor:0,step:"0.1"}
     ],
     calcular:function(){
       var g=9.81;
@@ -602,6 +604,21 @@ const CALCS={
       var Areq=Pcol/(chi*0.90*fy_kNcm2);     // cm²
       var lamMax=120, Kbuc=2.0;              // engastado-livre (montante em balanço)
       var imin=Kbuc*(Hleg*100)/lamMax;       // cm
+      // Etapa 12 — dimensionamento da moega (tremonha cônica, membrana meridional)
+      var Atrans=Math.PI*D*D/4;              // m²
+      var Fv=pv*Atrans + Vcone*gamma;        // kN (carga vertical na transição: coluna + peso do cone)
+      var senA=Math.sin(arad);
+      var Tm=(senA>0)?Fv/(Math.PI*D*senA):0; // kN/m (tração meridional na transição)
+      var thop=Tm/sadm;                      // mm (Tm[kN/m]=N/mm; sadm[MPa]=N/mm²)
+      var thop_req=Math.max(thop+abr,tmin);
+      var thopcom=COM[COM.length-1]; for(var th=0;th<COM.length;th++){ if(COM[th]>=thop_req){ thopcom=COM[th]; break; } }
+      var pnHop=pv;                          // estimativa da pressão normal na parede (confirmar pico de switch — EN 1991-4)
+      var thopMin=(thop+abr<tmin);
+      // Etapa 13 — descarga excêntrica (EN 1991-4)
+      var e0=num("siEcc"); if(isNaN(e0)||e0<0)e0=0;
+      var ecc=e0/D;
+      var eccClass=(e0<=0)?"Central (sem excentricidade)":(ecc<0.10)?"Pequena excentricidade":(ecc<0.25)?"Excentricidade moderada":"Excentricidade significativa";
+      var eccCrit=(ecc>=0.25);
       return [
         {sec:"Etapa 2 — Capacidade do silo"},
         {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
@@ -660,7 +677,19 @@ const CALCS={
         {k:"Área bruta requerida  A ≈ P/(χ·0,90·fy)",v:Areq.toFixed(0)+" cm²  (χ ≈ 0,6)"},
         {k:"Raio de giração mínimo  i = K·L/λ  (K=2, λ=120)",v:imin.toFixed(1).replace(".",",")+" cm"},
         {k:"Recomendação do montante",v:"Perfil tubular ou I com A ≥ "+Areq.toFixed(0)+" cm² e i ≥ "+imin.toFixed(1).replace(".",",")+" cm; verificar flambagem, excentricidade, vento e sismo (NBR 8800)."},
-        {k:"Observação estrutural",v:"⚠ Pré-dimensionamento. A flambagem axial detalhada do casco, a moega, a descarga excêntrica e a fadiga/dinâmica (Etapas 12-14) ainda devem ser verificadas (NBR 8800)."},
+        {sec:"Etapa 12 — Dimensionamento da moega (tremonha cônica)"},
+        {k:"Carga vertical na transição  Fv = pv·A + W_cone",v:fmt(Math.round(Fv))+" kN"},
+        {k:"Tração meridional  Tm = Fv/(π·D·sen α)",v:Tm.toFixed(1).replace(".",",")+" kN/m",hi:true},
+        {k:"Pressão normal na parede (estim.)  pn ≈ pv",v:pnHop.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Espessura por tração  t = Tm/σadm  (+ "+abr.toFixed(1).replace(".",",")+" mm abrasão)",v:thop.toFixed(2).replace(".",",")+" mm"},
+        {k:"Espessura recomendada da moega (chapa comercial)",v:thopcom.toFixed(1).replace(".",",")+" mm"+(thopMin?"  (mínimo prático)":""),hi:true},
+        {k:"Observação da moega",v:"⚠ Verificar o pico de pressão na transição (switch, EN 1991-4) e a abrasão — moegas de minério costumam usar chapa/revestimento mais espessos."},
+        {sec:"Etapa 13 — Descarga excêntrica (EN 1991-4)"},
+        {k:"Excentricidade da boca  e0",v:e0.toFixed(2).replace(".",",")+" m"},
+        {k:"Razão de excentricidade  e0/D",v:ecc.toFixed(3).replace(".",",")},
+        {k:"Classificação",v:eccClass,hi:true},
+        {k:"Recomendação",v:eccCrit?"⚠ e0/D ≥ 0,25: a EN 1991-4 exige análise do canal de fluxo excêntrico — pressões assimétricas, flexão/ovalização do casco e reforços verticais.":(e0>0?"Efeitos de excentricidade reduzidos; manter a boca o mais centrada possível e verificar a assimetria conforme EN 1991-4.":"Descarga central — sem efeitos de excentricidade. Manter a boca centrada favorece o fluxo de massa.")},
+        {k:"Observação estrutural",v:"⚠ Pré-dimensionamento. A flambagem axial detalhada do casco e a fadiga/dinâmica (Etapa 14) ainda devem ser verificadas (NBR 8800)."},
         {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
       ];
     }
