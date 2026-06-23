@@ -635,7 +635,7 @@ const CALCS={
       var klat=Ncol*3*Edin*Icol/Math.pow(Hleg,3); // N/m (apoio em colunas, modelo cantilever)
       var mvib=Wtot*1000/g;                  // kg (massa total vibrante)
       var fn=(klat>0&&mvib>0)?(1/(2*Math.PI))*Math.sqrt(klat/mvib):0; // Hz
-      return [
+      var OUT=[
         {sec:"Etapa 2 — Capacidade do silo"},
         {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
         {k:"Volume útil  V = m / (ρ · η)",v:V.toFixed(1).replace(".",",")+" m³",hi:true},
@@ -715,6 +715,8 @@ const CALCS={
         {k:"Observação estrutural",v:"⚠ Pré-dimensionamento — não substitui o projeto estrutural detalhado nem a folha de dados; confirmar todas as etapas conforme NBR 8800 / EN 1991-4."},
         {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
       ];
+      OUT.geo={D:D,Hcil:Hcil,hc:hc,Htot:Htot,Brec:Brec,alfa:alfa,tcom:tcom,thopcom:thopcom,fy:fy,Vutil:V};
+      return OUT;
     }
   }
 };
@@ -847,6 +849,35 @@ const ANIM={
             <rect x="276" y="24" width="22" height="26" rx="4" fill="#16789a" stroke="#0e5f7d"/>
           </svg>
           <div class="cap">Transportador Flexowell (alto ângulo) em operação — animação ProjectARK</div>
+        </div>`,
+  silo_circular:`<div class="vid">
+          <svg viewBox="0 0 470 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Silo circular em operacao">
+            <defs>
+              <linearGradient id="si_shell" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0b1726"/><stop offset="0.5" stop-color="#33465c"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+              <linearGradient id="si_ore" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7b75e"/><stop offset="1" stop-color="#a9761f"/></linearGradient>
+              <clipPath id="si_in"><path d="M186 56 H284 V135 L245 181 L225 181 L186 135 Z"/></clipPath>
+            </defs>
+            <path d="M205 135 L178 204 M265 135 L292 204" stroke="#33485e" stroke-width="6" stroke-linecap="round"/>
+            <line x1="150" y1="205" x2="320" y2="205" stroke="#1b2c3e" stroke-width="5"/>
+            <path d="M185 56 L235 32 L285 56 Z" fill="#1b2c3e" stroke="#3a4d63"/>
+            <rect x="226" y="14" width="18" height="18" fill="#1b2c3e" stroke="#33485e"/>
+            <path d="M185 56 H285 V135 L245 182 H225 L185 135 Z" fill="url(#si_shell)" stroke="#3a4d63" stroke-width="1.5"/>
+            <g clip-path="url(#si_in)"><rect x="185" y="110" width="100" height="90" fill="url(#si_ore)"><animate attributeName="y" values="120;78;120" dur="6s" repeatCount="indefinite"/></rect></g>
+            <g fill="#D9A94A">
+              <circle r="3" cx="235"><animate attributeName="cy" values="20;96" dur="0.7s" repeatCount="indefinite"/></circle>
+              <circle r="2.4" cx="231"><animate attributeName="cy" values="20;96" dur="0.9s" begin="0.3s" repeatCount="indefinite"/></circle>
+              <circle r="2.4" cx="240"><animate attributeName="cy" values="20;96" dur="0.8s" begin="0.5s" repeatCount="indefinite"/></circle>
+            </g>
+            <rect x="222" y="180" width="26" height="7" fill="#1b2c3e" stroke="#33485e"/>
+            <g fill="#D9A94A">
+              <circle r="3" cx="235"><animate attributeName="cy" values="188;224" dur="0.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.6s" repeatCount="indefinite"/></circle>
+              <circle r="2.4" cx="232"><animate attributeName="cy" values="188;224" dur="0.7s" begin="0.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.7s" begin="0.2s" repeatCount="indefinite"/></circle>
+              <circle r="2.4" cx="238"><animate attributeName="cy" values="188;224" dur="0.65s" begin="0.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.65s" begin="0.4s" repeatCount="indefinite"/></circle>
+            </g>
+            <g stroke="#1E9BC4" stroke-width="1" stroke-dasharray="3 3"><line x1="185" y1="48" x2="285" y2="48"/><line x1="300" y1="56" x2="300" y2="135"/></g>
+            <g fill="#1E9BC4" font-family="sans-serif" font-size="11"><text x="235" y="46" text-anchor="middle">D</text><text x="305" y="100">H</text><text x="250" y="165">&#945;</text></g>
+          </svg>
+          <div class="cap">Silo circular (corpo + moega cônica) em operação — animação ProjectARK</div>
         </div>`
 };
 
@@ -932,6 +963,62 @@ function gerarRelatorio(){
   doc.text(doc.splitTextToSize("Estimativa de pré-dimensionamento — não substitui o cálculo detalhado nem a folha de dados do fabricante. Referência: "+san(calc.referencia),W-28),14,fy);
   doc.setFontSize(7); doc.setTextColor(150);
   doc.text("ProjectARK Engenharia · Dimensionamento de Equipamentos",14,290);
+  if(r.geo){
+    var G=r.geo;
+    doc.addPage();
+    doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+    try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+    doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+    doc.text("Croqui esquemático — Silo Circular",60,12);
+    doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
+    doc.setFont("helvetica","normal");
+    var cx=80, wH=26, oH=8, topY=50, transY=112, botY=142;
+    // preenchimento do material (corpo + moega)
+    doc.setFillColor(245,228,190);
+    doc.rect(cx-wH,topY,2*wH,transY-topY,"F");
+    doc.lines([[2*wH,0],[-(wH-oH),botY-transY],[-2*oH,0],[-(wH-oH),-(botY-transY)]],cx-wH,transY,[1,1],"F",true);
+    // contornos do silo
+    doc.setDrawColor(20,40,60); doc.setLineWidth(0.7);
+    doc.line(cx-wH,topY,cx,topY-11); doc.line(cx,topY-11,cx+wH,topY);
+    doc.line(cx-wH,topY,cx-wH,transY); doc.line(cx+wH,topY,cx+wH,transY); doc.line(cx-wH,topY,cx+wH,topY);
+    doc.line(cx-wH,transY,cx-oH,botY); doc.line(cx+wH,transY,cx+oH,botY);
+    doc.line(cx-wH,transY,cx+wH,transY); doc.line(cx-oH,botY,cx+oH,botY);
+    // linhas de cota
+    doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+    var dy=topY-7; doc.line(cx-wH,dy,cx+wH,dy); doc.line(cx-wH,dy-1.6,cx-wH,dy+1.6); doc.line(cx+wH,dy-1.6,cx+wH,dy+1.6);
+    doc.text("D = "+san(G.D.toFixed(2))+" m",cx,dy-1.2,{align:"center"});
+    var rx=cx+wH+9; doc.line(rx,topY,rx,transY); doc.line(rx-1.6,topY,rx+1.6,topY); doc.line(rx-1.6,transY,rx+1.6,transY);
+    doc.text("H = "+san(G.Hcil.toFixed(2))+" m",rx+2,(topY+transY)/2+1);
+    doc.line(rx,transY,rx,botY); doc.line(rx-1.6,transY,rx+1.6,transY); doc.line(rx-1.6,botY,rx+1.6,botY);
+    doc.text("hc = "+san(G.hc.toFixed(2))+" m",rx+2,(transY+botY)/2+1);
+    var lx=cx-wH-9; doc.line(lx,topY,lx,botY); doc.line(lx-1.6,topY,lx+1.6,topY); doc.line(lx-1.6,botY,lx+1.6,botY);
+    doc.text("Htot = "+san(G.Htot.toFixed(2))+" m",lx-2,(topY+botY)/2+1,{align:"right"});
+    var by=botY+7; doc.line(cx-oH,by,cx+oH,by); doc.line(cx-oH,by-1.6,cx-oH,by+1.6); doc.line(cx+oH,by-1.6,cx+oH,by+1.6);
+    doc.text("B = "+san(String(Math.round(G.Brec*1000)))+" mm",cx,by+4,{align:"center"});
+    doc.text("ang. moega "+san(G.alfa.toFixed(0))+"°",cx+oH+4,botY-3);
+    // legenda com as medidas resultantes
+    doc.autoTable({startY:botY+16,theme:"grid",margin:{left:14,right:14},
+      head:[["Medida resultante do cálculo","Valor"]],
+      body:[
+        [san("Diâmetro interno  D"),san(G.D.toFixed(2))+" m"],
+        [san("Altura cilíndrica  H"),san(G.Hcil.toFixed(2))+" m"],
+        [san("Altura da moega (tremonha)  hc"),san(G.hc.toFixed(2))+" m"],
+        [san("Altura total  Htot"),san(G.Htot.toFixed(2))+" m"],
+        [san("Boca de descarga  B"),san(String(Math.round(G.Brec*1000)))+" mm"],
+        [san("Ângulo da moega (com a horizontal)"),san(G.alfa.toFixed(0))+"°"],
+        [san("Volume útil de armazenagem"),san(G.Vutil.toFixed(1))+" m³"],
+        [san("Espessura da chapa do corpo"),san(G.tcom.toFixed(1))+" mm"],
+        [san("Espessura da chapa da moega"),san(G.thopcom.toFixed(1))+" mm"],
+        [san("Aço estrutural  fy"),G.fy+" MPa"]
+      ],
+      headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+      alternateRowStyles:{fillColor:[244,247,250]},
+      columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+    doc.setFontSize(7); doc.setTextColor(110);
+    doc.text(san("Croqui esquemático (fora de escala) — medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    doc.setFontSize(7); doc.setTextColor(150);
+    doc.text("ProjectARK Engenharia · Dimensionamento de Equipamentos",14,290);
+  }
   doc.save("ProjectARK-"+CUR_EQ.calculadora+".pdf");
 }
 function closeModal(){$("#modal").classList.remove("open");}
