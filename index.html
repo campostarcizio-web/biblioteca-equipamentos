@@ -479,7 +479,7 @@ const CALCS={
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
-    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 1: Etapas 1-2 (dados e capacidade) e 4-5 (regime de fluxo e descarga).",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Materiais pré-selecionados usam valores típicos de literatura (densidade ~1,4–2,7 t/m³, atrito interno ~30–70°, atrito de parede ~20–35°) — confirmar em ensaio Jenike Shear. Fase 2: Etapas 1-7 — dados, capacidade, Flow Function, regime de fluxo e descarga, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen e fatores de descarga (EN 1991-4). Próximas: distribuição de pressões e dimensionamento estrutural (NBR 8800).",
     campos:[
       {tipo:"head",label:"Etapa 1 — Dados operacionais"},
       {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
@@ -502,15 +502,17 @@ const CALCS={
       {id:"siD50",label:"Granulometria  d50",unidade:"mm",tipo:"number",valor:12},
       {tipo:"head",label:"Flow Function — opcional (ensaio Jenike)"},
       {id:"siSc",label:"σc medido (0 = estimar de c e φi)",unidade:"kPa",tipo:"number",valor:0,step:"0.1"},
-      {id:"siS1",label:"Tensão de consolidação  σ1",unidade:"kPa",tipo:"number",valor:10,step:"0.5"}
+      {id:"siS1",label:"Tensão de consolidação  σ1",unidade:"kPa",tipo:"number",valor:10,step:"0.5"},
+      {tipo:"head",label:"Etapa 3 — Geometria do silo"},
+      {id:"siD",label:"Diâmetro interno do silo  D",unidade:"m",tipo:"number",valor:6,step:"0.1"}
     ],
     calcular:function(){
       var g=9.81;
       var Q=num("siQ"),t=num("siT"),eta=num("siEta");
       var rho=num("siRho"),phi=num("siPhi"),delta=num("siDelta"),c=num("siCoes"),d50=num("siD50");
-      var scMed=num("siSc"),s1=num("siS1");
-      if([Q,t,eta,rho,phi,delta,c,d50,s1].some(function(x){return isNaN(x);})) return null;
-      if(Q<=0||t<=0||eta<=0||eta>1||rho<=0||phi<=0||phi>=90||s1<=0) return null;
+      var scMed=num("siSc"),s1=num("siS1"),D=num("siD");
+      if([Q,t,eta,rho,phi,delta,c,d50,s1,D].some(function(x){return isNaN(x);})) return null;
+      if(Q<=0||t<=0||eta<=0||eta>1||rho<=0||phi<=0||phi>=90||delta<=0||delta>=90||s1<=0||D<=0) return null;
       // Etapa 2 — capacidade
       var massa=Q*t;
       var V=massa/(rho*eta);
@@ -534,6 +536,25 @@ const CALCS={
       var Bfloor=0.6; // mínimo prático em silos de minério (600 mm)
       var Brec=Math.max(Barco,Bmec,Bfloor);
       var coeso=(ffc<4);
+      // Etapa 3 — geometria (cilindro + moega cônica/tronco de cone)
+      var arad=alfa*Math.PI/180;
+      var hc=(D-Brec)/2*Math.tan(arad); if(hc<0)hc=0;
+      var Vcone=Math.PI/12*hc*(D*D+D*Brec+Brec*Brec);
+      var Vcil=V-Vcone, semCorpo=(Vcil<=0);
+      var Hcil=semCorpo?0:Vcil/(Math.PI*D*D/4);
+      var Htot=Hcil+hc;
+      var esbeltez=Htot/D;
+      // Etapas 5-6 — raio hidráulico e pressões de Janssen (enchimento)
+      var Rh=D/4;
+      var Kj=1.1*(1-Math.sin(pr));
+      var mu=Math.tan(delta*Math.PI/180);
+      var z=Hcil; // altura de enchimento no corpo (transição na base do cilindro)
+      var pvAsym=gamma*Rh/(mu*Kj);
+      var pv=pvAsym*(1-Math.exp(-mu*Kj*z/Rh));
+      var ph=Kj*pv, pw=mu*ph;
+      // Etapa 7 — fatores de descarga EN 1991-4 (parede vertical, Classe 2)
+      var Ch=1.15, Cw=1.10;
+      var phD=Ch*ph, pwD=Cw*pw;
       return [
         {sec:"Etapa 2 — Capacidade do silo"},
         {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
@@ -552,6 +573,23 @@ const CALCS={
         {k:"Descarga mín. anti-arco (Jenike) B = H·σc/γ",v:(Barco>0?(Math.round(Barco*1000)+" mm"):"≈ 0 (sem coesão relevante)")},
         {k:"Descarga mín. por granulometria  ≈ 8·d50",v:Math.round(Bmec*1000)+" mm"},
         {k:"Diâmetro de descarga recomendado",v:fmt(Math.round(Brec*1000))+" mm  (mín. prático 600–1200 mm)",hi:true},
+        {sec:"Etapa 3 — Geometria preliminar (cilindro + moega cônica)"},
+        {k:"Diâmetro interno  D",v:D.toFixed(2).replace(".",",")+" m"},
+        {k:"Altura da moega  hc = (D−B)/2 · tg α",v:hc.toFixed(2).replace(".",",")+" m  (α = "+alfa.toFixed(0)+"°)"},
+        {k:"Volume da moega (tronco de cone)",v:Vcone.toFixed(1).replace(".",",")+" m³"},
+        {k:"Altura cilíndrica  H",v:(semCorpo?"0  ⚠ moega já comporta o volume — reduzir D":Hcil.toFixed(2).replace(".",",")+" m"),hi:true},
+        {k:"Altura total  Htot = H + hc",v:Htot.toFixed(2).replace(".",",")+" m"},
+        {k:"Esbeltez  Htot / D",v:esbeltez.toFixed(2).replace(".",",")+(esbeltez>=2?"  (silo esbelto)":"  (silo baixo/intermediário)")},
+        {sec:"Etapas 5 e 6 — Pressões de Janssen (enchimento)"},
+        {k:"Raio hidráulico  R_h = D/4",v:Rh.toFixed(2).replace(".",",")+" m"},
+        {k:"Razão de pressões  K = 1,1·(1−senφi)",v:Kj.toFixed(3).replace(".",",")},
+        {k:"Coef. de atrito de parede  μ = tg δ",v:mu.toFixed(3).replace(".",",")},
+        {k:"Pressão vertical na transição  pv",v:pv.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Pressão horizontal na parede  ph = K·pv",v:ph.toFixed(1).replace(".",",")+" kPa",hi:true},
+        {k:"Atrito na parede  pw = μ·ph",v:pw.toFixed(1).replace(".",",")+" kPa"},
+        {sec:"Etapa 7 — Pressões de descarga (EN 1991-4)"},
+        {k:"Pressão horizontal de descarga  ph,d = Ch·ph  (Ch=1,15)",v:phD.toFixed(1).replace(".",",")+" kPa",hi:true},
+        {k:"Atrito de parede na descarga  pw,d = Cw·pw  (Cw=1,10)",v:pwD.toFixed(1).replace(".",",")+" kPa"},
         {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
       ];
     }
