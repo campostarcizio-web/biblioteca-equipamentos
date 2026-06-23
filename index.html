@@ -461,6 +461,76 @@ const CALCS={
         {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true}
       ];
     }
+  },
+  silo_circular:{
+    titulo:"Silo Circular — pré-dimensionamento",
+    referencia:"Avaliação de fluxo conforme teoria de A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); ações e pressões conforme EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; verificação estrutural conforme ABNT NBR 8800. Fase 1: Etapas 1-2 (dados e capacidade) e 4-5 (regime de fluxo e descarga).",
+    campos:[
+      {tipo:"head",label:"Etapa 1 — Dados operacionais"},
+      {id:"siQ",label:"Produção da planta  Q",unidade:"t/h",tipo:"number",valor:450},
+      {id:"siT",label:"Tempo de autonomia  t",unidade:"h",tipo:"number",valor:2,step:"0.5"},
+      {id:"siEta",label:"Fator de enchimento  η",unidade:"-",tipo:"number",valor:0.9,step:"0.05"},
+      {tipo:"head",label:"Etapa 1 — Propriedades do minério"},
+      {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:2.2,step:"0.05"},
+      {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:35},
+      {id:"siDelta",label:"Atrito parede-material  δ",unidade:"°",tipo:"number",valor:25},
+      {id:"siCoes",label:"Coesão  c",unidade:"kPa",tipo:"number",valor:0.8,step:"0.1"},
+      {id:"siD50",label:"Granulometria  d50",unidade:"mm",tipo:"number",valor:12},
+      {tipo:"head",label:"Flow Function — opcional (ensaio Jenike)"},
+      {id:"siSc",label:"σc medido (0 = estimar de c e φi)",unidade:"kPa",tipo:"number",valor:0,step:"0.1"},
+      {id:"siS1",label:"Tensão de consolidação  σ1",unidade:"kPa",tipo:"number",valor:10,step:"0.5"}
+    ],
+    calcular:function(){
+      var g=9.81;
+      var Q=num("siQ"),t=num("siT"),eta=num("siEta");
+      var rho=num("siRho"),phi=num("siPhi"),delta=num("siDelta"),c=num("siCoes"),d50=num("siD50");
+      var scMed=num("siSc"),s1=num("siS1");
+      if([Q,t,eta,rho,phi,delta,c,d50,s1].some(function(x){return isNaN(x);})) return null;
+      if(Q<=0||t<=0||eta<=0||eta>1||rho<=0||phi<=0||phi>=90||s1<=0) return null;
+      // Etapa 2 — capacidade
+      var massa=Q*t;
+      var V=massa/(rho*eta);
+      var gamma=rho*g; // kN/m³
+      // Flow Function
+      var pr=phi*Math.PI/180;
+      var scEst=2*c*Math.cos(pr)/(1-Math.sin(pr));
+      if(!isFinite(scEst)||scEst<0) scEst=0;
+      var sc=(scMed>0)?scMed:scEst;
+      var fonteSc=(scMed>0)?"ensaio Jenike (informado)":"estimado: σc = 2c·cosφi/(1−senφi)";
+      var ffc=(sc>0.001)?s1/sc:999;
+      var classe = ffc<1?"Não flui (endurecido)":ffc<2?"Muito coesivo":ffc<4?"Coesivo":ffc<10?"Fácil escoamento":"Livre escoamento (free-flowing)";
+      var ffcTxt=(ffc>=100)?"> 100":ffc.toFixed(1).replace(".",",");
+      // Etapa 4/5 — regime de fluxo e descarga (moega cônica)
+      var thetaV=50-delta; if(thetaV<5)thetaV=5; if(thetaV>45)thetaV=45; // meia-abertura da vertical p/ fluxo de massa
+      var thetaDes=thetaV-3; if(thetaDes<3)thetaDes=3; // margem de segurança
+      var alfa=90-thetaDes; // ângulo da moega com a horizontal
+      var Hf=2.0+thetaDes/60; // fator de Jenike H(θ) — moega cônica
+      var Barco=(sc>0.001)?Hf*sc/gamma:0; // m
+      var Bmec=8*d50/1000; // m  (≈ 8·d50 p/ evitar arco mecânico de blocos)
+      var Bfloor=0.6; // mínimo prático em silos de minério (600 mm)
+      var Brec=Math.max(Barco,Bmec,Bfloor);
+      var coeso=(ffc<4);
+      return [
+        {sec:"Etapa 2 — Capacidade do silo"},
+        {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
+        {k:"Volume útil  V = m / (ρ · η)",v:V.toFixed(1).replace(".",",")+" m³",hi:true},
+        {k:"Peso específico  γ = ρ · g",v:gamma.toFixed(1).replace(".",",")+" kN/m³"},
+        {sec:"Etapas 1 e 4 — Avaliação do material (Flow Function)"},
+        {k:"Atrito interno φi · atrito de parede δ",v:phi.toFixed(0)+"° · "+delta.toFixed(0)+"°"},
+        {k:"Resistência não confinada  σc",v:sc.toFixed(2).replace(".",",")+" kPa  ("+fonteSc+")"},
+        {k:"Tensão de consolidação  σ1",v:s1.toFixed(1).replace(".",",")+" kPa"+(scMed>0?"":"  (referência — refinada pela Etapa 6/Janssen)")},
+        {k:"Flow Function  ffc = σ1 / σc",v:ffcTxt},
+        {k:"Classificação de fluidez",v:classe,hi:true},
+        {sec:"Etapas 4 e 5 — Regime de fluxo e descarga"},
+        {k:"Regime de fluxo recomendado",v:"Fluxo de massa (mass flow)",hi:true},
+        {k:"Ângulo da moega recomendado (com horizontal)",v:alfa.toFixed(0)+"°  (moega cônica)",hi:true},
+        {k:"Meia-abertura da vertical  θ · fator H(θ)",v:thetaDes.toFixed(0)+"° · "+Hf.toFixed(2).replace(".",",")},
+        {k:"Descarga mín. anti-arco (Jenike) B = H·σc/γ",v:(Barco>0?(Math.round(Barco*1000)+" mm"):"≈ 0 (sem coesão relevante)")},
+        {k:"Descarga mín. por granulometria  ≈ 8·d50",v:Math.round(Bmec*1000)+" mm"},
+        {k:"Diâmetro de descarga recomendado",v:fmt(Math.round(Brec*1000))+" mm  (mín. prático 600–1200 mm)",hi:true},
+        {k:"Observação de fluxo",v:coeso?"⚠ Material coesivo (ffc < 4): confirmar σc e σ1 em ensaio Jenike Shear e priorizar fluxo de massa.":"Material de bom escoamento — fluxo de massa com a moega indicada tende a ser suficiente."}
+      ];
+    }
   }
 };
 

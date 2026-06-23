@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.7.0",
+    "versao": "1.8.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -50,8 +50,9 @@
       "subtipo": "Silo cilíndrico com tremonha cônica",
       "fabricante": "Pré-dimensionamento",
       "modelo": "Silo Circular",
-      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis: volume e capacidade, geometria (corpo + cone), pressões nas paredes e fundo (Janssen) e dimensão de descarga. Calculadora em desenvolvimento.",
-      "referencia": "A definir (ex.: Janssen; ABNT NBR 11700; DIN 1055-6 / EN 1991-4 Eurocode 1 Parte 4)"
+      "calculadora": "silo_circular",
+      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis. Fase 1: caracterização do minério, capacidade (massa e volume útil), avaliação do Flow Function (Jenike), regime de fluxo, ângulo da moega e diâmetro mínimo de descarga. Próximas fases: pressões de Janssen e dimensionamento estrutural.",
+      "referencia": "A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; ABNT NBR 8800 (estrutura)"
     },
     {
       "id": "silo-retangular",
