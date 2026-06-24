@@ -135,7 +135,8 @@ const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stro
 const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="35" r="5"/><circle cx="37" cy="13" r="5"/><path d="M12 30 L37 8 M12 40 L37 18"/><path d="M22 31 l3 4 4-3"/></svg>';
 const ICON_SILO='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 16 v20 M34 16 v20"/><path d="M14 16 a10 5 0 0 1 20 0"/><path d="M14 36 l10 8 10 -8"/><path d="M19 16 v20 M24 16 v22 M29 16 v20"/></svg>';
 const ICON_TUBE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="32" width="14" height="9" rx="4.5"/><rect x="28" y="9" width="14" height="9" rx="4.5" transform="rotate(32 35 13.5)"/><path d="M16 34 L30 18"/><circle cx="11" cy="36.5" r="1.6" fill="currentColor"/><circle cx="20" cy="29" r="1.6" fill="currentColor"/><circle cx="28" cy="20" r="1.6" fill="currentColor"/></svg>';
-function icon(e){if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+const ICON_BUCKET='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 8 v32 M32 8 v32"/><path d="M16 14 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M16 26 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M32 18 h6 a4 4 0 0 1 4 4 v3 h-10 z"/></svg>';
+function icon(e){if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -1021,6 +1022,97 @@ const CALCS={
       OUT.geo={tipo:"arraste",size:S.n,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
       return OUT;
     }
+  },
+  elevador_canecas:{
+    titulo:"Elevador de Canecas — pré-dimensionamento",
+    referencia:"Método CEMA (Bucket Elevators) e velocidades de descarga · canecas tipo 4B/Tapco/Maxi-Lift (volume e espaçamento) · referência de mineração pesada BEUMER (correia) e AUMUND (corrente central forjada BWZ) · acionamento SEW-EURODRIVE",
+    campos:[
+      {tipo:"head",label:"Processo"},
+      {id:"ecQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:60},
+      {id:"ecRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.5,step:"0.05"},
+      {id:"ecH",label:"Altura de elevação",unidade:"m",tipo:"number",valor:25},
+      {id:"ecFill",label:"Fator de enchimento da caneca",tipo:"select",valor:"0.75",opcoes:[
+        {v:"0.6",t:"0,60 — difícil/coesivo"},{v:"0.75",t:"0,75 — médio"},{v:"0.85",t:"0,85 — fino/fluido"}]},
+      {tipo:"head",label:"Caneca, descarga e tração"},
+      {id:"ecDisc",label:"Tipo de descarga",tipo:"select",valor:"centrifuga",opcoes:[
+        {v:"centrifuga",t:"Centrífuga (alta velocidade — grãos/granel médio)"},{v:"continua",t:"Contínua (baixa velocidade — grosso/abrasivo/quente)"}]},
+      {id:"ecBucket",label:"Caneca (catálogo)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela capacidade)"},
+        {v:"C2",t:"C2 · 2 L"},{v:"C5",t:"C5 · 5 L"},{v:"C10",t:"C10 · 10 L"},{v:"C20",t:"C20 · 20 L"},{v:"C40",t:"C40 · 40 L"},{v:"C80",t:"C80 · 80 L"}]},
+      {id:"ecTrac",label:"Tração",tipo:"select",valor:"correia",opcoes:[
+        {v:"correia",t:"Correia (EP) — abrasivos (BEUMER)"},{v:"corrente",t:"Corrente central forjada — grosso/quente (AUMUND)"}]},
+      {id:"ecD",label:"Diâmetro do tambor/roda da cabeça",unidade:"m",tipo:"number",valor:0.6,step:"0.05"},
+      {id:"ecSF",label:"Fator de segurança (correia/corrente)",tipo:"select",valor:"8",opcoes:[
+        {v:"6",t:"6 (corrente leve)"},{v:"8",t:"8 (normal)"},{v:"10",t:"10 (correia/severo)"}]}
+    ],
+    calcular:function(){
+      var g=9.81, eta=0.9;
+      var Q=num("ecQ"),rho=num("ecRho"),H=num("ecH"),D=num("ecD");
+      var fill=parseFloat($("#ecFill").value),disc=$("#ecDisc").value,trac=$("#ecTrac").value,SF=parseFloat($("#ecSF").value);
+      if([Q,rho,H,D].some(function(x){return isNaN(x);})||Q<=0||rho<=0||H<=0||D<=0) return null;
+      var BK=[
+        {n:"C2",Vb:2.0,hb:0.16,w:0.20},{n:"C5",Vb:5.0,hb:0.20,w:0.30},{n:"C10",Vb:10,hb:0.25,w:0.40},
+        {n:"C20",Vb:20,hb:0.32,w:0.50},{n:"C40",Vb:40,hb:0.40,w:0.65},{n:"C80",Vb:80,hb:0.50,w:0.80}
+      ];
+      var vnat=2.215*Math.sqrt(D), nnat=42.3/Math.sqrt(D);
+      var v=(disc==="centrifuga")?Math.min(vnat,1.8):0.9;
+      var n=v*60/(Math.PI*D);
+      function spac(bk){ return (disc==="centrifuga"?2.4:1.1)*bk.hb; }
+      function capBk(bk){ return 3.6*(bk.Vb/spac(bk))*v*rho*fill; }
+      var sel=$("#ecBucket").value, BK0=null, insuf=false;
+      if(sel!=="auto"){ for(var i=0;i<BK.length;i++){ if(BK[i].n===sel){ BK0=BK[i]; break; } } }
+      if(!BK0){ for(var i=0;i<BK.length;i++){ if(capBk(BK[i])>=Q){ BK0=BK[i]; break; } } if(!BK0){ BK0=BK[BK.length-1]; insuf=true; } }
+      var a=spac(BK0), capsel=capBk(BK0); if(capsel<Q) insuf=true;
+      var qmat=Q/(3.6*v), Nbk=Math.ceil(2*(H+1)/a);
+      var fd=(disc==="centrifuga")?1.15:1.10;
+      var Plift=Q*H/(367*eta), Peff=Plift*fd, Pmaj=Peff*1.20;
+      var sew=selSEW(Pmaj,n);
+      var Fwork=Pmaj*1000/v;
+      var beltB=0, epClass=0, BLreq=0;
+      if(trac==="correia"){
+        beltB=Math.ceil((BK0.w*1000+50)/50)*50;
+        var EPc=[250,400,500,630,800,1000,1250], req=(Fwork/beltB)*SF;
+        epClass=EPc[EPc.length-1]; for(var e=0;e<EPc.length;e++){ if(EPc[e]>=req){ epClass=EPc[e]; break; } }
+      } else { BLreq=Fwork*SF; }
+      var discOK=(disc==="centrifuga")?(Math.abs(v-vnat)/vnat<0.15):true;
+      var OUT=[
+        {sec:"Capacidade e caneca"},
+        {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
+        {k:"Vazão volumétrica  Q/ρ",v:(Q/rho).toFixed(1).replace(".",",")+" m³/h"},
+        {k:"Tipo de descarga",v:(disc==="centrifuga"?"Centrífuga (alta velocidade)":"Contínua (baixa velocidade)")},
+        {k:"Caneca selecionada",v:"Tipo "+BK0.n+" · "+BK0.Vb.toFixed(1).replace(".",",")+" L · largura "+(BK0.w*1000).toFixed(0)+" mm",hi:true},
+        {k:"Espaçamento entre canecas",v:(a*1000).toFixed(0)+" mm"+(insuf?"  ⚠ acima da capacidade — usar caneca/elevador maior":"")},
+        {k:"Capacidade da configuração",v:capsel.toFixed(1).replace(".",",")+" t/h · "+(capsel/rho).toFixed(1).replace(".",",")+" m³/h  (enchimento "+(fill*100).toFixed(0)+"%)"},
+        {k:"Número aproximado de canecas (2 ramais)",v:Nbk+" un"},
+        {sec:"Velocidade e descarga"},
+        {k:"Diâmetro do tambor/roda da cabeça",v:(D*1000).toFixed(0)+" mm"},
+        {k:"Velocidade da correia/corrente",v:v.toFixed(2).replace(".",",")+" m/s",hi:true},
+        {k:"Rotação da cabeça",v:n.toFixed(1).replace(".",",")+" rpm"},
+        {k:"Velocidade natural de descarga (centrífuga)",v:vnat.toFixed(2).replace(".",",")+" m/s · "+nnat.toFixed(1).replace(".",",")+" rpm  ("+(disc==="centrifuga"?(discOK?"OK":"⚠ ajustar Ø do tambor"):"ref. — descarga contínua usa v menor")+")"},
+        {sec:"Potência e acionamento SEW"},
+        {k:"Potência de elevação  P = Q·H/(367·η)",v:Plift.toFixed(2).replace(".",",")+" kW"},
+        {k:"Resistência de escavação no boot (×"+fd.toFixed(2).replace(".",",")+")",v:Peff.toFixed(2).replace(".",",")+" kW · "+(Peff/0.7457).toFixed(1).replace(".",",")+" HP",hi:true},
+        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2).replace(".",",")+" kW",hi:true},
+        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
+        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true}
+      ];
+      if(trac==="correia"){
+        OUT.push({sec:"Tração — correia (EP)"});
+        OUT.push({k:"Tração de trabalho  F = P/v",v:fmt(Math.round(Fwork))+" N"});
+        OUT.push({k:"Largura da correia (caneca + folga)",v:beltB+" mm"});
+        OUT.push({k:"Tração por largura",v:(Fwork/beltB).toFixed(1).replace(".",",")+" N/mm"});
+        OUT.push({k:"Classe da correia (EP) com FS "+SF.toFixed(0),v:"EP "+epClass+" N/mm",hi:true});
+        OUT.push({k:"Observação",v:"Pré-dimensionamento — para abrasivos (minério, clínquer, escória) a correia (BEUMER) tem maior vida útil. Confirmar canecas no catálogo (4B/Tapco/Maxi-Lift) e velocidades CEMA."});
+      } else {
+        OUT.push({sec:"Tração — corrente central"});
+        OUT.push({k:"Tração de trabalho  F = P/v",v:fmt(Math.round(Fwork))+" N"});
+        OUT.push({k:"Carga de ruptura requerida  F·FS",v:fmt(Math.round(BLreq/1000))+" kN  (FS "+SF.toFixed(0)+")",hi:true});
+        OUT.push({k:"Recomendação da corrente",v:"Corrente central forjada (tipo AUMUND BWZ) ou de elos redondos RUD com carga de ruptura ≥ "+(BLreq/1000).toFixed(0)+" kN."});
+        OUT.push({k:"Observação",v:"Pré-dimensionamento — corrente central (AUMUND) indicada para granel grosso/quente/abrasivo. Confirmar canecas (4B/Tapco) e velocidades CEMA."});
+      }
+      OUT.geo={tipo:"canecas",H:H,v:v,D:D,bucket:BK0.n,Vb:BK0.Vb,cap:capsel,Pmaj:Pmaj,motorkw:sew.mot.kw,motord:sew.mot.d,disc:(disc==="centrifuga"?"Centrífuga":"Contínua"),trac:(trac==="correia"?("Correia EP "+epClass):("Corrente BL≥"+Math.round(BLreq/1000)+" kN")),Nbk:Nbk};
+      return OUT;
+    }
   }
 };
 
@@ -1242,6 +1334,45 @@ const ANIM={
             <g fill="#1E9BC4" font-family="sans-serif" font-size="11"><text x="305" y="125">H</text><text x="225" y="160" text-anchor="middle">&#952;</text></g>
           </svg>
           <div class="cap">Transportador de arraste tubular (tubo + corrente de elos redondos com discos) — animação ProjectARK</div>
+        </div>`,
+  elevador_canecas:`<div class="vid">
+          <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Elevador de canecas em operacao">
+            <defs>
+              <linearGradient id="bk_steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfdae4"/><stop offset="0.5" stop-color="#8694a4"/><stop offset="1" stop-color="#495768"/></linearGradient>
+              <clipPath id="bk_in"><rect x="198" y="42" width="74" height="138" rx="6"/></clipPath>
+            </defs>
+            <rect x="198" y="42" width="74" height="138" rx="6" fill="#11202f" stroke="#33485e"/>
+            <line x1="214" y1="48" x2="214" y2="172" stroke="#22364a" stroke-width="3"/>
+            <line x1="256" y1="48" x2="256" y2="172" stroke="#22364a" stroke-width="3"/>
+            <g clip-path="url(#bk_in)">
+              <g>
+                <g transform="translate(214,184)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8"/><path d="M-8 -1 q8 5 16 0 v3 q-8 3 -16 0 z" fill="#D9A94A"/></g>
+                <g transform="translate(214,156)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8"/><path d="M-8 -1 q8 5 16 0 v3 q-8 3 -16 0 z" fill="#D9A94A"/></g>
+                <g transform="translate(214,128)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8"/><path d="M-8 -1 q8 5 16 0 v3 q-8 3 -16 0 z" fill="#D9A94A"/></g>
+                <g transform="translate(214,100)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8"/><path d="M-8 -1 q8 5 16 0 v3 q-8 3 -16 0 z" fill="#D9A94A"/></g>
+                <g transform="translate(214,72)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8"/><path d="M-8 -1 q8 5 16 0 v3 q-8 3 -16 0 z" fill="#D9A94A"/></g>
+                <animateTransform attributeName="transform" type="translate" from="0 0" to="0 -28" dur="1.5s" repeatCount="indefinite"/>
+              </g>
+              <g>
+                <g transform="translate(256,40)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8" transform="rotate(180)"/></g>
+                <g transform="translate(256,68)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8" transform="rotate(180)"/></g>
+                <g transform="translate(256,96)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8" transform="rotate(180)"/></g>
+                <g transform="translate(256,124)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8" transform="rotate(180)"/></g>
+                <g transform="translate(256,152)"><path d="M-11 0 h22 v8 a4 4 0 0 1 -4 4 h-14 a4 4 0 0 1 -4 -4 z" fill="url(#bk_steel)" stroke="#3a4d63" stroke-width="0.8" transform="rotate(180)"/></g>
+                <animateTransform attributeName="transform" type="translate" from="0 0" to="0 28" dur="1.5s" repeatCount="indefinite"/>
+              </g>
+            </g>
+            <g stroke="#5f6e80" stroke-width="2"><circle cx="235" cy="48" r="21" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><line x1="235" y1="30" x2="235" y2="66"/><line x1="217" y1="48" x2="253" y2="48"/><animateTransform attributeName="transform" type="rotate" from="0 235 48" to="360 235 48" dur="1.4s" repeatCount="indefinite"/></g>
+            <g stroke="#5f6e80" stroke-width="2"><circle cx="235" cy="172" r="18" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><line x1="235" y1="157" x2="235" y2="187"/><line x1="220" y1="172" x2="250" y2="172"/><animateTransform attributeName="transform" type="rotate" from="0 235 172" to="360 235 172" dur="1.4s" repeatCount="indefinite"/></g>
+            <path d="M150 182 L196 182 L196 196 L160 196 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3" cx="176" cy="186" fill="#D9A94A"><animate attributeName="cy" values="184;176" dur="0.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.5;1" dur="0.7s" repeatCount="indefinite"/></circle>
+            <path d="M274 40 L320 40 L320 60 L290 60 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3.5" fill="#D9A94A"><animateMotion path="M258 38 q26 -2 44 12 q8 8 10 22" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.6;1" dur="0.8s" repeatCount="indefinite"/></circle>
+            <circle r="3" fill="#D9A94A"><animateMotion path="M258 38 q26 -2 44 12 q8 8 10 22" dur="0.8s" begin="-0.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.6;1" dur="0.8s" begin="-0.4s" repeatCount="indefinite"/></circle>
+            <g stroke="#1E9BC4" stroke-width="1" stroke-dasharray="3 3"><line x1="288" y1="48" x2="288" y2="172"/></g>
+            <text x="293" y="115" fill="#1E9BC4" font-family="sans-serif" font-size="11">H</text>
+          </svg>
+          <div class="cap">Elevador de canecas (transporte vertical, descarga no topo) — animação ProjectARK</div>
         </div>`
 };
 
@@ -1365,6 +1496,38 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — perfil e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="canecas"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
+      var bx=58,bw=26,bty=46,bby=150;
+      doc.rect(bx,bty,bw,bby-bty,"S");
+      doc.setFillColor(159,177,196); doc.setDrawColor(58,77,99);
+      doc.circle(bx+bw/2,bty,5,"FD"); doc.circle(bx+bw/2,bby,4,"FD");
+      doc.setFillColor(150,165,180);
+      for(var by=bby-12; by>bty+8; by-=14){ doc.rect(bx+3,by,7,5,"F"); }
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(bx-10,bby-6,bx,bby-6); doc.line(bx-4,bby-8,bx,bby-6); doc.line(bx-4,bby-4,bx,bby-6);
+      doc.line(bx+bw,bty+6,bx+bw+10,bty+6); doc.line(bx+bw+4,bty+4,bx+bw+10,bty+6); doc.line(bx+bw+4,bty+8,bx+bw+10,bty+6);
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      var hx=bx+bw+16; doc.line(hx,bty,hx,bby); doc.line(hx-1.6,bty,hx+1.6,bty); doc.line(hx-1.6,bby,hx+1.6,bby);
+      doc.text("H = "+san(G.H.toFixed(1))+" m",hx+2,(bty+bby)/2+1);
+      doc.autoTable({startY:162,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Caneca"),"Tipo "+G.bucket+" · "+san(G.Vb.toFixed(1))+" L"],
+          [san("Tipo de descarga"),san(G.disc)],
+          [san("Velocidade"),san(G.v.toFixed(2))+" m/s"],
+          [san("Altura de elevação"),san(G.H.toFixed(1))+" m"],
+          [san("Capacidade"),san(G.cap.toFixed(1))+" t/h"],
+          [san("Nº aproximado de canecas"),G.Nbk+" un"],
+          [san("Potência majorada (+20%)"),san(G.Pmaj.toFixed(2))+" kW"],
+          [san("Motor SEW"),san(String(G.motorkw))+" kW · "+san(G.motord)],
+          [san("Tração"),san(G.trac)]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else {
     var cx=80, wH=26, oH=8, topY=50, transY=112, botY=142;
     // preenchimento do material (corpo + moega)
