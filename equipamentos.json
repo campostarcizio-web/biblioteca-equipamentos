@@ -1,11 +1,11 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.15.0",
+    "versao": "1.16.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
-      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Helicoidal"] },
+      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Helicoidal"] },
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] }
     ]
   },
@@ -42,6 +42,17 @@
       "calculadora": "screw_conveyor",
       "descricao": "Pré-dimensionamento de transportador helicoidal: a partir da vazão de projeto, calcula a vazão volumétrica, o diâmetro recomendado da rosca, a capacidade real e a potência de acionamento.",
       "referencia": "CEMA / KWS Screw Conveyor Engineering Guide; DIN 15262 / ISO 7119"
+    },
+    {
+      "id": "transportador-arraste-tubular",
+      "grupo": "Transportadores",
+      "subgrupo": "Arraste Tubular",
+      "subtipo": "Transportador de arraste tubular (corrente de elos redondos)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Transportador de Arraste Tubular",
+      "calculadora": "arraste_tubular",
+      "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do tamanho do tubo pelo catálogo, velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
+      "referencia": "Catálogo Schrage Rohrkettensystem (linha CLASSIC, tamanhos 115/135/160/200/270 — capacidades, velocidades e potências); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE"
     },
     {
       "id": "silo-circular",

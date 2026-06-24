@@ -134,7 +134,8 @@ const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" str
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
 const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="35" r="5"/><circle cx="37" cy="13" r="5"/><path d="M12 30 L37 8 M12 40 L37 18"/><path d="M22 31 l3 4 4-3"/></svg>';
 const ICON_SILO='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 16 v20 M34 16 v20"/><path d="M14 16 a10 5 0 0 1 20 0"/><path d="M14 36 l10 8 10 -8"/><path d="M19 16 v20 M24 16 v22 M29 16 v20"/></svg>';
-function icon(e){if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+const ICON_TUBE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="32" width="14" height="9" rx="4.5"/><rect x="28" y="9" width="14" height="9" rx="4.5" transform="rotate(32 35 13.5)"/><path d="M16 34 L30 18"/><circle cx="11" cy="36.5" r="1.6" fill="currentColor"/><circle cx="20" cy="29" r="1.6" fill="currentColor"/><circle cx="28" cy="20" r="1.6" fill="currentColor"/></svg>';
+function icon(e){if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -931,6 +932,95 @@ const CALCS={
       OUT.geo={tipo:"ret",D:a,b:b,Hcil:Hcil,hc:hc,Htot:Htot,Brec:Brec,alfa:alfa,tcom:tcom,thopcom:thopcom,fy:fy,Vutil:V};
       return OUT;
     }
+  },
+  arraste_tubular:{
+    titulo:"Transportador de Arraste Tubular — pré-dimensionamento",
+    referencia:"Catálogo Schrage Rohrkettensystem (linha CLASSIC, tamanhos 115/135/160/200/270) · correntes de elos redondos RUD · método de tração em transportadores contínuos de corrente · acionamento SEW-EURODRIVE",
+    campos:[
+      {tipo:"head",label:"Processo"},
+      {id:"tcQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:30},
+      {id:"tcRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:0.8,step:"0.05"},
+      {id:"tcLh1",label:"Trecho horizontal inferior",unidade:"m",tipo:"number",valor:5},
+      {id:"tcLi",label:"Trecho inclinado (comprimento)",unidade:"m",tipo:"number",valor:10},
+      {id:"tcTheta",label:"Ângulo de inclinação do trecho",unidade:"°",tipo:"number",valor:30},
+      {id:"tcLh2",label:"Trecho horizontal superior",unidade:"m",tipo:"number",valor:5},
+      {id:"tcNb",label:"Número de curvas leves (redirecionamentos)",tipo:"number",valor:2},
+      {tipo:"head",label:"Tubo e corrente (catálogo Schrage / RUD)"},
+      {id:"tcSize",label:"Tamanho do tubo (Schrage CLASSIC)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela capacidade)"},
+        {v:"115",t:"115 · Ø tubo 115 mm"},{v:"135",t:"135 · Ø tubo 135 mm"},{v:"160",t:"160 · Ø tubo 160 mm"},{v:"200",t:"200 · Ø tubo 200 mm"},{v:"270",t:"270 · Ø tubo 270 mm"}]},
+      {id:"tcMum",label:"Atrito material-tubo  μm",tipo:"select",valor:"0.5",opcoes:[
+        {v:"0.4",t:"0,40 — fino/fluido"},{v:"0.5",t:"0,50 — médio"},{v:"0.6",t:"0,60 — grosseiro/abrasivo"}]},
+      {id:"tcMuc",label:"Atrito corrente-tubo  μc",tipo:"select",valor:"0.3",opcoes:[
+        {v:"0.25",t:"0,25 — lubrificado"},{v:"0.3",t:"0,30 — normal"},{v:"0.35",t:"0,35 — seco/abrasivo"}]},
+      {id:"tcSF",label:"Fator de segurança da corrente",tipo:"select",valor:"6",opcoes:[
+        {v:"5",t:"5 (leve)"},{v:"6",t:"6 (normal)"},{v:"8",t:"8 (severo/abrasivo)"}]}
+    ],
+    calcular:function(){
+      var g=9.81, eta=0.85;
+      var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb");
+      var mum=parseFloat($("#tcMum").value),muc=parseFloat($("#tcMuc").value),SF=parseFloat($("#tcSF").value);
+      if([Q,rho,Lh1,Li,theta,Lh2,Nb].some(function(x){return isNaN(x);})||Q<=0||rho<=0||Lh1<0||Li<0||Lh2<0||theta<0||theta>90||Nb<0) return null;
+      var TC=[
+        {n:"115",A:0.00578,vmax:0.51,d:14,qc:4.31,pcd:0.35},
+        {n:"135",A:0.0106,vmax:0.51,d:14,qc:4.31,pcd:0.35},
+        {n:"160",A:0.0156,vmax:0.45,d:18,qc:7.13,pcd:0.40},
+        {n:"200",A:0.0249,vmax:0.45,d:18,qc:7.13,pcd:0.40},
+        {n:"270",A:0.0411,vmax:0.54,d:26,qc:14.87,pcd:0.49}
+      ];
+      function cap(s){return s.A*s.vmax*3600;}
+      var Qv=Q/rho;
+      var sel=$("#tcSize").value, S=null, insuf=false;
+      if(sel!=="auto"){ for(var i=0;i<TC.length;i++){ if(TC[i].n===sel){ S=TC[i]; break; } } }
+      if(!S){ for(var i=0;i<TC.length;i++){ if(cap(TC[i])>=Qv){ S=TC[i]; break; } } if(!S){ S=TC[TC.length-1]; insuf=true; } }
+      var V=Qv/(S.A*3600); if(V>S.vmax){ insuf=true; }
+      var Vshow=Math.min(V,S.vmax);
+      var qm=rho*S.A*1000, qc=S.qc;
+      var th=theta*Math.PI/180, H=Li*Math.sin(th), Lcos=Li*Math.cos(th);
+      var Lhoriz=Lh1+Lh2+Lcos, Lpath=Lh1+Li+Lh2;
+      var Fhor=g*(qc*muc+qm*mum)*(Lh1+Lh2);
+      var Finc=g*((qc*muc+qm*mum)*Math.cos(th)+(qc+qm)*Math.sin(th))*Li;
+      var Fret=g*qc*muc*Lpath;
+      var F0=Fhor+Finc+Fret, F=F0*(1+0.08*Nb);
+      var Peff=F*Vshow/eta/1000, Pmaj=Peff*1.20;
+      var nspr=Vshow*60/(Math.PI*S.pcd), sew=selSEW(Pmaj,nspr);
+      var Rm=800, BLreq=F*SF, dreq=Math.sqrt(BLreq/(2*(Math.PI/4)*Rm));
+      var CH=[14,16,18,20,22,26,30,34];
+      var dsel=CH[CH.length-1]; for(var ci=0;ci<CH.length;ci++){ if(CH[ci]>=Math.max(dreq,S.d)){ dsel=CH[ci]; break; } }
+      var BLsel=2*(Math.PI/4)*dsel*dsel*Rm;
+      var OUT=[
+        {sec:"Geometria e capacidade"},
+        {k:"Ângulo de inclinação",v:theta.toFixed(0)+"°"},
+        {k:"Elevação total  H = L_incl·senθ",v:H.toFixed(2).replace(".",",")+" m"},
+        {k:"Comprimento horizontal total",v:Lhoriz.toFixed(1).replace(".",",")+" m"},
+        {k:"Comprimento total do percurso",v:Lpath.toFixed(1).replace(".",",")+" m"},
+        {k:"Vazão volumétrica requerida",v:Qv.toFixed(1).replace(".",",")+" m³/h"},
+        {sec:"Tubo e velocidade (catálogo Schrage CLASSIC)"},
+        {k:"Tamanho do tubo selecionado",v:"Tipo "+S.n+"  (área útil "+(S.A*1e4).toFixed(0)+" cm²)",hi:true},
+        {k:"Velocidade da corrente requerida",v:Vshow.toFixed(2).replace(".",",")+" m/s"+(insuf?"  ⚠ acima da capacidade — usar tamanho maior":"  (máx. "+S.vmax.toFixed(2).replace(".",",")+" m/s)")},
+        {k:"Capacidade máx. do tamanho",v:cap(S).toFixed(1).replace(".",",")+" m³/h · "+(cap(S)*rho).toFixed(1).replace(".",",")+" t/h"},
+        {k:"Massa por metro: material · corrente",v:qm.toFixed(1).replace(".",",")+" · "+qc.toFixed(1).replace(".",",")+" kg/m"},
+        {sec:"Tração na corrente"},
+        {k:"Resist. trechos horizontais",v:fmt(Math.round(Fhor))+" N"},
+        {k:"Resist. trecho inclinado (atrito + elevação)",v:fmt(Math.round(Finc))+" N"},
+        {k:"Resist. ramal de retorno (corrente)",v:fmt(Math.round(Fret))+" N"},
+        {k:"Acréscimo por curvas leves ("+Nb.toFixed(0)+" × 8%)",v:"+"+((0.08*Nb)*100).toFixed(0)+"%"},
+        {k:"Tração total de trabalho  F",v:fmt(Math.round(F))+" N",hi:true},
+        {sec:"Potência e acionamento SEW"},
+        {k:"Potência efetiva  P = F·v/η  (η 0,85)",v:Peff.toFixed(2).replace(".",",")+" kW · "+(Peff/0.7457).toFixed(1).replace(".",",")+" HP",hi:true},
+        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2).replace(".",",")+" kW",hi:true},
+        {k:"Rotação da roda dentada (Ø "+(S.pcd*1000).toFixed(0)+" mm)",v:nspr.toFixed(1).replace(".",",")+" rpm"},
+        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
+        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true},
+        {sec:"Corrente de elos redondos (tipo RUD)"},
+        {k:"Carga de ruptura requerida  F · FS",v:fmt(Math.round(BLreq/1000))+" kN  (FS "+SF.toFixed(0)+")"},
+        {k:"Bitola da corrente recomendada",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~800 N/mm²)",hi:true},
+        {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+(BLsel/F).toFixed(1).replace(".",",")+")"},
+        {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
+      ];
+      OUT.geo={tipo:"arraste",size:S.n,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
+      return OUT;
+    }
   }
 };
 
@@ -1121,6 +1211,37 @@ const ANIM={
             <g fill="#1E9BC4" font-family="sans-serif" font-size="11"><text x="235" y="38" text-anchor="middle">a</text><text x="317" y="102">H</text></g>
           </svg>
           <div class="cap">Silo retangular (corpo prismático + tremonha piramidal) — animação ProjectARK</div>
+        </div>`,
+  arraste_tubular:`<div class="vid">
+          <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador de arraste tubular em operacao">
+            <defs>
+              <linearGradient id="at_tube" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#33465c"/><stop offset="0.5" stop-color="#1b2c3e"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+              <linearGradient id="at_steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/></linearGradient>
+            </defs>
+            <path d="M50 118 L90 118 L82 150 L60 150 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3" cx="71" cy="128" fill="#D9A94A"><animate attributeName="cy" values="122;158" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.8;1" dur="0.8s" repeatCount="indefinite"/></circle>
+            <path d="M70 165 L150 165 L300 78 L405 78" fill="none" stroke="url(#at_tube)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M70 165 L150 165 L300 78 L405 78" fill="none" stroke="#0a1422" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+            <g>
+              <g><circle r="4.5" fill="#D9A94A"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-0.2s"/></g>
+              <g><rect x="-2" y="-8" width="4" height="16" rx="1.5" fill="url(#at_steel)"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-0.55s"/></g>
+              <g><circle r="4.5" fill="#D9A94A"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-0.9s"/></g>
+              <g><rect x="-2" y="-8" width="4" height="16" rx="1.5" fill="url(#at_steel)"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-1.25s"/></g>
+              <g><circle r="4.5" fill="#D9A94A"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-1.6s"/></g>
+              <g><rect x="-2" y="-8" width="4" height="16" rx="1.5" fill="url(#at_steel)"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-1.95s"/></g>
+              <g><circle r="4.5" fill="#D9A94A"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-2.3s"/></g>
+              <g><rect x="-2" y="-8" width="4" height="16" rx="1.5" fill="url(#at_steel)"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-2.65s"/></g>
+              <g><circle r="4.5" fill="#D9A94A"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-3.0s"/></g>
+              <g><rect x="-2" y="-8" width="4" height="16" rx="1.5" fill="url(#at_steel)"/><animateMotion path="M70 165 L150 165 L300 78 L405 78" dur="3.6s" rotate="auto" repeatCount="indefinite" begin="-3.35s"/></g>
+            </g>
+            <g stroke="#5f6e80" stroke-width="2"><circle cx="70" cy="165" r="12" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><line x1="70" y1="155" x2="70" y2="175"/><line x1="60" y1="165" x2="80" y2="165"/><animateTransform attributeName="transform" type="rotate" from="0 70 165" to="360 70 165" dur="1.1s" repeatCount="indefinite"/></g>
+            <g stroke="#5f6e80" stroke-width="2"><circle cx="405" cy="78" r="13" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.5"/><line x1="405" y1="67" x2="405" y2="89"/><line x1="394" y1="78" x2="416" y2="78"/><animateTransform attributeName="transform" type="rotate" from="0 405 78" to="360 405 78" dur="1.1s" repeatCount="indefinite"/></g>
+            <path d="M398 92 L420 92 L414 118 L404 118 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <circle r="3.5" cx="409" cy="96" fill="#D9A94A"><animate attributeName="cy" values="96;126" dur="0.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;0.6;1" dur="0.7s" repeatCount="indefinite"/></circle>
+            <g stroke="#1E9BC4" stroke-width="1" stroke-dasharray="3 3"><line x1="300" y1="78" x2="300" y2="165"/><line x1="150" y1="165" x2="300" y2="165"/></g>
+            <g fill="#1E9BC4" font-family="sans-serif" font-size="11"><text x="305" y="125">H</text><text x="225" y="160" text-anchor="middle">&#952;</text></g>
+          </svg>
+          <div class="cap">Transportador de arraste tubular (tubo + corrente de elos redondos com discos) — animação ProjectARK</div>
         </div>`
 };
 
@@ -1215,6 +1336,36 @@ function gerarRelatorio(){
     doc.text(san("Croqui esquemático — "+CUR_EQ.modelo),60,12);
     doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
     doc.setFont("helvetica","normal");
+    if(G.tipo==="arraste"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.4);
+      var x0=28,y0=104,x1=62,x2=128,y2=70,x3=182;
+      doc.line(x0,y0,x1,y0); doc.line(x1,y0,x2,y2); doc.line(x2,y2,x3,y2);
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(x0,y0-13,x0,y0-4); doc.line(x0-2.2,y0-7,x0,y0-4); doc.line(x0+2.2,y0-7,x0,y0-4);
+      doc.line(x3,y2+4,x3,y2+13); doc.line(x3-2.2,y2+10,x3,y2+13); doc.line(x3+2.2,y2+10,x3,y2+13);
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      doc.line(x0,y0+8,x1,y0+8); doc.text("Lh1 = "+san(G.Lh1.toFixed(1))+" m",(x0+x1)/2,y0+12,{align:"center"});
+      doc.text("Li = "+san(G.Li.toFixed(1))+" m  /  "+san(G.theta.toFixed(0))+"°",(x1+x2)/2-1,(y0+y2)/2-3,{align:"center"});
+      doc.line(x2,y2-8,x3,y2-8); doc.text("Lh2 = "+san(G.Lh2.toFixed(1))+" m",(x2+x3)/2,y2-10,{align:"center"});
+      doc.line(x3+8,y2,x3+8,y0); doc.line(x3+6.5,y2,x3+9.5,y2); doc.line(x3+6.5,y0,x3+9.5,y0);
+      doc.text("H = "+san(G.H.toFixed(2))+" m",x3+10,(y2+y0)/2+1);
+      doc.autoTable({startY:130,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Tamanho do tubo (Schrage)"),"Tipo "+G.size],
+          [san("Velocidade da corrente"),san(G.Vsel.toFixed(2))+" m/s"],
+          [san("Elevação  H"),san(G.H.toFixed(2))+" m"],
+          [san("Comprimento horizontal total"),san(G.Lhoriz.toFixed(1))+" m"],
+          [san("Potência majorada (+20%)"),san(G.Pmaj.toFixed(2))+" kW"],
+          [san("Motor SEW"),san(String(G.motorkw))+" kW · "+san(G.motord)],
+          [san("Corrente de elos redondos (RUD)"),"Ø "+G.chainD+" mm"]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — perfil e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else {
     var cx=80, wH=26, oH=8, topY=50, transY=112, botY=142;
     // preenchimento do material (corpo + moega)
     doc.setFillColor(245,228,190);
@@ -1265,6 +1416,7 @@ function gerarRelatorio(){
       columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
     doc.setFontSize(7); doc.setTextColor(110);
     doc.text(san("Croqui esquemático (fora de escala) — medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    }
     doc.setFontSize(7); doc.setTextColor(150);
     doc.text("ProjectARK Engenharia · Dimensionamento de Equipamentos",14,290);
   }
