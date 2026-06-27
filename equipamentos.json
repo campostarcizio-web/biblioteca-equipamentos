@@ -1,13 +1,13 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.19.0",
+    "versao": "1.20.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
-      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas"] }
+      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador de Impacto"] }
     ]
   },
   "equipamentos": [
@@ -76,6 +76,17 @@
       "calculadora": "britador_mandibulas",
       "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade (Taggart + catálogo) e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
       "referencia": "Lei de Bond (3ª teoria da cominuição); fórmula de capacidade de Taggart; regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução; catálogo Metso/FAÇO Nordberg Série C; referências Wills' Mineral Processing Technology, Gupta & Yan (Mineral Processing Design and Operations), 911Metallurgist e AMIT-135"
+    },
+    {
+      "id": "britador-impacto",
+      "grupo": "Britadores",
+      "subgrupo": "Britador de Impacto",
+      "subtipo": "Britador de impacto de eixo horizontal (HSI), primário/secundário",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Britador de Impacto",
+      "calculadora": "britador_impacto",
+      "descricao": "Pré-dimensionamento de britador de impacto de eixo horizontal (HSI): seleção do modelo pelo catálogo (Nordberg Série NP, faixa primária/secundária), alimentação e alta razão de redução (10:1 a 25:1, produto cúbico), capacidade de catálogo, rotor e velocidade periférica, e potência pela lei de Bond (com Work Index por material), comparada à potência instalada do modelo. Indicado para materiais não-abrasivos (calcário, concreto reciclado).",
+      "referencia": "Lei de Bond / Work Index de impacto (CWi); catálogo Metso Nordberg Série NP (HSI) — boca, alimentação máx., rotor, potência e capacidade; faixa de redução e velocidade de rotor conforme literatura (Wills, 911Metallurgist, AMIT-135, Sandvik)"
     },
     {
       "id": "silo-circular",
