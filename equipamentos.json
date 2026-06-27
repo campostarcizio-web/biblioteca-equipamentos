@@ -1,12 +1,13 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.18.1",
+    "versao": "1.19.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
-      { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] }
+      { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
+      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas"] }
     ]
   },
   "equipamentos": [
@@ -64,6 +65,17 @@
       "calculadora": "elevador_canecas",
       "descricao": "Pré-dimensionamento de elevador de canecas (transportador vertical): capacidade e seleção da caneca pelo catálogo, velocidade e tipo de descarga (centrífuga ou contínua), potência (elevação + resistência de escavação no boot), tração e seleção da correia (EP) ou da corrente central, e acionamento SEW. Tração e descarga selecionáveis.",
       "referencia": "Método CEMA (Bucket Elevators) e velocidades de descarga; canecas tipo 4B / Tapco / Maxi-Lift (volume e espaçamento); referência de mineração pesada BEUMER (elevadores de correia) e AUMUND (corrente central forjada, tipo BWZ); acionamento SEW-EURODRIVE"
+    },
+    {
+      "id": "britador-mandibulas",
+      "grupo": "Britadores",
+      "subgrupo": "Britador de Mandíbulas",
+      "subtipo": "Britador de mandíbulas (1 eixo, britagem por compressão)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Britador de Mandíbulas",
+      "calculadora": "britador_mandibulas",
+      "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade (Taggart + catálogo) e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
+      "referencia": "Lei de Bond (3ª teoria da cominuição); fórmula de capacidade de Taggart; regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução; catálogo Metso/FAÇO Nordberg Série C; referências Wills' Mineral Processing Technology, Gupta & Yan (Mineral Processing Design and Operations), 911Metallurgist e AMIT-135"
     },
     {
       "id": "silo-circular",

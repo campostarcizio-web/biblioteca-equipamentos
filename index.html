@@ -136,7 +136,10 @@ const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stro
 const ICON_SILO='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 16 v20 M34 16 v20"/><path d="M14 16 a10 5 0 0 1 20 0"/><path d="M14 36 l10 8 10 -8"/><path d="M19 16 v20 M24 16 v22 M29 16 v20"/></svg>';
 const ICON_TUBE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="32" width="14" height="9" rx="4.5"/><rect x="28" y="9" width="14" height="9" rx="4.5" transform="rotate(32 35 13.5)"/><path d="M16 34 L30 18"/><circle cx="11" cy="36.5" r="1.6" fill="currentColor"/><circle cx="20" cy="29" r="1.6" fill="currentColor"/><circle cx="28" cy="20" r="1.6" fill="currentColor"/></svg>';
 const ICON_BUCKET='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 8 v32 M32 8 v32"/><path d="M16 14 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M16 26 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M32 18 h6 a4 4 0 0 1 4 4 v3 h-10 z"/></svg>';
-function icon(e){if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 10 L18 30 L18 38"/><path d="M38 10 L26 30 L26 38"/><path d="M10 10 L38 10"/><circle cx="14" cy="20" r="1.6" fill="currentColor"/><circle cx="24" cy="16" r="1.6" fill="currentColor"/><circle cx="34" cy="20" r="1.6" fill="currentColor"/></svg>';
+const CRUSHER_MAT={calcario:11,minerio_ferro:13,granito:16,basalto:19,quartzito:12,gnaisse:15,dolomita:11,bauxita:9,minerio_cobre:14,carvao:11};
+function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return; $("#bjWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_mandibulas");}
+function icon(e){if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -1120,6 +1123,79 @@ const CALCS={
       OUT.geo={tipo:"canecas",H:H,v:v,D:D,bucket:BK0.n,Vb:BK0.Vb,cap:capsel,Pmaj:Pmaj,motorkw:sew.mot.kw,motord:sew.mot.d,disc:(disc==="centrifuga"?"Centrífuga":"Contínua"),trac:(trac==="correia"?("Correia EP "+epClass):("Corrente BL≥"+Math.round(BLreq/1000)+" kN")),Nbk:Nbk};
       return OUT;
     }
+  },
+  britador_mandibulas:{
+    titulo:"Britador de Mandíbulas — pré-dimensionamento",
+    referencia:"Lei de Bond (3ª teoria da cominuição) · fórmula de capacidade de Taggart · regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução · catálogo Metso/FAÇO Nordberg Série C · refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
+    campos:[
+      {tipo:"head",label:"Alimentação e produto"},
+      {id:"bjFmax",label:"Maior bloco da alimentação  F_máx",unidade:"mm",tipo:"number",valor:600},
+      {id:"bjF80",label:"F80 da alimentação (80% passante)",unidade:"mm",tipo:"number",valor:400},
+      {id:"bjCSS",label:"APF — abertura na posição fechada (CSS)",unidade:"mm",tipo:"number",valor:80},
+      {id:"bjQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:250},
+      {id:"bjRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
+      {tipo:"head",label:"Material (Work Index de Bond)"},
+      {id:"bjMat",label:"Material (preset — preenche o Wi)",tipo:"select",valor:"custom",onchange:"crusherPreset()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"calcario",t:"Calcário (Wi ~11)"},{v:"dolomita",t:"Dolomita (Wi ~11)"},{v:"carvao",t:"Carvão (Wi ~11)"},
+        {v:"quartzito",t:"Quartzito (Wi ~12)"},{v:"minerio_ferro",t:"Minério de ferro (Wi ~13)"},{v:"minerio_cobre",t:"Minério de cobre (Wi ~14)"},
+        {v:"gnaisse",t:"Gnaisse (Wi ~15)"},{v:"granito",t:"Granito (Wi ~16)"},{v:"basalto",t:"Basalto (Wi ~19)"},{v:"bauxita",t:"Bauxita (Wi ~9)"}]},
+      {id:"bjWi",label:"Work Index  Wi",unidade:"kWh/t",tipo:"number",valor:15,step:"0.5"},
+      {tipo:"head",label:"Catálogo"},
+      {id:"bjModel",label:"Modelo (Nordberg Série C)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela boca e capacidade)"},
+        {v:"C63",t:"C63 · 630×440"},{v:"C80",t:"C80 · 800×510"},{v:"C95",t:"C95 · 930×580"},{v:"C100",t:"C100 · 1000×760"},
+        {v:"C105",t:"C105 · 1060×700"},{v:"C110",t:"C110 · 1100×850"},{v:"C125",t:"C125 · 1250×950"},{v:"C140",t:"C140 · 1400×1070"},
+        {v:"C145",t:"C145 · 1400×1100"},{v:"C160",t:"C160 · 1600×1200"},{v:"C200",t:"C200 · 2000×1500"}]}
+    ],
+    calcular:function(){
+      var Fmax=num("bjFmax"),F80=num("bjF80"),CSS=num("bjCSS"),Q=num("bjQ"),rho=num("bjRho"),Wi=num("bjWi");
+      if([Fmax,F80,CSS,Q,rho,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||CSS<=0||Q<=0||rho<=0||Wi<=0) return null;
+      var SC=[
+        {n:"C63",W:630,G:440,kw:45},{n:"C80",W:800,G:510,kw:75},{n:"C95",W:930,G:580,kw:90},{n:"C100",W:1000,G:760,kw:110},
+        {n:"C105",W:1060,G:700,kw:110},{n:"C110",W:1100,G:850,kw:132},{n:"C125",W:1250,G:950,kw:160},{n:"C140",W:1400,G:1070,kw:200},
+        {n:"C145",W:1400,G:1100,kw:200},{n:"C160",W:1600,G:1200,kw:250},{n:"C200",W:2000,G:1500,kw:400}
+      ];
+      var Greq=1.25*Fmax;
+      function Qtag(m){return 0.0025*m.W*CSS*(rho/1.6);}
+      var sel=$("#bjModel").value, M=null;
+      if(sel!=="auto"){ for(var i=0;i<SC.length;i++){ if(SC[i].n===sel){ M=SC[i]; break; } } }
+      if(!M){
+        for(var i=0;i<SC.length;i++){ if(SC[i].G>=Greq && Qtag(SC[i])>=Q){ if(!M||SC[i].G<M.G) M=SC[i]; } }
+        if(!M){ M=SC[0]; for(var i=0;i<SC.length;i++){ if(SC[i].G>M.G) M=SC[i]; } }
+      }
+      var insufG=(M.G<Greq), insufQ=(Qtag(M)<Q), capM=Qtag(M);
+      var P80=0.85*CSS, topProd=1.7*CSS, R80=F80/P80, Rgape=M.G/CSS;
+      var P80um=P80*1000, F80um=F80*1000;
+      var Wbond=10*Wi*(1/Math.sqrt(P80um)-1/Math.sqrt(F80um));
+      var Pbond=Wbond*Q, derate=Math.sqrt(16/Wi), potOK=(Pbond<=M.kw);
+      var OUT=[
+        {sec:"Alimentação e seleção da boca"},
+        {k:"Maior bloco da alimentação  F_máx",v:fmt(Math.round(Fmax))+" mm"},
+        {k:"Gape (boca) requerido  ≥ 1,25·F_máx",v:fmt(Math.round(Greq))+" mm  (F_máx ≤ 0,8·gape)"},
+        {k:"F80 da alimentação",v:fmt(Math.round(F80))+" mm"},
+        {k:"Modelo selecionado (Série C)",v:M.n+" · boca "+M.W+"×"+M.G+" mm"+(insufG?"  ⚠ gape insuficiente para o bloco — usar maior":""),hi:true},
+        {sec:"Razão de redução e produto"},
+        {k:"APF (CSS) — abertura na posição fechada",v:fmt(Math.round(CSS))+" mm"},
+        {k:"P80 estimado do produto  ≈ 0,85·CSS",v:P80.toFixed(0)+" mm",hi:true},
+        {k:"Top size estimado do produto  ≈ 1,7·CSS",v:topProd.toFixed(0)+" mm"},
+        {k:"Razão de redução  R80 = F80 / P80",v:R80.toFixed(1).replace(".",",")+" : 1"+(R80>8?"  ⚠ acima de ~8:1 — prever 2º estágio":"")},
+        {k:"Razão gape / APF",v:Rgape.toFixed(1).replace(".",",")+" : 1"},
+        {sec:"Capacidade"},
+        {k:"Capacidade estimada (Taggart)  Q = 0,25·L·S",v:capM.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":""),hi:true},
+        {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
+        {k:"Observação de capacidade",v:"Estimativa por Taggart (ref. 1,6 t/m³, boca cheia) — confirmar na curva de capacidade × APF do catálogo do modelo."},
+        {sec:"Potência (lei de Bond)"},
+        {k:"Work Index  Wi",v:Wi.toFixed(1).replace(".",",")+" kWh/t"},
+        {k:"Consumo específico  W = 10·Wi·(1/√P80 − 1/√F80)",v:Wbond.toFixed(3).replace(".",",")+" kWh/t"},
+        {k:"Potência de britagem  P = W · Q",v:Pbond.toFixed(1).replace(".",",")+" kW · "+(Pbond/0.7457).toFixed(0)+" HP",hi:true},
+        {k:"Potência do motor de catálogo (" +M.n+")",v:M.kw+" kW"+(potOK?"  (atende)":"  ⚠ abaixo da potência de Bond — rever modelo"),hi:true},
+        {k:"Fator de de-rate p/ minério competente  √(16/Wi)",v:derate.toFixed(2).replace(".",",")+(Wi>16?"  (Wi alto — reduzir capacidade / reforçar motor)":"  (sem penalidade)")},
+        {k:"Observação",v:"Pré-dimensionamento — britador primário por compressão. Manter a boca cheia (alimentação afogada); confirmar capacidade, APF e motorização no catálogo do fabricante. P80 do produto depende do material e do perfil das mandíbulas."}
+      ];
+      OUT.geo={tipo:"britador",model:M.n,W:M.W,G:M.G,CSS:CSS,Fmax:Fmax,R80:R80,cap:capM,Pbond:Pbond,kw:M.kw,P80:P80};
+      return OUT;
+    }
   }
 };
 
@@ -1380,6 +1456,37 @@ const ANIM={
             <text x="293" y="115" fill="#1E9BC4" font-family="sans-serif" font-size="11">H</text>
           </svg>
           <div class="cap">Elevador de canecas (transporte vertical, descarga no topo) — animação ProjectARK</div>
+        </div>`,
+  britador_mandibulas:`<div class="vid">
+          <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Britador de mandibulas em operacao">
+            <defs>
+              <linearGradient id="bj_steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/></linearGradient>
+            </defs>
+            <path d="M188 60 L300 60 L286 178 L212 178 Z" fill="#15243c" stroke="#33485e" stroke-width="1.5"/>
+            <path d="M206 72 L224 160 L212 160 L198 72 Z" fill="url(#bj_steel)" stroke="#3a4d63" stroke-width="0.8"/>
+            <g>
+              <path d="M286 72 L250 160 L262 160 L294 72 Z" fill="url(#bj_steel)" stroke="#3a4d63" stroke-width="0.8"/>
+              <animateTransform attributeName="transform" type="rotate" values="0 286 70;3.4 286 70;0 286 70" dur="0.45s" repeatCount="indefinite"/>
+            </g>
+            <g fill="#D9A94A">
+              <circle r="6.5" cx="242"><animate attributeName="cy" values="16;80" dur="1.1s" repeatCount="indefinite"/></circle>
+              <circle r="5" cx="232"><animate attributeName="cy" values="12;74" dur="1.3s" begin="-0.4s" repeatCount="indefinite"/></circle>
+              <circle r="5.5" cx="252"><animate attributeName="cy" values="14;77" dur="1.2s" begin="-0.8s" repeatCount="indefinite"/></circle>
+            </g>
+            <circle cx="238" cy="118" r="4" fill="#D9A94A"><animate attributeName="r" values="5;2.5;5" dur="0.45s" repeatCount="indefinite"/></circle>
+            <circle cx="256" cy="134" r="3.4" fill="#D9A94A"><animate attributeName="r" values="4;2;4" dur="0.45s" begin="-0.2s" repeatCount="indefinite"/></circle>
+            <g fill="#D9A94A">
+              <circle r="2.6" cx="232"><animate attributeName="cy" values="166;206" dur="0.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.7s" repeatCount="indefinite"/></circle>
+              <circle r="2.2" cx="240"><animate attributeName="cy" values="166;206" dur="0.8s" begin="-0.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.8s" begin="-0.3s" repeatCount="indefinite"/></circle>
+            </g>
+            <line x1="253" y1="66" x2="352" y2="80" stroke="#22364a" stroke-width="4"/>
+            <circle cx="245" cy="66" r="10" fill="#9fb1c2" stroke="#3a4d63" stroke-width="1.2"/><circle cx="245" cy="66" r="2.5" fill="#3a4d63"/>
+            <g stroke="#5f6e80" stroke-width="2.5"><circle cx="360" cy="84" r="34" fill="#9fb1c2" stroke="#3a4d63" stroke-width="2"/><line x1="360" y1="52" x2="360" y2="116"/><line x1="328" y1="84" x2="392" y2="84"/><line x1="337" y1="61" x2="383" y2="107"/><line x1="383" y1="61" x2="337" y2="107"/><animateTransform attributeName="transform" type="rotate" from="0 360 84" to="360 360 84" dur="0.9s" repeatCount="indefinite"/></g>
+            <circle cx="360" cy="84" r="5.5" fill="#3a4d63"/>
+            <g stroke="#1E9BC4" stroke-width="1" stroke-dasharray="3 3"><line x1="198" y1="66" x2="294" y2="66"/></g>
+            <g fill="#1E9BC4" font-family="sans-serif" font-size="11"><text x="246" y="58" text-anchor="middle">boca</text><text x="240" y="196" text-anchor="middle">APF</text></g>
+          </svg>
+          <div class="cap">Britador de mandíbulas (compressão entre mandíbula fixa e móvel, com volante) — animação ProjectARK</div>
         </div>`
 };
 
@@ -1535,6 +1642,38 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="britador"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.3);
+      var jx1=60,jx2=114,jty=52,jby=150,bx1=76,bx2=98;
+      doc.line(jx1,jty,bx1,jby); doc.line(jx2,jty,bx2,jby);
+      doc.setLineWidth(0.7);
+      doc.line(jx1-7,jty,bx1-7,jby); doc.line(jx1,jty,jx1-7,jty); doc.line(bx1,jby,bx1-7,jby);
+      doc.line(jx2+7,jty,bx2+7,jby); doc.line(jx2,jty,jx2+7,jty); doc.line(bx2,jby,bx2+7,jby);
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(87,jty-13,87,jty-4); doc.line(84.8,jty-7,87,jty-4); doc.line(89.2,jty-7,87,jty-4);
+      doc.line(87,jby+4,87,jby+13); doc.line(84.8,jby+9,87,jby+13); doc.line(89.2,jby+9,87,jby+13);
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      doc.line(jx1,jty-7,jx2,jty-7); doc.text("gape "+san(String(G.G))+" mm",(jx1+jx2)/2,jty-9,{align:"center"});
+      doc.line(bx1,jby+7,bx2,jby+7); doc.text("APF "+san(String(Math.round(G.CSS)))+" mm",(bx1+bx2)/2,jby+11,{align:"center"});
+      doc.text("boca "+G.W+" x "+G.G+" mm",jx2+12,(jty+jby)/2+1);
+      doc.autoTable({startY:162,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Modelo (Nordberg Série C)"),G.model],
+          [san("Boca (largura × gape)"),G.W+" × "+G.G+" mm"],
+          [san("APF (CSS)"),san(String(Math.round(G.CSS)))+" mm"],
+          [san("Maior bloco da alimentação"),san(String(Math.round(G.Fmax)))+" mm"],
+          [san("P80 estimado do produto"),san(G.P80.toFixed(0))+" mm"],
+          [san("Razão de redução  R80"),san(G.R80.toFixed(1))+" : 1"],
+          [san("Capacidade (Taggart)"),san(G.cap.toFixed(0))+" t/h"],
+          [san("Potência de Bond"),san(G.Pbond.toFixed(1))+" kW"],
+          [san("Motor de catálogo"),G.kw+" kW"]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — câmara de britagem e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else {
     var cx=80, wH=26, oH=8, topY=50, transY=112, botY=142;
     // preenchimento do material (corpo + moega)
