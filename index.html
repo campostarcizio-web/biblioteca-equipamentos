@@ -1130,12 +1130,12 @@ const CALCS={
   },
   britador_mandibulas:{
     titulo:"Britador de Mandíbulas — pré-dimensionamento",
-    referencia:"Lei de Bond (3ª teoria da cominuição) · fórmula de capacidade de Taggart · regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução · catálogo Metso/FAÇO Nordberg Série C · refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
+    referencia:"Lei de Bond (3ª teoria da cominuição) · tabela de capacidade × APF do catálogo Metso Nordberg Série C (C63…C3055) · regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução · refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
     campos:[
       {tipo:"head",label:"Alimentação e produto"},
-      {id:"bjFmax",label:"Maior bloco da alimentação  F_máx",unidade:"mm",tipo:"number",valor:600},
-      {id:"bjF80",label:"F80 da alimentação (80% passante)",unidade:"mm",tipo:"number",valor:400},
-      {id:"bjCSS",label:"APF — abertura na posição fechada (CSS)",unidade:"mm",tipo:"number",valor:80},
+      {id:"bjFmax",label:"Maior bloco da alimentação  F_máx",unidade:"mm",tipo:"number",valor:700},
+      {id:"bjF80",label:"F80 da alimentação (80% passante)",unidade:"mm",tipo:"number",valor:500},
+      {id:"bjCSS",label:"APF — abertura na posição fechada (CSS)",unidade:"mm",tipo:"number",valor:100},
       {id:"bjQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:250},
       {id:"bjRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
       {tipo:"head",label:"Material (Work Index de Bond)"},
@@ -1150,25 +1150,42 @@ const CALCS={
         {v:"auto",t:"Automático (pela boca e capacidade)"},
         {v:"C63",t:"C63 · 630×440"},{v:"C80",t:"C80 · 800×510"},{v:"C95",t:"C95 · 930×580"},{v:"C100",t:"C100 · 1000×760"},
         {v:"C105",t:"C105 · 1060×700"},{v:"C110",t:"C110 · 1100×850"},{v:"C125",t:"C125 · 1250×950"},{v:"C140",t:"C140 · 1400×1070"},
-        {v:"C145",t:"C145 · 1400×1100"},{v:"C160",t:"C160 · 1600×1200"},{v:"C200",t:"C200 · 2000×1500"}]}
+        {v:"C145",t:"C145 · 1400×1100"},{v:"C160",t:"C160 · 1600×1200"},{v:"C200",t:"C200 · 2000×1500"},{v:"C3055",t:"C3055 · 1400×760 (boca larga)"}]}
     ],
     calcular:function(){
       var Fmax=num("bjFmax"),F80=num("bjF80"),CSS=num("bjCSS"),Q=num("bjQ"),rho=num("bjRho"),Wi=num("bjWi");
       if([Fmax,F80,CSS,Q,rho,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||CSS<=0||Q<=0||rho<=0||Wi<=0) return null;
+      // Catálogo Metso Nordberg Série C — capacidade (t/h) × APF (mm), densidade ref. 1,6 t/m³
       var SC=[
-        {n:"C63",W:630,G:440,kw:45},{n:"C80",W:800,G:510,kw:75},{n:"C95",W:930,G:580,kw:90},{n:"C100",W:1000,G:760,kw:110},
-        {n:"C105",W:1060,G:700,kw:110},{n:"C110",W:1100,G:850,kw:132},{n:"C125",W:1250,G:950,kw:160},{n:"C140",W:1400,G:1070,kw:200},
-        {n:"C145",W:1400,G:1100,kw:200},{n:"C160",W:1600,G:1200,kw:250},{n:"C200",W:2000,G:1500,kw:400}
+        {n:"C63",W:630,G:440,kw:45,cap:[[40,40],[50,55],[60,65],[70,80],[80,95],[90,110],[100,120]]},
+        {n:"C80",W:800,G:510,kw:75,cap:[[40,65],[50,80],[60,95],[70,115],[80,130],[90,150],[100,165]]},
+        {n:"C95",W:930,G:580,kw:90,cap:[[60,120],[70,140],[80,160],[90,180],[100,200],[125,210],[150,250]]},
+        {n:"C100",W:1000,G:760,kw:110,cap:[[70,150],[80,170],[90,190],[100,215],[125,250],[150,300]]},
+        {n:"C105",W:1060,G:700,kw:110,cap:[[70,155],[80,175],[90,200],[100,220],[125,265],[150,315],[180,360],[200,420]]},
+        {n:"C110",W:1100,G:850,kw:132,cap:[[70,190],[80,210],[90,235],[100,255],[125,280],[150,335],[180,370],[200,445]]},
+        {n:"C125",W:1250,G:950,kw:160,cap:[[100,290],[125,310],[150,370],[180,425],[200,480],[225,590],[250,650]]},
+        {n:"C140",W:1400,G:1070,kw:200,cap:[[125,350],[150,410],[180,470],[200,530],[225,655],[250,725]]},
+        {n:"C145",W:1400,G:1100,kw:200,cap:[[125,385],[150,455],[180,520],[200,590],[225,680],[250,750],[275,820]]},
+        {n:"C160",W:1600,G:1200,kw:250,cap:[[125,400],[150,470],[180,595],[200,675],[225,750],[250,825],[275,900],[300,980]]},
+        {n:"C200",W:2000,G:1500,kw:400,cap:[[150,520],[180,760],[200,855],[225,945],[250,1040],[275,1130],[300,1225]]},
+        {n:"C3055",W:1400,G:760,kw:90,cap:[[70,240],[80,270],[90,295],[100,325],[125,390],[150,460],[180,530],[200,600]]}
       ];
+      function capTab(m,css){
+        var c=m.cap, a0=c[0][0], aN=c[c.length-1][0], v;
+        if(css<=a0) v=c[0][1];
+        else if(css>=aN) v=c[c.length-1][1];
+        else { for(var j=1;j<c.length;j++){ if(css<=c[j][0]){ var t=(css-c[j-1][0])/(c[j][0]-c[j-1][0]); v=c[j-1][1]+t*(c[j][1]-c[j-1][1]); break; } } }
+        return {q:v*(rho/1.6), amin:a0, amax:aN};
+      }
       var Greq=1.25*Fmax;
-      function Qtag(m){return 0.0025*m.W*CSS*(rho/1.6);}
       var sel=$("#bjModel").value, M=null;
       if(sel!=="auto"){ for(var i=0;i<SC.length;i++){ if(SC[i].n===sel){ M=SC[i]; break; } } }
       if(!M){
-        for(var i=0;i<SC.length;i++){ if(SC[i].G>=Greq && Qtag(SC[i])>=Q){ if(!M||SC[i].G<M.G) M=SC[i]; } }
+        for(var i=0;i<SC.length;i++){ if(SC[i].G>=Greq && capTab(SC[i],CSS).q>=Q){ if(!M||SC[i].G<M.G) M=SC[i]; } }
         if(!M){ M=SC[0]; for(var i=0;i<SC.length;i++){ if(SC[i].G>M.G) M=SC[i]; } }
       }
-      var insufG=(M.G<Greq), insufQ=(Qtag(M)<Q), capM=Qtag(M);
+      var ct=capTab(M,CSS), capM=ct.q, insufG=(M.G<Greq), insufQ=(capM<Q);
+      var cssNote=(CSS<ct.amin)?"  ⚠ APF abaixo do mínimo do modelo ("+ct.amin+" mm)":(CSS>ct.amax)?"  ⚠ APF acima do máximo do modelo ("+ct.amax+" mm)":"";
       var P80=0.85*CSS, topProd=1.7*CSS, R80=F80/P80, Rgape=M.G/CSS;
       var P80um=P80*1000, F80um=F80*1000;
       var Wbond=10*Wi*(1/Math.sqrt(P80um)-1/Math.sqrt(F80um));
@@ -1186,9 +1203,10 @@ const CALCS={
         {k:"Razão de redução  R80 = F80 / P80",v:R80.toFixed(1).replace(".",",")+" : 1"+(R80>8?"  ⚠ acima de ~8:1 — prever 2º estágio":"")},
         {k:"Razão gape / APF",v:Rgape.toFixed(1).replace(".",",")+" : 1"},
         {sec:"Capacidade"},
-        {k:"Capacidade estimada (Taggart)  Q = 0,25·L·S",v:capM.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":""),hi:true},
+        {k:"Capacidade (catálogo Série C, interpolada por APF)",v:capM.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":"")+cssNote,hi:true},
+        {k:"Faixa de APF do modelo ("+M.n+")",v:ct.amin+" a "+ct.amax+" mm"},
         {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
-        {k:"Observação de capacidade",v:"Estimativa por Taggart (ref. 1,6 t/m³, boca cheia) — confirmar na curva de capacidade × APF do catálogo do modelo."},
+        {k:"Observação de capacidade",v:"Capacidade da tabela do catálogo Metso Nordberg Série C (ref. 1,6 t/m³, boca cheia/alimentação afogada), interpolada pela APF. Varia com a natureza, umidade e granulometria do material."},
         {sec:"Potência (lei de Bond)"},
         {k:"Work Index  Wi",v:Wi.toFixed(1).replace(".",",")+" kWh/t"},
         {k:"Consumo específico  W = 10·Wi·(1/√P80 − 1/√F80)",v:Wbond.toFixed(3).replace(".",",")+" kWh/t"},
@@ -1903,7 +1921,7 @@ function gerarRelatorio(){
           [san("Maior bloco da alimentação"),san(String(Math.round(G.Fmax)))+" mm"],
           [san("P80 estimado do produto"),san(G.P80.toFixed(0))+" mm"],
           [san("Razão de redução  R80"),san(G.R80.toFixed(1))+" : 1"],
-          [san("Capacidade (Taggart)"),san(G.cap.toFixed(0))+" t/h"],
+          [san("Capacidade (catálogo Série C)"),san(G.cap.toFixed(0))+" t/h"],
           [san("Potência de Bond"),san(G.Pbond.toFixed(1))+" kW"],
           [san("Motor de catálogo"),G.kw+" kW"]
         ],

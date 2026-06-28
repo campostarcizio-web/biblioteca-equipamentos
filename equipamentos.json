@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.21.1",
+    "versao": "1.22.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -74,7 +74,7 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Britador de Mandíbulas",
       "calculadora": "britador_mandibulas",
-      "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade (Taggart + catálogo) e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
+      "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade pela tabela do catálogo Série C (interpolada por APF) e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
       "referencia": "Lei de Bond (3ª teoria da cominuição); fórmula de capacidade de Taggart; regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução; catálogo Metso/FAÇO Nordberg Série C; referências Wills' Mineral Processing Technology, Gupta & Yan (Mineral Processing Design and Operations), 911Metallurgist e AMIT-135"
     },
     {
