@@ -1210,7 +1210,7 @@ const CALCS={
         {v:"pri",t:"Primário (grande alimentação, alta capacidade)"},{v:"sec",t:"Secundário (produto mais fino)"}]},
       {id:"biFmax",label:"Maior bloco da alimentação  F_máx",unidade:"mm",tipo:"number",valor:800},
       {id:"biF80",label:"F80 da alimentação (80% passante)",unidade:"mm",tipo:"number",valor:600},
-      {id:"biP80",label:"P80 desejado do produto",unidade:"mm",tipo:"number",valor:60},
+      {id:"biP80",label:"P80 desejado do produto",unidade:"mm",tipo:"number",valor:150},
       {id:"biQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:400},
       {id:"biRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
       {id:"biVper",label:"Velocidade periférica do rotor (alvo)",unidade:"m/s",tipo:"number",valor:28},
@@ -1218,7 +1218,7 @@ const CALCS={
       {id:"biMat",label:"Material (preset — preenche o Wi)",tipo:"select",valor:"custom",onchange:"impactPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
         {v:"arenito",t:"Arenito (Wi ~8)"},{v:"concreto",t:"Concreto reciclado (Wi ~10)"},{v:"calcario",t:"Calcário (Wi ~11)"},{v:"dolomita",t:"Dolomita (Wi ~11)"},
-        {v:"quartzito",t:"Quartzito (Wi ~12)"},{v:"minerio_ferro",t:"Minério de ferro (Wi ~13)"},{v:"gnaisse",t:"Gnaisse (Wi ~15)"},{v:"granito",t:"Granito (Wi ~16)"},{v:"basalto",t:"Basalto (Wi ~19)"}]},
+        {v:"carvao",t:"Carvão (Wi ~11)"},{v:"quartzito",t:"Quartzito (Wi ~12)"},{v:"minerio_ferro",t:"Minério de ferro (Wi ~13)"},{v:"gnaisse",t:"Gnaisse (Wi ~15)"},{v:"granito",t:"Granito (Wi ~16)"},{v:"basalto",t:"Basalto (Wi ~19)"}]},
       {id:"biWi",label:"Work Index  Wi",unidade:"kWh/t",tipo:"number",valor:11,step:"0.5"},
       {tipo:"head",label:"Catálogo"},
       {id:"biModel",label:"Modelo (Nordberg Série NP)",tipo:"select",valor:"auto",opcoes:[
@@ -1231,22 +1231,28 @@ const CALCS={
       var rng=$("#biRange").value;
       if([Fmax,F80,P80,Q,rho,Vper,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||P80<=0||Q<=0||rho<=0||Vper<=0||Wi<=0) return null;
       var NP=[
-        {n:"NP1110",rng:"sec",fo:"1020×820",Fmax:600,Drot:1100,Wrot:1000,kw:160,kwmax:200,cap:200},
-        {n:"NP1213",rng:"sec",fo:"1320×879",Fmax:600,Drot:1200,Wrot:1300,kw:200,kwmax:250,cap:265},
-        {n:"NP1315",rng:"sec",fo:"1540×930",Fmax:600,Drot:1300,Wrot:1500,kw:250,kwmax:315,cap:330},
-        {n:"NP1520",rng:"sec",fo:"2040×995",Fmax:700,Drot:1500,Wrot:2000,kw:400,kwmax:500,cap:530},
-        {n:"NP1313",rng:"pri",fo:"1320×1225",Fmax:900,Drot:1300,Wrot:1300,kw:200,kwmax:250,cap:465},
-        {n:"NP1415",rng:"pri",fo:"1540×1320",Fmax:1000,Drot:1400,Wrot:1500,kw:250,kwmax:315,cap:580},
-        {n:"NP1620",rng:"pri",fo:"2040×1634",Fmax:1300,Drot:1600,Wrot:2000,kw:400,kwmax:500,cap:900},
-        {n:"NP2023",rng:"pri",fo:"2310×1986",Fmax:1500,Drot:2000,Wrot:2300,kw:1000,kwmax:1200,cap:1875}
+        {n:"NP1110",rng:"sec",fo:"1020×820",Fmax:600,Drot:1100,Wrot:1000,kw:160,kwmax:200,cap:190},
+        {n:"NP1213",rng:"sec",fo:"1320×879",Fmax:600,Drot:1200,Wrot:1300,kw:200,kwmax:250,cap:250},
+        {n:"NP1315",rng:"sec",fo:"1540×930",Fmax:600,Drot:1300,Wrot:1500,kw:250,kwmax:315,cap:315},
+        {n:"NP1520",rng:"sec",fo:"2040×995",Fmax:700,Drot:1500,Wrot:2000,kw:400,kwmax:500,cap:500},
+        {n:"NP1313",rng:"pri",fo:"1320×1225",Fmax:900,Drot:1300,Wrot:1300,kw:200,kwmax:250,cap:450},
+        {n:"NP1415",rng:"pri",fo:"1540×1320",Fmax:1000,Drot:1400,Wrot:1500,kw:250,kwmax:315,cap:560},
+        {n:"NP1620",rng:"pri",fo:"2040×1634",Fmax:1300,Drot:1600,Wrot:2000,kw:400,kwmax:500,cap:870},
+        {n:"NP2023",rng:"pri",fo:"2310×1986",Fmax:1500,Drot:2000,Wrot:2300,kw:1000,kwmax:1200,cap:1780}
       ];
+      // Capacidade interpolada das curvas do catálogo NP (ref. primário 800/200 mm; secundário 400/60 mm)
+      function capCurve(m){
+        var fref=(m.rng==="pri")?800:400, pref=(m.rng==="pri")?200:60, a=(m.rng==="pri")?-0.23:-0.49, b=(m.rng==="pri")?0.59:0.55;
+        var fr=Math.max(0.5,Math.min(1.5,Fmax/fref)), pr=Math.max(0.25,Math.min(2.0,P80/pref));
+        return m.cap*Math.pow(fr,a)*Math.pow(pr,b);
+      }
       var sel=$("#biModel").value, M=null;
       if(sel!=="auto"){ for(var i=0;i<NP.length;i++){ if(NP[i].n===sel){ M=NP[i]; break; } } }
       if(!M){
-        for(var i=0;i<NP.length;i++){ if(NP[i].rng===rng && NP[i].Fmax>=Fmax && NP[i].cap>=Q){ if(!M||NP[i].cap<M.cap) M=NP[i]; } }
-        if(!M){ for(var i=0;i<NP.length;i++){ if(NP[i].rng===rng){ if(!M||NP[i].cap>M.cap) M=NP[i]; } } }
+        for(var i=0;i<NP.length;i++){ if(NP[i].rng===rng && NP[i].Fmax>=Fmax && capCurve(NP[i])>=Q){ if(!M||capCurve(NP[i])<capCurve(M)) M=NP[i]; } }
+        if(!M){ for(var i=0;i<NP.length;i++){ if(NP[i].rng===rng){ if(!M||capCurve(NP[i])>capCurve(M)) M=NP[i]; } } }
       }
-      var insufF=(M.Fmax<Fmax), insufQ=(M.cap<Q);
+      var capM=capCurve(M), insufF=(M.Fmax<Fmax), insufQ=(capM<Q);
       var R80=F80/P80, n_rpm=Vper*60/(Math.PI*(M.Drot/1000));
       var P80um=P80*1000, F80um=F80*1000;
       var Wbond=10*Wi*(1/Math.sqrt(P80um)-1/Math.sqrt(F80um)), Pbond=Wbond*Q, potOK=(Pbond<=M.kwmax);
@@ -1265,9 +1271,10 @@ const CALCS={
         {k:"Velocidade periférica do rotor (alvo)",v:Vper.toFixed(0)+" m/s"},
         {k:"Rotação do rotor  n = v·60/(π·D)",v:n_rpm.toFixed(0)+" rpm  (periférica típica "+(rng==="pri"?"25-40":"35-60")+" m/s)",hi:true},
         {sec:"Capacidade"},
-        {k:"Capacidade nominal do modelo (catálogo)",v:M.cap.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":""),hi:true},
+        {k:"Capacidade estimada (curva do catálogo NP)",v:capM.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":""),hi:true},
+        {k:"Condição (aliment. / produto) · cap. de referência",v:Math.round(Fmax)+" / "+Math.round(P80)+" mm  ·  "+M.cap.toFixed(0)+" t/h ("+(M.rng==="pri"?"800/200":"400/60")+" mm)"},
         {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
-        {k:"Observação de capacidade",v:"Capacidade de catálogo (ref. 1,6 t/m³) varia com a granulometria de entrada/saída — confirmar na curva de produção do modelo."},
+        {k:"Observação de capacidade",v:"Capacidade interpolada das curvas do catálogo NP (ref. 1,6 t/m³): cresce com a alimentação e com o produto mais grosso. Confirmar na curva de produção do modelo."},
         {sec:"Potência (lei de Bond)"},
         {k:"Work Index  Wi",v:Wi.toFixed(1).replace(".",",")+" kWh/t"},
         {k:"Consumo específico  W = 10·Wi·(1/√P80 − 1/√F80)",v:Wbond.toFixed(3).replace(".",",")+" kWh/t"},
@@ -1275,7 +1282,7 @@ const CALCS={
         {k:"Potência instalada do modelo (" +M.n+")",v:M.kw+" kW (nom.) / "+M.kwmax+" kW (máx.)"+(potOK?"  (atende)":"  ⚠ abaixo da potência de Bond"),hi:true},
         {k:"Observação",v:"A potência instalada cobre a ineficiência do impacto e a inércia do rotor — a fórmula de Bond é um limite inferior da energia de cominuição. Britador de impacto indicado para materiais NÃO abrasivos (calcário, concreto, reciclagem)."}
       ];
-      OUT.geo={tipo:"impacto",model:M.n,fo:M.fo,Fmax:Fmax,Drot:M.Drot,Wrot:M.Wrot,R80:R80,cap:M.cap,Pbond:Pbond,kw:M.kw,kwmax:M.kwmax,P80:P80,nrpm:n_rpm};
+      OUT.geo={tipo:"impacto",model:M.n,fo:M.fo,Fmax:Fmax,Drot:M.Drot,Wrot:M.Wrot,R80:R80,cap:capM,Pbond:Pbond,kw:M.kw,kwmax:M.kwmax,P80:P80,nrpm:n_rpm};
       return OUT;
     }
   },
@@ -1296,7 +1303,7 @@ const CALCS={
       {id:"bhMat",label:"Material (preset — preenche o Wi)",tipo:"select",valor:"custom",onchange:"hammerPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
         {v:"gesso",t:"Gesso (Wi ~7)"},{v:"arenito",t:"Arenito (Wi ~8)"},{v:"cal",t:"Cal (Wi ~9)"},{v:"concreto",t:"Concreto reciclado (Wi ~10)"},
-        {v:"calcario",t:"Calcário (Wi ~11)"},{v:"carvao",t:"Carvão (Wi ~11)"},{v:"dolomita",t:"Dolomita (Wi ~11)"},{v:"gnaisse",t:"Gnaisse (Wi ~15)"}]},
+        {v:"calcario",t:"Calcário (Wi ~11)"},{v:"carvao",t:"Carvão (Wi ~11)"},{v:"dolomita",t:"Dolomita (Wi ~11)"},{v:"minerio_ferro",t:"Minério de ferro (Wi ~13)"},{v:"gnaisse",t:"Gnaisse (Wi ~15)"}]},
       {id:"bhWi",label:"Work Index  Wi",unidade:"kWh/t",tipo:"number",valor:11,step:"0.5"},
       {tipo:"head",label:"Catálogo"},
       {id:"bhModel",label:"Modelo (classe hammer / FLSmidth EV)",tipo:"select",valor:"auto",opcoes:[
