@@ -139,11 +139,15 @@ const ICON_BUCKET='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" st
 const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 10 L18 30 L18 38"/><path d="M38 10 L26 30 L26 38"/><path d="M10 10 L38 10"/><circle cx="14" cy="20" r="1.6" fill="currentColor"/><circle cx="24" cy="16" r="1.6" fill="currentColor"/><circle cx="34" cy="20" r="1.6" fill="currentColor"/></svg>';
 const ICON_IMPACT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="26" r="11"/><path d="M24 26 L24 17 M24 26 L32 31 M24 26 L16 31"/><path d="M22 8 h4 v6 h-4 z"/><path d="M40 24 l4 -2 M40 30 l4 2 M8 24 l-4 -2"/></svg>';
 const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="22" r="10"/><circle cx="24" cy="22" r="2.4" fill="currentColor"/><path d="M24 12 l5 -5 M24 32 l-5 5 M34 22 l5 -5 M14 22 l-5 5"/><path d="M12 40 h24 M14 40 v-2 M20 40 v-2 M26 40 v-2 M32 40 v-2"/></svg>';
+const ICON_SCREEN_H='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="14" width="36" height="9" rx="2"/><rect x="6" y="27" width="36" height="9" rx="2"/><path d="M12 14 v9 M18 14 v9 M24 14 v9 M30 14 v9 M36 14 v9" stroke-width="1.2"/><path d="M12 27 v9 M18 27 v9 M24 27 v9 M30 27 v9 M36 27 v9" stroke-width="1.2"/><path d="M8 40 l4 -2 M40 40 l-4 -2"/></svg>';
 const CRUSHER_MAT={calcario:11,minerio_ferro:13,granito:16,basalto:19,quartzito:12,gnaisse:15,dolomita:11,bauxita:9,minerio_cobre:14,carvao:11,concreto:10,arenito:8,gesso:7,cal:9};
+/* Densidade aparente típica (t/m³) para peneiramento */
+const SCREEN_MAT={brita:1.6,granito:1.6,calcario:1.5,minerio_ferro:2.5,carvao:0.9,areia:1.5,agregado:1.6,coque:0.5};
+function penPreset(){var d=SCREEN_MAT[$("#pnMat").value]; if(d==null)return; $("#pnRho").value=d; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"peneira_horizontal");}
 function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return; $("#bjWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_mandibulas");}
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
-function icon(e){if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function icon(e){if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -1128,6 +1132,100 @@ const CALCS={
       return OUT;
     }
   },
+  peneira_horizontal:{
+    titulo:"Peneira Vibratória Horizontal — pré-dimensionamento",
+    referencia:"Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A = (T·P)/(C·M·K·Qn); gráfico B (capacidade básica C), gráfico C (fator M de oversize), gráfico D (fator K), tabelas Q1–Q6 e áreas ativas dos modelos; método VSMA",
+    campos:[
+      {tipo:"head",label:"Alimentação e separação"},
+      {id:"pnQ",label:"Vazão de alimentação ao deck",unidade:"t/h",tipo:"number",valor:300},
+      {id:"pnRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
+      {id:"pnAb",label:"Abertura desejada (separação)",unidade:"mm",tipo:"number",valor:25},
+      {id:"pnOver",label:"% de oversize na alimentação (> abertura)",unidade:"%",tipo:"number",valor:40},
+      {id:"pnHalf",label:"% de material < ½ da abertura na alimentação",unidade:"%",tipo:"number",valor:35},
+      {tipo:"head",label:"Material e fatores de correção"},
+      {id:"pnMat",label:"Material (preset — preenche a densidade)",tipo:"select",valor:"brita",onchange:"penPreset()",opcoes:[
+        {v:"brita",t:"Brita / pedra britada (1,6)"},{v:"granito",t:"Granito (1,6)"},{v:"calcario",t:"Calcário (1,5)"},
+        {v:"agregado",t:"Agregado genérico (1,6)"},{v:"areia",t:"Areia (1,5)"},{v:"minerio_ferro",t:"Minério de ferro (2,5)"},
+        {v:"carvao",t:"Carvão (0,9)"},{v:"coque",t:"Coque (0,5)"}]},
+      {id:"pnForma",label:"Forma da partícula (Q2)",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"Cúbica (Q2 = 1,0)"},{v:"0.9",t:"Lamelar / alongada (Q2 = 0,9)"}]},
+      {id:"pnUmido",label:"Peneiramento via úmida (Q3)",tipo:"select",valor:"nao",opcoes:[
+        {v:"nao",t:"Não — via seca (Q3 = 1,0)"},{v:"sim",t:"Sim — com aspersão de água (Q3 pela abertura)"}]},
+      {id:"pnUmidade",label:"Umidade superficial do material (Q4)",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"Menos de 3% (Q4 = 1,0)"},{v:"0.85",t:"3 a 5% (Q4 = 0,85)"},{v:"0.7",t:"6 a 8% (Q4 = 0,70)"}]},
+      {id:"pnTela",label:"Tipo de tela / área aberta (Q5)",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"Arame — abertura quadrada (Q5 = 1,0)"},{v:"1.05",t:"Arame — abertura retangular (Q5 = 1,05)"},
+        {v:"0.75",t:"Placa de aço — quadrada (Q5 = 0,75)"},{v:"0.8",t:"Placa de aço — retangular (Q5 = 0,80)"},
+        {v:"0.8b",t:"Poliuretano/borracha — quadrada (Q5 = 0,80)"},{v:"0.9",t:"Poliuretano/borracha — retangular (Q5 = 0,90)"}]},
+      {id:"pnDecks",label:"Posição do deck (Q1)",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"1º deck / deck único (Q1 = 1,0)"},{v:"0.9",t:"2º deck (Q1 = 0,9)"},{v:"0.8",t:"3º deck (Q1 = 0,8)"}]},
+      {id:"pnP",label:"Fator de confiança P (1,0 a 1,4)",tipo:"number",valor:1.1,step:"0.05"},
+      {tipo:"head",label:"Verificação de largura e camada"},
+      {id:"pnS",label:"Velocidade de transporte do material  S",unidade:"m/min",tipo:"number",valor:18,step:"1"}
+    ],
+    calcular:function(){
+      var Q=num("pnQ"),rho=num("pnRho"),ab=num("pnAb"),over=num("pnOver"),half=num("pnHalf"),P=num("pnP"),S=num("pnS");
+      var Q2=parseFloat($("#pnForma").value),Q4=parseFloat($("#pnUmidade").value),Q5=parseFloat($("#pnTela").value),Q1=parseFloat($("#pnDecks").value);
+      var umido=$("#pnUmido").value;
+      if([Q,rho,ab,over,half,P,S].some(function(x){return isNaN(x);})||Q<=0||rho<=0||ab<=0||P<=0||S<=0) return null;
+      function interp(t,x){ if(x<=t[0][0])return t[0][1]; if(x>=t[t.length-1][0])return t[t.length-1][1]; for(var i=1;i<t.length;i++){ if(x<=t[i][0]){ var f=(x-t[i-1][0])/(t[i][0]-t[i-1][0]); return t[i-1][1]+f*(t[i][1]-t[i-1][1]); } } return t[t.length-1][1]; }
+      // Gráfico B — capacidade básica C (m³/h·m²) x abertura (mm)
+      var TC=[[0.838,3.5],[1.168,4.5],[1.651,5.5],[2.362,6.5],[3.327,8],[4.699,10],[6.35,12],[9.525,16],[12.70,20],[15.875,24],[19.05,27],[22.2,30],[25.4,33],[38.1,43],[50.8,49],[63.5,55],[76.2,60],[88.9,65],[101.6,69],[114.3,72],[127,76],[139.7,80],[152.4,85],[165.1,92],[177.8,101]];
+      // Gráfico C — fator de material retido M x % oversize
+      var TM=[[0,0.92],[10,0.97],[20,1.0],[30,1.04],[40,1.10],[50,1.18],[60,1.28],[65,1.35],[70,1.46],[75,1.60],[78,1.80],[80,2.0],[85,2.7],[90,3.8]];
+      // Gráfico D — fator K x % de material < ½ da abertura
+      var TK=[[0,0.40],[10,0.52],[20,0.62],[25,0.70],[30,0.78],[40,0.93],[50,1.10],[60,1.25],[70,1.42],[80,1.60],[90,2.0]];
+      function q3wet(a){ if(a<=6)return 1.4; if(a<=12)return 1.3; if(a<=25)return 1.25; if(a<=40)return 1.2; if(a<=50)return 1.1; if(a<=75)return 1.15; return 1.0; }
+      var C=interp(TC,ab), M=interp(TM,over), K=interp(TK,half);
+      var Q3=(umido==="sim")?q3wet(ab):1.0, Q6=1.1; // movimento linear (peneira horizontal)
+      var Qn=Q1*Q2*Q3*Q4*Q5*Q6;
+      var T=Q/rho;                          // alimentação volumétrica (m³/h)
+      var A=(T*P)/(C*M*K*Qn);               // área necessária (m²)
+      // Seleção do modelo Metso pela área ativa (m²) — largura W (m), comprimento L (m)
+      var MOD=[{n:"4×10",a:3.24,w:1.2,l:3.0},{n:"4×12",a:3.9,w:1.2,l:3.6},{n:"5×12",a:5.0,w:1.5,l:3.6},{n:"5×14",a:5.83,w:1.5,l:4.2},{n:"6×16",a:8.2,w:1.8,l:4.9},{n:"8×16",a:11.0,w:2.45,l:4.9},{n:"7×20",a:11.9,w:2.15,l:6.1},{n:"8×20",a:13.8,w:2.45,l:6.1},{n:"8×24",a:16.5,w:2.45,l:7.3},{n:"10×20",a:17.4,w:3.05,l:6.1},{n:"10×24",a:21.0,w:3.05,l:7.3}];
+      var sel=null; for(var i=0;i<MOD.length;i++){ if(MOD[i].a>=A){ sel=MOD[i]; break; } }
+      var insuf=false; if(!sel){ sel=MOD[MOD.length-1]; insuf=true; }
+      // Espessura da camada na descarga (mm): D = 100·T / (6·S·(W−0,15))
+      var Dbed=100*T/(6*S*(sel.w-0.15));
+      var limCam=4*ab, camOK=(Dbed<=limCam);
+      var nModel=A/sel.a; // ocupação
+      var OUT=[
+        {sec:"Alimentação"},
+        {k:"Vazão de alimentação ao deck",v:Q.toFixed(0)+" t/h"},
+        {k:"Densidade aparente",v:rho.toFixed(2).replace(".",",")+" t/m³"},
+        {k:"Alimentação volumétrica  T = Q / ρ",v:T.toFixed(1).replace(".",",")+" m³/h",hi:true},
+        {k:"Abertura desejada (separação)",v:ab.toFixed(0)+" mm"},
+        {k:"% de oversize na alimentação",v:over.toFixed(0)+" %"},
+        {k:"% de material < ½ da abertura",v:half.toFixed(0)+" %"},
+        {sec:"Fatores do método (VSMA / Metso)"},
+        {k:"Capacidade básica  C (gráfico B)",v:C.toFixed(1).replace(".",",")+" m³/h·m²",hi:true},
+        {k:"Fator de material retido  M (gráfico C — oversize)",v:M.toFixed(2).replace(".",",")},
+        {k:"Fator  K (gráfico D — % < ½ abertura)",v:K.toFixed(2).replace(".",",")},
+        {k:"Fator de confiança  P",v:P.toFixed(2).replace(".",",")},
+        {k:"Q1 — posição do deck",v:Q1.toFixed(2).replace(".",",")},
+        {k:"Q2 — forma da partícula",v:Q2.toFixed(2).replace(".",",")},
+        {k:"Q3 — peneiramento via úmida",v:Q3.toFixed(2).replace(".",",")+(umido==="sim"?"  (via úmida)":"  (via seca)")},
+        {k:"Q4 — umidade superficial",v:Q4.toFixed(2).replace(".",",")},
+        {k:"Q5 — tipo de tela / área aberta",v:Q5.toFixed(2).replace(".",",")},
+        {k:"Q6 — movimento linear (peneira horizontal)",v:Q6.toFixed(2).replace(".",",")},
+        {k:"Produto de correção  Qn = Q1·Q2·Q3·Q4·Q5·Q6",v:Qn.toFixed(3).replace(".",","),hi:true},
+        {sec:"Área e seleção da peneira"},
+        {k:"Área necessária  A = (T·P)/(C·M·K·Qn)",v:A.toFixed(2).replace(".",",")+" m²",hi:true},
+        {k:"Modelo selecionado (área ativa Metso)",v:sel.n+" · "+sel.a.toFixed(2).replace(".",",")+" m²"+(insuf?"  ⚠ maior modelo da tabela — área insuficiente, prever 2 peneiras em paralelo ou maior":""),hi:true},
+        {k:"Largura × comprimento do deck",v:sel.w.toFixed(2).replace(".",",")+" × "+sel.l.toFixed(2).replace(".",",")+" m"},
+        {k:"Ocupação da área ativa (A / área do modelo)",v:(nModel*100).toFixed(0)+" %"},
+        {sec:"Camada de material e eficiência"},
+        {k:"Velocidade de transporte  S",v:S.toFixed(0)+" m/min"},
+        {k:"Espessura da camada na descarga  D = 100·T/(6·S·(W−0,15))",v:Dbed.toFixed(0)+" mm"+(camOK?"  (OK ≤ 4·abertura)":"  ⚠ > 4·abertura ("+limCam.toFixed(0)+" mm) — peneira mais larga"),hi:true},
+        {k:"Limite recomendado da camada (≈ 3 a 4 × abertura)",v:limCam.toFixed(0)+" mm"},
+        {k:"Eficiência assumida no método",v:"90% (contaminação ~5%)"},
+        {k:"Para eficiência de 95%",v:"operar com 80% da capacidade calculada ou aumentar a área em 20%"},
+        {k:"Observação",v:"Pré-dimensionamento de peneira horizontal (movimento linear) pelo método de área VSMA/Metso (ref. densidade 1,6 t/m³ nas curvas). Os fatores M, K e Q1–Q6 ajustam a capacidade às condições reais do material; confirmar tela, amplitude/frequência e o modelo na folha de dados do fabricante."}
+      ];
+      OUT.geo={tipo:"peneira",model:sel.n,A:A,Amod:sel.a,W:sel.w,L:sel.l,ab:ab,C:C,M:M,K:K,Qn:Qn,T:T,Dbed:Dbed,decks:Q1};
+      return OUT;
+    }
+  },
   britador_mandibulas:{
     titulo:"Britador de Mandíbulas — pré-dimensionamento",
     referencia:"Lei de Bond (3ª teoria da cominuição) · tabela de capacidade × APF do catálogo Metso Nordberg Série C (C63…C3055) · regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução · refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
@@ -1424,6 +1522,52 @@ function render(){
 }
 
 const ANIM={
+  peneira_horizontal:`<div class="vid">
+          <svg viewBox="0 0 470 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Peneira vibratoria horizontal em operacao">
+            <defs>
+              <linearGradient id="ph_body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#33465c"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+              <linearGradient id="ph_steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/></linearGradient>
+            </defs>
+            <!-- molas -->
+            <path d="M40 168 q6 -6 0 -12 q-6 -6 0 -12 q6 -6 0 -12" fill="none" stroke="#5d6c7e" stroke-width="2"/>
+            <path d="M430 168 q6 -6 0 -12 q-6 -6 0 -12 q6 -6 0 -12" fill="none" stroke="#5d6c7e" stroke-width="2"/>
+            <!-- conjunto vibrante (movimento linear ~45 graus) -->
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0 0; 2.6 -2.6; 0 0; -2.6 2.6; 0 0" dur="0.16s" repeatCount="indefinite"/>
+              <!-- caixa de alimentacao -->
+              <path d="M28 40 L96 40 L80 70 L44 70 Z" fill="#1b2c3e" stroke="#33485e"/>
+              <!-- caixa da peneira -->
+              <rect x="58" y="74" width="360" height="74" rx="6" fill="url(#ph_body)" stroke="#3a4d63"/>
+              <!-- deck superior (tela) -->
+              <line x1="70" y1="92" x2="406" y2="92" stroke="#9fb6cc" stroke-width="2"/>
+              <g stroke="#6f8398" stroke-width="1">
+                <line x1="86" y1="88" x2="86" y2="96"/><line x1="110" y1="88" x2="110" y2="96"/><line x1="134" y1="88" x2="134" y2="96"/><line x1="158" y1="88" x2="158" y2="96"/><line x1="182" y1="88" x2="182" y2="96"/><line x1="206" y1="88" x2="206" y2="96"/><line x1="230" y1="88" x2="230" y2="96"/><line x1="254" y1="88" x2="254" y2="96"/><line x1="278" y1="88" x2="278" y2="96"/><line x1="302" y1="88" x2="302" y2="96"/><line x1="326" y1="88" x2="326" y2="96"/><line x1="350" y1="88" x2="350" y2="96"/><line x1="374" y1="88" x2="374" y2="96"/>
+              </g>
+              <!-- deck inferior -->
+              <line x1="70" y1="124" x2="406" y2="124" stroke="#6f8398" stroke-width="1.5" opacity="0.7"/>
+              <!-- mecanismo vibratorio -->
+              <circle cx="238" cy="62" r="11" fill="url(#ph_steel)" stroke="#46586b"/>
+              <circle cx="238" cy="62" r="3" fill="#15243c"><animateTransform attributeName="transform" type="rotate" from="0 238 62" to="360 238 62" dur="0.5s" repeatCount="indefinite"/></circle>
+              <!-- oversize: deslocam sobre a tela (esq -> dir) -->
+              <g fill="#D9A94A">
+                <circle r="5" cy="85"><animate attributeName="cx" values="80;400" dur="2.6s" repeatCount="indefinite"/></circle>
+                <circle r="6" cy="84"><animate attributeName="cx" values="80;400" dur="2.6s" begin="-0.8s" repeatCount="indefinite"/></circle>
+                <circle r="4.5" cy="86"><animate attributeName="cx" values="80;400" dur="2.6s" begin="-1.6s" repeatCount="indefinite"/></circle>
+              </g>
+              <!-- finos passantes caindo pela tela -->
+              <g fill="#7fd0ea">
+                <circle r="2.2" cx="150" cy="96"><animate attributeName="cy" values="96;140" dur="0.9s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.9s" repeatCount="indefinite"/></circle>
+                <circle r="2" cx="210" cy="96"><animate attributeName="cy" values="96;140" dur="0.9s" begin="-0.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.9s" begin="-0.3s" repeatCount="indefinite"/></circle>
+                <circle r="2.4" cx="285" cy="96"><animate attributeName="cy" values="96;140" dur="0.9s" begin="-0.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.9s" begin="-0.6s" repeatCount="indefinite"/></circle>
+              </g>
+            </g>
+            <!-- descargas (fixas) -->
+            <path d="M406 132 L444 132 L436 158 L414 158 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <text x="118" y="34" fill="#9fb6cc" font-size="11" font-family="sans-serif">alimentacao</text>
+            <text x="412" y="128" fill="#D9A94A" font-size="10" font-family="sans-serif">retido</text>
+            <text x="150" y="175" fill="#7fd0ea" font-size="10" font-family="sans-serif">passante (finos)</text>
+            <text x="200" y="195" fill="#6f8398" font-size="9" font-family="sans-serif">movimento linear ~45 graus — peneira horizontal — ProjectARK</text>
+          </svg></div>`,
   screw_conveyor:`<div class="vid">
           <svg viewBox="0 0 470 188" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transportador helicoidal em operacao">
             <defs>
@@ -2000,6 +2144,53 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — rotor de martelos e grelha; medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="peneira"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
+      var px=40,py=66,pw=120,ph=20;
+      // caixa de alimentação
+      doc.setFillColor(27,44,62); doc.lines([[20,0],[-6,16],[-8,0]],px-6,py-12,[1,1],"FD",true);
+      // deck superior (tela) e caixa
+      doc.rect(px,py,pw,ph,"S");
+      doc.setDrawColor(90,110,130); doc.setLineWidth(0.4);
+      for(var t=px+8;t<px+pw;t+=8){ doc.line(t,py,t,py+5); }
+      doc.line(px,py+5,px+pw,py+5);
+      // deck inferior
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.6); doc.line(px,py+ph,px+pw,py+ph);
+      // molas
+      doc.setDrawColor(120); doc.setLineWidth(0.5);
+      doc.line(px+4,py+ph,px+4,py+ph+8); doc.line(px+pw-4,py+ph,px+pw-4,py+ph+8);
+      // setas de fluxo
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(px+pw+2,py+2,px+pw+12,py+2); doc.line(px+pw+8,py-1,px+pw+12,py+2); doc.line(px+pw+8,py+5,px+pw+12,py+2);
+      doc.setTextColor(180,140,60); doc.setFontSize(7.5); doc.text("retido",px+pw+3,py-2);
+      doc.setDrawColor(60,150,200); doc.setLineWidth(0.7);
+      doc.line(px+40,py+ph+2,px+40,py+ph+10); doc.line(px+38,py+ph+7,px+40,py+ph+10); doc.line(px+42,py+ph+7,px+40,py+ph+10);
+      doc.line(px+80,py+ph+2,px+80,py+ph+10); doc.line(px+78,py+ph+7,px+80,py+ph+10); doc.line(px+82,py+ph+7,px+80,py+ph+10);
+      doc.setTextColor(40,120,160); doc.text("passante (finos)",px+34,py+ph+15);
+      doc.setTextColor(120,140,160); doc.setFontSize(7.5); doc.text("alimentação",px-12,py-14);
+      // cotas
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      var dy=py-7; doc.line(px,dy,px+pw,dy); doc.line(px,dy-1.6,px,dy+1.6); doc.line(px+pw,dy-1.6,px+pw,dy+1.6);
+      doc.text("comprimento L = "+san(G.L.toFixed(2))+" m",px+pw/2,dy-1.2,{align:"center"});
+      doc.autoTable({startY:py+ph+22,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Modelo (área ativa Metso)"),G.model+" · "+san(G.Amod.toFixed(2))+" m²"],
+          [san("Largura × comprimento do deck"),san(G.W.toFixed(2))+" × "+san(G.L.toFixed(2))+" m"],
+          [san("Abertura desejada (separação)"),san(String(Math.round(G.ab)))+" mm"],
+          [san("Alimentação volumétrica  T"),san(G.T.toFixed(1))+" m³/h"],
+          [san("Capacidade básica  C"),san(G.C.toFixed(1))+" m³/h·m²"],
+          [san("Fator M (oversize)"),san(G.M.toFixed(2))],
+          [san("Fator K (% < ½ abertura)"),san(G.K.toFixed(2))],
+          [san("Produto de correção  Qn"),san(G.Qn.toFixed(3))],
+          [san("Área necessária  A"),san(G.A.toFixed(2))+" m²"],
+          [san("Espessura da camada na descarga  D"),san(G.Dbed.toFixed(0))+" mm"]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — peneira horizontal de movimento linear; medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else {
     var cx=80, wH=26, oH=8, topY=50, transY=112, botY=142;
     // preenchimento do material (corpo + moega)

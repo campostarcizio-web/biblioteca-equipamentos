@@ -1,13 +1,14 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.22.1",
+    "versao": "1.23.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
-      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador de Impacto", "Britador de Martelos"] }
+      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador de Impacto", "Britador de Martelos"] },
+      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal"] }
     ]
   },
   "equipamentos": [
@@ -98,6 +99,17 @@
       "calculadora": "britador_martelo",
       "descricao": "Pré-dimensionamento de britador de martelos (rotor com martelos pivotados, placa de impacto e grelha de saída): seleção do modelo pelo catálogo (classe FLSmidth EV / hammer crusher), produto controlado pela abertura da grelha, altíssima razão de redução (10:1 a 50:1, single-stage), velocidade periférica recomendada em função da grelha e do material, capacidade de catálogo e potência pela lei de Bond. Indicado para materiais de baixa abrasividade (calcário, gesso, carvão, cal).",
       "referencia": "Lei de Bond; produto pela abertura da grelha; tabela de velocidade periférica × grelha (manual Metso/FAÇO moinhos de martelos); catálogo classe FLSmidth EV (até 2,5 m de alimentação, 2200 t/h, 500-2500 kW); refs. Wills, 911Metallurgist, AMIT-135, MEKA, Hazemag"
+    },
+    {
+      "id": "peneira-horizontal",
+      "grupo": "Peneiras",
+      "subgrupo": "Peneira Vibratória Horizontal",
+      "subtipo": "Peneira vibratória horizontal (movimento linear, multideck)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Peneira Vibratória Horizontal",
+      "calculadora": "peneira_horizontal",
+      "descricao": "Pré-dimensionamento de peneira vibratória horizontal (movimento linear) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento linear). Seleciona o modelo Metso pela área ativa, verifica largura mínima e espessura da camada e indica a eficiência esperada. Os fatores de correção do material ajustam o rendimento da peneira.",
+      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): fórmula de área A=(T·P)/(C·M·K·Qn), gráficos B (capacidade básica C), C (fator M) e D (fator K), tabelas Q1–Q6 e áreas ativas dos modelos; método VSMA (Vibrating Screen Manufacturers Association); refs. Wills' Mineral Processing Technology e Gupta & Yan"
     },
     {
       "id": "silo-circular",
