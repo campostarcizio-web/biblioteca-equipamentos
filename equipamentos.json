@@ -1,14 +1,14 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.25.0",
+    "versao": "1.26.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
       { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador de Impacto", "Britador de Martelos"] },
-      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada"] }
+      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] }
     ]
   },
   "equipamentos": [
@@ -121,6 +121,17 @@
       "calculadora": "peneira_inclinada",
       "descricao": "Pré-dimensionamento de peneira vibratória inclinada (movimento circular, inclinação típica 15–20°) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento circular, Q6 = 1,0). Seleciona o modelo Metso da linha inclinada SH/XH pela área ativa, verifica a espessura da camada na descarga e indica a eficiência esperada. Os fatores de correção do material ajustam o rendimento da peneira.",
       "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabelas Q1–Q6 (movimento circular Q6=1,0) e catálogo de peneiras inclinadas SH/XH (5'×14' a 8'×20', inclinação 18–20°); método VSMA"
+    },
+    {
+      "id": "peneira-banana",
+      "grupo": "Peneiras",
+      "subgrupo": "Peneira Vibratória Banana (CBS)",
+      "subtipo": "Peneira banana de inclinação variável (movimento circular)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Peneira Vibratória Banana (CBS)",
+      "calculadora": "peneira_banana",
+      "descricao": "Pré-dimensionamento de peneira vibratória tipo banana (linha Metso CBS, inclinação variável — deck mais íngreme na entrada e suave na descarga) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6. O diferencial da banana é o Q6, que varia com o % de material passante (0,30→1,0 a 0,70→1,4), refletindo a alta capacidade da peneira quando há muito passante na alimentação. Seleciona o modelo Metso CBS pela área ativa e verifica a espessura da camada. Os fatores de correção do material ajustam o rendimento da peneira.",
+      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabela Q6 da peneira banana CBS (por % de material passante) e catálogo de peneiras banana CBS (5'×14' a 10'×24'); exemplo resolvido de peneira banana CBS de dois decks; método VSMA"
     },
     {
       "id": "silo-circular",
