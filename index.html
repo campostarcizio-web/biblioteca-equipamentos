@@ -259,6 +259,11 @@ const CALCS={
       {id:"matb",label:"Classe do material (velocidade — Tab 1-05)",tipo:"select",valor:"pouco",opcoes:[
         {v:"facil",t:"Escoamento fácil, não abrasivo (cereais, etc.)"},{v:"pouco",t:"Pouco abrasivo (carvão, terra, britado fino)"},{v:"muito",t:"Duro/pesado, muito abrasivo (minério, pedra)"}]},
       {tipo:"head",label:"Correia, roletes e granulometria"},
+      {id:"Bselb",label:"Largura da correia (catálogo)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela capacidade e granulometria)"},
+        {v:"16",t:"16\" (400 mm)"},{v:"20",t:"20\" (500 mm)"},{v:"24",t:"24\" (600 mm)"},{v:"30",t:"30\" (750 mm)"},
+        {v:"36",t:"36\" (900 mm)"},{v:"42",t:"42\" (1050 mm)"},{v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},
+        {v:"60",t:"60\" (1500 mm)"},{v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
       {id:"cfgb",label:"Configuração dos roletes (Tab 1-04)",tipo:"select",valor:"3x45",opcoes:[
         {v:"3x45",t:"3 roletes iguais — 45°"},{v:"3x20",t:"3 roletes iguais — 20°"},{v:"2x35",t:"2 roletes iguais — 35°"},{v:"plano",t:"Roletes planos — 0°"}]},
       {id:"alfab",label:"Ângulo de acomodação do material (α)",tipo:"select",valor:"20",opcoes:[
@@ -310,9 +315,12 @@ const CALCS={
       var lumpIn=(lump>0?lump*gf:0)/25.4;
       var Bgran=t.w[t.w.length-1]; for(var j=0;j<t.w.length;j++){ if(t.w[j]>=lumpIn){ Bgran=t.w[j]; break; } }
       var granInsuf=lumpIn>t.w[t.w.length-1];
-      var B=Math.max(Bcapw,Bgran);
-      var Bcap=row[t.w.indexOf(B)];
-      var govern=(Bgran>Bcapw)?"granulometria":"capacidade";
+      var Bauto=Math.max(Bcapw,Bgran);
+      var Bselv=$("#Bselb").value, manualB=(Bselv!=="auto");
+      var B=manualB?parseInt(Bselv,10):Bauto;
+      var Bcap=(t.w.indexOf(B)>=0)?row[t.w.indexOf(B)]:interp(t.w,row,B);
+      var chosenLtCap=manualB&&(B<Bcapw), chosenLtGran=manualB&&(lump>0&&B<Bgran);
+      var govern=manualB?"escolha do usuário":((Bgran>Bcapw)?"granulometria":"capacidade");
       var Bmm=Math.round(B*25.4);
       var Qreal=Bcap*v*rho;
       var Nvkeys=[16,20,24,30,36,42,48], nvB=B; if(B>48)nvB=48;
@@ -355,7 +363,7 @@ const CALCS={
         {k:"Capacidade volumétrica requerida (a 1 m/s)",v:Creq.toFixed(1)+" m³/h"},
         {k:"Largura mínima por capacidade",v:Bcapw+'"'+(insuf?"  ⚠ acima da tabela":"")},
         {k:"Largura mínima por granulometria",v:(lump>0?Bgran+'"':"—")+(granInsuf?"  ⚠ acima da tabela":"")},
-        {k:"Largura da correia adotada",v:B+'"  ('+fmt(Bmm)+" mm) — rege: "+govern,hi:true},
+        {k:"Largura da correia adotada",v:B+'"  ('+fmt(Bmm)+" mm) — "+(manualB?"escolha do usuário (catálogo)":"rege: "+govern)+((chosenLtCap||chosenLtGran)?"  ⚠ abaixo do mínimo "+(chosenLtCap&&chosenLtGran?"por capacidade e granulometria":chosenLtCap?"por capacidade ("+Bcapw+'")':"por granulometria ("+Bgran+'")'):""),hi:true},
         {k:"Capacidade na largura adotada",v:fmt(Math.round(Bcap))+" m³/h@1m/s  ·  "+fmt(Math.round(Qreal))+" t/h"},
         {k:"Velocidade máx. recomendada (Tab 1-05)",v:(vrec?vrec.toFixed(1).replace(".",",")+" m/s":"—")+(vrec&&v>vrec*1.001?"  ⚠ acima":"")},
         {sec:"Roletes — quantidade e diâmetro"},
