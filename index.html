@@ -2048,8 +2048,12 @@ function openItem(i){
     $("#modal").classList.add("open");
     return;
   }
+  if(!calc.campos[0]||calc.campos[0].id!=="eqTag"){ calc.campos.unshift({id:"eqTag",label:"TAG (identificação do equipamento)",tipo:"text",valor:"",placeholder:"ex.: PN-101 / TC-201"}); }
   const campos=calc.campos.map(f=>{
     if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
+    if(f.tipo==="text"){
+      return `<div class="field"><label>${f.label}</label><input id="${f.id}" type="text" value="${f.valor||""}" placeholder="${f.placeholder||""}"/></div>`;
+    }
     if(f.tipo==="select"){
       const ops=f.opcoes.map(o=>`<option value="${o.v}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
       return `<div class="field"><label>${f.label}</label><select id="${f.id}"${f.onchange?` onchange="${f.onchange}"`:""}>${ops}</select></div>`;
@@ -2094,8 +2098,9 @@ function gerarRelatorio(){
   var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}); var W=210;
   doc.setFillColor(14,27,46); doc.rect(0,0,W,26,"F");
   try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,4,50,18); }catch(e){}
+  var tagEl=document.getElementById("eqTag"); var tagVal=tagEl?String(tagEl.value||"").trim():"";
   doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(13);
-  doc.text("Relatório de Pré-dimensionamento",66,12);
+  doc.text("Relatório de Pré-dimensionamento"+(tagVal?"  —  TAG: "+san(tagVal):""),66,12);
   doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(159,178,196);
   doc.text(san(CUR_EQ.modelo),66,18.5);
   doc.setDrawColor(217,169,74); doc.setLineWidth(1); doc.line(0,26,W,26);
@@ -2120,7 +2125,7 @@ function gerarRelatorio(){
     doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
     try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
     doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
-    doc.text(san("Croqui esquemático — "+CUR_EQ.modelo),60,12);
+    doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
     doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
     doc.setFont("helvetica","normal");
     if(G.tipo==="arraste"){
