@@ -139,6 +139,7 @@ const ICON_BUCKET='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" st
 const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 10 L18 30 L18 38"/><path d="M38 10 L26 30 L26 38"/><path d="M10 10 L38 10"/><circle cx="14" cy="20" r="1.6" fill="currentColor"/><circle cx="24" cy="16" r="1.6" fill="currentColor"/><circle cx="34" cy="20" r="1.6" fill="currentColor"/></svg>';
 const ICON_IMPACT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="26" r="11"/><path d="M24 26 L24 17 M24 26 L32 31 M24 26 L16 31"/><path d="M22 8 h4 v6 h-4 z"/><path d="M40 24 l4 -2 M40 30 l4 2 M8 24 l-4 -2"/></svg>';
 const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="22" r="10"/><circle cx="24" cy="22" r="2.4" fill="currentColor"/><path d="M24 12 l5 -5 M24 32 l-5 5 M34 22 l5 -5 M14 22 l-5 5"/><path d="M12 40 h24 M14 40 v-2 M20 40 v-2 M26 40 v-2 M32 40 v-2"/></svg>';
+const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
 const ICON_SCREEN_H='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="14" width="36" height="9" rx="2"/><rect x="6" y="27" width="36" height="9" rx="2"/><path d="M12 14 v9 M18 14 v9 M24 14 v9 M30 14 v9 M36 14 v9" stroke-width="1.2"/><path d="M12 27 v9 M18 27 v9 M24 27 v9 M30 27 v9 M36 27 v9" stroke-width="1.2"/><path d="M8 40 l4 -2 M40 40 l-4 -2"/></svg>';
 const ICON_SCREEN_I='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 16 L40 28"/><path d="M8 22 L40 34"/><path d="M12 17.4 l1 5.2 M18 19.7 l1 5.2 M24 21.9 l1 5.2 M30 24.1 l1 5.2 M36 26.4 l1 5.2"/><path d="M40 28 l4 1 M8 16 l-3 -1.2"/></svg>';
 const ICON_SCREEN_B='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 14 C18 20 30 30 40 34"/><path d="M8 20 C18 26 30 36 40 40"/><path d="M13 16.5 l1.4 5 M20 21 l1.2 5.2 M27 26 l1 5.2 M34 30.5 l0.8 5.2"/><path d="M40 34 l4 1.2 M8 14 l-3 -1.2"/></svg>';
@@ -151,7 +152,8 @@ function penPresetB(){var d=SCREEN_MAT[$("#pbMat").value]; if(d==null)return; $(
 function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return; $("#bjWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_mandibulas");}
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
-function icon(e){if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function conePreset(){var w=CRUSHER_MAT[$("#bcMat").value]; if(w==null)return; $("#bcWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_conico");}
+function icon(e){if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -533,6 +535,8 @@ const CALCS={
       {id:"siS1",label:"Tensão de consolidação  σ1",unidade:"kPa",tipo:"number",valor:10,step:"0.5"},
       {tipo:"head",label:"Etapa 3 — Geometria do silo"},
       {id:"siD",label:"Diâmetro interno do silo  D",unidade:"m",tipo:"number",valor:6,step:"0.1"},
+      {id:"siH1",label:"Altura 1 — parte reta do corpo (0 = calcular pela capacidade)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"siH2",label:"Altura 2 — tremonha/moega (0 = calcular pelo ângulo de fluxo)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
       {tipo:"head",label:"Etapa 9 — Material estrutural (aço)"},
       {id:"siFy",label:"Aço — tensão de escoamento  fy",tipo:"select",valor:"345",opcoes:[
         {v:"250",t:"ASTM A36 (fy 250 MPa)"},
@@ -575,19 +579,29 @@ const CALCS={
       // Etapa 4/5 — regime de fluxo e descarga (moega cônica)
       var thetaV=50-delta; if(thetaV<5)thetaV=5; if(thetaV>45)thetaV=45; // meia-abertura da vertical p/ fluxo de massa
       var thetaDes=thetaV-3; if(thetaDes<3)thetaDes=3; // margem de segurança
-      var alfa=90-thetaDes; // ângulo da moega com a horizontal
+      var alfaFlow=90-thetaDes; // ângulo da moega recomendado p/ fluxo de massa (com horizontal)
       var Hf=2.0+thetaDes/60; // fator de Jenike H(θ) — moega cônica
       var Barco=(sc>0.001)?Hf*sc/gamma:0; // m
       var Bmec=8*d50/1000; // m  (≈ 8·d50 p/ evitar arco mecânico de blocos)
       var Bfloor=0.6; // mínimo prático em silos de minério (600 mm)
       var Brec=Math.max(Barco,Bmec,Bfloor);
       var coeso=(ffc<4);
-      // Etapa 3 — geometria (cilindro + moega cônica/tronco de cone)
+      // Etapa 3 — geometria (cilindro + moega cônica/tronco de cone), com opção de alturas informadas
+      var H1in=num("siH1"), H2in=num("siH2");
+      var hasH1=(!isNaN(H1in)&&H1in>0), hasH2=(!isNaN(H2in)&&H2in>0);
+      var alfa, hc;
+      if(hasH2){ hc=H2in; alfa=Math.atan(2*hc/Math.max(0.001,(D-Brec)))*180/Math.PI; }
+      else { alfa=alfaFlow; hc=(D-Brec)/2*Math.tan(alfa*Math.PI/180); if(hc<0)hc=0; }
       var arad=alfa*Math.PI/180;
-      var hc=(D-Brec)/2*Math.tan(arad); if(hc<0)hc=0;
+      var flowShallow=(alfa<alfaFlow-0.5); // moega mais rasa que o recomendado p/ fluxo de massa
       var Vcone=Math.PI/12*hc*(D*D+D*Brec+Brec*Brec);
-      var Vcil=V-Vcone, semCorpo=(Vcil<=0);
-      var Hcil=semCorpo?0:Vcil/(Math.PI*D*D/4);
+      var Vcil, Hcil, semCorpo;
+      if(hasH1){ Hcil=H1in; Vcil=Math.PI*D*D/4*Hcil; semCorpo=false; }
+      else { Vcil=V-Vcone; semCorpo=(Vcil<=0); Hcil=semCorpo?0:Vcil/(Math.PI*D*D/4); }
+      var geoFixa=(hasH1||hasH2);
+      var Vgeo=Vcil+Vcone;                 // capacidade real da geometria montada
+      var autonGeo=(Q>0)?Vgeo*rho*eta/Q:0; // h de autonomia real
+      var geoSub=(geoFixa&&Vgeo<V*0.999);
       var Htot=Hcil+hc;
       var esbeltez=Htot/D;
       // Etapas 5-6 — raio hidráulico e pressões de Janssen (enchimento)
@@ -674,17 +688,18 @@ const CALCS={
         {k:"Classificação de fluidez",v:classe,hi:true},
         {sec:"Etapas 4 e 5 — Regime de fluxo e descarga"},
         {k:"Regime de fluxo recomendado",v:"Fluxo de massa (mass flow)",hi:true},
-        {k:"Ângulo da moega recomendado (com horizontal)",v:alfa.toFixed(0)+"°  (moega cônica)",hi:true},
+        {k:"Ângulo da moega recomendado (fluxo de massa)",v:alfaFlow.toFixed(0)+"°  (com a horizontal, moega cônica)",hi:true},
         {k:"Meia-abertura da vertical  θ · fator H(θ)",v:thetaDes.toFixed(0)+"° · "+Hf.toFixed(2).replace(".",",")},
         {k:"Descarga mín. anti-arco (Jenike) B = H·σc/γ",v:(Barco>0?(Math.round(Barco*1000)+" mm"):"≈ 0 (sem coesão relevante)")},
         {k:"Descarga mín. por granulometria  ≈ 8·d50",v:Math.round(Bmec*1000)+" mm"},
         {k:"Diâmetro de descarga recomendado",v:fmt(Math.round(Brec*1000))+" mm  (mín. prático 600–1200 mm)",hi:true},
         {sec:"Etapa 3 — Geometria preliminar (cilindro + moega cônica)"},
         {k:"Diâmetro interno  D",v:D.toFixed(2).replace(".",",")+" m"},
-        {k:"Altura da moega  hc = (D−B)/2 · tg α",v:hc.toFixed(2).replace(".",",")+" m  (α = "+alfa.toFixed(0)+"°)"},
+        {k:(hasH2?"Altura 2 — moega  hc (informada)":"Altura 2 — moega  hc = (D−B)/2 · tg α"),v:hc.toFixed(2).replace(".",",")+" m  (α = "+alfa.toFixed(0)+"°"+(flowShallow?"  ⚠ mais raso que "+alfaFlow.toFixed(0)+"° — risco p/ fluxo de massa":"")+")",hi:true},
         {k:"Volume da moega (tronco de cone)",v:Vcone.toFixed(1).replace(".",",")+" m³"},
-        {k:"Altura cilíndrica  H",v:(semCorpo?"0  ⚠ moega já comporta o volume — reduzir D":Hcil.toFixed(2).replace(".",",")+" m"),hi:true},
+        {k:(hasH1?"Altura 1 — parte reta  H (informada)":"Altura 1 — parte reta  H (pela capacidade)"),v:(semCorpo?"0  ⚠ moega já comporta o volume — reduzir D":Hcil.toFixed(2).replace(".",",")+" m"),hi:true},
         {k:"Altura total  Htot = H + hc",v:Htot.toFixed(2).replace(".",",")+" m"},
+        {k:"Capacidade real da geometria  V_geo",v:Vgeo.toFixed(1).replace(".",",")+" m³"+(geoFixa?"  (autonomia ≈ "+autonGeo.toFixed(1).replace(".",",")+" h)":"")+(geoSub?"  ⚠ abaixo do volume útil requerido ("+V.toFixed(1).replace(".",",")+" m³) — aumentar H1 ou D":""),hi:geoFixa},
         {k:"Esbeltez  Htot / D",v:esbeltez.toFixed(2).replace(".",",")+(esbeltez>=2?"  (silo esbelto)":"  (silo baixo/intermediário)")},
         {sec:"Etapas 5 e 6 — Pressões de Janssen (enchimento)"},
         {k:"Raio hidráulico  R_h = D/4",v:Rh.toFixed(2).replace(".",",")+" m"},
@@ -775,6 +790,8 @@ const CALCS={
       {tipo:"head",label:"Etapa 3 — Geometria do silo (seção retangular)"},
       {id:"rA",label:"Largura interna  a",unidade:"m",tipo:"number",valor:6,step:"0.1"},
       {id:"rB",label:"Profundidade interna  b",unidade:"m",tipo:"number",valor:4,step:"0.1"},
+      {id:"rH1",label:"Altura 1 — parte reta do corpo (0 = calcular pela capacidade)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"rH2",label:"Altura 2 — tremonha piramidal (0 = calcular pelo ângulo de fluxo)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
       {tipo:"head",label:"Etapa 9 — Material estrutural e enrijecedores"},
       {id:"siFy",label:"Aço — tensão de escoamento  fy",tipo:"select",valor:"345",opcoes:[
         {v:"250",t:"ASTM A36 (fy 250 MPa)"},
@@ -814,19 +831,29 @@ const CALCS={
       // regime/descarga — tremonha piramidal exige ângulo mais íngreme (efeito de vale)
       var thetaV=50-delta; if(thetaV<5)thetaV=5; if(thetaV>45)thetaV=45;
       var thetaDes=thetaV-8; if(thetaDes<3)thetaDes=3;
-      var alfa=90-thetaDes;
-      var arad=alfa*Math.PI/180;
+      var alfaFlow=90-thetaDes;
       var Hf=2.0+thetaDes/60;
       var Barco=(sc>0.001)?Hf*sc/gamma:0, Bmec=8*d50/1000, Bfloor=0.6;
       var Brec=Math.max(Barco,Bmec,Bfloor);
       var coeso=(ffc<4);
-      // Etapa 3 — geometria (prisma + tremonha piramidal, boca quadrada lado Brec)
+      // Etapa 3 — geometria (prisma + tremonha piramidal, boca quadrada lado Brec), com opção de alturas informadas
       var Lmax=Math.max(a,b), Lmin=Math.min(a,b);
-      var hc=(Lmax/2-Brec/2)*Math.tan(arad); if(hc<0)hc=0;
+      var H1in=num("rH1"), H2in=num("rH2");
+      var hasH1=(!isNaN(H1in)&&H1in>0), hasH2=(!isNaN(H2in)&&H2in>0);
+      var alfa, hc;
+      if(hasH2){ hc=H2in; alfa=Math.atan(2*hc/Math.max(0.001,(Lmax-Brec)))*180/Math.PI; }
+      else { alfa=alfaFlow; hc=(Lmax/2-Brec/2)*Math.tan(alfa*Math.PI/180); if(hc<0)hc=0; }
+      var arad=alfa*Math.PI/180;
+      var flowShallow=(alfa<alfaFlow-0.5);
       var A1=a*b, A2=Brec*Brec;
       var Vpir=(hc/3)*(A1+A2+Math.sqrt(A1*A2));
-      var Vcil=V-Vpir, semCorpo=(Vcil<=0);
-      var Hcil=semCorpo?0:Vcil/(a*b);
+      var Vcil, Hcil, semCorpo;
+      if(hasH1){ Hcil=H1in; Vcil=a*b*Hcil; semCorpo=false; }
+      else { Vcil=V-Vpir; semCorpo=(Vcil<=0); Hcil=semCorpo?0:Vcil/(a*b); }
+      var geoFixa=(hasH1||hasH2);
+      var Vgeo=Vcil+Vpir;
+      var autonGeo=(Q>0)?Vgeo*rho*eta/Q:0;
+      var geoSub=(geoFixa&&Vgeo<V*0.999);
       var Htot=Hcil+hc, esbeltez=Htot/Lmin;
       // Etapas 5-6 — raio hidráulico retangular e Janssen
       var Rh=(a*b)/(2*(a+b));
@@ -887,17 +914,18 @@ const CALCS={
         {k:"Classificação de fluidez",v:classe,hi:true},
         {sec:"Etapas 4 e 5 — Regime de fluxo e descarga (tremonha piramidal)"},
         {k:"Regime de fluxo recomendado",v:"Fluxo de massa (mass flow)",hi:true},
-        {k:"Ângulo da moega recomendado (com horizontal)",v:alfa.toFixed(0)+"°  (piramidal — mais íngreme que cônica)",hi:true},
+        {k:"Ângulo da tremonha recomendado (fluxo de massa)",v:alfaFlow.toFixed(0)+"°  (piramidal — mais íngreme que cônica)",hi:true},
         {k:"Meia-abertura da vertical  θ · fator H(θ)",v:thetaDes.toFixed(0)+"° · "+Hf.toFixed(2).replace(".",",")},
         {k:"Descarga mín. anti-arco (Jenike) B = H·σc/γ",v:(Barco>0?(Math.round(Barco*1000)+" mm"):"≈ 0 (sem coesão relevante)")},
         {k:"Descarga mín. por granulometria  ≈ 8·d50",v:Math.round(Bmec*1000)+" mm"},
         {k:"Lado da boca de descarga recomendado",v:fmt(Math.round(Brec*1000))+" mm  (mín. prático 600–1200 mm)",hi:true},
         {sec:"Etapa 3 — Geometria preliminar (prisma + tremonha piramidal)"},
         {k:"Seção do corpo  a × b",v:a.toFixed(2).replace(".",",")+" × "+b.toFixed(2).replace(".",",")+" m"},
-        {k:"Altura da tremonha  hc = (Lmáx−B)/2 · tg α",v:hc.toFixed(2).replace(".",",")+" m  (α = "+alfa.toFixed(0)+"°)"},
+        {k:(hasH2?"Altura 2 — tremonha  hc (informada)":"Altura 2 — tremonha  hc = (Lmáx−B)/2 · tg α"),v:hc.toFixed(2).replace(".",",")+" m  (α = "+alfa.toFixed(0)+"°"+(flowShallow?"  ⚠ mais raso que "+alfaFlow.toFixed(0)+"° — risco p/ fluxo de massa":"")+")",hi:true},
         {k:"Volume da tremonha (pirâmide truncada)",v:Vpir.toFixed(1).replace(".",",")+" m³"},
-        {k:"Altura do corpo  H",v:(semCorpo?"0  ⚠ a tremonha já comporta o volume — aumentar a×b":Hcil.toFixed(2).replace(".",",")+" m"),hi:true},
+        {k:(hasH1?"Altura 1 — parte reta  H (informada)":"Altura 1 — parte reta  H (pela capacidade)"),v:(semCorpo?"0  ⚠ a tremonha já comporta o volume — aumentar a×b":Hcil.toFixed(2).replace(".",",")+" m"),hi:true},
         {k:"Altura total  Htot = H + hc",v:Htot.toFixed(2).replace(".",",")+" m"},
+        {k:"Capacidade real da geometria  V_geo",v:Vgeo.toFixed(1).replace(".",",")+" m³"+(geoFixa?"  (autonomia ≈ "+autonGeo.toFixed(1).replace(".",",")+" h)":"")+(geoSub?"  ⚠ abaixo do volume útil requerido ("+V.toFixed(1).replace(".",",")+" m³) — aumentar H1 ou a×b":""),hi:geoFixa},
         {k:"Esbeltez  Htot / Lmín",v:esbeltez.toFixed(2).replace(".",",")+(esbeltez>=2?"  (silo esbelto)":"  (silo baixo/intermediário)")},
         {sec:"Etapas 5 e 6 — Pressões de Janssen (enchimento)"},
         {k:"Raio hidráulico  R_h = a·b / [2(a+b)]",v:Rh.toFixed(2).replace(".",",")+" m"},
@@ -1426,6 +1454,93 @@ const CALCS={
         {k:"Observação",v:"Pré-dimensionamento de peneira banana CBS (inclinação variável, movimento circular). O deck mais íngreme na entrada mantém a camada fina e acelera a estratificação, elevando a capacidade — refletida no fator Q6 pelo % de material passante (0,30→1,0 a 0,70→1,4). Curvas de capacidade referidas a 1,6 t/m³. Confirmar tela, amplitude/frequência e o modelo na folha de dados do fabricante."}
       ];
       OUT.geo={tipo:"peneira",banana:true,model:sel.n,A:A,Amod:sel.a,W:sel.w,L:sel.l,ab:ab,C:C,M:M,K:K,Qn:Qn,T:T,Dbed:Dbed,decks:Q1,incl:inclE,inclS:inclS};
+      return OUT;
+    }
+  },
+  britador_conico:{
+    titulo:"Britador Cônico — pré-dimensionamento",
+    referencia:"Lei de Bond (3ª teoria da cominuição); método de capacidade do Manual de Britagem Metso/FAÇO (Q = QT·A·B·C·D, densidade ref. 1,6 t/m³) e tabela de capacidade × APF dos cones MP800/MP1000; catálogo Nordberg cônicos HP/MP; regras de câmara (Standard secundário / Cabeça curta terciário) e razão de redução; refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
+    campos:[
+      {tipo:"head",label:"Alimentação e produto"},
+      {id:"bcCham",label:"Câmara / estágio",tipo:"select",valor:"sec",onchange:"runCalc('britador_conico')",opcoes:[
+        {v:"sec",t:"Standard / grossa — secundário (redução 4:1 a 6:1)"},
+        {v:"ter",t:"Cabeça curta / fina — terciário (produto fino)"}]},
+      {id:"bcFmax",label:"Maior bloco da alimentação  F_máx",unidade:"mm",tipo:"number",valor:180},
+      {id:"bcF80",label:"F80 da alimentação (80% passante)",unidade:"mm",tipo:"number",valor:130},
+      {id:"bcCSS",label:"APF — abertura na posição fechada (CSS)",unidade:"mm",tipo:"number",valor:25},
+      {id:"bcQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:400},
+      {id:"bcRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
+      {tipo:"head",label:"Material (Work Index de Bond)"},
+      {id:"bcMat",label:"Material (preset — preenche o Wi)",tipo:"select",valor:"custom",onchange:"conePreset()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"calcario",t:"Calcário (Wi ~11)"},{v:"dolomita",t:"Dolomita (Wi ~11)"},{v:"carvao",t:"Carvão (Wi ~11)"},
+        {v:"quartzito",t:"Quartzito (Wi ~12)"},{v:"minerio_ferro",t:"Minério de ferro (Wi ~13)"},{v:"minerio_cobre",t:"Minério de cobre (Wi ~14)"},
+        {v:"gnaisse",t:"Gnaisse (Wi ~15)"},{v:"granito",t:"Granito (Wi ~16)"},{v:"basalto",t:"Basalto (Wi ~19)"}]},
+      {id:"bcWi",label:"Work Index  Wi",unidade:"kWh/t",tipo:"number",valor:15,step:"0.5"},
+      {tipo:"head",label:"Catálogo"},
+      {id:"bcModel",label:"Modelo (Nordberg HP / MP)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela boca e capacidade)"},
+        {v:"HP200",t:"HP200 · 132 kW"},{v:"HP300",t:"HP300 · 220 kW"},{v:"HP400",t:"HP400 · 315 kW"},
+        {v:"HP500",t:"HP500 · 355 kW"},{v:"HP800",t:"HP800 · 600 kW"},{v:"MP800",t:"MP800 · 600 kW"},{v:"MP1000",t:"MP1000 · 750 kW"}]}
+    ],
+    calcular:function(){
+      var Fmax=num("bcFmax"),F80=num("bcF80"),CSS=num("bcCSS"),Q=num("bcQ"),rho=num("bcRho"),Wi=num("bcWi");
+      var cham=$("#bcCham").value;
+      if([Fmax,F80,CSS,Q,rho,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||CSS<=0||Q<=0||rho<=0||Wi<=0) return null;
+      // Catálogo Nordberg cônicos HP/MP — boca da câmara (mm), potência (kW) e capacidade (t/h) × APF (ref. 1,6 t/m³)
+      // MP800/MP1000: pontos médios da tabela do Manual de Britagem (Metso/FAÇO)
+      var CN=[
+        {n:"HP200",fo:185,foF:105,kw:132,cap:[[13,110],[16,140],[22,190],[25,215],[32,270]]},
+        {n:"HP300",fo:230,foF:115,kw:220,cap:[[16,210],[19,250],[25,320],[32,410],[38,470]]},
+        {n:"HP400",fo:285,foF:135,kw:315,cap:[[19,330],[25,450],[32,580],[38,680],[45,790]]},
+        {n:"HP500",fo:300,foF:145,kw:355,cap:[[19,430],[25,590],[32,760],[38,890],[45,1030]]},
+        {n:"HP800",fo:380,foF:180,kw:600,cap:[[25,900],[32,1120],[38,1300],[50,1600]]},
+        {n:"MP800",fo:380,foF:200,kw:600,cap:[[13,540],[19,635],[25,858],[38,1193],[50,1698]]},
+        {n:"MP1000",fo:430,foF:230,kw:750,cap:[[13,673],[19,810],[25,1063],[38,1563],[50,2125]]}
+      ];
+      function foOf(m){ return (cham==="ter")?m.foF:m.fo; }
+      function capTab(m){ var c=m.cap,a0=c[0][0],aN=c[c.length-1][0],v; if(CSS<=a0)v=c[0][1]; else if(CSS>=aN)v=c[c.length-1][1]; else{ for(var j=1;j<c.length;j++){ if(CSS<=c[j][0]){ var t=(CSS-c[j-1][0])/(c[j][0]-c[j-1][0]); v=c[j-1][1]+t*(c[j][1]-c[j-1][1]); break; } } } return {q:v*(rho/1.6),amin:a0,amax:aN}; }
+      var foReq=Fmax/0.8; // boca da câmara ≥ F_máx/0,8 (alimentação ≤ 80% da boca)
+      var sel=$("#bcModel").value, M=null;
+      if(sel!=="auto"){ for(var i=0;i<CN.length;i++){ if(CN[i].n===sel){ M=CN[i]; break; } } }
+      if(!M){
+        for(var i=0;i<CN.length;i++){ if(foOf(CN[i])>=foReq && capTab(CN[i]).q>=Q){ M=CN[i]; break; } }
+        if(!M){ M=CN[CN.length-1]; }
+      }
+      var fo=foOf(M), ct=capTab(M), capM=ct.q;
+      var insufFo=(fo<foReq), insufQ=(capM<Q);
+      var cssNote=(CSS<ct.amin)?"  ⚠ APF abaixo do mínimo tabelado ("+ct.amin+" mm)":(CSS>ct.amax)?"  ⚠ APF acima do máximo tabelado ("+ct.amax+" mm)":"";
+      var p80f=(cham==="ter")?0.85:1.0;
+      var P80=p80f*CSS, topProd=1.7*CSS, R80=F80/P80, Rmax=(cham==="ter")?5:6;
+      var P80um=P80*1000, F80um=F80*1000;
+      var Wbond=10*Wi*(1/Math.sqrt(P80um)-1/Math.sqrt(F80um));
+      var Pbond=Wbond*Q, potOK=(Pbond<=M.kw);
+      var estagio=(cham==="ter")?"terciário (cabeça curta / fina)":"secundário (Standard / grossa)";
+      var OUT=[
+        {sec:"Câmara, alimentação e seleção"},
+        {k:"Estágio / câmara",v:estagio,hi:true},
+        {k:"Maior bloco da alimentação  F_máx",v:fmt(Math.round(Fmax))+" mm"},
+        {k:"Boca da câmara requerida  ≥ F_máx/0,8",v:fmt(Math.round(foReq))+" mm  (alimentação ≤ 80% da boca)"},
+        {k:"F80 da alimentação",v:fmt(Math.round(F80))+" mm"},
+        {k:"Modelo selecionado (Nordberg HP/MP)",v:M.n+" · boca "+fo+" mm · motor "+M.kw+" kW"+(insufFo?"  ⚠ boca insuficiente p/ o bloco — usar maior":""),hi:true},
+        {sec:"Razão de redução e produto"},
+        {k:"APF (CSS) — abertura na posição fechada",v:fmt(Math.round(CSS))+" mm"},
+        {k:"P80 estimado do produto  ≈ "+(p80f.toFixed(2).replace(".",","))+"·CSS",v:P80.toFixed(0)+" mm",hi:true},
+        {k:"Top size estimado do produto  ≈ 1,7·CSS",v:topProd.toFixed(0)+" mm"},
+        {k:"Razão de redução  R80 = F80 / P80",v:R80.toFixed(1).replace(".",",")+" : 1"+(R80>Rmax?"  ⚠ acima de ~"+Rmax+":1 — prever estágio adicional":"")},
+        {sec:"Capacidade"},
+        {k:"Capacidade (catálogo, interpolada por APF)",v:capM.toFixed(0)+" t/h"+(insufQ?"  ⚠ abaixo da vazão de projeto — usar modelo maior":"")+cssNote,hi:true},
+        {k:"Faixa de APF tabelada do modelo ("+M.n+")",v:ct.amin+" a "+ct.amax+" mm"},
+        {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
+        {k:"Observação de capacidade",v:"Capacidade de catálogo (ref. 1,6 t/m³, alimentação afogada/choke feed), interpolada pela APF e corrigida pela densidade. O método do manual aplica ainda fatores A·B·C·D (umidade, argila, finos e britabilidade) — reduzir a capacidade conforme o material."},
+        {sec:"Potência (lei de Bond)"},
+        {k:"Work Index  Wi",v:Wi.toFixed(1).replace(".",",")+" kWh/t"},
+        {k:"Consumo específico  W = 10·Wi·(1/√P80 − 1/√F80)",v:Wbond.toFixed(3).replace(".",",")+" kWh/t"},
+        {k:"Potência de britagem  P = W · Q",v:Pbond.toFixed(1).replace(".",",")+" kW · "+(Pbond/0.7457).toFixed(0)+" HP",hi:true},
+        {k:"Potência do motor de catálogo ("+M.n+")",v:M.kw+" kW"+(potOK?"  (atende)":"  ⚠ abaixo da potência de Bond — rever modelo/CSS"),hi:true},
+        {k:"Observação",v:"Pré-dimensionamento — britador cônico por compressão (câmara afogada). Manter alimentação distribuída em 360° e ≤ 80% da boca; confirmar câmara, APF, curva granulométrica e motorização no catálogo do fabricante. P80 depende da câmara e do perfil dos revestimentos."}
+      ];
+      OUT.geo={tipo:"conico",model:M.n,fo:fo,CSS:CSS,Fmax:Fmax,R80:R80,cap:capM,Pbond:Pbond,kw:M.kw,P80:P80,estagio:(cham==="ter")?"terciário":"secundário"};
       return OUT;
     }
   },
@@ -2073,6 +2188,38 @@ const ANIM={
           </svg>
           <div class="cap">Elevador de canecas (transporte vertical, descarga no topo) — animação ProjectARK</div>
         </div>`,
+  britador_conico:`<div class="vid">
+          <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Britador conico em operacao">
+            <defs>
+              <linearGradient id="cn_body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#33465c"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+              <linearGradient id="cn_mant" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/></linearGradient>
+            </defs>
+            <!-- alimentacao -->
+            <path d="M205 12 L265 12 L252 40 L218 40 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <g fill="#D9A94A"><circle r="4" cx="235" cy="24"><animate attributeName="cy" values="18;40" dur="0.7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="0.7s" repeatCount="indefinite"/></circle></g>
+            <!-- carcaca conica (concava) -->
+            <path d="M120 60 L350 60 L300 150 L170 150 Z" fill="url(#cn_body)" stroke="#3a4d63"/>
+            <path d="M120 60 L170 150 M350 60 L300 150" stroke="#5d6c7e" stroke-width="2" fill="none"/>
+            <!-- manto (cabeca) que gira/oscila -->
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0 0; 4 0; 0 0; -4 0; 0 0" dur="0.5s" repeatCount="indefinite"/>
+              <path d="M235 66 L280 138 L190 138 Z" fill="url(#cn_mant)" stroke="#46586b"/>
+              <line x1="235" y1="70" x2="235" y2="120" stroke="#6f8398" stroke-width="2"/>
+            </g>
+            <!-- eixo/excentrico -->
+            <circle cx="235" cy="150" r="6" fill="#33465c" stroke="#5d6c7e"/><circle cx="235" cy="150" r="2" fill="#D9A94A"><animateTransform attributeName="transform" type="rotate" from="0 235 150" to="360 235 150" dur="0.5s" repeatCount="indefinite"/></circle>
+            <!-- produto (descarga por baixo, dos dois lados) -->
+            <g fill="#7fd0ea">
+              <circle r="2.6" cx="195" cy="150"><animate attributeName="cy" values="150;185" dur="0.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.8s" repeatCount="indefinite"/></circle>
+              <circle r="2.4" cx="275" cy="150"><animate attributeName="cy" values="150;185" dur="0.8s" begin="-0.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.8s" begin="-0.4s" repeatCount="indefinite"/></circle>
+              <circle r="2.6" cx="235" cy="158"><animate attributeName="cy" values="158;190" dur="0.8s" begin="-0.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.8s" begin="-0.2s" repeatCount="indefinite"/></circle>
+            </g>
+            <text x="205" y="10" fill="#9fb6cc" font-size="11" font-family="sans-serif">alimentacao</text>
+            <text x="360" y="105" fill="#9fb6cc" font-size="10" font-family="sans-serif">concava</text>
+            <text x="243" y="100" fill="#6f8398" font-size="9" font-family="sans-serif">manto</text>
+            <text x="200" y="205" fill="#7fd0ea" font-size="10" font-family="sans-serif">produto (APF)</text>
+            <text x="150" y="190" fill="#6f8398" font-size="9" font-family="sans-serif">britagem por compressao (manto x concava) — ProjectARK</text>
+          </svg></div>`,
   britador_mandibulas:`<div class="vid">
           <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Britador de mandibulas em operacao">
             <defs>
@@ -2335,6 +2482,48 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="conico"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+      var cx=105, ty=54, by=120;
+      // carcaça cônica (concava) — trapézio invertido
+      doc.line(cx-52,ty,cx+52,ty); doc.line(cx+52,ty,cx+26,by); doc.line(cx+26,by,cx-26,by); doc.line(cx-26,by,cx-52,ty);
+      // manto (cabeça) — triângulo central
+      doc.setFillColor(180,196,212); doc.setLineWidth(0.8);
+      doc.lines([[18,64],[-36,0]],cx,ty+4,[1,1],"FD",true);
+      // eixo/excêntrico
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9); doc.line(cx,by,cx,by+16); doc.circle(cx,by+16,4,"S");
+      // seta de alimentação
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(cx,ty-14,cx,ty-4); doc.line(cx-2.2,ty-9,cx,ty-4); doc.line(cx+2.2,ty-9,cx,ty-4);
+      // setas de produto (descarga lateral inferior)
+      doc.setDrawColor(60,150,200);
+      doc.line(cx-30,by+2,cx-30,by+11); doc.line(cx-32,by+7,cx-30,by+11); doc.line(cx-28,by+7,cx-30,by+11);
+      doc.line(cx+30,by+2,cx+30,by+11); doc.line(cx+28,by+7,cx+30,by+11); doc.line(cx+32,by+7,cx+30,by+11);
+      // cotas / rótulos
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      var dyy=ty-7; doc.line(cx-52,dyy,cx+52,dyy); doc.line(cx-52,dyy-1.6,cx-52,dyy+1.6); doc.line(cx+52,dyy-1.6,cx+52,dyy+1.6);
+      doc.text("boca "+san(String(Math.round(G.fo)))+" mm",cx,dyy-1.2,{align:"center"});
+      doc.text("APF "+san(String(Math.round(G.CSS)))+" mm",cx+30,by+16);
+      doc.setTextColor(110,130,150); doc.setFontSize(7.5); doc.text("concava",cx+54,ty+30); doc.text("manto",cx-8,ty+40);
+      doc.autoTable({startY:by+24,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Modelo (Nordberg HP/MP)"),G.model],
+          [san("Estágio"),G.estagio],
+          [san("Boca da câmara"),san(String(Math.round(G.fo)))+" mm"],
+          [san("Maior bloco da alimentação"),san(String(Math.round(G.Fmax)))+" mm"],
+          [san("APF (CSS)"),san(String(Math.round(G.CSS)))+" mm"],
+          [san("P80 estimado do produto"),san(G.P80.toFixed(0))+" mm"],
+          [san("Razão de redução  R80"),san(G.R80.toFixed(1))+" : 1"],
+          [san("Capacidade (catálogo)"),san(G.cap.toFixed(0))+" t/h"],
+          [san("Potência de Bond"),san(G.Pbond.toFixed(1))+" kW"],
+          [san("Potência instalada (motor)"),G.kw+" kW"]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — câmara cônica (manto × concava); medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="britador"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(1.3);
       var jx1=60,jx2=114,jty=52,jby=150,bx1=76,bx2=98;
