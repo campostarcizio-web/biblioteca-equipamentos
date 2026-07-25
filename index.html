@@ -142,8 +142,8 @@ const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" st
 const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
 /* Materiais típicos para arraste tubular (densidade aparente e atritos) */
 const TUB_MAT={
-  briq_bar:{rho:1.70,mum:"0.5",muc:"0.3",dim:120},
-  briq_bricao:{rho:1.30,mum:"0.5",muc:"0.3",dim:60},
+  briq_bar:{rho:1.70,mum:"0.5",muc:"0.3",dim:60},
+  briq_bricao:{rho:1.30,mum:"0.5",muc:"0.3",dim:120},
   briq_carb:{rho:0.80,mum:"0.5",muc:"0.3",dim:50},
   briq_ferro:{rho:2.50,mum:"0.6",muc:"0.35",dim:100},
   carvao:{rho:0.85,mum:"0.5",muc:"0.3",dim:50},
@@ -1008,8 +1008,8 @@ const CALCS={
       {tipo:"head",label:"Processo e material"},
       {id:"tcMat",label:"Material (preset — preenche densidade e atritos)",tipo:"select",valor:"custom",onchange:"tubPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
-        {v:"briq_bar",t:"Briquete autoredutor BAR  (ρ 1,70 t/m³ · 120 mm)"},
-        {v:"briq_bricao",t:"Briquete Bricão  (ρ 1,30 t/m³ · 60 mm)"},
+        {v:"briq_bar",t:"Briquete autoredutor BAR  (ρ 1,70 t/m³ · 60 mm)"},
+        {v:"briq_bricao",t:"Briquete Bricão  (ρ 1,30 t/m³ · 120 mm)"},
         {v:"briq_carb",t:"Briquete carbonoso  (ρ ~0,80 t/m³)"},
         {v:"briq_ferro",t:"Briquete ferroso / HBI  (ρ ~2,50 t/m³)"},
         {v:"carvao",t:"Carvão  (ρ ~0,85)"},
