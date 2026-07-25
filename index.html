@@ -2486,7 +2486,8 @@ function openItem(i){
     }
     const auto=`runCalc('${e.calculadora}')`, autoSoft=`runCalc('${e.calculadora}',1)`;
     if(f.tipo==="select"){
-      const ops=f.opcoes.map(o=>`<option value="${o.v}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
+      const eatt=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      const ops=f.opcoes.map(o=>`<option value="${eatt(o.v)}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
       return `<div class="field"><label>${f.label}</label><select id="${f.id}" onchange="${f.onchange||auto}">${ops}</select></div>`;
     }
     return `<div class="field"><label>${f.label} ${f.unidade?`<span class="u">(${f.unidade})</span>`:""}</label>
