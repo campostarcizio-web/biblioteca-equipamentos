@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.31.1",
+    "versao": "1.32.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -54,8 +54,8 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Transportador de Arraste Tubular",
       "calculadora": "arraste_tubular",
-      "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do tamanho do tubo pelo catálogo, velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
-      "referencia": "Catálogo Schrage Rohrkettensystem (linha CLASSIC, tamanhos 115/135/160/200/270 — capacidades, velocidades e potências); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE"
+      "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do diâmetro nominal do tubo em polegadas conforme norma ASME B36.10 (4\" a 16\", Sch 40), taxa de preenchimento do tubo definida pelo usuário (seção útil = seção do tubo × taxa), presets de material incluindo briquete carbonoso e briquete ferroso (HBI), velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
+      "referencia": "Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40); capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente; catálogo Schrage Rohrkettensystem (velocidades de corrente e rodas dentadas); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE"
     },
     {
       "id": "transportador-canecas",

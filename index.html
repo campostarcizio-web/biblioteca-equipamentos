@@ -140,6 +140,18 @@ const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strok
 const ICON_IMPACT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="26" r="11"/><path d="M24 26 L24 17 M24 26 L32 31 M24 26 L16 31"/><path d="M22 8 h4 v6 h-4 z"/><path d="M40 24 l4 -2 M40 30 l4 2 M8 24 l-4 -2"/></svg>';
 const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="22" r="10"/><circle cx="24" cy="22" r="2.4" fill="currentColor"/><path d="M24 12 l5 -5 M24 32 l-5 5 M34 22 l5 -5 M14 22 l-5 5"/><path d="M12 40 h24 M14 40 v-2 M20 40 v-2 M26 40 v-2 M32 40 v-2"/></svg>';
 const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
+/* Materiais típicos para arraste tubular (densidade aparente e atritos) */
+const TUB_MAT={
+  briq_carb:{rho:0.80,mum:"0.5",muc:"0.3"},
+  briq_ferro:{rho:2.50,mum:"0.6",muc:"0.35"},
+  carvao:{rho:0.85,mum:"0.5",muc:"0.3"},
+  coque:{rho:0.50,mum:"0.5",muc:"0.3"},
+  calcario:{rho:1.50,mum:"0.6",muc:"0.3"},
+  fe_fino:{rho:2.60,mum:"0.6",muc:"0.35"},
+  cal:{rho:1.00,mum:"0.4",muc:"0.3"},
+  cimento:{rho:1.30,mum:"0.4",muc:"0.3"}
+};
+function tubPreset(){var p=TUB_MAT[$("#tcMat").value]; if(!p){runCalc("arraste_tubular");return;} $("#tcRho").value=p.rho; $("#tcMum").value=p.mum; $("#tcMuc").value=p.muc; runCalc("arraste_tubular");}
 const ICON_FEEDER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 6 L36 6 L30 20 L18 20 Z"/><rect x="10" y="26" width="30" height="7" rx="2" transform="rotate(-6 25 29)"/><path d="M11 36 l3 3 M39 34 l-3 3"/><path d="M20 22 l2 3 M27 22 l-1 3" stroke-width="1.4"/><circle cx="42" cy="30" r="2.2"/></svg>';
 const ICON_SCREEN_H='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="14" width="36" height="9" rx="2"/><rect x="6" y="27" width="36" height="9" rx="2"/><path d="M12 14 v9 M18 14 v9 M24 14 v9 M30 14 v9 M36 14 v9" stroke-width="1.2"/><path d="M12 27 v9 M18 27 v9 M24 27 v9 M30 27 v9 M36 27 v9" stroke-width="1.2"/><path d="M8 40 l4 -2 M40 40 l-4 -2"/></svg>';
 const ICON_SCREEN_I='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 16 L40 28"/><path d="M8 22 L40 34"/><path d="M12 17.4 l1 5.2 M18 19.7 l1 5.2 M24 21.9 l1 5.2 M30 24.1 l1 5.2 M36 26.4 l1 5.2"/><path d="M40 28 l4 1 M8 16 l-3 -1.2"/></svg>';
@@ -989,20 +1001,39 @@ const CALCS={
   },
   arraste_tubular:{
     titulo:"Transportador de Arraste Tubular — pré-dimensionamento",
-    referencia:"Catálogo Schrage Rohrkettensystem (linha CLASSIC, tamanhos 115/135/160/200/270) · correntes de elos redondos RUD · método de tração em transportadores contínuos de corrente · acionamento SEW-EURODRIVE",
+    referencia:"Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40) · capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente · catálogo Schrage Rohrkettensystem (velocidades e rodas dentadas) · correntes de elos redondos RUD · método de tração em transportadores contínuos de corrente · acionamento SEW-EURODRIVE",
     campos:[
-      {tipo:"head",label:"Processo"},
+      {tipo:"head",label:"Processo e material"},
+      {id:"tcMat",label:"Material (preset — preenche densidade e atritos)",tipo:"select",valor:"custom",onchange:"tubPreset()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"briq_carb",t:"Briquete carbonoso  (ρ ~0,80 t/m³)"},
+        {v:"briq_ferro",t:"Briquete ferroso / HBI  (ρ ~2,50 t/m³)"},
+        {v:"carvao",t:"Carvão  (ρ ~0,85)"},
+        {v:"coque",t:"Coque  (ρ ~0,50)"},
+        {v:"calcario",t:"Calcário britado  (ρ ~1,50)"},
+        {v:"fe_fino",t:"Minério de ferro fino  (ρ ~2,60)"},
+        {v:"cal",t:"Cal / finos secos  (ρ ~1,00)"},
+        {v:"cimento",t:"Cimento  (ρ ~1,30)"}]},
       {id:"tcQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:30},
       {id:"tcRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:0.8,step:"0.05"},
+      {id:"tcFill",label:"Taxa de preenchimento do tubo",unidade:"%",tipo:"number",valor:55,step:"5"},
+      {tipo:"head",label:"Geometria do percurso"},
       {id:"tcLh1",label:"Trecho horizontal inferior",unidade:"m",tipo:"number",valor:5},
       {id:"tcLi",label:"Trecho inclinado (comprimento)",unidade:"m",tipo:"number",valor:10},
       {id:"tcTheta",label:"Ângulo de inclinação do trecho",unidade:"°",tipo:"number",valor:30},
       {id:"tcLh2",label:"Trecho horizontal superior",unidade:"m",tipo:"number",valor:5},
       {id:"tcNb",label:"Número de curvas leves (redirecionamentos)",tipo:"number",valor:2},
-      {tipo:"head",label:"Tubo e corrente (catálogo Schrage / RUD)"},
-      {id:"tcSize",label:"Tamanho do tubo (Schrage CLASSIC)",tipo:"select",valor:"auto",opcoes:[
+      {tipo:"head",label:"Tubo (norma) e corrente"},
+      {id:"tcDN",label:"Diâmetro nominal do tubo (ASME B36.10 · Sch 40)",tipo:"select",valor:"auto",opcoes:[
         {v:"auto",t:"Automático (pela capacidade)"},
-        {v:"115",t:"115 · Ø tubo 115 mm"},{v:"135",t:"135 · Ø tubo 135 mm"},{v:"160",t:"160 · Ø tubo 160 mm"},{v:"200",t:"200 · Ø tubo 200 mm"},{v:"270",t:"270 · Ø tubo 270 mm"}]},
+        {v:"4",t:"4 pol · DN 100 — Ø int. 102,3 mm"},
+        {v:"5",t:"5 pol · DN 125 — Ø int. 128,2 mm"},
+        {v:"6",t:"6 pol · DN 150 — Ø int. 154,1 mm"},
+        {v:"8",t:"8 pol · DN 200 — Ø int. 202,7 mm"},
+        {v:"10",t:"10 pol · DN 250 — Ø int. 254,5 mm"},
+        {v:"12",t:"12 pol · DN 300 — Ø int. 303,2 mm"},
+        {v:"14",t:"14 pol · DN 350 — Ø int. 333,3 mm"},
+        {v:"16",t:"16 pol · DN 400 — Ø int. 381,0 mm"}]},
       {id:"tcMum",label:"Atrito material-tubo  μm",tipo:"select",valor:"0.5",opcoes:[
         {v:"0.4",t:"0,40 — fino/fluido"},{v:"0.5",t:"0,50 — médio"},{v:"0.6",t:"0,60 — grosseiro/abrasivo"}]},
       {id:"tcMuc",label:"Atrito corrente-tubo  μc",tipo:"select",valor:"0.3",opcoes:[
@@ -1012,24 +1043,33 @@ const CALCS={
     ],
     calcular:function(){
       var g=9.81, eta=0.85;
-      var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb");
+      var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb"),fillPc=num("tcFill");
       var mum=parseFloat($("#tcMum").value),muc=parseFloat($("#tcMuc").value),SF=parseFloat($("#tcSF").value);
-      if([Q,rho,Lh1,Li,theta,Lh2,Nb].some(function(x){return isNaN(x);})||Q<=0||rho<=0||Lh1<0||Li<0||Lh2<0||theta<0||theta>90||Nb<0) return null;
+      if([Q,rho,Lh1,Li,theta,Lh2,Nb,fillPc].some(function(x){return isNaN(x);})||Q<=0||rho<=0||Lh1<0||Li<0||Lh2<0||theta<0||theta>90||Nb<0||fillPc<=0||fillPc>100) return null;
+      var fill=fillPc/100;
+      // Tubos de aço conforme ASME B36.10 (Sch 40) — Ø interno (mm); corrente de elos redondos por faixa
       var TC=[
-        {n:"115",A:0.00578,vmax:0.51,d:14,qc:4.31,pcd:0.35},
-        {n:"135",A:0.0106,vmax:0.51,d:14,qc:4.31,pcd:0.35},
-        {n:"160",A:0.0156,vmax:0.45,d:18,qc:7.13,pcd:0.40},
-        {n:"200",A:0.0249,vmax:0.45,d:18,qc:7.13,pcd:0.40},
-        {n:"270",A:0.0411,vmax:0.54,d:26,qc:14.87,pcd:0.49}
+        {n:"4",dn:100,di:102.3,de:114.3,vmax:0.50,d:14,qc:4.31,pcd:0.35},
+        {n:"5",dn:125,di:128.2,de:141.3,vmax:0.50,d:14,qc:4.31,pcd:0.35},
+        {n:"6",dn:150,di:154.1,de:168.3,vmax:0.45,d:18,qc:7.13,pcd:0.40},
+        {n:"8",dn:200,di:202.7,de:219.1,vmax:0.45,d:18,qc:7.13,pcd:0.40},
+        {n:"10",dn:250,di:254.5,de:273.0,vmax:0.54,d:26,qc:14.87,pcd:0.49},
+        {n:"12",dn:300,di:303.2,de:323.9,vmax:0.54,d:26,qc:14.87,pcd:0.49},
+        {n:"14",dn:350,di:333.3,de:355.6,vmax:0.54,d:30,qc:19.80,pcd:0.55},
+        {n:"16",dn:400,di:381.0,de:406.4,vmax:0.54,d:30,qc:19.80,pcd:0.55}
       ];
-      function cap(s){return s.A*s.vmax*3600;}
+      function ageom(s){return Math.PI*Math.pow(s.di/1000,2)/4;}      // m² — seção do tubo
+      function autil(s){return ageom(s)*fill;}                        // m² — seção ocupada pelo material
+      function cap(s){return autil(s)*s.vmax*3600;}                   // m³/h
       var Qv=Q/rho;
-      var sel=$("#tcSize").value, S=null, insuf=false;
+      var sel=$("#tcDN").value, S=null, insuf=false;
       if(sel!=="auto"){ for(var i=0;i<TC.length;i++){ if(TC[i].n===sel){ S=TC[i]; break; } } }
       if(!S){ for(var i=0;i<TC.length;i++){ if(cap(TC[i])>=Qv){ S=TC[i]; break; } } if(!S){ S=TC[TC.length-1]; insuf=true; } }
-      var V=Qv/(S.A*3600); if(V>S.vmax){ insuf=true; }
+      var Ag=ageom(S), Au=autil(S);
+      var V=Qv/(Au*3600); if(V>S.vmax){ insuf=true; }
       var Vshow=Math.min(V,S.vmax);
-      var qm=rho*S.A*1000, qc=S.qc;
+      var fillNote=(fillPc>70)?"  ⚠ acima de 70% — risco de compactação/sobrecarga da corrente":(fillPc<30)?"  (baixa — tubo subutilizado)":"";
+      var qm=rho*Au*1000, qc=S.qc;
       var th=theta*Math.PI/180, H=Li*Math.sin(th), Lcos=Li*Math.cos(th);
       var Lhoriz=Lh1+Lh2+Lcos, Lpath=Lh1+Li+Lh2;
       var Fhor=g*(qc*muc+qm*mum)*(Lh1+Lh2);
@@ -1049,10 +1089,15 @@ const CALCS={
         {k:"Comprimento horizontal total",v:Lhoriz.toFixed(1).replace(".",",")+" m"},
         {k:"Comprimento total do percurso",v:Lpath.toFixed(1).replace(".",",")+" m"},
         {k:"Vazão volumétrica requerida",v:Qv.toFixed(1).replace(".",",")+" m³/h"},
-        {sec:"Tubo e velocidade (catálogo Schrage CLASSIC)"},
-        {k:"Tamanho do tubo selecionado",v:"Tipo "+S.n+"  (área útil "+(S.A*1e4).toFixed(0)+" cm²)",hi:true},
-        {k:"Velocidade da corrente requerida",v:Vshow.toFixed(2).replace(".",",")+" m/s"+(insuf?"  ⚠ acima da capacidade — usar tamanho maior":"  (máx. "+S.vmax.toFixed(2).replace(".",",")+" m/s)")},
-        {k:"Capacidade máx. do tamanho",v:cap(S).toFixed(1).replace(".",",")+" m³/h · "+(cap(S)*rho).toFixed(1).replace(".",",")+" t/h"},
+        {sec:"Tubo conforme norma (ASME B36.10 · Sch 40)"},
+        {k:"Diâmetro nominal do tubo",v:S.n+" pol  ·  DN "+S.dn+"  (Ø ext. "+S.de.toFixed(1).replace(".",",")+" mm)",hi:true},
+        {k:"Diâmetro interno do tubo",v:S.di.toFixed(1).replace(".",",")+" mm"},
+        {k:"Seção geométrica do tubo  A = π·d²/4",v:(Ag*1e4).toFixed(0)+" cm²"},
+        {k:"Taxa de preenchimento adotada",v:fillPc.toFixed(0)+" %"+fillNote,hi:true},
+        {k:"Seção útil de material  A_útil = A · taxa",v:(Au*1e4).toFixed(0)+" cm²",hi:true},
+        {sec:"Velocidade e capacidade"},
+        {k:"Velocidade da corrente requerida",v:Vshow.toFixed(2).replace(".",",")+" m/s"+(insuf?"  ⚠ acima da capacidade — usar diâmetro maior ou aumentar a taxa":"  (máx. "+S.vmax.toFixed(2).replace(".",",")+" m/s)")},
+        {k:"Capacidade máx. do tubo (na taxa adotada)",v:cap(S).toFixed(1).replace(".",",")+" m³/h · "+(cap(S)*rho).toFixed(1).replace(".",",")+" t/h"},
         {k:"Massa por metro: material · corrente",v:qm.toFixed(1).replace(".",",")+" · "+qc.toFixed(1).replace(".",",")+" kg/m"},
         {sec:"Tração na corrente"},
         {k:"Resist. trechos horizontais",v:fmt(Math.round(Fhor))+" N"},
@@ -1075,7 +1120,7 @@ const CALCS={
         {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+(BLsel/F).toFixed(1).replace(".",",")+")"},
         {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
       ];
-      OUT.geo={tipo:"arraste",size:S.n,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
+      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
       return OUT;
     }
   },
@@ -2576,7 +2621,9 @@ function gerarRelatorio(){
       doc.autoTable({startY:130,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
-          [san("Tamanho do tubo (Schrage)"),"Tipo "+G.size],
+          [san("Tubo (ASME B36.10 · Sch 40)"),san(G.size)],
+          [san("Diâmetro interno do tubo"),san(G.di.toFixed(1))+" mm"],
+          [san("Taxa de preenchimento"),san(String(Math.round(G.fill)))+" %"],
           [san("Velocidade da corrente"),san(G.Vsel.toFixed(2))+" m/s"],
           [san("Elevação  H"),san(G.H.toFixed(2))+" m"],
           [san("Comprimento horizontal total"),san(G.Lhoriz.toFixed(1))+" m"],
