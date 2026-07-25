@@ -2484,12 +2484,13 @@ function openItem(i){
     if(f.tipo==="text"){
       return `<div class="field"><label>${f.label}</label><input id="${f.id}" type="text" value="${f.valor||""}" placeholder="${f.placeholder||""}"/></div>`;
     }
+    const auto=`runCalc('${e.calculadora}')`, autoSoft=`runCalc('${e.calculadora}',1)`;
     if(f.tipo==="select"){
       const ops=f.opcoes.map(o=>`<option value="${o.v}"${o.v===f.valor?" selected":""}>${o.t}</option>`).join("");
-      return `<div class="field"><label>${f.label}</label><select id="${f.id}"${f.onchange?` onchange="${f.onchange}"`:""}>${ops}</select></div>`;
+      return `<div class="field"><label>${f.label}</label><select id="${f.id}" onchange="${f.onchange||auto}">${ops}</select></div>`;
     }
     return `<div class="field"><label>${f.label} ${f.unidade?`<span class="u">(${f.unidade})</span>`:""}</label>
-      <input id="${f.id}" type="number" value="${f.valor}" step="${f.step||"any"}"/></div>`;
+      <input id="${f.id}" type="number" value="${f.valor}" step="${f.step||"any"}" oninput="${autoSoft}" onchange="${auto}"/></div>`;
   }).join("");
   $("#sheet").innerHTML=`
     <div class="head"><div class="ic">${icon(e)}</div>
@@ -2508,10 +2509,10 @@ function openItem(i){
   $("#modal").classList.add("open");
   runCalc(e.calculadora);
 }
-function runCalc(id){
+function runCalc(id,soft){
   const calc=CALCS[id];const r=calc.calcular();
   const box=$("#results");
-  if(!r){box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">Verifique os dados de entrada (valores positivos).</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
+  if(!r){if(soft&&box.querySelector("table.res"))return;box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">Verifique os dados de entrada (valores positivos).</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
   const rows=r.map(x=> x.sec
     ? `<tr><td colspan="2" style="padding:16px 6px 6px;color:var(--teal-d);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--teal)">${x.sec}</td></tr>`
     : `<tr class="${x.hi?"highlight":""}"><td class="k">${x.k}</td><td class="v">${x.v}</td></tr>`).join("");
