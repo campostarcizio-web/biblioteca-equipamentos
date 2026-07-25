@@ -1503,12 +1503,12 @@ const CALCS={
       var hmaxF=(f1>=1)?0.2:(f1>=0.85)?0.3:0.5;   // H ≤ 0,2/0,3/0,5·L pela granulometria
       // Catálogo — calhas CV (sob silo) e alimentadores suspensos MVS
       var MOD=[
-        {n:"CV-1308",L:0.70,cmin:110,cmax:240,kw:3.7,fmax:203,boca:"800 × 700"},
-        {n:"CV-1510",L:0.90,cmin:160,cmax:320,kw:3.7,fmax:305,boca:"900 × 900"},
-        {n:"MVS-25070",L:0.70,cmin:70,cmax:350,kw:7.5,fmax:355,boca:"1100 × 1000"},
-        {n:"MVS-35090",L:0.90,cmin:190,cmax:590,kw:11.9,fmax:510,boca:"1900 × 1570"},
-        {n:"MVS-35120",L:1.20,cmin:290,cmax:830,kw:23.9,fmax:510,boca:"1800 × 1800"},
-        {n:"MVS-50158",L:1.50,cmin:420,cmax:1040,kw:29.8,fmax:610,boca:"2800 × 1450"}
+        {n:"CV-1308",L:0.70,C:1.28,cmin:110,cmax:240,kw:3.7,fmax:203,boca:"800 × 700"},
+        {n:"CV-1510",L:0.90,C:1.48,cmin:160,cmax:320,kw:3.7,fmax:305,boca:"900 × 900"},
+        {n:"MVS-25070",L:0.70,C:2.50,cmin:70,cmax:350,kw:7.5,fmax:355,boca:"1100 × 1000"},
+        {n:"MVS-35090",L:0.90,C:3.50,cmin:190,cmax:590,kw:11.9,fmax:510,boca:"1900 × 1570"},
+        {n:"MVS-35120",L:1.20,C:3.50,cmin:290,cmax:830,kw:23.9,fmax:510,boca:"1800 × 1800"},
+        {n:"MVS-50158",L:1.50,C:5.00,cmin:420,cmax:1040,kw:29.8,fmax:610,boca:"2800 × 1450"}
       ];
       var sel=$("#cvModel").value, M=null;
       if(sel!=="auto"){ for(var i=0;i<MOD.length;i++){ if(MOD[i].n===sel){ M=MOD[i]; break; } } }
@@ -1533,6 +1533,10 @@ const CALCS={
         {sec:"Seleção do alimentador e geometria"},
         {k:"Modelo selecionado (catálogo)",v:M.n+" · "+M.cmin+"–"+M.cmax+" t/h"+(insufCat?"  ⚠ acima do maior modelo — prever 2 unidades ou maior":qAlta?"  ⚠ acima da faixa do modelo":qBaixa?"  (vazão baixa p/ o modelo — regular por rotação/amplitude)":""),hi:true},
         {k:"Largura da mesa  L",v:L.toFixed(2).replace(".",",")+" m"},
+        {k:"Comprimento da mesa  C",v:M.C.toFixed(2).replace(".",",")+" m",hi:true},
+        {k:"Área útil da mesa  C × L",v:(M.C*L).toFixed(2).replace(".",",")+" m²"},
+        {k:"Inclinação da mesa",v:incl.toFixed(0)+"°"+(incl>0?" descendente  (fator "+fIncl.toFixed(2).replace(".",",")+" na velocidade)":"  (horizontal)"),hi:true},
+        {k:"Tempo de residência na mesa  C / V",v:(M.C/V).toFixed(1).replace(".",",")+" s"},
         {k:"Altura de camada máxima  H_máx = "+hmaxF.toFixed(2).replace(".",",")+"·L",v:(Hmax*1000).toFixed(0)+" mm"},
         {k:"Altura de camada necessária  H = T/(3600·φ1·φ2·V·L)",v:(Hreq*1000).toFixed(0)+" mm"+(camadaOK?"  (OK ≤ H_máx — ajustar a comporta)":"  ⚠ acima de H_máx — usar modelo mais largo, maior V ou reduzir a vazão"),hi:true},
         {k:"Capacidade máx. da mesa nesta condição (V, H_máx)",v:capMaxGeom.toFixed(0)+" t/h"},
@@ -1542,7 +1546,7 @@ const CALCS={
         {k:"Controle da vazão",v:"Regulável pela rotação (inversor de frequência), pela amplitude (contrapesos do vibrador) e pela posição da comporta (altura de camada H)."},
         {k:"Observação",v:"Pré-dimensionamento de calha/alimentador vibratório sob a boca do silo. A capacidade cresce com V (rpm/amplitude/inclinação), L e H, e é reduzida por φ1 (granulometria) e φ2 (umidade). Confirmar câmara/boca do silo, ângulo de fluxo (fluxo de massa) e o modelo na folha de dados do fabricante."}
       ];
-      OUT.geo={tipo:"calha",model:M.n,L:L,Hreq:Hreq,Hmax:Hmax,V:V,Tvol:Tvol,Q:Q,boca:M.boca,kw:M.kw,Fmax:Fmax,fmax:M.fmax,incl:incl};
+      OUT.geo={tipo:"calha",model:M.n,L:L,C:M.C,Hreq:Hreq,Hmax:Hmax,V:V,Tvol:Tvol,Q:Q,boca:M.boca,kw:M.kw,Fmax:Fmax,fmax:M.fmax,incl:incl,fIncl:fIncl};
       return OUT;
     }
   },
@@ -2615,8 +2619,8 @@ function gerarRelatorio(){
       doc.line(sx-sw/2,sTop,sx+sw/2,sTop); doc.line(sx-sw/2,sTop,sx-sw/2,sMid); doc.line(sx+sw/2,sTop,sx+sw/2,sMid);
       doc.line(sx-sw/2,sMid,sx-ow/2,sBot); doc.line(sx+sw/2,sMid,sx+ow/2,sBot);
       doc.setTextColor(110,130,150); doc.setFontSize(7.5); doc.text("silo",sx-4,sTop-3);
-      // mesa vibrante inclinada
-      var mx=sx-ow/2, my=sBot+6, mlen=96, drop=Math.round(mlen*Math.tan((G.incl||0)*Math.PI/180))+8;
+      // mesa vibrante inclinada (comprimento proporcional ao C do modelo)
+      var mx=sx-ow/2, my=sBot+6, mlen=Math.max(70,Math.min(110,52*(G.C||1.3))), drop=Math.round(mlen*Math.tan((G.incl||0)*Math.PI/180))+8;
       doc.setLineWidth(1.1); doc.line(mx,my,mx+mlen,my+drop);
       doc.line(mx,my+9,mx+mlen,my+drop+9);
       doc.line(mx,my,mx,my+9); doc.line(mx+mlen,my+drop,mx+mlen,my+drop+9);
@@ -2631,15 +2635,30 @@ function gerarRelatorio(){
       // cota H (camada)
       doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
       doc.text("H = "+san(String(Math.round(G.Hreq*1000)))+" mm (comporta)",mx+18,my-3);
-      doc.text("L = "+san(G.L.toFixed(2))+" m",mx+mlen+2,my+drop+20);
-      doc.autoTable({startY:my+drop+30,theme:"grid",margin:{left:14,right:14},
+      doc.text("L = "+san(G.L.toFixed(2))+" m (largura)",mx+mlen+2,my+drop+20);
+      // cota do comprimento da mesa C (abaixo da mesa) + angulo de inclinacao
+      var cy=my+drop+34;
+      doc.line(mx,cy,mx+mlen,cy); doc.line(mx,cy-1.6,mx,cy+1.6); doc.line(mx+mlen,cy-1.6,mx+mlen,cy+1.6);
+      doc.text("C = "+san(G.C.toFixed(2))+" m",mx+mlen/2,cy-1.6,{align:"center"});
+      if((G.incl||0)>0){
+        doc.setDrawColor(150,170,190); doc.setLineWidth(0.25);
+        doc.line(mx,my,mx+mlen,my); // linha horizontal de referencia
+        doc.setTextColor(30,120,150);
+        doc.text(san(String(Math.round(G.incl)))+"° descendente",mx+mlen*0.55,my+drop*0.55-2);
+      } else {
+        doc.setTextColor(30,120,150); doc.text("mesa horizontal (0°)",mx+18,my+drop+28);
+      }
+      doc.autoTable({startY:my+drop+42,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
           [san("Modelo (catálogo)"),G.model],
-          [san("Largura da mesa  L"),san(G.L.toFixed(2))+" m"],
+          [san("Comprimento × largura da mesa  C × L"),san(G.C.toFixed(2))+" × "+san(G.L.toFixed(2))+" m"],
+          [san("Área útil da mesa"),san((G.C*G.L).toFixed(2))+" m²"],
+          [san("Inclinação da mesa"),san(String(Math.round(G.incl)))+"°"+((G.incl>0)?" descendente (fator "+san(G.fIncl.toFixed(2))+")":" (horizontal)")],
           [san("Velocidade do material  V"),san(G.V.toFixed(3))+" m/s"],
+          [san("Tempo de residência  C/V"),san((G.C/G.V).toFixed(1))+" s"],
           [san("Vazão volumétrica  T"),san(G.Tvol.toFixed(1))+" m³/h"],
-          [san("Altura de camada necessária  H"),san(String(Math.round(G.Hreq*1000)))+" mm"],
+          [san("Altura de camada necessária  H (comporta)"),san(String(Math.round(G.Hreq*1000)))+" mm"],
           [san("Altura de camada máxima  H_máx"),san(String(Math.round(G.Hmax*1000)))+" mm"],
           [san("Boca de saída do silo (catálogo)"),G.boca+" mm"],
           [san("Maior bloco / máx. do modelo"),san(String(Math.round(G.Fmax)))+" / "+san(String(Math.round(G.fmax)))+" mm"],
