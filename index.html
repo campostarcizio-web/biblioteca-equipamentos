@@ -142,16 +142,18 @@ const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" st
 const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
 /* Materiais típicos para arraste tubular (densidade aparente e atritos) */
 const TUB_MAT={
-  briq_carb:{rho:0.80,mum:"0.5",muc:"0.3"},
-  briq_ferro:{rho:2.50,mum:"0.6",muc:"0.35"},
-  carvao:{rho:0.85,mum:"0.5",muc:"0.3"},
-  coque:{rho:0.50,mum:"0.5",muc:"0.3"},
-  calcario:{rho:1.50,mum:"0.6",muc:"0.3"},
-  fe_fino:{rho:2.60,mum:"0.6",muc:"0.35"},
-  cal:{rho:1.00,mum:"0.4",muc:"0.3"},
-  cimento:{rho:1.30,mum:"0.4",muc:"0.3"}
+  briq_bar:{rho:1.70,mum:"0.5",muc:"0.3",dim:120},
+  briq_bricao:{rho:1.30,mum:"0.5",muc:"0.3",dim:60},
+  briq_carb:{rho:0.80,mum:"0.5",muc:"0.3",dim:50},
+  briq_ferro:{rho:2.50,mum:"0.6",muc:"0.35",dim:100},
+  carvao:{rho:0.85,mum:"0.5",muc:"0.3",dim:50},
+  coque:{rho:0.50,mum:"0.5",muc:"0.3",dim:60},
+  calcario:{rho:1.50,mum:"0.6",muc:"0.3",dim:25},
+  fe_fino:{rho:2.60,mum:"0.6",muc:"0.35",dim:10},
+  cal:{rho:1.00,mum:"0.4",muc:"0.3",dim:10},
+  cimento:{rho:1.30,mum:"0.4",muc:"0.3",dim:1}
 };
-function tubPreset(){var p=TUB_MAT[$("#tcMat").value]; if(!p){runCalc("arraste_tubular");return;} $("#tcRho").value=p.rho; $("#tcMum").value=p.mum; $("#tcMuc").value=p.muc; runCalc("arraste_tubular");}
+function tubPreset(){var p=TUB_MAT[$("#tcMat").value]; if(!p){runCalc("arraste_tubular");return;} $("#tcRho").value=p.rho; $("#tcMum").value=p.mum; $("#tcMuc").value=p.muc; if(p.dim!=null)$("#tcDim").value=p.dim; runCalc("arraste_tubular");}
 const ICON_FEEDER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 6 L36 6 L30 20 L18 20 Z"/><rect x="10" y="26" width="30" height="7" rx="2" transform="rotate(-6 25 29)"/><path d="M11 36 l3 3 M39 34 l-3 3"/><path d="M20 22 l2 3 M27 22 l-1 3" stroke-width="1.4"/><circle cx="42" cy="30" r="2.2"/></svg>';
 const ICON_SCREEN_H='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="14" width="36" height="9" rx="2"/><rect x="6" y="27" width="36" height="9" rx="2"/><path d="M12 14 v9 M18 14 v9 M24 14 v9 M30 14 v9 M36 14 v9" stroke-width="1.2"/><path d="M12 27 v9 M18 27 v9 M24 27 v9 M30 27 v9 M36 27 v9" stroke-width="1.2"/><path d="M8 40 l4 -2 M40 40 l-4 -2"/></svg>';
 const ICON_SCREEN_I='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 16 L40 28"/><path d="M8 22 L40 34"/><path d="M12 17.4 l1 5.2 M18 19.7 l1 5.2 M24 21.9 l1 5.2 M30 24.1 l1 5.2 M36 26.4 l1 5.2"/><path d="M40 28 l4 1 M8 16 l-3 -1.2"/></svg>';
@@ -1006,6 +1008,8 @@ const CALCS={
       {tipo:"head",label:"Processo e material"},
       {id:"tcMat",label:"Material (preset — preenche densidade e atritos)",tipo:"select",valor:"custom",onchange:"tubPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
+        {v:"briq_bar",t:"Briquete autoredutor BAR  (ρ 1,70 t/m³ · 120 mm)"},
+        {v:"briq_bricao",t:"Briquete Bricão  (ρ 1,30 t/m³ · 60 mm)"},
         {v:"briq_carb",t:"Briquete carbonoso  (ρ ~0,80 t/m³)"},
         {v:"briq_ferro",t:"Briquete ferroso / HBI  (ρ ~2,50 t/m³)"},
         {v:"carvao",t:"Carvão  (ρ ~0,85)"},
@@ -1016,6 +1020,7 @@ const CALCS={
         {v:"cimento",t:"Cimento  (ρ ~1,30)"}]},
       {id:"tcQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:30},
       {id:"tcRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:0.8,step:"0.05"},
+      {id:"tcDim",label:"Dimensional / maior peça do material",unidade:"mm",tipo:"number",valor:50,step:"5"},
       {id:"tcFill",label:"Taxa de preenchimento do tubo",unidade:"%",tipo:"number",valor:55,step:"5"},
       {tipo:"head",label:"Geometria do percurso"},
       {id:"tcLh1",label:"Trecho horizontal inferior",unidade:"m",tipo:"number",valor:5},
@@ -1043,9 +1048,11 @@ const CALCS={
     ],
     calcular:function(){
       var g=9.81, eta=0.85;
-      var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb"),fillPc=num("tcFill");
+      var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb"),fillPc=num("tcFill"),dim=num("tcDim");
       var mum=parseFloat($("#tcMum").value),muc=parseFloat($("#tcMuc").value),SF=parseFloat($("#tcSF").value);
       if([Q,rho,Lh1,Li,theta,Lh2,Nb,fillPc].some(function(x){return isNaN(x);})||Q<=0||rho<=0||Lh1<0||Li<0||Lh2<0||theta<0||theta>90||Nb<0||fillPc<=0||fillPc>100) return null;
+      if(isNaN(dim)||dim<0)dim=0;
+      var KLUMP=3;   // Ø interno recomendado >= 3 x dimensional (passagem livre da peça no tubo)
       var fill=fillPc/100;
       // Tubos de aço conforme ASME B36.10 (Sch 40) — Ø interno (mm); corrente de elos redondos por faixa
       var TC=[
@@ -1064,8 +1071,10 @@ const CALCS={
       var Qv=Q/rho;
       var sel=$("#tcDN").value, S=null, insuf=false;
       if(sel!=="auto"){ for(var i=0;i<TC.length;i++){ if(TC[i].n===sel){ S=TC[i]; break; } } }
-      if(!S){ for(var i=0;i<TC.length;i++){ if(cap(TC[i])>=Qv){ S=TC[i]; break; } } if(!S){ S=TC[TC.length-1]; insuf=true; } }
+      if(!S){ for(var i=0;i<TC.length;i++){ if(cap(TC[i])>=Qv && TC[i].di>=KLUMP*dim){ S=TC[i]; break; } } if(!S){ S=TC[TC.length-1]; insuf=true; } }
       var Ag=ageom(S), Au=autil(S);
+      var rLump=(dim>0)?S.di/dim:0;
+      var lumpNote=(dim<=0)?"":(rLump>=KLUMP)?"  (OK ≥ "+KLUMP+"× — passagem livre)":(rLump>=2)?"  ⚠ entre 2× e "+KLUMP+"× — confirmar disco/passo com o fabricante":"  ⚠ abaixo de 2× — tubo incompatível com o dimensional; usar diâmetro maior";
       var V=Qv/(Au*3600); if(V>S.vmax){ insuf=true; }
       var Vshow=Math.min(V,S.vmax);
       var fillNote=(fillPc>70)?"  ⚠ acima de 70% — risco de compactação/sobrecarga da corrente":(fillPc<30)?"  (baixa — tubo subutilizado)":"";
@@ -1092,6 +1101,8 @@ const CALCS={
         {sec:"Tubo conforme norma (ASME B36.10 · Sch 40)"},
         {k:"Diâmetro nominal do tubo",v:S.n+" pol  ·  DN "+S.dn+"  (Ø ext. "+S.de.toFixed(1).replace(".",",")+" mm)",hi:true},
         {k:"Diâmetro interno do tubo",v:S.di.toFixed(1).replace(".",",")+" mm"},
+        {k:"Dimensional / maior peça do material",v:(dim>0?fmt(Math.round(dim))+" mm":"—")},
+        {k:"Relação Ø interno / dimensional",v:(dim>0?rLump.toFixed(1).replace(".",",")+" ×"+lumpNote:"—  (dimensional não informado)"),hi:dim>0},
         {k:"Seção geométrica do tubo  A = π·d²/4",v:(Ag*1e4).toFixed(0)+" cm²"},
         {k:"Taxa de preenchimento adotada",v:fillPc.toFixed(0)+" %"+fillNote,hi:true},
         {k:"Seção útil de material  A_útil = A · taxa",v:(Au*1e4).toFixed(0)+" cm²",hi:true},
@@ -1120,7 +1131,7 @@ const CALCS={
         {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+(BLsel/F).toFixed(1).replace(".",",")+")"},
         {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
       ];
-      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
+      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
       return OUT;
     }
   },
@@ -2623,6 +2634,7 @@ function gerarRelatorio(){
         body:[
           [san("Tubo (ASME B36.10 · Sch 40)"),san(G.size)],
           [san("Diâmetro interno do tubo"),san(G.di.toFixed(1))+" mm"],
+          [san("Dimensional do material"),(G.dim>0?san(String(Math.round(G.dim)))+" mm":"—")],
           [san("Taxa de preenchimento"),san(String(Math.round(G.fill)))+" %"],
           [san("Velocidade da corrente"),san(G.Vsel.toFixed(2))+" m/s"],
           [san("Elevação  H"),san(G.H.toFixed(2))+" m"],
