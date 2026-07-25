@@ -1479,11 +1479,13 @@ const CALCS={
       {id:"cvIncl",label:"Inclinação descendente da mesa",tipo:"select",valor:"0",opcoes:[
         {v:"0",t:"Horizontal (fator 1,0)"},{v:"5",t:"5° descendente (fator 1,3)"},{v:"10",t:"10° descendente (fator 1,6)"}]},
       {tipo:"head",label:"Catálogo"},
-      {id:"cvModel",label:"Modelo (calhas CV / suspensos MVS)",tipo:"select",valor:"auto",opcoes:[
+      {id:"cvModel",label:"Modelo (calhas CV / suspensos MVS / Vibraline)",tipo:"select",valor:"auto",opcoes:[
         {v:"auto",t:"Automático (pela capacidade)"},
         {v:"CV-1308",t:"CV-1308 · 110–240 t/h"},{v:"CV-1510",t:"CV-1510 · 160–320 t/h"},
         {v:"MVS-25070",t:"MVS-25070 · 70–350 t/h"},{v:"MVS-35090",t:"MVS-35090 · 190–590 t/h"},
-        {v:"MVS-35120",t:"MVS-35120 · 290–830 t/h"},{v:"MVS-50158",t:"MVS-50158 · 420–1040 t/h"}]}
+        {v:"MVS-35120",t:"MVS-35120 · 290–830 t/h"},{v:"MVS-50158",t:"MVS-50158 · 420–1040 t/h"},
+        {v:'Vibraline 36"×60"',t:'Vibraline 36"×60" · 80–320 t/h'},{v:'Vibraline 60"×72"',t:'Vibraline 60"×72" · 240–770 t/h'},
+        {v:'Vibraline 72"×96"',t:'Vibraline 72"×96" · 290–960 t/h'},{v:'Vibraline 84"×120"',t:'Vibraline 84"×120" · 320–1280 t/h'}]}
     ],
     calcular:function(){
       var Q=num("cvQ"),rho=num("cvRho"),Fmax=num("cvFmax"),amp=num("cvAmp"),rpm=num("cvRpm");
@@ -1505,10 +1507,14 @@ const CALCS={
       var MOD=[
         {n:"CV-1308",L:0.70,C:1.28,cmin:110,cmax:240,kw:3.7,fmax:203,boca:"800 × 700"},
         {n:"CV-1510",L:0.90,C:1.48,cmin:160,cmax:320,kw:3.7,fmax:305,boca:"900 × 900"},
+        {n:'Vibraline 36"×60"',L:0.90,C:1.50,cmin:80,cmax:320,kw:7.4,fmax:150,boca:"bica sob projeto",vib:true},
         {n:"MVS-25070",L:0.70,C:2.50,cmin:70,cmax:350,kw:7.5,fmax:355,boca:"1100 × 1000"},
         {n:"MVS-35090",L:0.90,C:3.50,cmin:190,cmax:590,kw:11.9,fmax:510,boca:"1900 × 1570"},
+        {n:'Vibraline 60"×72"',L:1.50,C:1.80,cmin:240,cmax:770,kw:7.4,fmax:250,boca:"bica sob projeto",vib:true},
         {n:"MVS-35120",L:1.20,C:3.50,cmin:290,cmax:830,kw:23.9,fmax:510,boca:"1800 × 1800"},
-        {n:"MVS-50158",L:1.50,C:5.00,cmin:420,cmax:1040,kw:29.8,fmax:610,boca:"2800 × 1450"}
+        {n:'Vibraline 72"×96"',L:1.80,C:2.40,cmin:290,cmax:960,kw:14.7,fmax:300,boca:"bica sob projeto",vib:true},
+        {n:"MVS-50158",L:1.50,C:5.00,cmin:420,cmax:1040,kw:29.8,fmax:610,boca:"2800 × 1450"},
+        {n:'Vibraline 84"×120"',L:2.10,C:3.00,cmin:320,cmax:1280,kw:22.1,fmax:400,boca:"bica sob projeto",vib:true}
       ];
       var sel=$("#cvModel").value, M=null;
       if(sel!=="auto"){ for(var i=0;i<MOD.length;i++){ if(MOD[i].n===sel){ M=MOD[i]; break; } } }
@@ -1532,15 +1538,16 @@ const CALCS={
         {k:"Velocidade do material adotada  V",v:V.toFixed(3).replace(".",",")+" m/s",hi:true},
         {sec:"Seleção do alimentador e geometria"},
         {k:"Modelo selecionado (catálogo)",v:M.n+" · "+M.cmin+"–"+M.cmax+" t/h"+(insufCat?"  ⚠ acima do maior modelo — prever 2 unidades ou maior":qAlta?"  ⚠ acima da faixa do modelo":qBaixa?"  (vazão baixa p/ o modelo — regular por rotação/amplitude)":""),hi:true},
+        {k:"Linha do equipamento",v:M.vib?"Vibraline — calha vibrante sob silo/pilha (movimento linear, 2 vibradores)":(M.n.indexOf("MVS")===0?"MVS — alimentador vibratório suspenso (sob silo/pilha)":"CV — calha vibratória (sob silo/pilha)")},
         {k:"Largura da mesa  L",v:L.toFixed(2).replace(".",",")+" m"},
         {k:"Comprimento da mesa  C",v:M.C.toFixed(2).replace(".",",")+" m",hi:true},
         {k:"Área útil da mesa  C × L",v:(M.C*L).toFixed(2).replace(".",",")+" m²"},
-        {k:"Inclinação da mesa",v:incl.toFixed(0)+"°"+(incl>0?" descendente  (fator "+fIncl.toFixed(2).replace(".",",")+" na velocidade)":"  (horizontal)"),hi:true},
+        {k:"Inclinação da mesa",v:incl.toFixed(0)+"°"+(incl>0?" descendente  (fator "+fIncl.toFixed(2).replace(".",",")+" na velocidade)":"  (horizontal)")+((M.vib&&incl<10)?"  ⚠ a capacidade de catálogo Vibraline é referida a 10° — com menos inclinação, reduzir a capacidade ou compensar por rotação/amplitude":""),hi:true},
         {k:"Tempo de residência na mesa  C / V",v:(M.C/V).toFixed(1).replace(".",",")+" s"},
         {k:"Altura de camada máxima  H_máx = "+hmaxF.toFixed(2).replace(".",",")+"·L",v:(Hmax*1000).toFixed(0)+" mm"},
         {k:"Altura de camada necessária  H = T/(3600·φ1·φ2·V·L)",v:(Hreq*1000).toFixed(0)+" mm"+(camadaOK?"  (OK ≤ H_máx — ajustar a comporta)":"  ⚠ acima de H_máx — usar modelo mais largo, maior V ou reduzir a vazão"),hi:true},
         {k:"Capacidade máx. da mesa nesta condição (V, H_máx)",v:capMaxGeom.toFixed(0)+" t/h"},
-        {k:"Boca de saída do silo compatível (catálogo)",v:M.boca+" mm"},
+        {k:"Boca de saída do silo compatível (catálogo)",v:M.vib?"Bica/tremonha não é componente padrão do Vibraline — projetar para a instalação":M.boca+" mm"},
         {k:"Tamanho máx. de bloco do modelo",v:fmt(Math.round(M.fmax))+" mm"+(blocoOK?"  (atende F_máx)":"  ⚠ menor que F_máx — usar modelo maior")},
         {k:"Motorização do vibrador (catálogo)",v:M.kw.toFixed(1).replace(".",",")+" kW"+(M.kw<7?"  (~"+(M.kw/0.7457).toFixed(0)+" HP)":"  (2 vibradores, ~"+(M.kw/0.7457).toFixed(0)+" HP no total)"),hi:true},
         {k:"Controle da vazão",v:"Regulável pela rotação (inversor de frequência), pela amplitude (contrapesos do vibrador) e pela posição da comporta (altura de camada H)."},
