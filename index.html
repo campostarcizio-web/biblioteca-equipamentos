@@ -140,6 +140,7 @@ const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strok
 const ICON_IMPACT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="26" r="11"/><path d="M24 26 L24 17 M24 26 L32 31 M24 26 L16 31"/><path d="M22 8 h4 v6 h-4 z"/><path d="M40 24 l4 -2 M40 30 l4 2 M8 24 l-4 -2"/></svg>';
 const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="22" r="10"/><circle cx="24" cy="22" r="2.4" fill="currentColor"/><path d="M24 12 l5 -5 M24 32 l-5 5 M34 22 l5 -5 M14 22 l-5 5"/><path d="M12 40 h24 M14 40 v-2 M20 40 v-2 M26 40 v-2 M32 40 v-2"/></svg>';
 const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
+const ICON_FEEDER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 6 L36 6 L30 20 L18 20 Z"/><rect x="10" y="26" width="30" height="7" rx="2" transform="rotate(-6 25 29)"/><path d="M11 36 l3 3 M39 34 l-3 3"/><path d="M20 22 l2 3 M27 22 l-1 3" stroke-width="1.4"/><circle cx="42" cy="30" r="2.2"/></svg>';
 const ICON_SCREEN_H='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="14" width="36" height="9" rx="2"/><rect x="6" y="27" width="36" height="9" rx="2"/><path d="M12 14 v9 M18 14 v9 M24 14 v9 M30 14 v9 M36 14 v9" stroke-width="1.2"/><path d="M12 27 v9 M18 27 v9 M24 27 v9 M30 27 v9 M36 27 v9" stroke-width="1.2"/><path d="M8 40 l4 -2 M40 40 l-4 -2"/></svg>';
 const ICON_SCREEN_I='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 16 L40 28"/><path d="M8 22 L40 34"/><path d="M12 17.4 l1 5.2 M18 19.7 l1 5.2 M24 21.9 l1 5.2 M30 24.1 l1 5.2 M36 26.4 l1 5.2"/><path d="M40 28 l4 1 M8 16 l-3 -1.2"/></svg>';
 const ICON_SCREEN_B='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 14 C18 20 30 30 40 34"/><path d="M8 20 C18 26 30 36 40 40"/><path d="M13 16.5 l1.4 5 M20 21 l1.2 5.2 M27 26 l1 5.2 M34 30.5 l0.8 5.2"/><path d="M40 34 l4 1.2 M8 14 l-3 -1.2"/></svg>';
@@ -153,7 +154,7 @@ function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
 function conePreset(){var w=CRUSHER_MAT[$("#bcMat").value]; if(w==null)return; $("#bcWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_conico");}
-function icon(e){if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function icon(e){if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -1457,6 +1458,94 @@ const CALCS={
       return OUT;
     }
   },
+  calha_vibratoria:{
+    titulo:"Calha Vibratória (saída de silo) — pré-dimensionamento",
+    referencia:"Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: Q = 3600·φ1·φ2·V·L·H (m³/h), curva de velocidade V (rpm × amplitude 3–7 mm), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada (H ≤ 0,5/0,3/0,2·L) e fator de inclinação descendente; catálogos de calhas CV (sob silo) e alimentadores suspensos MVS",
+    campos:[
+      {tipo:"head",label:"Alimentação"},
+      {id:"cvQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
+      {id:"cvRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
+      {id:"cvFmax",label:"Maior bloco do material  F_máx",unidade:"mm",tipo:"number",valor:150},
+      {tipo:"head",label:"Material (fatores φ1 e φ2)"},
+      {id:"cvGran",label:"Granulometria (φ1)",tipo:"select",valor:"0.85",opcoes:[
+        {v:"1",t:"Areia / pedras pequenas (φ1 = 1,0)"},
+        {v:"0.85",t:"Pedra britada até 6\" (φ1 = 0,85)"},
+        {v:"0.6",t:"Pedras maiores que 6\" (φ1 = 0,6)"}]},
+      {id:"cvUmid",label:"Umidade (φ2)",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"Seco (φ2 = 1,0)"},{v:"0.8",t:"Molhado (φ2 = 0,8)"},{v:"0.6",t:"Argiloso (φ2 = 0,6)"}]},
+      {tipo:"head",label:"Vibração e geometria"},
+      {id:"cvAmp",label:"Amplitude de vibração  a (3 a 7 mm)",unidade:"mm",tipo:"number",valor:5,step:"0.5"},
+      {id:"cvRpm",label:"Rotação do vibrador",unidade:"rpm",tipo:"number",valor:900,step:"10"},
+      {id:"cvIncl",label:"Inclinação descendente da mesa",tipo:"select",valor:"0",opcoes:[
+        {v:"0",t:"Horizontal (fator 1,0)"},{v:"5",t:"5° descendente (fator 1,3)"},{v:"10",t:"10° descendente (fator 1,6)"}]},
+      {tipo:"head",label:"Catálogo"},
+      {id:"cvModel",label:"Modelo (calhas CV / suspensos MVS)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela capacidade)"},
+        {v:"CV-1308",t:"CV-1308 · 110–240 t/h"},{v:"CV-1510",t:"CV-1510 · 160–320 t/h"},
+        {v:"MVS-25070",t:"MVS-25070 · 70–350 t/h"},{v:"MVS-35090",t:"MVS-35090 · 190–590 t/h"},
+        {v:"MVS-35120",t:"MVS-35120 · 290–830 t/h"},{v:"MVS-50158",t:"MVS-50158 · 420–1040 t/h"}]}
+    ],
+    calcular:function(){
+      var Q=num("cvQ"),rho=num("cvRho"),Fmax=num("cvFmax"),amp=num("cvAmp"),rpm=num("cvRpm");
+      var f1=parseFloat($("#cvGran").value),f2=parseFloat($("#cvUmid").value),incl=parseFloat($("#cvIncl").value);
+      if([Q,rho,Fmax,amp,rpm].some(function(x){return isNaN(x);})||Q<=0||rho<=0||amp<=0||rpm<=0) return null;
+      // Curva de velocidade V (m/s) — linhas por amplitude (mm) × rotação (rpm) — gráfico do manual
+      var RP=[500,600,700,800,900];
+      var VA={3:[0.07,0.11,0.17,0.22,0.27],4:[0.10,0.15,0.21,0.25,0.28],5:[0.13,0.18,0.23,0.28,0.31],6:[0.15,0.21,0.26,0.30,0.34],7:[0.23,0.29,0.33,0.37,0.40]};
+      function interp1(xs,ys,x){ if(x<=xs[0])return ys[0]; if(x>=xs[xs.length-1])return ys[ys.length-1]; for(var i=1;i<xs.length;i++){ if(x<=xs[i]){ var t=(x-xs[i-1])/(xs[i]-xs[i-1]); return ys[i-1]+t*(ys[i]-ys[i-1]); } } return ys[ys.length-1]; }
+      var aC=Math.max(3,Math.min(7,amp)), nC=Math.max(500,Math.min(900,rpm));
+      var aLo=Math.floor(aC), aHi=Math.ceil(aC); if(aLo<3)aLo=3; if(aHi>7)aHi=7;
+      var vLo=interp1(RP,VA[aLo],nC), vHi=interp1(RP,VA[aHi],nC);
+      var V0=(aHi===aLo)?vLo:vLo+(vHi-vLo)*(aC-aLo)/(aHi-aLo);
+      var fIncl=(incl>=10)?1.6:(incl>=5)?1.3:1.0; if(incl>0&&incl<5)fIncl=1+0.3*(incl/5); else if(incl>5&&incl<10)fIncl=1.3+0.3*((incl-5)/5);
+      var V=V0*fIncl;
+      var Tvol=Q/rho;                       // m³/h requerido
+      var hmaxF=(f1>=1)?0.2:(f1>=0.85)?0.3:0.5;   // H ≤ 0,2/0,3/0,5·L pela granulometria
+      // Catálogo — calhas CV (sob silo) e alimentadores suspensos MVS
+      var MOD=[
+        {n:"CV-1308",L:0.75,cmin:110,cmax:240,kw:3.7,fmax:200,boca:"800 × 700"},
+        {n:"CV-1510",L:0.85,cmin:160,cmax:320,kw:3.7,fmax:300,boca:"900 × 900"},
+        {n:"MVS-25070",L:0.70,cmin:70,cmax:350,kw:7.5,fmax:355,boca:"1100 × 1000"},
+        {n:"MVS-35090",L:0.90,cmin:190,cmax:590,kw:11.9,fmax:510,boca:"1900 × 1570"},
+        {n:"MVS-35120",L:1.20,cmin:290,cmax:830,kw:23.9,fmax:510,boca:"1800 × 1800"},
+        {n:"MVS-50158",L:1.50,cmin:420,cmax:1040,kw:29.8,fmax:610,boca:"2800 × 1450"}
+      ];
+      var sel=$("#cvModel").value, M=null;
+      if(sel!=="auto"){ for(var i=0;i<MOD.length;i++){ if(MOD[i].n===sel){ M=MOD[i]; break; } } }
+      var insufCat=false; if(!M){ for(var i=0;i<MOD.length;i++){ if(MOD[i].cmax>=Q){ M=MOD[i]; break; } } if(!M){ M=MOD[MOD.length-1]; insufCat=true; } }
+      var L=M.L, Hmax=hmaxF*L;
+      var Hreq=Tvol/(3600*f1*f2*V*L);        // m — altura de camada (abertura de comporta) necessária
+      var capMaxGeom=3600*f1*f2*V*L*Hmax*rho; // t/h máx. da mesa nesta condição (V, material, Hmax)
+      var camadaOK=(Hreq<=Hmax), blocoOK=(Fmax<=M.fmax), qBaixa=(Q<M.cmin*0.999), qAlta=(Q>M.cmax*1.001);
+      var OUT=[
+        {sec:"Requisito de descarga"},
+        {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
+        {k:"Densidade aparente",v:rho.toFixed(2).replace(".",",")+" t/m³"},
+        {k:"Vazão volumétrica  T = Q / ρ",v:Tvol.toFixed(1).replace(".",",")+" m³/h",hi:true},
+        {k:"Maior bloco do material  F_máx",v:fmt(Math.round(Fmax))+" mm"},
+        {sec:"Fatores e velocidade do material"},
+        {k:"Fator de granulometria  φ1",v:f1.toFixed(2).replace(".",",")},
+        {k:"Fator de umidade  φ2",v:f2.toFixed(2).replace(".",",")},
+        {k:"Amplitude · rotação",v:aC.toFixed(1).replace(".",",")+" mm · "+Math.round(nC)+" rpm"+((amp<3||amp>7)?"  (amplitude fora de 3–7 mm — limitada)":"")+((rpm<500||rpm>900)?"  (rpm fora de 500–900 — extrapolado)":"")},
+        {k:"Velocidade base do material (curva)  V0",v:V0.toFixed(3).replace(".",",")+" m/s"},
+        {k:"Fator de inclinação descendente",v:fIncl.toFixed(2).replace(".",",")+"  ("+incl.toFixed(0)+"°)"},
+        {k:"Velocidade do material adotada  V",v:V.toFixed(3).replace(".",",")+" m/s",hi:true},
+        {sec:"Seleção do alimentador e geometria"},
+        {k:"Modelo selecionado (catálogo)",v:M.n+" · "+M.cmin+"–"+M.cmax+" t/h"+(insufCat?"  ⚠ acima do maior modelo — prever 2 unidades ou maior":qAlta?"  ⚠ acima da faixa do modelo":qBaixa?"  (vazão baixa p/ o modelo — regular por rotação/amplitude)":""),hi:true},
+        {k:"Largura da mesa  L",v:L.toFixed(2).replace(".",",")+" m"},
+        {k:"Altura de camada máxima  H_máx = "+hmaxF.toFixed(2).replace(".",",")+"·L",v:(Hmax*1000).toFixed(0)+" mm"},
+        {k:"Altura de camada necessária  H = T/(3600·φ1·φ2·V·L)",v:(Hreq*1000).toFixed(0)+" mm"+(camadaOK?"  (OK ≤ H_máx — ajustar a comporta)":"  ⚠ acima de H_máx — usar modelo mais largo, maior V ou reduzir a vazão"),hi:true},
+        {k:"Capacidade máx. da mesa nesta condição (V, H_máx)",v:capMaxGeom.toFixed(0)+" t/h"},
+        {k:"Boca de saída do silo compatível (catálogo)",v:M.boca+" mm"},
+        {k:"Tamanho máx. de bloco do modelo",v:fmt(Math.round(M.fmax))+" mm"+(blocoOK?"  (atende F_máx)":"  ⚠ menor que F_máx — usar modelo maior")},
+        {k:"Motorização do vibrador (catálogo)",v:M.kw.toFixed(1).replace(".",",")+" kW"+(M.kw<7?"  (~"+(M.kw/0.7457).toFixed(0)+" HP)":"  (2 vibradores, ~"+(M.kw/0.7457).toFixed(0)+" HP no total)"),hi:true},
+        {k:"Controle da vazão",v:"Regulável pela rotação (inversor de frequência), pela amplitude (contrapesos do vibrador) e pela posição da comporta (altura de camada H)."},
+        {k:"Observação",v:"Pré-dimensionamento de calha/alimentador vibratório sob a boca do silo. A capacidade cresce com V (rpm/amplitude/inclinação), L e H, e é reduzida por φ1 (granulometria) e φ2 (umidade). Confirmar câmara/boca do silo, ângulo de fluxo (fluxo de massa) e o modelo na folha de dados do fabricante."}
+      ];
+      OUT.geo={tipo:"calha",model:M.n,L:L,Hreq:Hreq,Hmax:Hmax,V:V,Tvol:Tvol,Q:Q,boca:M.boca,kw:M.kw,Fmax:Fmax,fmax:M.fmax,incl:incl};
+      return OUT;
+    }
+  },
   britador_conico:{
     titulo:"Britador Cônico — pré-dimensionamento",
     referencia:"Lei de Bond (3ª teoria da cominuição); método de capacidade do Manual de Britagem Metso/FAÇO (Q = QT·A·B·C·D, densidade ref. 1,6 t/m³) e tabela de capacidade × APF dos cones MP800/MP1000; catálogo Nordberg cônicos HP/MP; regras de câmara (Standard secundário / Cabeça curta terciário) e razão de redução; refs. Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist, AMIT-135",
@@ -2188,6 +2277,43 @@ const ANIM={
           </svg>
           <div class="cap">Elevador de canecas (transporte vertical, descarga no topo) — animação ProjectARK</div>
         </div>`,
+  calha_vibratoria:`<div class="vid">
+          <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Calha vibratoria sob silo em operacao">
+            <defs>
+              <linearGradient id="cv_body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#33465c"/><stop offset="1" stop-color="#0b1726"/></linearGradient>
+              <linearGradient id="cv_pan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#aebccb"/><stop offset="1" stop-color="#5d6c7e"/></linearGradient>
+            </defs>
+            <!-- silo + moega -->
+            <path d="M120 6 L300 6 L300 64 L250 110 L170 110 L120 64 Z" fill="url(#cv_body)" stroke="#3a4d63"/>
+            <path d="M120 40 L300 40" stroke="#3a4d63" stroke-width="1" opacity="0.5"/>
+            <text x="185" y="34" fill="#6f8398" font-size="11" font-family="sans-serif">silo</text>
+            <!-- material saindo da boca -->
+            <g fill="#D9A94A">
+              <circle r="3.5" cx="210" cy="112"><animate attributeName="cy" values="108;122" dur="0.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;0" dur="0.5s" repeatCount="indefinite"/></circle>
+            </g>
+            <!-- mesa vibrante (calha) com molas -->
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="0 0; 1.8 1; 0 0; -1.8 -1; 0 0" dur="0.14s" repeatCount="indefinite"/>
+              <rect x="150" y="122" width="230" height="16" rx="3" fill="url(#cv_pan)" stroke="#46586b" transform="rotate(4 265 130)"/>
+              <!-- material transportado sobre a mesa (esq -> dir, descendo) -->
+              <g fill="#D9A94A">
+                <circle r="4" cx="175" cy="128"><animate attributeName="cx" values="175;372" dur="2.4s" repeatCount="indefinite"/><animate attributeName="cy" values="126;142" dur="2.4s" repeatCount="indefinite"/></circle>
+                <circle r="5" cx="175" cy="127"><animate attributeName="cx" values="175;372" dur="2.4s" begin="-0.8s" repeatCount="indefinite"/><animate attributeName="cy" values="125;141" dur="2.4s" begin="-0.8s" repeatCount="indefinite"/></circle>
+                <circle r="4" cx="175" cy="129"><animate attributeName="cx" values="175;372" dur="2.4s" begin="-1.6s" repeatCount="indefinite"/><animate attributeName="cy" values="127;143" dur="2.4s" begin="-1.6s" repeatCount="indefinite"/></circle>
+              </g>
+            </g>
+            <!-- molas helicoidais -->
+            <path d="M175 140 q5 5 0 10 q-5 5 0 10" fill="none" stroke="#5d6c7e" stroke-width="2"/>
+            <path d="M355 148 q5 5 0 10 q-5 5 0 10" fill="none" stroke="#5d6c7e" stroke-width="2"/>
+            <!-- vibrador -->
+            <circle cx="300" cy="118" r="8" fill="url(#cv_pan)" stroke="#46586b"/><circle cx="300" cy="115" r="2" fill="#15243c"><animateTransform attributeName="transform" type="rotate" from="0 300 118" to="360 300 118" dur="0.3s" repeatCount="indefinite"/></circle>
+            <!-- descarga p/ correia -->
+            <path d="M372 150 L410 158 L400 178 L380 174 Z" fill="#1b2c3e" stroke="#33485e"/>
+            <g fill="#D9A94A"><circle r="3" cx="388" cy="160"><animate attributeName="cy" values="156;180" dur="0.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" dur="0.6s" repeatCount="indefinite"/></circle></g>
+            <text x="185" y="170" fill="#6f8398" font-size="10" font-family="sans-serif">calha vibratoria</text>
+            <text x="382" y="150" fill="#9fb6cc" font-size="9" font-family="sans-serif">p/ correia</text>
+            <text x="120" y="200" fill="#6f8398" font-size="9" font-family="sans-serif">descarga controlada sob a boca do silo — ProjectARK</text>
+          </svg></div>`,
   britador_conico:`<div class="vid">
           <svg viewBox="0 0 470 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Britador conico em operacao">
             <defs>
@@ -2482,6 +2608,48 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="calha"){
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
+      // silo + moega
+      var sx=60, sTop=44, sMid=74, sBot=96, sw=60, ow=16;
+      doc.line(sx-sw/2,sTop,sx+sw/2,sTop); doc.line(sx-sw/2,sTop,sx-sw/2,sMid); doc.line(sx+sw/2,sTop,sx+sw/2,sMid);
+      doc.line(sx-sw/2,sMid,sx-ow/2,sBot); doc.line(sx+sw/2,sMid,sx+ow/2,sBot);
+      doc.setTextColor(110,130,150); doc.setFontSize(7.5); doc.text("silo",sx-4,sTop-3);
+      // mesa vibrante inclinada
+      var mx=sx-ow/2, my=sBot+6, mlen=96, drop=Math.round(mlen*Math.tan((G.incl||0)*Math.PI/180))+8;
+      doc.setLineWidth(1.1); doc.line(mx,my,mx+mlen,my+drop);
+      doc.line(mx,my+9,mx+mlen,my+drop+9);
+      doc.line(mx,my,mx,my+9); doc.line(mx+mlen,my+drop,mx+mlen,my+drop+9);
+      // molas
+      doc.setDrawColor(120); doc.setLineWidth(0.5); doc.line(mx+8,my+9,mx+8,my+17); doc.line(mx+mlen-8,my+drop+9,mx+mlen-8,my+drop+17);
+      // material da boca + sobre a mesa
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
+      doc.line(sx,sBot+1,sx,my-1); doc.line(sx-2,my-4,sx,my-1); doc.line(sx+2,my-4,sx,my-1);
+      // descarga
+      doc.line(mx+mlen+2,my+drop+3,mx+mlen+12,my+drop+9); doc.line(mx+mlen+8,my+drop,mx+mlen+12,my+drop+9); doc.line(mx+mlen+12,my+drop+3,mx+mlen+12,my+drop+9);
+      doc.setTextColor(120,140,160); doc.setFontSize(7.5); doc.text("mesa vibrante",mx+18,my+drop+24);
+      // cota H (camada)
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
+      doc.text("H = "+san(String(Math.round(G.Hreq*1000)))+" mm (comporta)",mx+18,my-3);
+      doc.text("L = "+san(G.L.toFixed(2))+" m",mx+mlen+2,my+drop+20);
+      doc.autoTable({startY:my+drop+30,theme:"grid",margin:{left:14,right:14},
+        head:[["Resultado do pré-dimensionamento","Valor"]],
+        body:[
+          [san("Modelo (catálogo)"),G.model],
+          [san("Largura da mesa  L"),san(G.L.toFixed(2))+" m"],
+          [san("Velocidade do material  V"),san(G.V.toFixed(3))+" m/s"],
+          [san("Vazão volumétrica  T"),san(G.Tvol.toFixed(1))+" m³/h"],
+          [san("Altura de camada necessária  H"),san(String(Math.round(G.Hreq*1000)))+" mm"],
+          [san("Altura de camada máxima  H_máx"),san(String(Math.round(G.Hmax*1000)))+" mm"],
+          [san("Boca de saída do silo (catálogo)"),G.boca+" mm"],
+          [san("Maior bloco / máx. do modelo"),san(String(Math.round(G.Fmax)))+" / "+san(String(Math.round(G.fmax)))+" mm"],
+          [san("Motorização do vibrador"),san(G.kw.toFixed(1))+" kW"]
+        ],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — calha vibratória sob a boca do silo; medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="conico"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
       var cx=105, ty=54, by=120;

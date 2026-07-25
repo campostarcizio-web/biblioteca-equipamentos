@@ -1,14 +1,15 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.27.1",
+    "versao": "1.28.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
       { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador Cônico", "Britador de Impacto", "Britador de Martelos"] },
-      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] }
+      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] },
+      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)"] }
     ]
   },
   "equipamentos": [
@@ -143,6 +144,17 @@
       "calculadora": "peneira_banana",
       "descricao": "Pré-dimensionamento de peneira vibratória tipo banana (linha Metso CBS, inclinação variável — deck mais íngreme na entrada e suave na descarga) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6. O diferencial da banana é o Q6, que varia com o % de material passante (0,30→1,0 a 0,70→1,4), refletindo a alta capacidade da peneira quando há muito passante na alimentação. Seleciona o modelo Metso CBS pela área ativa e verifica a espessura da camada. Os fatores de correção do material ajustam o rendimento da peneira.",
       "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabela Q6 da peneira banana CBS (por % de material passante) e catálogo de peneiras banana CBS (5'×14' a 10'×24'); exemplo resolvido de peneira banana CBS de dois decks; método VSMA"
+    },
+    {
+      "id": "calha-vibratoria",
+      "grupo": "Alimentadores",
+      "subgrupo": "Calha Vibratória (saída de silo)",
+      "subtipo": "Calha / alimentador vibratório sob boca de silo (retomada e alimentação controlada)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Calha Vibratória",
+      "calculadora": "calha_vibratoria",
+      "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo pelo catálogo (calhas CV sob silo e alimentadores suspensos MVS), calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco.",
+      "referencia": "Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: fórmula de capacidade Q = 3600·φ1·φ2·V·L·H, curva de velocidade V (rpm × amplitude), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada e fator de inclinação; catálogos de calhas vibratórias CV (sob silos/pilhas) e alimentadores vibratórios suspensos MVS"
     },
     {
       "id": "silo-circular",
