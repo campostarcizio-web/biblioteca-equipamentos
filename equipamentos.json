@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.33.1",
+    "versao": "1.34.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -22,7 +22,7 @@
       "modelo": "Transportador Flexowell",
       "calculadora": "flexowell",
       "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo/vertical: capacidade, seleção da parede ondulada, das travessas e da carcaça da correia pelo catálogo, potência e seleção do motoredutor SEW.",
-      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes onduladas L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço); cálculo de potência conforme ISO 5048 / DIN 22101; acionamento SEW-EURODRIVE"
+      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes onduladas L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço); cálculo de potência conforme ISO 5048 / DIN 22101; acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)"
     },
     {
       "id": "transportador-correia",
@@ -55,7 +55,7 @@
       "modelo": "Transportador de Arraste Tubular",
       "calculadora": "arraste_tubular",
       "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do diâmetro nominal do tubo em polegadas conforme norma ASME B36.10 (4\" a 16\", Sch 40), taxa de preenchimento do tubo definida pelo usuário (seção útil = seção do tubo × taxa), presets de material incluindo briquete autoredutor BAR (1,70 t/m³ · 60 mm), briquete Bricão (1,30 t/m³ · 120 mm), briquete carbonoso e briquete ferroso (HBI), verificação do dimensional da peça contra o diâmetro do tubo, velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
-      "referencia": "Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40); capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente; catálogo Schrage Rohrkettensystem (velocidades de corrente e rodas dentadas); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE"
+      "referencia": "Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40); capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente; catálogo Schrage Rohrkettensystem (velocidades de corrente e rodas dentadas); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)"
     },
     {
       "id": "transportador-canecas",
@@ -66,7 +66,7 @@
       "modelo": "Elevador de Canecas",
       "calculadora": "elevador_canecas",
       "descricao": "Pré-dimensionamento de elevador de canecas (transportador vertical): capacidade e seleção da caneca pelo catálogo, velocidade e tipo de descarga (centrífuga ou contínua), potência (elevação + resistência de escavação no boot), tração e seleção da correia (EP) ou da corrente central, e acionamento SEW. Tração e descarga selecionáveis.",
-      "referencia": "Método CEMA (Bucket Elevators) e velocidades de descarga; canecas tipo 4B / Tapco / Maxi-Lift (volume e espaçamento); referência de mineração pesada BEUMER (elevadores de correia) e AUMUND (corrente central forjada, tipo BWZ); acionamento SEW-EURODRIVE"
+      "referencia": "Método CEMA (Bucket Elevators) e velocidades de descarga; canecas tipo 4B / Tapco / Maxi-Lift (volume e espaçamento); referência de mineração pesada BEUMER (elevadores de correia) e AUMUND (corrente central forjada, tipo BWZ); acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)"
     },
     {
       "id": "britador-mandibulas",

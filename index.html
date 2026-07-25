@@ -205,13 +205,43 @@ const SEW_R=[
  {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
  {s:"R137",t:8000},{s:"R147",t:13000},{s:"R167",t:18000}];
 const N_MOTOR=1750, FB=1.4;
+/* Redutores industriais SEW (acima da série R) — dados de catálogo SEW-EURODRIVE
+   MC..  : MC.P (paralelo) / MC.R (cônico-helicoidal), 2-3 estágios, i 7,1–112, MN2 6–65 kN·m
+   X..e  : X.F (paralelo) / X.K (cônico-helicoidal), 2-4 estágios, i 6,3–450, MN2 7,2–500 kN·m (23 tamanhos, 100e–320e)
+           X.T (cônico-helicoidal, eixo de entrada em cima/embaixo), 3-4 estágios, i 12,5–450, MN2 7,2–185 kN·m */
+const SEW_MC={min:6000,max:65000,imin:7.1,imax:112};
+const SEW_X ={min:7200,max:500000,imin:6.3,imax:450,s0:100,s1:320};
+function selInd(Tsel,i){
+  if(Tsel<=SEW_MC.max){
+    return {serie:"MC",nome:"MC.P (paralelo) / MC.R (cônico-helicoidal)",faixa:"6 – 65 kN·m",
+            irange:"7,1 – 112",iok:(i>=SEW_MC.imin&&i<=SEW_MC.imax),tam:null,acima:false};
+  }
+  // X..e — tamanho estimado por interpolação geométrica entre 100e (7,2 kN·m) e 320e (500 kN·m)
+  var t=Math.max(SEW_X.min,Math.min(Tsel,SEW_X.max));
+  var f=Math.log(t/SEW_X.min)/Math.log(SEW_X.max/SEW_X.min);
+  var sz=Math.round((SEW_X.s0+f*(SEW_X.s1-SEW_X.s0))/10)*10;
+  sz=Math.max(SEW_X.s0,Math.min(SEW_X.s1,sz));
+  return {serie:"X",nome:"X.F."+sz+"e (paralelo) / X.K."+sz+"e (cônico-helicoidal)",faixa:"7,2 – 500 kN·m",
+          irange:"6,3 – 450",iok:(i>=SEW_X.imin&&i<=SEW_X.imax),tam:sz,acima:(Tsel>SEW_X.max)};
+}
 function fmt(x){return x.toLocaleString("pt-BR");}
 function selSEW(Pdrive,nout){
   const T=9550*Pdrive/nout;                 // torque no eixo de saída (Nm)
   const Tsel=T*FB;                          // torque de seleção (com fator de serviço)
   const mot=SEW_MOTORS.find(m=>m.kw>=Pdrive)||SEW_MOTORS[SEW_MOTORS.length-1];
   const red=SEW_R.find(g=>g.t>=Tsel)||SEW_R[SEW_R.length-1];
-  return {T,Tsel,mot,red,i:N_MOTOR/nout};
+  const i=N_MOTOR/nout;
+  const foraR=(Tsel>SEW_R[SEW_R.length-1].t);          // acima do maior redutor da série R (R167)
+  const ind=foraR?selInd(Tsel,i):null;
+  return {T,Tsel,mot,red,i,foraR,ind};
+}
+/* Texto do acionamento recomendado: série R quando couber, senão redutor industrial (MC / X..e) */
+function sewDrive(sew,Pmaj){
+  if(!sew.foraR) return sew.red.s+" "+sew.mot.d+((sew.mot.kw<Pmaj)?"  ⚠ potência acima do maior motor DRN tabelado":"");
+  var d=sew.ind;
+  return d.nome+"  ·  motor "+sew.mot.d+
+    (d.acima?"  ⚠ torque acima de 500 kN·m — consultar SEW (solução especial)":"")+
+    (d.iok?"":"  ⚠ relação i = "+sew.i.toFixed(1).replace(".",",")+" fora da faixa da série ("+d.irange+")");
 }
 
 const CALCS={
@@ -260,8 +290,8 @@ const CALCS={
         {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
         {k:"Relação de redução  i = n_motor / n_rosca",v:"≈ "+sew.i.toFixed(1)+" : 1"},
         {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
-        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d,hi:true}
+        {k:"Redutor SEW",v:sew.foraR?("acima da série R ("+fmt(sew.red.t)+" N·m) → industrial série "+sew.ind.serie+"  ·  faixa "+sew.ind.faixa):(sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)"),hi:true},
+        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
       ];
     }
   },
@@ -420,8 +450,8 @@ const CALCS={
         {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
         {k:"Relação de redução  i = n_motor / n_tambor",v:"≈ "+sew.i.toFixed(1)+" : 1"},
         {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
-        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d,hi:true}
+        {k:"Redutor SEW",v:sew.foraR?("acima da série R ("+fmt(sew.red.t)+" N·m) → industrial série "+sew.ind.serie+"  ·  faixa "+sew.ind.faixa):(sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)"),hi:true},
+        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
       ];
       return rows;
     }
@@ -517,7 +547,7 @@ const CALCS={
         {k:"Relação de redução  i = n_motor / n_tambor",v:"≈ "+sew.i.toFixed(1).replace(".",",")+" : 1"},
         {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
         {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
-        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true}
+        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
       ];
     }
   },
@@ -1124,7 +1154,7 @@ const CALCS={
         {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
         {k:"Relação de redução  i = n_motor / n_saída",v:"≈ "+sew.i.toFixed(1).replace(".",",")+" : 1"},
         {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true},
+        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true},
         {sec:"Corrente de elos redondos (tipo RUD)"},
         {k:"Carga de ruptura requerida  F · FS",v:fmt(Math.round(BLreq/1000))+" kN  (FS "+SF.toFixed(0)+")"},
         {k:"Bitola da corrente recomendada",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~800 N/mm²)",hi:true},
@@ -1209,7 +1239,7 @@ const CALCS={
         {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
         {k:"Relação de redução  i = n_motor / n_saída",v:"≈ "+sew.i.toFixed(1).replace(".",",")+" : 1"},
         {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Motoredutor SEW recomendado",v:sew.red.s+" "+sew.mot.d+((sew.red.t<sew.Tsel||sew.mot.kw<Pmaj)?"  ⚠ acima da série R — usar redutor industrial SEW (M/X)":""),hi:true}
+        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
       ];
       if(trac==="correia"){
         OUT.push({sec:"Tração — correia (EP)"});
