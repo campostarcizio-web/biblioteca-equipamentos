@@ -419,9 +419,11 @@ const N_MOTOR=1750, FB=1.4;
 const SEW_MC={min:6000,max:65000,imin:7.1,imax:112};
 const SEW_X ={min:7200,max:500000,imin:6.3,imax:450,s0:100,s1:320};
 function selInd(Tsel,i){
-  if(Tsel<=SEW_MC.max){
+  // MC só é indicada se o torque E a relação de transmissão couberem na série;
+  // acionamentos muito lentos (alimentadores) exigem i alto e caem na série X (até 450).
+  if(Tsel<=SEW_MC.max&&i>=SEW_MC.imin&&i<=SEW_MC.imax){
     return {serie:"MC",nome:"MC.P (paralelo) / MC.R (cônico-helicoidal)",faixa:"6 – 65 kN·m",
-            irange:"7,1 – 112",iok:(i>=SEW_MC.imin&&i<=SEW_MC.imax),tam:null,acima:false};
+            irange:"7,1 – 112",iok:true,tam:null,acima:false};
   }
   // X..e — tamanho estimado por interpolação geométrica entre 100e (7,2 kN·m) e 320e (500 kN·m)
   var t=Math.max(SEW_X.min,Math.min(Tsel,SEW_X.max));
@@ -448,7 +450,8 @@ function sewDrive(sew,Pmaj){
   var d=sew.ind;
   return d.nome+"  ·  motor "+sew.mot.d+
     (d.acima?"  ⚠ torque acima de 500 kN·m — consultar SEW (solução especial)":"")+
-    (d.iok?"":"  ⚠ relação i = "+sew.i.toFixed(1).replace(".",",")+" fora da faixa da série ("+d.irange+")");
+    (d.iok?"":"  ⚠ relação i = "+sew.i.toFixed(1).replace(".",",")+" fora da faixa da série ("+d.irange+
+       ") — prever redução primária (motor de 6/8 polos, acoplamento por correias/corrente ou inversor com redução de rotação)");
 }
 
 const CALCS={
