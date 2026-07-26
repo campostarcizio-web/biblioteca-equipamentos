@@ -1112,6 +1112,23 @@ const CALCS={
       // pressão externa: momento de inércia requerido da cinta (estabilidade sob pressão externa)
       var Eaco=200e6, Rc=Lmax/2;
       var Ireq_cm4=qext*Math.pow(Rc,3)*sst/(3*Eaco)*1e8;
+      /* PESO DO SILO — chapa do corpo + chapa da tremonha + cintas + enrijecedores + montantes */
+      var Acorpo=perim*Hbody;                                   // m² de parede do corpo
+      var apo=(a-Bw)/2, bpo=(b-Bl)/2;                           // projeções horizontais da tremonha
+      var Atrem=cunha?(2*Math.sqrt(hc*hc+apo*apo)*Lmax)
+                     :(a+Bw)*Math.sqrt(hc*hc+bpo*bpo)+(b+Bl)*Math.sqrt(hc*hc+apo*apo); // m² (faces)
+      var pChapa=Acorpo*(tcom/1000)*RHOACO;                     // kg
+      var pTrem=Atrem*(thopcom/1000)*RHOACO;                    // kg
+      var perfCinta=selPerfilW(Wreq), perfEnr=selBarraChata(Wreq*0.35)||selPerfilW(Wreq*0.35);
+      var pCintas=perfCinta.A*1e-4*perim*RHOACO*nCintas;        // kg
+      var nEnrV=Math.max(4,Math.round(perim/1.5));              // enrijecedores verticais ~1,5 m
+      var pEnr=perfEnr.A*1e-4*Hbody*RHOACO*nEnrV;               // kg
+      var perfCol=selTuboCol(Areq,imin);
+      var pMont=perfCol.A*1e-4*Hleg*RHOACO*Ncol;                // kg
+      var pAcess=0.12*(pChapa+pTrem+pCintas+pEnr);              // 12% — ligações, plataformas, solda
+      var pesoSeco=pChapa+pTrem+pCintas+pEnr+pMont+pAcess;      // kg
+      var pesoMat=Vgeo*rho*1000;                                // kg de material com o silo cheio
+      var pesoCheio=pesoSeco+pesoMat;
       // Etapa 12 — tremonha (tração meridional) — cunha converge só em 2 paredes
       var Atrans=a*b, Utrans=cunha?(2*Lmax):(2*(a+b)), Fv=pv*Atrans+Vpir*gamma;
       var senA=Math.sin(arad), Tm=(senA>0)?Fv/(Utrans*senA):0;
@@ -1214,6 +1231,17 @@ const CALCS={
         {k:"PERFIL DO ENRIJECEDOR VERTICAL (W ≥ "+Math.round(Wreq*0.35)+" cm³)",v:(function(){var b=selBarraChata(Wreq*0.35),u=selPerfilW(Wreq*0.35);return (b?b.n+"  ou  ":"")+u.n;})(),hi:true},
         {k:"PERFIL DO MONTANTE (A ≥ "+Areq.toFixed(0)+" cm² · i ≥ "+imin.toFixed(1).replace(".",",")+" cm)",v:(function(){var p=selTuboCol(Areq,imin);return p.n+" mm   (A "+p.A.toFixed(0)+" cm² · i "+p.i.toFixed(1).replace(".",",")+" cm)";})(),hi:true},
         {k:"Observação dos perfis",v:"Pré-seleção pelos critérios de módulo de resistência (cintas/enrijecedores) e de área + raio de giração (montantes). Confirmar na tabela do fabricante, incluindo verificação de flambagem local, ligações, vento e sismo (NBR 8800)."},
+        {sec:"Peso do silo"},
+        {k:"Chapa do corpo  ("+Acorpo.toFixed(0)+" m² × "+tcom.toFixed(1).replace(".",",")+" mm)",v:fmt(Math.round(pChapa))+" kg"},
+        {k:"Chapa da tremonha  ("+Atrem.toFixed(0)+" m² × "+thopcom.toFixed(1).replace(".",",")+" mm)",v:fmt(Math.round(pTrem))+" kg"},
+        {k:"Cintas  ("+nCintas+" × "+perim.toFixed(1).replace(".",",")+" m · "+perfCinta.n+")",v:fmt(Math.round(pCintas))+" kg"},
+        {k:"Enrijecedores verticais  ("+nEnrV+" × "+Hbody.toFixed(1).replace(".",",")+" m)",v:fmt(Math.round(pEnr))+" kg"},
+        {k:"Montantes  ("+Ncol+" × "+Hleg.toFixed(1).replace(".",",")+" m · "+perfCol.n+" mm)",v:fmt(Math.round(pMont))+" kg"},
+        {k:"Ligações, plataformas e solda  (12%)",v:fmt(Math.round(pAcess))+" kg"},
+        {k:"PESO SECO DO SILO (estrutura vazia)",v:fmt(Math.round(pesoSeco))+" kg  ·  "+(pesoSeco/1000).toFixed(1).replace(".",",")+" t",hi:true},
+        {k:"Material armazenado (silo cheio)  V_geo · ρ",v:fmt(Math.round(pesoMat))+" kg  ·  "+(pesoMat/1000).toFixed(1).replace(".",",")+" t"},
+        {k:"PESO TOTAL COM SILO CHEIO",v:fmt(Math.round(pesoCheio))+" kg  ·  "+(pesoCheio/1000).toFixed(1).replace(".",",")+" t",hi:true},
+        {k:"Carga por montante (silo cheio, com fator)",v:fmt(Math.round(pesoCheio*g*fself/1000/Ncol))+" kN"},
         {sec:"Etapa 12 — Dimensionamento da tremonha ("+(cunha?"cunha":"piramidal")+")"},
         {k:"Carga vertical na transição  Fv = pv·A + W_trem",v:fmt(Math.round(Fv))+" kN"},
         {k:"Tração meridional  Tm = Fv/(U·sen α)",v:Tm.toFixed(1).replace(".",",")+" kN/m",hi:true},
@@ -1244,6 +1272,7 @@ const CALCS={
         perfilCinta:selPerfilW(Wreq).n,
         perfilEnr:(function(){var b=selBarraChata(Wreq*0.35);return b?b.n:selPerfilW(Wreq*0.35).n;})(),
         perfilCol:selTuboCol(Areq,imin).n+" mm",
+        pesoSeco:pesoSeco,pesoMat:pesoMat,pesoCheio:pesoCheio,
         Areq:Areq,imin:imin,Hleg:Hleg,qext:qext,pvento:pvento,pvac:pvac,Vk:Vk,phD:phD,Pcol:Pcol};
       return OUT;
     }
@@ -3277,6 +3306,9 @@ function gerarRelatorio(){
       legBody.push([san("Montantes — quantidade"),san(String(G.Ncol))+(G.otimN?"  (otimizado)":"")]);
       legBody.push([san("Montante — carga / área / raio de giração"),san(String(Math.round(G.Pcol)))+" kN / "+san(G.Areq.toFixed(0))+" cm² / "+san(G.imin.toFixed(1))+" cm"]);
       legBody.push([san("PERFIL DO MONTANTE"),san(G.perfilCol)]);
+      legBody.push([san("PESO SECO DO SILO (estrutura)"),san((G.pesoSeco/1000).toFixed(1))+" t"]);
+      legBody.push([san("Material armazenado (cheio)"),san((G.pesoMat/1000).toFixed(1))+" t"]);
+      legBody.push([san("PESO TOTAL COM SILO CHEIO"),san((G.pesoCheio/1000).toFixed(1))+" t"]);
       legBody.push([san("Altura livre dos montantes  L"),san(G.Hleg.toFixed(1))+" m"]);
       legBody.push([san("Aço estrutural  fy"),G.fy+" MPa"]);
     }else{
