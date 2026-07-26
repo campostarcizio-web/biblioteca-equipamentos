@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.39.2",
+    "versao": "1.40.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -9,7 +9,7 @@
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
       { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador Cônico", "Britador de Impacto", "Britador de Martelos"] },
       { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] },
-      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)", "Alimentador de Correia (saída de silo)"] }
+      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)", "Alimentador de Correia (moega de alimentação)"] }
     ]
   },
   "equipamentos": [
@@ -159,13 +159,13 @@
     {
       "id": "alimentador-correia",
       "grupo": "Alimentadores",
-      "subgrupo": "Alimentador de Correia (saída de silo)",
-      "subtipo": "Alimentador de correia sob boca de silo (extração volumétrica e dosagem)",
+      "subgrupo": "Alimentador de Correia (moega de alimentação)",
+      "subtipo": "Alimentador de correia sob moega de alimentação (retomada de finos e úmidos, dosagem contínua)",
       "fabricante": "Pré-dimensionamento",
       "modelo": "Alimentador de Correia",
       "calculadora": "alimentador_correia",
-      "descricao": "Pré-dimensionamento de alimentador de correia instalado sob a boca do silo, para extração controlada e dosagem. Diferente do transportador de correia, o alimentador trabalha lento (0,05 a 0,5 m/s), com a seção de carga definida pela boca e pelas saias, e suporta a CARGA VERTICAL do silo sobre a correia. Calcula: altura da camada h = Q/(3600·B·v·ρ) e vazão resultante; carga vertical na boca pelo método de Roberts (fator de sobrecarga adimensional q) nas duas condições críticas — enchimento inicial (partida com o silo cheio) e regime de fluxo, com a relação típica 3:1 da comutação de tensões — ou a partir do σv informado pela calculadora de silo; resistências do alimentador (cisalhamento do material na interface, arraste das saias, atrito de correia e roletes e aceleração do material); potência em regime e na partida, torque no eixo de saída e seleção do motoredutor SEW (série R e industriais M/X); largura da correia por saias, folga e granulometria (≥ 3× o maior bloco); tensões T1/T2 e carcaça EP requerida; e o dimensionamento da INTERFACE DIVERGENTE, que garante extração em todo o comprimento da boca e evita o fluxo em ratoeira (rat-holing). Inclui presets de material com briquete BAR e briquete Bricão.",
-      "referencia": "A. W. Roberts — Feeder Loads and Power Requirements (fator de sobrecarga adimensional q; condição de enchimento inicial × condição de fluxo); A. W. Jenike — tensão vertical na boca de descarga e fluxo de massa; CEMA — Belt Conveyors for Bulk Materials (arraste de saias, tensões T1/T2 e fator de abraçamento); Manual de Britagem Metso/FAÇO (larguras de correia e critério de granulometria); ABNT NBR 6172/6177; catálogo SEW-EURODRIVE (motoredutores série R e redutores industriais M/X)"
+      "descricao": "Pré-dimensionamento de alimentador de correia sob MOEGA DE ALIMENTAÇÃO, pelo método do Manual de Britagem Metso/FAÇO (págs. 1-20 a 1-23). Alimentadores de correia são empregados principalmente na retomada de materiais finos e úmidos sob moegas, silos ou pilhas, onde o alimentador vibratório não é recomendado, e aceitam variador contínuo de velocidade para dosagem precisa. O cálculo segue o mesmo critério dos transportadores de correia, exceto na determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), que inclui as parcelas específicas de cisalhamento do material (Ps) e de atrito nas guias laterais (Pfs). A calculadora determina: altura da camada D = Q/(γ·V·B·3600) com a verificação D ≤ B/2; a relação entre pressões lateral e vertical Ka = (1−sen θ)/(1+sen θ); as cinco parcelas da tensão efetiva com o percentual de cada uma; a potência no tambor, no eixo e de seleção, o torque de saída e o motoredutor SEW (série R e industriais M/X); as tensões de operação T1 e T2, a largura da correia, a carcaça EP requerida e o diâmetro mínimo do tambor de acionamento. Traz as tabelas do manual de coeficiente de atrito interno (fm), de atrito com o aço (fsm), de velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s) e de peso da correia Wb (Plylon / HDRN), além de presets de material incluindo briquete BAR e briquete Bricão (valores estimados de forma conservadora, sinalizados como fora do manual). Calculadora independente — não depende de nenhuma outra.",
+      "referencia": "Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da tensão efetiva Te = Pe + P1 + Ps + Pfs + Ph, com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H; altura de camada D = Q/(γ·V·B·3600) com D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); figura de definição de L, L1, L2, L3, H, B e D (pág. 1-21); tabelas de coeficiente de atrito interno e de atrito com o aço e velocidades máximas recomendadas (pág. 1-22); tabela de peso da correia Wb, tipos Plylon e HDRN (pág. 1-23). Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; catálogo SEW-EURODRIVE (motoredutores série R e redutores industriais M/X)"
     },
     {
       "id": "silo-circular",

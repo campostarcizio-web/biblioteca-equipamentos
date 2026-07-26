@@ -194,9 +194,30 @@ function siloPreset(){
   $("#siRho").value=p.rho; $("#siPhi").value=p.phi; $("#siDelta").value=p.delta; $("#siCoes").value=p.c; $("#siD50").value=p.d50;
   runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"silo_circular");
 }
-function feedPreset(){
-  var p=SILO_MAT[$("#afMat").value]; if(!p) return;
-  $("#afRho").value=p.rho; $("#afPhi").value=p.phi; $("#afDelta").value=p.delta; $("#afFmax").value=p.d50;
+/* Alimentador de correia — coeficientes das tabelas da pág. 1-22 do Manual de Britagem.
+   fm  = atrito interno do material     fsm = atrito do material com o aço
+   Onde o manual não traz o par completo, o valor faltante é estimado pela família
+   de material (indicado em "fonte"). Briquetes NÃO constam do manual: valores
+   estimados de forma CONSERVADORA, tratando-os como material em pedaços, com
+   presença de finos de manuseio — confirmar em ensaio. */
+const FEED_MAT={
+  areia:        {rho:1.50,theta:32,fm:0.65,fsm:0.33,abr:"abr", d:5,  fonte:"tabelas pág. 1-22"},
+  carvao_bet:   {rho:0.90,theta:38,fm:0.65,fsm:0.32,abr:"nabr",d:50, fonte:"tabelas pág. 1-22"},
+  carvao_ant:   {rho:0.95,theta:35,fm:0.65,fsm:0.29,abr:"nabr",d:50, fonte:"tabelas pág. 1-22"},
+  coque:        {rho:0.50,theta:38,fm:0.65,fsm:0.47,abr:"abr", d:75, fonte:"tabelas pág. 1-22"},
+  cascalho:     {rho:1.70,theta:35,fm:0.65,fsm:0.50,abr:"abr", d:60, fonte:"tabelas pág. 1-22"},
+  minerio_fino: {rho:2.20,theta:35,fm:0.65,fsm:0.55,abr:"abr", d:10, fonte:"tabelas pág. 1-22"},
+  minerio_grosso:{rho:2.50,theta:38,fm:0.80,fsm:0.75,abr:"abr",d:150,fonte:"tabelas pág. 1-22"},
+  escoria:      {rho:1.60,theta:35,fm:0.60,fsm:0.54,abr:"abr", d:80, fonte:"fm da pág. 1-22 · fsm estimado (rocha britada)"},
+  rocha_brit:   {rho:1.60,theta:37,fm:0.65,fsm:0.54,abr:"abr", d:100,fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
+  rocha_fosf:   {rho:1.30,theta:35,fm:0.65,fsm:0.54,abr:"abr", d:60, fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
+  briq_bar:     {rho:1.70,theta:35,fm:0.75,fsm:0.60,abr:"abr", d:57, fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"},
+  briq_bricao:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
+};
+function acPreset(){
+  var p=FEED_MAT[$("#acMat").value]; if(!p){ runCalc("alimentador_correia"); return; }
+  $("#acRho").value=p.rho; $("#acTheta").value=p.theta; $("#acFm").value=p.fm;
+  $("#acFsm").value=p.fsm; $("#acFmax").value=p.d; $("#acAbras").value=p.abr;
   runCalc("alimentador_correia");
 }
 
@@ -2083,213 +2104,207 @@ const CALCS={
     }
   },
   alimentador_correia:{
-    titulo:"Alimentador de Correia (saída de silo) — pré-dimensionamento",
-    referencia:"A. W. Roberts — Feeder Loads and Power Requirements (fator de sobrecarga adimensional q; condição de enchimento inicial × condição de fluxo, relação típica 3:1) · A. W. Jenike — tensão vertical na boca de descarga · CEMA Belt Conveyors for Bulk Materials (arraste de saias, tensões T1/T2, fator de abraçamento) · Manual de Britagem Metso/FAÇO (larguras de correia e granulometria) · ABNT NBR 6172/6177 · seleção de acionamento SEW-EURODRIVE (série R e industriais M/X)",
+    titulo:"Alimentador de Correia (moega de alimentação) — pré-dimensionamento",
+    referencia:"Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H. Altura de camada D = Q/(γ·V·B·3600), limitada a D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); tabelas de coeficiente de atrito interno (fm) e de atrito com o aço (fsm) da pág. 1-22; velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s); tabela de peso da correia Wb (Plylon / HDRN) da pág. 1-23. Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; acionamento SEW-EURODRIVE (série R e industriais M/X)",
     campos:[
       {tipo:"head",label:"Processo"},
-      {id:"afQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:400},
-      {id:"afMat",label:"Material (preset — preenche ρ, φi, φw e bloco)",tipo:"select",valor:"custom",onchange:"feedPreset()",opcoes:[
+      {id:"acQ",label:"Capacidade  Q",unidade:"t/h",tipo:"number",valor:400},
+      {id:"acMat",label:"Material (preset — preenche γ, θ, fm e fsm)",tipo:"select",valor:"minerio_grosso",onchange:"acPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
-        {v:"fe_gran",t:"Minério de ferro granulado"},{v:"fe_fino",t:"Minério de ferro fino (sinter feed)"},
-        {v:"pelota",t:"Pelota"},{v:"sinter",t:"Sínter"},
-        {v:"carvao",t:"Carvão (úmido)"},{v:"carvao_seco",t:"Carvão seco"},{v:"coque",t:"Coque"},
-        {v:"calcario",t:"Calcário"},
-        {v:"briq_bar",t:"Briquete BAR (57×57×37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
-      {id:"afRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
-      {id:"afFmax",label:"Maior bloco do material",unidade:"mm",tipo:"number",valor:60},
-      {id:"afPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
-      {id:"afDelta",label:"Atrito material × parede/saia  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
-      {tipo:"head",label:"Interface silo / alimentador (boca de descarga)"},
-      {id:"afBw",label:"Largura da boca (transversal à correia)  B",unidade:"mm",tipo:"number",valor:900},
-      {id:"afBl",label:"Comprimento da boca (na direção da correia)  L0",unidade:"mm",tipo:"number",valor:1400},
-      {id:"afDiv",label:"Interface divergente (extração em todo o comprimento)",tipo:"select",valor:"1.20",opcoes:[
-        {v:"1.20",t:"Divergente 20% — recomendado (extração uniforme, evita fluxo em ratoeira)"},
-        {v:"1.35",t:"Divergente 35% — materiais coesivos / fluxo de massa"},
-        {v:"1.00",t:"Boca paralela (sem divergência) — extração só na aresta traseira"}]},
-      {tipo:"head",label:"Carga vertical sobre a correia"},
-      {id:"afCarga",label:"Origem da carga vertical",tipo:"select",valor:"roberts",opcoes:[
-        {v:"roberts",t:"Estimar pelo método de Roberts (fator q adimensional)"},
-        {v:"manual",t:"Informar σv da calculadora de silo (pressão vertical na boca)"}]},
-      {id:"afSv",label:"Tensão vertical na boca  σv  (se informada)",unidade:"kPa",tipo:"number",valor:0,step:"0.5"},
-      {id:"afCond",label:"Condição de projeto do acionamento",tipo:"select",valor:"init",opcoes:[
-        {v:"init",t:"Enchimento inicial — partida com silo cheio (recomendado)"},
-        {v:"flow",t:"Regime de fluxo — operação contínua"}]},
-      {tipo:"head",label:"Correia e velocidade"},
-      {id:"afV",label:"Velocidade da correia  v  (alimentadores: 0,05 a 0,5 m/s)",unidade:"m/s",tipo:"number",valor:0.15,step:"0.01"},
-      {id:"afH",label:"Altura da camada na comporta  h  (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"10"},
-      {id:"afBsel",label:"Largura da correia (catálogo)",tipo:"select",valor:"auto",opcoes:[
-        {v:"auto",t:"Automático (pela boca, camada e granulometria)"},
-        {v:"24",t:"24\" (600 mm)"},{v:"30",t:"30\" (750 mm)"},{v:"36",t:"36\" (900 mm)"},
-        {v:"42",t:"42\" (1050 mm)"},{v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},
-        {v:"60",t:"60\" (1500 mm)"},{v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
-      {id:"afLsk",label:"Saias além da boca (trecho de acomodação)",unidade:"m",tipo:"number",valor:1.0,step:"0.1"},
-      {id:"afEc",label:"Distância entre centros dos tambores",unidade:"m",tipo:"number",valor:4.0,step:"0.5"},
-      {tipo:"head",label:"Acionamento"},
-      {id:"afDt",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:630},
-      {id:"afEta",label:"Rendimento mecânico do acionamento  η",unidade:"-",tipo:"number",valor:0.85,step:"0.01"},
-      {id:"afK",label:"Fator de abraçamento K (CEMA / Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
-        {v:"0.38",t:"Simples · tambor revestido · gravidade · 210° (K=0,38)"},
-        {v:"0.30",t:"Simples · tambor revestido · gravidade · 240° (K=0,30)"},
-        {v:"0.84",t:"Simples · tambor de aço · gravidade · 180° (K=0,84)"},
-        {v:"0.70",t:"Simples · tambor revestido · parafuso · 210° (K=0,70)"}]},
-      {id:"afFS",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
-        {v:"10",t:"10 (correia têxtil / EP — padrão)"},{v:"12",t:"12 (serviço severo — alimentador sob silo)"},{v:"8",t:"8 (serviço leve)"}]}
+        {v:"areia",t:"Areia  (fm 0,65 · fsm 0,33)"},
+        {v:"carvao_bet",t:"Carvão betuminoso  (fm 0,65 · fsm 0,32)"},
+        {v:"carvao_ant",t:"Carvão antracitoso  (fm 0,65 · fsm 0,29)"},
+        {v:"coque",t:"Coque  (fm 0,65 · fsm 0,47)"},
+        {v:"cascalho",t:"Cascalho  (fm 0,65 · fsm 0,50)"},
+        {v:"minerio_fino",t:"Minério (finos)  (fm 0,65 · fsm 0,55)"},
+        {v:"minerio_grosso",t:"Minério (grossos)  (fm 0,80 · fsm 0,75)"},
+        {v:"escoria",t:"Escória  (fm 0,60)"},
+        {v:"rocha_brit",t:"Rocha britada  (fsm 0,54)"},
+        {v:"rocha_fosf",t:"Rocha fosfática  (fsm 0,54)"},
+        {v:"briq_bar",t:"Briquete BAR — 57×57×37,5 mm · 1,7 t/m³  (estimado)"},
+        {v:"briq_bricao",t:"Briquete Bricão — 120×108×87 mm · 1,3 t/m³  (estimado)"}]},
+      {id:"acRho",label:"Densidade aparente  γ",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
+      {id:"acTheta",label:"Ângulo de repouso do material  θ",unidade:"°",tipo:"number",valor:35,step:"1"},
+      {id:"acFm",label:"Coeficiente de atrito interno  fm  (pág. 1-22)",unidade:"-",tipo:"number",valor:0.80,step:"0.01"},
+      {id:"acFsm",label:"Coeficiente de atrito com o aço  fsm  (pág. 1-22)",unidade:"-",tipo:"number",valor:0.75,step:"0.01"},
+      {id:"acFmax",label:"Maior bloco do material",unidade:"mm",tipo:"number",valor:150},
+      {tipo:"head",label:"Velocidade e camada"},
+      {id:"acAbras",label:"Abrasividade (velocidade máxima recomendada)",tipo:"select",valor:"abr",opcoes:[
+        {v:"abr",t:"Abrasivo — V máx. 0,3 m/s"},
+        {v:"nabr",t:"Não abrasivo — V máx. 0,5 m/s"}]},
+      {id:"acV",label:"Velocidade da correia  V",unidade:"m/s",tipo:"number",valor:0.3,step:"0.01"},
+      {id:"acD",label:"Altura da camada  D  (0 = calcular pela vazão)",unidade:"mm",tipo:"number",valor:0,step:"10"},
+      {tipo:"head",label:"Geometria do alimentador (figura da pág. 1-21)"},
+      {id:"acBsel",label:"Largura da correia (catálogo)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela abertura das guias e granulometria)"},
+        {v:"16",t:"16\" (400 mm)"},{v:"20",t:"20\" (500 mm)"},{v:"24",t:"24\" (600 mm)"},
+        {v:"30",t:"30\" (750 mm)"},{v:"36",t:"36\" (900 mm)"},{v:"42",t:"42\" (1050 mm)"},
+        {v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},{v:"60",t:"60\" (1500 mm)"},
+        {v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
+      {id:"acB",label:"Abertura da guia de material  B  (0 = 0,65 × largura da correia)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {id:"acL2",label:"L2 — abertura da moega (tremonha) sobre a correia",unidade:"m",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"acL1",label:"L1 — comprimento de atrito (trecho carregado sob a moega)",unidade:"m",tipo:"number",valor:1.5,step:"0.1"},
+      {id:"acL3",label:"L3 — guias laterais além da moega",unidade:"m",tipo:"number",valor:1.0,step:"0.1"},
+      {id:"acL",label:"L — distância entre centros dos tambores",unidade:"m",tipo:"number",valor:4.5,step:"0.5"},
+      {id:"acH",label:"H — altura de elevação do material (0 = horizontal)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {tipo:"head",label:"Correia e roletes"},
+      {id:"acTipo",label:"Tipo de correia (peso Wb — tabela pág. 1-23)",tipo:"select",valor:"HDRN",opcoes:[
+        {v:"Plylon",t:"Plylon"},{v:"HDRN",t:"HDRN (serviço pesado)"}]},
+      {id:"acWb",label:"Peso da correia  Wb  (0 = tabela pág. 1-23)",unidade:"kgf/m",tipo:"number",valor:0,step:"0.1"},
+      {id:"acKy",label:"Ky — resistência à flexão (tipo de rolete)",tipo:"select",valor:"0.05",opcoes:[
+        {v:"0.05",t:"Roletes inclinados (côncavos) — Ky = 0,05"},
+        {v:"0.04",t:"Roletes planos — Ky = 0,04"}]},
+      {id:"acKxM",label:"Kx — resistência dos roletes",tipo:"select",valor:"geral",opcoes:[
+        {v:"geral",t:"Caso geral — Kx = 4,46 kgf/m"},
+        {v:"det",t:"Detalhado — Kx = 0,0068·(Wm + Wb) + x/a"}]},
+      {id:"acXrot",label:"x — peso das partes rotativas do rolete (modo detalhado)",unidade:"kgf",tipo:"number",valor:12,step:"0.5"},
+      {id:"acAesp",label:"a — espaçamento dos roletes (modo detalhado)",unidade:"m",tipo:"number",valor:0.6,step:"0.05"},
+      {tipo:"head",label:"Acionamento e tambores"},
+      {id:"acDt",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:630},
+      {id:"acEta",label:"Rendimento mecânico do acionamento  η",unidade:"-",tipo:"number",valor:0.85,step:"0.01"},
+      {id:"acK",label:"Fator de abraçamento K (Tab. 1-28)",tipo:"select",valor:"0.38",opcoes:[
+        {v:"0.38",t:"Simples · tambor revestido · gravidade · 210° (K = 0,38)"},
+        {v:"0.30",t:"Simples · tambor revestido · gravidade · 240° (K = 0,30)"},
+        {v:"0.84",t:"Simples · tambor de aço · gravidade · 180° (K = 0,84)"},
+        {v:"0.70",t:"Simples · tambor revestido · parafuso · 210° (K = 0,70)"}]},
+      {id:"acFS",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
+        {v:"10",t:"10 (correia têxtil / EP — padrão)"},
+        {v:"12",t:"12 (serviço severo — alimentador sob moega)"},
+        {v:"8",t:"8 (serviço leve)"}]}
     ],
     calcular:function(){
-      var Q=num("afQ"),rho=num("afRho"),Fmax=num("afFmax"),phi=num("afPhi"),dw=num("afDelta");
-      var Bw=num("afBw")/1000, Bl=num("afBl")/1000, v=num("afV"), hIn=num("afH")/1000;
-      var Lsk=num("afLsk"), Ec=num("afEc"), Dt=num("afDt"), eta=num("afEta");
-      var fdiv=parseFloat($("#afDiv").value), modo=$("#afCarga").value, cond=$("#afCond").value;
-      var svIn=num("afSv"), K=parseFloat($("#afK").value), FS=parseFloat($("#afFS").value);
-      if([Q,rho,Fmax,phi,dw,Bw,Bl,v,Lsk,Ec,Dt,eta].some(function(x){return isNaN(x);})) return null;
-      if(Q<=0||rho<=0||Bw<=0||Bl<=0||v<=0||Dt<=0||eta<=0||eta>1) return null;
-      var g=9.80665;
-      var gamma=rho*g;                               // kN/m³
-      var Tvol=Q/rho;                                // m³/h
-      /* ---- 1. Camada de material sobre a correia ---- */
-      // Q = 3600 · b · h · v · ρ   →  h = Q/(3600·b·v·ρ) ; b = largura útil entre saias = boca
-      var hcalc=Q/(3600*Bw*v*rho);
-      var h=(hIn>0)?hIn:hcalc;
-      var Qreal=3600*Bw*h*v*rho;
-      var hMin=3*Fmax/1000;                          // camada ≥ 3× o maior bloco
-      var camadaFina=(h<hMin);
-      var vOK=(v>=0.05&&v<=0.5);
-      /* ---- 2. Carga vertical sobre a correia (Roberts) ----
-         Fv = q · ρ · g · B² · L0   (B = menor dimensão da boca — governa o arco)
-         q_i (enchimento inicial) ≈ 1,2   ·   q_f (regime de fluxo) ≈ 0,35
-         A relação inicial/fluxo ~3:1 é a citada por Roberts para a comutação de tensões
-         (switch stress) que se estabelece quando o alimentador começa a extrair. */
-      var Bmin=Math.min(Bw,Bl), A0=Bw*Bl;
-      var qi=1.20, qf=0.35;
-      var FvI_R=qi*rho*1000*g*Bmin*Bmin*Math.max(Bw,Bl)/1000;   // kN
-      var FvF_R=qf*rho*1000*g*Bmin*Bmin*Math.max(Bw,Bl)/1000;   // kN
-      var svUser=(modo==="manual"&&svIn>0);
-      var FvI=svUser?(svIn*A0):FvI_R;                // kN
-      var FvF=svUser?(svIn*A0/3):FvF_R;              // kN (relação 3:1 inicial/fluxo)
-      var Fv=(cond==="init")?FvI:FvF;
-      var svI=FvI/A0, svF=FvF/A0;                    // kPa equivalentes
-      /* ---- 3. Resistências do alimentador ---- */
-      // 3a) cisalhamento do material na interface (o material desliza sobre a correia
-      //     ou cisalha internamente — governa o menor dos dois atritos)
-      var muBelt=Math.tan(dw*Math.PI/180), muInt=Math.tan(phi*Math.PI/180);
-      var mue=Math.min(muBelt,muInt);
-      var Fcis=Fv*mue;                               // kN
-      // 3b) arraste das saias — CEMA: F = μw·K0·ρ·g·h²·Ls por par de saias (K0 ≈ 0,45)
-      var K0=0.45, Ls=Bl+Lsk;
-      var Fsaia=muBelt*K0*rho*1000*g*h*h*Ls/1000;    // kN
-      // 3c) atrito da correia, roletes e tambores (alimentador é curto e lento: f ≈ 0,05)
-      var fatr=0.05;
-      var mCorreia=18*Bw;                            // kg/m (estimativa por largura)
-      var mMat=Q*1000/(3600*v);                      // kg/m sobre a correia
-      var Fcorr=fatr*(mCorreia+mMat)*g*Ec/1000;      // kN
-      // 3d) acomodação do material na entrada (aceleração até a velocidade da correia)
-      var Facel=(Q*1000/3600)*v/1000;                // kN
-      var Ft=Fcis+Fsaia+Fcorr+Facel;                 // kN — esforço tangencial total
-      /* ---- 4. Potência e acionamento ---- */
-      var Pabs=Ft*v;                                 // kW no eixo do tambor
-      var Peixo=Pabs/eta;                            // kW no eixo de saída do redutor
-      // Os dois casos de carga: partida com o silo cheio × operação em regime de fluxo
-      var FtI=FvI*mue+Fsaia+Fcorr+Facel, PpartI=FtI*v/eta;
-      var FtF=FvF*mue+Fsaia+Fcorr+Facel, PfluxoF=FtF*v/eta;
-      var fpart=(PfluxoF>0)?(PpartI/PfluxoF):1;      // sobrecarga da partida sobre o regime
-      var Pmaj=Math.max(Peixo,PpartI)*1.15;          // 15% de margem de projeto
-      var npul=v*60000/(Math.PI*Dt);                 // rpm do tambor
-      var Msaida=(npul>0)?(9550*Pmaj/npul):0;        // N·m no eixo de saída
-      var sew=selSEW(Pmaj,npul);
-      /* ---- 5. Tensões na correia e carcaça ---- */
-      var Te=Ft*1000/g;                              // kgf — esforço efetivo
-      var T1=(1+K)*Te, T2=K*Te;                      // kgf
-      /* ---- 6. Largura da correia ---- */
-      var LARG=[24,30,36,42,48,54,60,72,84];
-      var Bskirt=Bw;
-      var folga=Math.max(0.15,0.10*Bskirt);          // folga de cada lado das saias
-      var Breq=(Bskirt+2*folga)*1000/25.4;           // pol
-      var Bgran=3*Fmax/25.4;                         // ≥ 3× o bloco (alimentador)
+      var Q=num("acQ"),rhoT=num("acRho"),theta=num("acTheta"),fm=num("acFm"),fsm=num("acFsm");
+      var Fmax=num("acFmax"),V=num("acV"),Din=num("acD")/1000,Bin=num("acB")/1000;
+      var L2=num("acL2"),L1=num("acL1"),L3=num("acL3"),L=num("acL"),H=num("acH");
+      var WbIn=num("acWb"),xrot=num("acXrot"),aesp=num("acAesp");
+      var Dt=num("acDt"),eta=num("acEta");
+      var abras=$("#acAbras").value, tipoC=$("#acTipo").value, Ky=parseFloat($("#acKy").value);
+      var kxM=$("#acKxM").value, K=parseFloat($("#acK").value), FS=parseFloat($("#acFS").value);
+      if([Q,rhoT,theta,fm,fsm,Fmax,V,L2,L1,L3,L,H,Dt,eta].some(function(x){return isNaN(x);})) return null;
+      if(Q<=0||rhoT<=0||V<=0||L<=0||L2<=0||Dt<=0||eta<=0||eta>1||theta<=0||theta>=90) return null;
+      var gama=rhoT*1000;                                  // kgf/m³  (γ do manual)
+      /* ---- Largura da correia e abertura das guias ---- */
+      var LARG=[16,20,24,30,36,42,48,54,60,72,84];
+      var WB={Plylon:[5.2,6.5,7.7,11.9,14.3,17.7,20.2,26.8,29.8,35.7,41.6],
+              HDRN:[6.4,8.0,9.6,13.5,16.2,21.0,24.0,37.6,41.8,50.1,58.4]};
+      var Bguia=(Bin>0)?Bin:0;
+      var Bpor_guia=(Bguia>0)?(Bguia/0.65*1000/25.4):0;    // pol necessárias p/ a guia informada
+      var Bpor_gran=3*Fmax/25.4;                           // ≥ 3 × o maior bloco
       var Bauto=LARG[LARG.length-1], granInsuf=true;
-      for(var i=0;i<LARG.length;i++){ if(LARG[i]>=Math.max(Breq,Bgran)){ Bauto=LARG[i]; granInsuf=false; break; } }
-      var Bsel=$("#afBsel").value, manualB=(Bsel!=="auto");
+      for(var i=0;i<LARG.length;i++){
+        if(LARG[i]>=Math.max(Bpor_guia,Bpor_gran)){ Bauto=LARG[i]; granInsuf=false; break; } }
+      var Bsel=$("#acBsel").value, manualB=(Bsel!=="auto");
       var Bpol=manualB?parseInt(Bsel,10):Bauto;
       var Bmm=Math.round(Bpol*25.4);
+      var iW=LARG.indexOf(Bpol); if(iW<0)iW=LARG.length-1;
+      var Wb=(WbIn>0)?WbIn:WB[tipoC][iW];
+      var B=(Bin>0)?Bin:(0.65*Bmm/1000);                   // abertura da guia (m)
       var Bestreita=manualB&&(Bpol<Bauto);
-      var trN=T1*g/Bmm;                              // N/mm
+      var lumpOK=(Bmm>=3*Fmax);
+      /* ---- Altura da camada  D = Q / (γ · V · B · 3600) ---- */
+      var Dcalc=(Q*1000)/(gama*V*B*3600);                  // m
+      var D=(Din>0)?Din:Dcalc;
+      var Dmax=B/2, Dok=(D<=Dmax+1e-9);
+      var Qreal=3600*B*D*V*gama/1000;                      // t/h
+      var Vmax=(abras==="abr")?0.3:0.5, Vok=(V<=Vmax+1e-9);
+      /* ---- Coeficientes ---- */
+      var Ka=(1-Math.sin(theta*Math.PI/180))/(1+Math.sin(theta*Math.PI/180));
+      var tgTheta=Math.tan(theta*Math.PI/180);
+      var Wm=Q*1000/(3.6*V*1000);                          // kgf/m de material sobre a correia
+      var Kx=(kxM==="det")?(0.0068*(Wm+Wb)+((aesp>0)?xrot/aesp:0)):4.46;
+      /* ---- TENSÃO EFETIVA  Te = Pe + P1 + Ps + Pfs + Ph  (pág. 1-21) ---- */
+      var Pe=L*(Kx+Ky*Wb+0.02*Wb)+45.4;                                    // correia vazia
+      var P1=Ky*(1.2*B*B*gama*L2 + B*D*L3*gama);                           // movimentar o material
+      var Ps=(1.2*B-D)*gama*L1*fm*B;                                       // cisalhamento do material
+      var Pfs=D*gama*Ka*fsm*((2.4*B-D)*L1 + D*L3) + 8.93*L;                // atrito nas guias laterais
+      var Ph=B*D*gama*H;                                                   // elevação
+      var Te=Pe+P1+Ps+Pfs+Ph;                                              // kgf
+      if(!isFinite(Te)||Te<=0) return null;
+      var pctPe=100*Pe/Te,pctP1=100*P1/Te,pctPs=100*Ps/Te,pctPfs=100*Pfs/Te,pctPh=100*Ph/Te;
+      /* ---- Potência e acionamento ---- */
+      var Pkw=Te*9.80665*V/1000;                          // kW no tambor
+      var Peixo=Pkw/eta;
+      var Pmaj=Peixo*1.15;                                // 15% de margem
+      var npul=V*60000/(Math.PI*Dt);                      // rpm do tambor
+      var Msaida=(npul>0)?(9550*Pmaj/npul):0;
+      var sew=selSEW(Pmaj,npul);
+      /* ---- Tensões de operação e correia ---- */
+      var T1=(1+K)*Te, T2=K*Te;
+      var trN=T1*9.80665/Bmm;                             // N/mm
       var carcReq=trN*FS;
       var EP=[200,250,315,400,500,630,800,1000,1250,1600,2000];
       var EPsel=EP.find(function(x){return x>=carcReq;})||EP[EP.length-1];
-      /* ---- 7. Interface divergente ---- */
-      var Bl2=Bl*fdiv;                               // comprimento efetivo na saída
-      var Bw2=Bw*fdiv;                               // (alternativa: alargar a boca)
-      var angDiv=Math.atan(((Bw2-Bw)/2)/Bl)*180/Math.PI;
-      var divOK=(fdiv>1.001);
-      /* ---- 8. Verificações ---- */
-      var lumpOK=(Bmm>=3*Fmax), ratoeira=!divOK;
-      var relBL=Bl/Bw;
+      /* ---- Tambores ---- */
+      var Dmin_acion=Math.max(400,Math.ceil(EPsel*0.9/50)*50);
+      var Dtok=(Dt>=Dmin_acion);
+      var geomAviso=(L1>L2+1e-9)||(L2+L3>L+1e-9);
       var OUT=[
-        {sec:"Requisito de extração"},
-        {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
-        {k:"Densidade aparente  ρ",v:rho.toFixed(2).replace(".",",")+" t/m³"},
-        {k:"Vazão volumétrica  T = Q / ρ",v:Tvol.toFixed(1).replace(".",",")+" m³/h",hi:true},
+        {sec:"Aplicação"},
+        {k:"Tipo de equipamento",v:"Alimentador de correia sob MOEGA DE ALIMENTAÇÃO — retomada de materiais finos e úmidos, onde o alimentador vibratório não é recomendado. Permite dosagem contínua e precisa com variador de velocidade.",hi:true},
+        {k:"Método de cálculo",v:"Idêntico ao do transportador de correia, exceto na determinação da TENSÃO EFETIVA Te, que inclui as parcelas de cisalhamento do material (Ps) e de atrito nas guias laterais (Pfs) — Manual de Britagem, págs. 1-20 a 1-23."},
+        {sec:"Etapa 1 — Capacidade, velocidade e camada"},
+        {k:"Capacidade  Q",v:Q.toFixed(0)+" t/h"},
+        {k:"Densidade aparente  γ",v:rhoT.toFixed(2).replace(".",",")+" t/m³  =  "+fmt(Math.round(gama))+" kgf/m³"},
+        {k:"Velocidade da correia  V",v:V.toFixed(2).replace(".",",")+" m/s"+(Vok?"  (≤ V máx. "+Vmax.toFixed(1).replace(".",",")+" m/s — material "+(abras==="abr"?"abrasivo":"não abrasivo")+")":"  ⚠ acima da velocidade máxima recomendada ("+Vmax.toFixed(1).replace(".",",")+" m/s)"),hi:true},
+        {k:"Abertura da guia de material  B",v:(B*1000).toFixed(0)+" mm"+(Bin>0?"  (informada)":"  (0,65 × largura da correia)"),hi:true},
+        {k:"Altura da camada  D = Q / (γ·V·B·3600)",v:(D*1000).toFixed(0)+" mm"+(Din>0?"  (informada — calculada "+(Dcalc*1000).toFixed(0)+" mm)":"  (calculada)"),hi:true},
+        {k:"Limite  D ≤ B/2",v:(Dmax*1000).toFixed(0)+" mm"+(Dok?"  ✓ atende":"  ⚠ camada acima do limite — aumentar B, V ou a largura da correia")},
+        {k:"Capacidade resultante  Q = 3600·B·D·V·γ",v:Qreal.toFixed(0)+" t/h"+(Math.abs(Qreal-Q)/Q<0.02?"  ✓ confere":"  (recalculada com a camada informada)")},
+        {k:"Carga de material sobre a correia  Wm",v:Wm.toFixed(1).replace(".",",")+" kgf/m"},
         {k:"Maior bloco do material",v:fmt(Math.round(Fmax))+" mm"},
-        {k:"Atrito interno  φi  ·  atrito com a correia/saia  φw",v:phi.toFixed(0)+"°  ·  "+dw.toFixed(0)+"°"},
-        {sec:"Etapa 1 — Camada de material e velocidade"},
-        {k:"Boca de descarga  B × L0",v:(Bw*1000).toFixed(0)+" × "+(Bl*1000).toFixed(0)+" mm   (área "+A0.toFixed(2).replace(".",",")+" m²)",hi:true},
-        {k:"Relação L0 / B da boca",v:relBL.toFixed(2).replace(".",",")+(relBL>=1.5?"  (boca alongada — favorece o fluxo em fenda)":relBL<1?"  ⚠ boca mais curta que larga — rever a orientação da fenda":"")},
-        {k:"Velocidade da correia  v",v:v.toFixed(3).replace(".",",")+" m/s"+(vOK?"  (dentro de 0,05–0,5 m/s — faixa de alimentador)":"  ⚠ fora da faixa típica de alimentador (0,05–0,5 m/s)"),hi:true},
-        {k:"Altura da camada  h = Q/(3600·B·v·ρ)",v:(h*1000).toFixed(0)+" mm"+(hIn>0?"  (informada — calculada "+(hcalc*1000).toFixed(0)+" mm)":"  (calculada)")+(camadaFina?"  ⚠ menor que 3× o maior bloco ("+(hMin*1000).toFixed(0)+" mm)":""),hi:true},
-        {k:"Vazão resultante  Q = 3600·B·h·v·ρ",v:Qreal.toFixed(0)+" t/h"+(Math.abs(Qreal-Q)/Q<0.02?"  ✓ confere":"  (recalculada com a camada informada)")},
-        {k:"Carga linear sobre a correia  Q/(3,6·v)",v:mMat.toFixed(0)+" kg/m"},
-        {sec:"Etapa 2 — Carga vertical do silo sobre a correia"},
-        {k:"Método",v:svUser?"σv informado pelo usuário (calculadora de silo) — carga de fluxo estimada em 1/3 da inicial":"Roberts — Fv = q · ρ · g · B² · L0  com q_i = 1,20 (enchimento) e q_f = 0,35 (fluxo)",hi:true},
-        {k:"Dimensão de controle do arco  B_mín",v:(Bmin*1000).toFixed(0)+" mm  (menor dimensão da boca)"},
-        {k:"Carga vertical — ENCHIMENTO INICIAL  Fv,i",v:fmt(Math.round(FvI))+" kN   (σv equiv. "+svI.toFixed(1).replace(".",",")+" kPa)",hi:true},
-        {k:"Carga vertical — REGIME DE FLUXO  Fv,f",v:fmt(Math.round(FvF))+" kN   (σv equiv. "+svF.toFixed(1).replace(".",",")+" kPa)",hi:true},
-        {k:"Relação inicial / fluxo",v:(FvF>0?(FvI/FvF).toFixed(1).replace(".",","):"—")+" : 1   (comutação de tensões — a carga cai quando o alimentador começa a extrair)"},
-        {k:"Condição de projeto adotada",v:(cond==="init")?"Enchimento inicial (partida com o silo cheio)":"Regime de fluxo (operação contínua)",hi:true},
-        {sec:"Etapa 3 — Resistências do alimentador"},
-        {k:"Coeficiente de atrito efetivo  μe = mín(tan φw ; tan φi)",v:mue.toFixed(3).replace(".",",")+"   (tan φw "+muBelt.toFixed(3).replace(".",",")+" · tan φi "+muInt.toFixed(3).replace(".",",")+")"},
-        {k:"Cisalhamento do material  F_cis = Fv · μe",v:Fcis.toFixed(1).replace(".",",")+" kN",hi:true},
-        {k:"Arraste das saias  F_saia = μw·K0·ρ·g·h²·Ls  (K0 = 0,45)",v:Fsaia.toFixed(2).replace(".",",")+" kN   (Ls = "+Ls.toFixed(2).replace(".",",")+" m)"},
-        {k:"Atrito da correia e roletes  (f = 0,05)",v:Fcorr.toFixed(2).replace(".",",")+" kN"},
-        {k:"Aceleração do material na entrada",v:Facel.toFixed(2).replace(".",",")+" kN"},
-        {k:"ESFORÇO TANGENCIAL TOTAL  Ft",v:Ft.toFixed(1).replace(".",",")+" kN",hi:true},
-        {sec:"Etapa 4 — Potência e acionamento"},
-        {k:"Potência no tambor  P = Ft · v",v:Pabs.toFixed(2).replace(".",",")+" kW"},
+        {sec:"Etapa 2 — Coeficientes do material"},
+        {k:"Ângulo de repouso  θ",v:theta.toFixed(0)+"°   (tg θ = "+tgTheta.toFixed(3).replace(".",",")+")"},
+        {k:"Relação pressões lateral/vertical  Ka = (1−sen θ)/(1+sen θ)",v:Ka.toFixed(3).replace(".",","),hi:true},
+        {k:"Atrito interno do material  fm",v:fm.toFixed(2).replace(".",",")+(fm<tgTheta?"  ⚠ abaixo de tg θ — para material fino e seco fm = tg θ; para pedaços/úmido deve ser maior":"")},
+        {k:"Atrito do material com o aço  fsm",v:fsm.toFixed(2).replace(".",",")},
+        {k:"Origem dos coeficientes",v:(function(){var p=FEED_MAT[$("#acMat").value];return p?p.fonte:"informados pelo usuário";})()},
+        {sec:"Etapa 3 — Geometria (figura da pág. 1-21)"},
+        {k:"L2 — abertura da moega",v:L2.toFixed(2).replace(".",",")+" m",hi:true},
+        {k:"L1 — comprimento de atrito",v:L1.toFixed(2).replace(".",",")+" m"},
+        {k:"L3 — guias laterais além da moega",v:L3.toFixed(2).replace(".",",")+" m"},
+        {k:"L — distância entre centros dos tambores",v:L.toFixed(2).replace(".",",")+" m",hi:true},
+        {k:"H — altura de elevação do material",v:H.toFixed(2).replace(".",",")+" m"+(H===0?"  (alimentador horizontal)":"")},
+        {k:"Consistência da geometria",v:geomAviso?"⚠ verificar: L1 deve estar contido em L2, e L2 + L3 devem caber em L (com folga para os tambores)":"OK — L1 ≤ L2 e L2 + L3 ≤ L"},
+        {sec:"Etapa 4 — Tensão efetiva  Te = Pe + P1 + Ps + Pfs + Ph  (pág. 1-21)"},
+        {k:"Peso da correia  Wb  ("+tipoC+", "+Bpol+"\")",v:Wb.toFixed(1).replace(".",",")+" kgf/m"+(WbIn>0?"  (informado)":"  (tabela pág. 1-23)")},
+        {k:"Kx — resistência dos roletes",v:Kx.toFixed(2).replace(".",",")+" kgf/m"+(kxM==="det"?"   = 0,0068·("+Wm.toFixed(1).replace(".",",")+" + "+Wb.toFixed(1).replace(".",",")+") + "+xrot.toFixed(1).replace(".",",")+"/"+aesp.toFixed(2).replace(".",","):"   (caso geral)")},
+        {k:"Ky — resistência à flexão",v:Ky.toFixed(2).replace(".",",")+"   ("+(Ky===0.05?"roletes inclinados":"roletes planos")+")"},
+        {k:"Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4   — correia vazia",v:fmt(Math.round(Pe))+" kgf   ("+pctPe.toFixed(0)+"%)"},
+        {k:"P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ)   — movimentar o material",v:fmt(Math.round(P1))+" kgf   ("+pctP1.toFixed(0)+"%)"},
+        {k:"Ps = (1,2·B − D)·γ·L1·fm·B   — cisalhamento do material",v:fmt(Math.round(Ps))+" kgf   ("+pctPs.toFixed(0)+"%)",hi:true},
+        {k:"Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L   — guias laterais",v:fmt(Math.round(Pfs))+" kgf   ("+pctPfs.toFixed(0)+"%)",hi:true},
+        {k:"Ph = B·D·γ·H   — elevação do material",v:fmt(Math.round(Ph))+" kgf   ("+pctPh.toFixed(0)+"%)"},
+        {k:"TENSÃO EFETIVA  Te",v:fmt(Math.round(Te))+" kgf",hi:true},
+        {k:"Parcela dominante",v:(function(){var a=[[Pe,"Pe (correia vazia)"],[P1,"P1 (movimentar o material)"],[Ps,"Ps (cisalhamento do material)"],[Pfs,"Pfs (atrito nas guias)"],[Ph,"Ph (elevação)"]].sort(function(x,y){return y[0]-x[0];});return a[0][1]+" — "+(100*a[0][0]/Te).toFixed(0)+"% da tensão efetiva";})()},
+        {sec:"Etapa 5 — Potência e acionamento"},
+        {k:"Potência no tambor  P = Te · V",v:Pkw.toFixed(2).replace(".",",")+" kW  (~"+(Pkw/0.7457).toFixed(1).replace(".",",")+" HP)"},
         {k:"Potência no eixo do redutor  P / η",v:Peixo.toFixed(2).replace(".",",")+" kW   (η = "+eta.toFixed(2).replace(".",",")+")",hi:true},
-        {k:"Potência na PARTIDA (carga de enchimento inicial)",v:PpartI.toFixed(2).replace(".",",")+" kW",hi:true},
-        {k:"Potência em REGIME DE FLUXO (contínuo)",v:PfluxoF.toFixed(2).replace(".",",")+" kW   (a partida exige "+fpart.toFixed(2).replace(".",",")+" × o regime)"+(fpart>2.5?"  ⚠ sobrecarga de partida elevada — prever partida suave / conjugado reforçado":""),hi:true},
-        {k:"Potência de seleção  (maior caso + 15%)",v:Pmaj.toFixed(2).replace(".",",")+" kW  (~"+(Pmaj/0.7457).toFixed(1).replace(".",",")+" HP)",hi:true},
-        {k:"Rotação do tambor  n = v·60000/(π·D)",v:npul.toFixed(2).replace(".",",")+" rpm   (D = "+Dt.toFixed(0)+" mm)"},
+        {k:"Potência de seleção  (+15%)",v:Pmaj.toFixed(2).replace(".",",")+" kW  (~"+(Pmaj/0.7457).toFixed(1).replace(".",",")+" HP)",hi:true},
+        {k:"Rotação do tambor  n = V·60000/(π·D)",v:npul.toFixed(2).replace(".",",")+" rpm   (D = "+Dt.toFixed(0)+" mm)"},
         {k:"Torque no eixo de saída  M = 9550·P/n",v:fmt(Math.round(Msaida))+" N·m",hi:true},
         {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true},
-        {k:"Controle da vazão",v:"A vazão do alimentador de correia é regulada pela VELOCIDADE (inversor de frequência) e pela altura da comporta. Diferente do vibratório, a extração é volumétrica e praticamente linear com v — o que o torna adequado para dosagem."},
-        {sec:"Etapa 5 — Correia e tensões"},
-        {k:"Largura útil entre saias (= boca)",v:(Bskirt*1000).toFixed(0)+" mm"},
-        {k:"Largura de correia requerida (saias + folga)",v:(Breq*25.4).toFixed(0)+" mm  ·  por granulometria (3× bloco): "+(Bgran*25.4).toFixed(0)+" mm"},
-        {k:"LARGURA DA CORREIA SELECIONADA",v:Bpol+"\" ("+Bmm+" mm)"+(manualB?"  (escolha do usuário)":"  (automático)")+(Bestreita?"  ⚠ menor que a largura calculada ("+Bauto+"\")":"")+(granInsuf?"  ⚠ acima do maior catálogo":""),hi:true},
+        {k:"Controle da vazão",v:"Alimentador de correia aceita variador contínuo de velocidade (inversor), permitindo dosagem contínua e precisa e ampla variação da taxa de alimentação — a vazão é praticamente linear com V."},
+        {sec:"Etapa 6 — Tensões de operação e seleção da correia"},
+        {k:"LARGURA DA CORREIA",v:Bpol+"\" ("+Bmm+" mm)"+(manualB?"  (escolha do usuário)":"  (automático)")+(Bestreita?"  ⚠ menor que a calculada ("+Bauto+"\")":"")+(granInsuf?"  ⚠ acima do maior catálogo":""),hi:true},
+        {k:"Critério de largura",v:"guia B = "+(B*1000).toFixed(0)+" mm → "+(Bpor_guia>0?Bpor_guia.toFixed(1).replace(".",","):"—")+"\"   ·   granulometria (3 × bloco) → "+Bpor_gran.toFixed(1).replace(".",",")+"\""},
         {k:"Verificação de bloco  (largura ≥ 3 × maior bloco)",v:lumpOK?"OK — "+Bmm+" mm ≥ "+(3*Fmax).toFixed(0)+" mm":"⚠ insuficiente — usar correia mais larga ou reduzir o bloco"},
-        {k:"Esforço efetivo  Te",v:fmt(Math.round(Te))+" kgf"},
-        {k:"Tensão máxima  T1 = (1+K)·Te",v:fmt(Math.round(T1))+" kgf   (K = "+K.toFixed(2).replace(".",",")+")",hi:true},
+        {k:"Tensão máxima  T1 = (1 + K)·Te",v:fmt(Math.round(T1))+" kgf   (K = "+K.toFixed(2).replace(".",",")+")",hi:true},
         {k:"Tensão no lado frouxo  T2 = K·Te",v:fmt(Math.round(T2))+" kgf"},
         {k:"Tração de trabalho  T1 / largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
         {k:"CARCAÇA REQUERIDA  (× FS "+FS.toFixed(0)+")",v:carcReq.toFixed(0)+" N/mm  →  EP "+EPsel+" N/mm",hi:true},
-        {k:"Observação da correia",v:"Alimentador sob silo trabalha com a correia permanentemente carregada e sob pressão vertical: prever correia de carcaça reforçada, cobertura resistente à abrasão, roletes de impacto de passo curto (0,3 a 0,5 m) sob a boca e raspador de retorno. O tambor de acionamento deve ser revestido (borracha estriada)."},
-        {sec:"Etapa 6 — Interface divergente (extração uniforme)"},
-        {k:"Divergência adotada",v:divOK?(((fdiv-1)*100).toFixed(0)+"% de aumento da seção ao longo da boca"):"Boca paralela (sem divergência)",hi:true},
-        {k:"Comprimento da boca — entrada → saída",v:(Bl*1000).toFixed(0)+" → "+(Bl2*1000).toFixed(0)+" mm"},
-        {k:"Largura da boca — entrada → saída (alternativa)",v:(Bw*1000).toFixed(0)+" → "+(Bw2*1000).toFixed(0)+" mm   (abertura de "+angDiv.toFixed(1).replace(".",",")+"° por lado)"},
-        {k:"Verificação de fluxo",v:ratoeira?"⚠ Boca paralela: o material só é extraído na aresta traseira, formando FLUXO EM RATOEIRA (rat-holing) e desgastando a correia numa faixa estreita. Adotar interface divergente.":"OK — a seção cresce ao longo da boca, o que faz a correia extrair material em todo o comprimento e garante o fluxo de massa (draw-down uniforme)."},
-        {k:"Comporta de regulagem",v:"Instalar a comporta (gate) na SAÍDA da boca, apenas para ajustar a camada — nunca para estrangular a vazão a montante, sob pena de anular a divergência e provocar arco."},
-        {sec:"Recomendações de instalação"},
-        {k:"Distância entre centros  Ec",v:Ec.toFixed(2).replace(".",",")+" m"+(Ec<Bl+Lsk+0.8?"  ⚠ curta para acomodar boca + saias + tambores":"")},
-        {k:"Saias além da boca",v:Lsk.toFixed(2).replace(".",",")+" m  (trecho de acomodação e contenção após a extração)"},
-        {k:"Velocidade recomendada de projeto",v:"0,05 a 0,30 m/s para dosagem fina; até 0,5 m/s para retomada. Velocidades altas aumentam o desgaste sob a boca e o esforço de cisalhamento."},
-        {k:"Observação",v:"⚠ Pré-dimensionamento. A carga vertical real depende do regime de fluxo do silo (massa × funil), da história de carregamento e da coesão — confirmar com ensaio Jenike Shear e com o projeto da tremonha. O acionamento deve ser verificado para o torque de partida com o silo cheio e parado por longo período (consolidação no tempo)."}
+        {k:"Diâmetro mínimo do tambor de acionamento",v:Dmin_acion+" mm"+(Dtok?"  ✓ o tambor adotado atende":"  ⚠ tambor adotado ("+Dt.toFixed(0)+" mm) abaixo do mínimo para a carcaça EP "+EPsel)},
+        {k:"Observação da correia",v:"O alimentador trabalha permanentemente carregado e sob a pressão da moega: prever cobertura resistente à abrasão, roletes de impacto de passo curto sob a moega, raspador de retorno e tambor de acionamento revestido. O peso Wb da tabela é primeira aproximação — recalcular após definir a correia (pág. 1-23)."},
+        {sec:"Observações"},
+        {k:"Faixa de aplicação",v:"Alimentadores de correia são empregados principalmente na retomada de materiais FINOS E ÚMIDOS sob moegas, silos ou pilhas, onde o uso de alimentadores vibratórios não é recomendado."},
+        {k:"Tamanhos disponíveis",v:"Os tamanhos são os mesmos das correias transportadoras, com as mesmas larguras padrão; os comprimentos são variáveis conforme o projeto."},
+        {k:"Observação de projeto",v:"⚠ Pré-dimensionamento pelo método do Manual de Britagem (págs. 1-20 a 1-23). Determinada a tensão efetiva, o cálculo das tensões de operação, a motorização e a seleção da correia e dos tambores seguem o procedimento dos transportadores de correia. Confirmar na folha de dados do fabricante."}
       ];
-      OUT.geo={tipo:"alimcor",Bw:Bw,Bl:Bl,Bl2:Bl2,Bw2:Bw2,fdiv:fdiv,h:h,v:v,Q:Q,Qreal:Qreal,rho:rho,
-        Bmm:Bmm,Bpol:Bpol,Ec:Ec,Lsk:Lsk,Dt:Dt,FvI:FvI,FvF:FvF,svI:svI,svF:svF,cond:cond,
-        Ft:Ft,Fcis:Fcis,Fsaia:Fsaia,Fcorr:Fcorr,Facel:Facel,Pabs:Pabs,Peixo:Peixo,PpartI:PpartI,
-        Pmaj:Pmaj,npul:npul,Msaida:Msaida,sew:sewDrive(sew,Pmaj),T1:T1,T2:T2,EP:EPsel,carcReq:carcReq,
-        mue:mue,angDiv:angDiv,divOK:divOK,camadaFina:camadaFina,lumpOK:lumpOK,vOK:vOK,Fmax:Fmax};
+      OUT.geo={tipo:"alimcor",Q:Q,Qreal:Qreal,gama:gama,rhoT:rhoT,theta:theta,Ka:Ka,fm:fm,fsm:fsm,
+        V:V,Vmax:Vmax,Vok:Vok,B:B,D:D,Dmax:Dmax,Dok:Dok,L:L,L1:L1,L2:L2,L3:L3,H:H,
+        Bpol:Bpol,Bmm:Bmm,Wb:Wb,tipoC:tipoC,Kx:Kx,Ky:Ky,Wm:Wm,Fmax:Fmax,lumpOK:lumpOK,
+        Pe:Pe,P1:P1,Ps:Ps,Pfs:Pfs,Ph:Ph,Te:Te,Pkw:Pkw,Peixo:Peixo,Pmaj:Pmaj,npul:npul,
+        Msaida:Msaida,sew:sewDrive(sew,Pmaj),T1:T1,T2:T2,carcReq:carcReq,EP:EPsel,Dt:Dt,
+        Dmin:Dmin_acion,Dtok:Dtok,geomAviso:geomAviso};
       return OUT;
     }
   },
@@ -3032,18 +3047,24 @@ const ANIM={
               <linearGradient id="ac_dr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f6fa"/><stop offset="0.5" stop-color="#9fb0c1"/><stop offset="1" stop-color="#4d5c6d"/></linearGradient>
               <clipPath id="ac_hop"><path d="M118 6 L306 6 L306 52 L262 108 L162 108 L118 52 Z"/></clipPath>
             </defs>
-            <!-- silo + tremonha, com material descendo por dentro -->
+            <!-- moega de alimentação, com material descendo por dentro -->
             <path d="M118 6 L306 6 L306 52 L262 108 L162 108 L118 52 Z" fill="url(#ac_body)" stroke="#3a4d63"/>
             <g clip-path="url(#ac_hop)" fill="#D9A94A" opacity="0.85">
               <circle r="5" cx="160" cy="20"><animate attributeName="cy" values="0;108" dur="2.6s" repeatCount="indefinite"/><animate attributeName="cx" values="150;196" dur="2.6s" repeatCount="indefinite"/></circle>
               <circle r="6" cx="230" cy="40"><animate attributeName="cy" values="0;108" dur="2.6s" begin="-0.9s" repeatCount="indefinite"/><animate attributeName="cx" values="272;226" dur="2.6s" begin="-0.9s" repeatCount="indefinite"/></circle>
               <circle r="4.5" cx="212" cy="70"><animate attributeName="cy" values="0;108" dur="2.6s" begin="-1.7s" repeatCount="indefinite"/><animate attributeName="cx" values="212;212" dur="2.6s" begin="-1.7s" repeatCount="indefinite"/></circle>
             </g>
-            <text x="196" y="30" fill="#6f8398" font-size="11" font-family="sans-serif" text-anchor="middle">silo</text>
-            <!-- interface divergente (saias) — abre da entrada para a saida -->
-            <path d="M162 108 L150 150" stroke="#D9A94A" stroke-width="2.5" fill="none" opacity="0.9"/>
-            <path d="M262 108 L292 150" stroke="#D9A94A" stroke-width="2.5" fill="none" opacity="0.9"/>
-            <text x="300" y="126" fill="#D9A94A" font-size="9" font-family="sans-serif">interface divergente</text>
+            <text x="196" y="30" fill="#6f8398" font-size="11" font-family="sans-serif" text-anchor="middle">moega</text>
+            <!-- guias laterais: L2 sob a moega e L3 alem dela -->
+            <path d="M162 108 L162 150" stroke="#D9A94A" stroke-width="2.5" fill="none" opacity="0.9"/>
+            <path d="M262 108 L262 150" stroke="#D9A94A" stroke-width="2.5" fill="none" opacity="0.9"/>
+            <path d="M262 132 L330 132 L330 150" stroke="#D9A94A" stroke-width="1.6" fill="none" opacity="0.75" stroke-dasharray="4 3"/>
+            <g stroke="#1E9BC4" stroke-width="1" fill="none" opacity="0.9">
+              <path d="M162 122 L262 122 M162 119 L162 125 M262 119 L262 125"/>
+              <path d="M262 140 L330 140 M262 137 L262 143 M330 137 L330 143"/>
+            </g>
+            <text x="212" y="119" fill="#1E9BC4" font-size="9" font-family="sans-serif" text-anchor="middle">L2</text>
+            <text x="296" y="137" fill="#1E9BC4" font-size="9" font-family="sans-serif" text-anchor="middle">L3</text>
             <!-- correia -->
             <rect x="72" y="150" width="330" height="13" rx="2" fill="url(#ac_belt)" stroke="#46586b"/>
             <rect x="72" y="176" width="330" height="8" rx="2" fill="#1a2634" stroke="#33485e"/>
@@ -3411,86 +3432,108 @@ function gerarRelatorio(){
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="alimcor"){
-      /* ---------- Croqui do alimentador de correia ---------- */
+      /* ---------- Croqui do alimentador de correia (figura da pag. 1-21) ---------- */
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
-      var ax=52, aTop=40, aMid=66, aBoca=92, asw=64;
-      var esc=Math.min(26/Math.max(G.Bl,0.3),40);             // mm de desenho por m
-      var wBoca=Math.max(16,Math.min(52,G.Bl*esc));           // boca em vista lateral = comprimento L0
-      var wSaida=wBoca*(G.fdiv||1);
-      // silo + tremonha (vista lateral)
-      doc.line(ax-asw/2,aTop,ax+asw/2,aTop);
-      doc.line(ax-asw/2,aTop,ax-asw/2,aMid); doc.line(ax+asw/2,aTop,ax+asw/2,aMid);
-      doc.line(ax-asw/2,aMid,ax-wBoca/2,aBoca); doc.line(ax+asw/2,aMid,ax+wSaida/2,aBoca);
-      doc.setTextColor(110,130,150); doc.setFontSize(7.5); doc.text("silo",ax-4,aTop-3);
-      // correia: tambor traseiro, tambor de acionamento, ramo de carga e de retorno
-      var bY=aBoca+Math.max(6,Math.min(18,G.h*esc*1.2))+4;    // topo da correia
-      var bx0=ax-wBoca/2-18, bx1=ax+wSaida/2+40, rT=5.5, rD=7.5;
-      doc.setLineWidth(1.1);
-      doc.line(bx0,bY,bx1,bY);                                 // ramo de carga
-      doc.line(bx0,bY+2*rD,bx1,bY+2*rD);                       // ramo de retorno
-      doc.circle(bx0,bY+rD,rT); doc.circle(bx1,bY+rD,rD);
-      doc.setLineWidth(0.4); doc.line(bx1-rD,bY+rD,bx1+rD,bY+rD); doc.line(bx1,bY+rD-rD,bx1,bY+rD+rD);
-      doc.setTextColor(30,155,196); doc.setFontSize(7); doc.text("acionamento",bx1-8,bY+2*rD+9);
-      // leito de material sobre a correia (sai da boca com a altura h)
-      var hPix=Math.max(6,Math.min(18,G.h*esc*1.2));
-      var xLeito=ax-wBoca/2, xLeitoF=bx1-rD-2;
+      var x0=32, xf=182, esc=(xf-x0)/Math.max(G.L,0.5);          // mm de desenho por metro
+      var bY=96;                                                  // linha do topo da correia
+      var rD=7.5, rT=6;
+      var xT0=x0+rT, xT1=xf-rD;                                   // centros dos tambores
+      // ---- correia (ramo de carga e de retorno) + tambores
+      doc.setLineWidth(1.2);
+      doc.line(xT0,bY,xT1,bY);
+      doc.line(xT0,bY+2*rD,xT1,bY+2*rD);
+      doc.circle(xT0,bY+rD,rT); doc.circle(xT1,bY+rD,rD);
+      doc.setLineWidth(0.4);
+      doc.line(xT1-rD,bY+rD,xT1+rD,bY+rD); doc.line(xT1,bY,xT1,bY+2*rD);
+      doc.setTextColor(30,155,196); doc.setFontSize(7);
+      doc.text(san("acionamento"),xT1,bY+2*rD+8,{align:"center"});
+      // ---- moega (tremonha) sobre a correia — abertura L2
+      var xm0=xT0+8, xm2=xm0+G.L2*esc; if(xm2>xT1-6){ xm2=xT1-6; }
+      var mTop=44, mBot=bY-Math.max(6,Math.min(16,G.D*esc*3))-3;
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
+      doc.line(xm0-16,mTop,xm2+16,mTop);
+      doc.line(xm0-16,mTop,xm0,mBot); doc.line(xm2+16,mTop,xm2,mBot);
+      doc.line(xm0,mBot,xm0,bY); doc.line(xm2,mBot,xm2,bY);
+      doc.setTextColor(110,130,150); doc.setFontSize(7.5);
+      doc.text(san("moega de alimentação"),(xm0+xm2)/2,mTop-3,{align:"center"});
+      // ---- guias laterais alem da moega (L3)
+      var xm3=Math.min(xm2+G.L3*esc,xT1-4);
+      doc.setDrawColor(150,170,190); doc.setLineWidth(0.6); doc.setLineDashPattern([1.2,1.2],0);
+      doc.line(xm2,mBot+4,xm3,mBot+4); doc.line(xm3,mBot+4,xm3,bY);
+      doc.setLineDashPattern([],0);
+      // ---- leito de material sobre a correia (altura D)
+      var hD=Math.max(4,Math.min(16,G.D*esc*3));
       doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.4);
-      doc.rect(xLeito,bY-hPix,Math.max(6,xLeitoF-xLeito),hPix,"FD");
-      // saias divergentes (linhas da tremonha ate a correia)
-      doc.setDrawColor(217,169,74); doc.setLineWidth(0.7);
-      doc.line(ax-wBoca/2,aBoca,ax-wBoca/2,bY-hPix);
-      doc.line(ax+wSaida/2,aBoca,ax+wSaida/2+ (G.divOK?4:0),bY-hPix);
-      // roletes de impacto sob a boca
+      doc.rect(xm0,bY-hD,Math.max(6,xT1-rD*0.4-xm0),hD,"FD");
+      // ---- material dentro da moega
+      doc.setFillColor(235,205,150); doc.setDrawColor(200,170,110); doc.setLineWidth(0.3);
+      doc.triangle(xm0-13,mTop+3,xm2+13,mTop+3,(xm0+xm2)/2,mBot-2,"FD");
+      // ---- roletes de impacto sob a moega
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.4);
-      for(var ri=0;ri<4;ri++){ doc.circle(ax-wBoca/2+6+ri*((wSaida-4)/4),bY+3.2,2.2); }
-      // cotas
+      var nr=Math.max(3,Math.round((xm2-xm0)/12));
+      for(var ri=0;ri<=nr;ri++){ doc.circle(xm0+ri*(xm2-xm0)/nr,bY+3.4,2.2); }
+      // ---- COTAS
       doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(7.5);
-      var cyb=aBoca-4;
-      doc.line(ax-wBoca/2,cyb,ax+wSaida/2,cyb);
-      doc.line(ax-wBoca/2,cyb-1.5,ax-wBoca/2,cyb+1.5); doc.line(ax+wSaida/2,cyb-1.5,ax+wSaida/2,cyb+1.5);
-      doc.text("L0 = "+san(String(Math.round(G.Bl*1000)))+" mm"+(G.divOK?"  →  "+san(String(Math.round(G.Bl2*1000)))+" mm":""),ax,cyb-2,{align:"center"});
-      doc.text("h = "+san(String(Math.round(G.h*1000)))+" mm",ax+wSaida/2+6,bY-hPix/2);
-      doc.text("v = "+san(G.v.toFixed(3))+" m/s",bx0+6,bY-3);
-      doc.text("B (boca) = "+san(String(Math.round(G.Bw*1000)))+" mm   ·   correia "+san(String(G.Bpol))+'" ('+san(String(G.Bmm))+" mm)",14,bY+2*rD+16);
-      // seta da carga vertical do silo
-      doc.setDrawColor(200,80,60); doc.setLineWidth(0.6);
-      doc.line(ax,aMid+3,ax,aBoca-8); doc.line(ax-2,aBoca-11,ax,aBoca-8); doc.line(ax+2,aBoca-11,ax,aBoca-8);
-      doc.setTextColor(200,80,60); doc.setFontSize(7);
-      doc.text("Fv = "+san(String(Math.round(G.cond==="init"?G.FvI:G.FvF)))+" kN",ax+3,aMid+9);
-      // cota Ec
-      doc.setDrawColor(150,170,190); doc.setLineWidth(0.25); doc.setTextColor(110,130,150);
-      var ecy=bY+2*rD+22;
-      doc.line(bx0,ecy,bx1,ecy); doc.line(bx0,ecy-1.5,bx0,ecy+1.5); doc.line(bx1,ecy-1.5,bx1,ecy+1.5);
-      doc.text("Ec = "+san(G.Ec.toFixed(2))+" m (entre centros)",(bx0+bx1)/2,ecy-2,{align:"center"});
+      function cota(xa,xb,y,txt,acima){
+        doc.line(xa,y,xb,y); doc.line(xa,y-1.5,xa,y+1.5); doc.line(xb,y-1.5,xb,y+1.5);
+        doc.text(san(txt),(xa+xb)/2,acima?(y-1.8):(y+3.6),{align:"center"});
+      }
+      var xL1f=Math.min(xm0+G.L1*esc,xm2);
+      cota(xm0,xL1f,mBot-14,"L1 = "+san(G.L1.toFixed(2))+" m  (compr. de atrito)",true);
+      cota(xm0,xm2,mBot-6,"L2 = "+san(G.L2.toFixed(2))+" m  (abertura da moega)",true);
+      cota(xm2,xm3,mBot+10,"L3 = "+san(G.L3.toFixed(2))+" m",false);
+      cota(xT0,xT1,bY+2*rD+18,"L = "+san(G.L.toFixed(2))+" m  (entre centros)",true);
+      // cota D (altura da camada)
+      doc.line(xT1-rD-14,bY-hD,xT1-rD-14,bY);
+      doc.line(xT1-rD-16,bY-hD,xT1-rD-12,bY-hD); doc.line(xT1-rD-16,bY,xT1-rD-12,bY);
+      doc.text("D = "+san(String(Math.round(G.D*1000)))+" mm",xT1-rD-17,bY-hD/2,{align:"right"});
+      // cota H (elevacao) quando houver
+      if(G.H>0){ doc.setTextColor(30,120,150); doc.text("H = "+san(G.H.toFixed(2))+" m (elevação)",xT1,bY-hD-6,{align:"right"}); }
+      // ---- vista da secao transversal (canto direito)
+      var sx=196, sTop=bY-24, sB=26, sD=Math.max(4,Math.min(12,G.D/G.B*sB));
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.8);
+      doc.line(sx,sTop,sx,sTop+22); doc.line(sx+sB,sTop,sx+sB,sTop+22);      // guias
+      doc.setLineWidth(1.1); doc.line(sx-4,sTop+22,sx+sB+4,sTop+22);          // correia
+      doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+      doc.rect(sx,sTop+22-sD,sB,sD,"FD");
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.25); doc.setTextColor(30,120,150); doc.setFontSize(7);
+      doc.line(sx,sTop-4,sx+sB,sTop-4); doc.line(sx,sTop-5.5,sx,sTop-2.5); doc.line(sx+sB,sTop-5.5,sx+sB,sTop-2.5);
+      doc.text("B = "+san(String(Math.round(G.B*1000)))+" mm",sx+sB/2,sTop-6,{align:"center"});
+      doc.text("D",sx+sB+6,sTop+22-sD/2);
+      doc.setTextColor(110,130,150); doc.text(san("seção"),sx+sB/2,sTop+28,{align:"center"});
       var abody=[
-        [san("Vazão de projeto / resultante"),san(String(Math.round(G.Q)))+" / "+san(String(Math.round(G.Qreal)))+" t/h"],
-        [san("Boca de descarga  B × L0"),san(String(Math.round(G.Bw*1000)))+" × "+san(String(Math.round(G.Bl*1000)))+" mm"],
-        [san("Interface divergente"),G.divOK?(san(String(Math.round((G.fdiv-1)*100)))+"% — saída "+san(String(Math.round(G.Bl2*1000)))+" mm ("+san(G.angDiv.toFixed(1))+"°/lado)"):san("paralela — risco de fluxo em ratoeira")],
-        [san("Velocidade da correia  v"),san(G.v.toFixed(3))+" m/s"+(G.vOK?"":san(" (fora de 0,05-0,5)"))],
-        [san("Altura da camada  h"),san(String(Math.round(G.h*1000)))+" mm"+(G.camadaFina?san(" (< 3x o bloco)"):"")],
-        [san("Largura da correia"),san(String(G.Bpol))+'" ('+san(String(G.Bmm))+" mm)"],
-        [san("Maior bloco do material"),san(String(Math.round(G.Fmax)))+" mm"+(G.lumpOK?"":san(" — largura insuficiente"))],
-        [san("Carga vertical — enchimento inicial"),san(String(Math.round(G.FvI)))+" kN  ("+san(G.svI.toFixed(1))+" kPa)"],
-        [san("Carga vertical — regime de fluxo"),san(String(Math.round(G.FvF)))+" kN  ("+san(G.svF.toFixed(1))+" kPa)"],
-        [san("Condição de projeto"),G.cond==="init"?san("enchimento inicial"):san("regime de fluxo")],
-        [san("Atrito efetivo  μe"),san(G.mue.toFixed(3))],
-        [san("Cisalhamento / saias / correia / aceleração"),san(G.Fcis.toFixed(1))+" / "+san(G.Fsaia.toFixed(2))+" / "+san(G.Fcorr.toFixed(2))+" / "+san(G.Facel.toFixed(2))+" kN"],
-        [san("ESFORÇO TANGENCIAL TOTAL  Ft"),san(G.Ft.toFixed(1))+" kN"],
-        [san("Potência no eixo / na partida"),san(G.Peixo.toFixed(2))+" / "+san(G.PpartI.toFixed(2))+" kW"],
-        [san("Potência de seleção (+15%)"),san(G.Pmaj.toFixed(2))+" kW"],
+        [san("Capacidade Q / resultante"),san(String(Math.round(G.Q)))+" / "+san(String(Math.round(G.Qreal)))+" t/h"],
+        [san("Densidade aparente  γ"),san(G.rhoT.toFixed(2))+" t/m³ ("+san(String(Math.round(G.gama)))+" kgf/m³)"],
+        [san("Velocidade  V  (máx. recomendada)"),san(G.V.toFixed(2))+" / "+san(G.Vmax.toFixed(1))+" m/s"+(G.Vok?"":san(" — acima do maximo"))],
+        [san("Abertura da guia  B"),san(String(Math.round(G.B*1000)))+" mm"],
+        [san("Altura da camada  D   (limite B/2)"),san(String(Math.round(G.D*1000)))+" / "+san(String(Math.round(G.Dmax*1000)))+" mm"+(G.Dok?"":san(" — acima do limite"))],
+        [san("Geometria  L1 / L2 / L3 / L"),san(G.L1.toFixed(2))+" / "+san(G.L2.toFixed(2))+" / "+san(G.L3.toFixed(2))+" / "+san(G.L.toFixed(2))+" m"],
+        [san("Elevação  H"),san(G.H.toFixed(2))+" m"],
+        [san("Ângulo de repouso θ  ·  Ka"),san(String(Math.round(G.theta)))+"°  ·  "+san(G.Ka.toFixed(3))],
+        [san("Atrito interno fm  ·  atrito com o aço fsm"),san(G.fm.toFixed(2))+"  ·  "+san(G.fsm.toFixed(2))],
+        [san("Correia / peso Wb"),san(String(G.Bpol))+'" ('+san(String(G.Bmm))+" mm) "+san(G.tipoC)+" · "+san(G.Wb.toFixed(1))+" kgf/m"],
+        [san("Kx  ·  Ky  ·  Wm"),san(G.Kx.toFixed(2))+"  ·  "+san(G.Ky.toFixed(2))+"  ·  "+san(G.Wm.toFixed(1))+" kgf/m"],
+        [san("Pe — correia vazia"),san(String(Math.round(G.Pe)))+" kgf"],
+        [san("P1 — movimentar o material"),san(String(Math.round(G.P1)))+" kgf"],
+        [san("Ps — cisalhamento do material"),san(String(Math.round(G.Ps)))+" kgf"],
+        [san("Pfs — atrito nas guias laterais"),san(String(Math.round(G.Pfs)))+" kgf"],
+        [san("Ph — elevação do material"),san(String(Math.round(G.Ph)))+" kgf"],
+        [san("TENSÃO EFETIVA  Te"),san(String(Math.round(G.Te)))+" kgf"],
+        [san("Potência no tambor / no eixo / seleção"),san(G.Pkw.toFixed(2))+" / "+san(G.Peixo.toFixed(2))+" / "+san(G.Pmaj.toFixed(2))+" kW"],
         [san("Rotação do tambor / torque de saída"),san(G.npul.toFixed(2))+" rpm / "+san(String(Math.round(G.Msaida)))+" N·m"],
         [san("Motoredutor SEW"),san(G.sew)],
         [san("Tensões  T1 / T2"),san(String(Math.round(G.T1)))+" / "+san(String(Math.round(G.T2)))+" kgf"],
         [san("Carcaça requerida"),san(String(Math.round(G.carcReq)))+" N/mm  →  EP "+san(String(G.EP))],
-        [san("Distância entre centros / saias além da boca"),san(G.Ec.toFixed(2))+" / "+san(G.Lsk.toFixed(2))+" m"]
+        [san("Tambor de acionamento / mínimo"),san(String(Math.round(G.Dt)))+" / "+san(String(G.Dmin))+" mm"+(G.Dtok?"":san(" — abaixo do minimo"))],
+        [san("Maior bloco do material"),san(String(Math.round(G.Fmax)))+" mm"+(G.lumpOK?"":san(" — largura insuficiente"))]
       ];
-      doc.autoTable({startY:ecy+8,theme:"grid",margin:{left:14,right:14},
+      doc.autoTable({startY:bY+2*rD+26,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],body:abody,
         headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8},
         alternateRowStyles:{fillColor:[244,247,250]},
         columnStyles:{0:{cellWidth:104},1:{cellWidth:78,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
-      doc.text(san("Croqui esquemático (fora de escala) — alimentador de correia sob a boca do silo, com interface divergente. Medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+      doc.text(san("Croqui esquemático (fora de escala) conforme a figura da pág. 1-21 do Manual de Britagem — alimentador de correia sob moega de alimentação."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="calha"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       // silo + moega
