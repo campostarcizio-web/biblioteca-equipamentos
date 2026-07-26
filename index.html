@@ -1933,10 +1933,33 @@ const CALCS={
       var F0=Fhor+Finc+Fret, F=F0*(1+0.08*Nb);
       var Peff=F*Vshow/eta/1000, Pmaj=Peff*1.20;
       var nspr=Vshow*60/(Math.PI*S.pcd), sew=selSEW(Pmaj,nspr);
+      /* ===== SELEÇÃO DA CORRENTE =====
+         Duas exigências independentes governam a bitola:
+         (a) CARGA — carga de ruptura ≥ F·FS, com 2 seções resistentes por elo:
+             BL = 2·(π·d²/4)·Rm
+         (b) GEOMETRIA — a corrente carrega os discos que varrem o tubo e engrena na roda
+             dentada; o construtor de tubo Ø_N adota a bitola tabelada S.d. Reduzir a bitola
+             abaixo disso comprometeria a fixação do disco, o passo e a roda dentada.
+         Quando (b) governa, o FS efetivo fica muito acima do FS de projeto — isso é
+         esperado e NÃO significa superdimensionamento por carga: a corrente é imposta
+         pela geometria do tubo, não pelo esforço. */
       var Rm=800, BLreq=F*SF, dreq=Math.sqrt(BLreq/(2*(Math.PI/4)*Rm));
       var CH=[14,16,18,20,22,26,30,34];
-      var dsel=CH[CH.length-1]; for(var ci=0;ci<CH.length;ci++){ if(CH[ci]>=Math.max(dreq,S.d)){ dsel=CH[ci]; break; } }
+      function chCom(d){ for(var i=0;i<CH.length;i++){ if(CH[i]>=d) return CH[i]; } return CH[CH.length-1]; }
+      var dCarga=chCom(dreq);                 // bitola comercial exigida pela CARGA
+      var dGeom=S.d;                          // bitola imposta pela GEOMETRIA do tubo/discos
+      var dsel=Math.max(dCarga,dGeom);
+      var govGeom=(dGeom>dCarga);
       var BLsel=2*(Math.PI/4)*dsel*dsel*Rm;
+      var BLcarga=2*(Math.PI/4)*dCarga*dCarga*Rm;
+      var FSef=BLsel/F, FScarga=BLcarga/F;
+      /* menor tubo da tabela que ainda atende à capacidade — para orientar a redução */
+      var menorTubo=null;
+      for(var mt=0;mt<TC.length;mt++){
+        var st=TC[mt];
+        var qcap=autil(st)*st.vmax*3600*rho;   // t/h máx. desse tubo
+        if(qcap>=Q&&(3*dim)<=st.di){ menorTubo=st; break; }
+      }
       var OUT=[
         {sec:"Geometria e capacidade"},
         {k:"Ângulo de inclinação",v:theta.toFixed(0)+"°"},
@@ -1973,8 +1996,21 @@ const CALCS={
         {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true},
         {sec:"Corrente de elos redondos (tipo RUD)"},
         {k:"Carga de ruptura requerida  F · FS",v:fmt(Math.round(BLreq/1000))+" kN  (FS "+SF.toFixed(0)+")"},
-        {k:"Bitola da corrente recomendada",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~800 N/mm²)",hi:true},
-        {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+(BLsel/F).toFixed(1).replace(".",",")+")"},
+        {k:"Bitola exigida pela CARGA  d = √(F·FS / (2·(π/4)·Rm))",v:dreq.toFixed(1).replace(".",",")+" mm  →  comercial Ø "+dCarga+" mm   (ruptura "+fmt(Math.round(BLcarga/1000))+" kN · FS "+FScarga.toFixed(1).replace(".",",")+")",hi:true},
+        {k:"Bitola exigida pela GEOMETRIA do tubo "+S.n+"\" (discos e roda dentada)",v:"Ø "+dGeom+" mm",hi:true},
+        {k:"BITOLA ADOTADA  (a maior das duas)",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~"+Rm+" N/mm²)   —  governa a "+(govGeom?"GEOMETRIA":"CARGA"),hi:true},
+        {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+FSef.toFixed(1).replace(".",",")+")"},
+        {k:"Por que o FS efetivo ficou alto?",v:govGeom?
+            ("A corrente NÃO é dimensionada pela carga neste caso. O esforço de tração pediria apenas Ø "+dCarga+
+             " mm (FS "+FScarga.toFixed(1).replace(".",",")+"), mas o tubo de "+S.n+"\" exige Ø "+dGeom+
+             " mm para acomodar a fixação dos discos, o passo do elo e a roda dentada. O FS de "+FSef.toFixed(1).replace(".",",")+
+             " é consequência da geometria, não de superdimensionamento. Para reduzir a corrente é preciso reduzir o TUBO — o que só é possível se a capacidade e o dimensional da peça permitirem."):
+            ("A carga governa a seleção — o FS efetivo de "+FSef.toFixed(1).replace(".",",")+
+             " decorre apenas do arredondamento para a bitola comercial acima da requerida."),hi:true},
+        {k:"Menor tubo que ainda atende  Q = "+Q.toFixed(0)+" t/h e peça de "+dim.toFixed(0)+" mm",v:menorTubo?
+            (menorTubo.n+"\" (DN "+menorTubo.dn+") → corrente Ø "+menorTubo.d+" mm"+
+             ((menorTubo.n===S.n)?"   ✓ o tubo adotado já é o menor possível":"   ← reduzindo para este tubo a corrente cai para Ø "+menorTubo.d+" mm")):
+            "nenhum tubo da tabela atende — rever vazão, taxa de preenchimento ou dimensional da peça"},
         {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
       ];
       OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
