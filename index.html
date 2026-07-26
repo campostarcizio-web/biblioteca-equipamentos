@@ -208,6 +208,38 @@ const SEW_R=[
  {s:"R17",t:130},{s:"R27",t:200},{s:"R37",t:300},{s:"R47",t:450},{s:"R57",t:600},
  {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
  {s:"R137",t:8000},{s:"R147",t:13000},{s:"R167",t:18000}];
+/* ---------- Perfis estruturais para pré-seleção (enrijecedores, cintas e montantes) ----------
+   Perfis U laminados (padrão americano / Gerdau) — A (cm²) e Wx (cm³) de catálogo.
+   Tubos quadrados e barras chatas têm as propriedades calculadas pela geometria. */
+const PERFIS_U=[
+ {n:'U 3" (76 x 6,1)',A:7.78,W:18.2},{n:'U 4" (102 x 8,0)',A:10.1,W:33.4},
+ {n:'U 5" (127 x 10,4)',A:13.3,W:54.1},{n:'U 6" (152 x 12,2)',A:15.5,W:76.9},
+ {n:'U 7" (178 x 14,6)',A:18.6,W:106},{n:'U 8" (203 x 17,1)',A:21.8,W:139},
+ {n:'U 9" (229 x 19,9)',A:25.3,W:178},{n:'U 10" (254 x 22,7)',A:28.9,W:228},
+ {n:'U 12" (305 x 30,8)',A:39.1,W:347},{n:'U 15" (381 x 50,4)',A:64.2,W:610}];
+const TUBOS_Q=[[100,6.4],[120,6.4],[150,6.4],[150,9.5],[200,8.0],[200,12.5],
+ [250,9.5],[250,12.5],[300,12.5],[300,16.0],[350,16.0],[400,16.0],[400,19.0],[500,19.0]];
+function propTubo(d,t){                       // d, t em mm — retorna A (cm²), I (cm⁴), i (cm)
+  var di=d-2*t, A=(d*d-di*di)/100, I=(Math.pow(d,4)-Math.pow(di,4))/12/1e4;
+  return {d:d,t:t,A:A,I:I,i:Math.sqrt(I/A),n:"Tubo □ "+d+"x"+d+"x"+String(t).replace(".",",")};
+}
+function selPerfilW(Wreq){                    // menor perfil U que atende ao módulo requerido
+  for(var i=0;i<PERFIS_U.length;i++){ if(PERFIS_U[i].W>=Wreq) return PERFIS_U[i]; }
+  var n=Math.ceil(Wreq/PERFIS_U[PERFIS_U.length-1].W);
+  return {n:n+" x "+PERFIS_U[PERFIS_U.length-1].n+" (associados)",A:n*PERFIS_U[PERFIS_U.length-1].A,W:n*PERFIS_U[PERFIS_U.length-1].W};
+}
+function selBarraChata(Wreq){                 // barra chata soldada (esp. 3/8" a 1")
+  var esp=[9.5,12.7,19.0,25.4];
+  for(var e=0;e<esp.length;e++){ for(var h=50;h<=400;h+=25){
+    var W=esp[e]*h*h/6/1000;                  // cm³
+    if(W>=Wreq) return {n:"Barra chata "+h+" x "+String(esp[e]).replace(".",",")+" mm",W:W,A:esp[e]*h/100};
+  }}
+  return null;
+}
+function selTuboCol(Areq,ireq){               // menor tubo quadrado que atende área e raio de giração
+  for(var i=0;i<TUBOS_Q.length;i++){ var p=propTubo(TUBOS_Q[i][0],TUBOS_Q[i][1]); if(p.A>=Areq&&p.i>=ireq) return p; }
+  return propTubo(TUBOS_Q[TUBOS_Q.length-1][0],TUBOS_Q[TUBOS_Q.length-1][1]);
+}
 const N_MOTOR=1750, FB=1.4;
 /* Redutores industriais SEW (acima da série R) — dados de catálogo SEW-EURODRIVE
    MC..  : MC.P (paralelo) / MC.R (cônico-helicoidal), 2-3 estágios, i 7,1–112, MN2 6–65 kN·m
@@ -848,6 +880,8 @@ const CALCS={
       {id:"rHop",label:"Tipo de tremonha / boca de descarga",tipo:"select",valor:"pir",opcoes:[
         {v:"pir",t:"Piramidal — boca quadrada (fluxo cônico)"},
         {v:"cunha",t:"Em cunha — boca em fenda/slot (fluxo plano)"}]},
+      {id:"rBw",label:"Boca da tremonha — largura (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"50"},
+      {id:"rBl",label:"Boca da tremonha — comprimento (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"50"},
       {tipo:"head",label:"Etapa 9 — Material estrutural e enrijecedores"},
       {id:"siFy",label:"Aço — tensão de escoamento  fy",tipo:"select",valor:"345",opcoes:[
         {v:"250",t:"ASTM A36 (fy 250 MPa)"},
@@ -929,7 +963,14 @@ const CALCS={
       var hasH1=(!isNaN(H1in)&&H1in>0), hasH2=(!isNaN(H2in)&&H2in>0);
       /* Boca: piramidal → quadrada (Brec × Brec); cunha → fenda (largura Brec × comprimento = lado maior)
          Na cunha a tremonha converge só na direção do menor lado (fluxo plano) */
-      var Bw=Brec, Bl=cunha?Lmax:Brec;        // largura e comprimento da boca
+      var BwIn=num("rBw"), BlIn=num("rBl");
+      var hasBw=(!isNaN(BwIn)&&BwIn>0), hasBl=(!isNaN(BlIn)&&BlIn>0);
+      var Bw=hasBw?(BwIn/1000):Brec;
+      var Bl=hasBl?(BlIn/1000):(cunha?Lmax:Bw);
+      if(Bw>Lmin*0.95)Bw=Lmin*0.95; if(Bl>Lmax*0.99)Bl=Lmax*0.99;
+      var bocaUser=(hasBw||hasBl);
+      var bocaCurta=(Bw<Brec-0.001);          // menor que o mínimo exigido (arco)
+      var bocaNota=bocaCurta?("  ⚠ abaixo do mínimo exigido ("+Math.round(Brec*1000)+" mm) — risco de arco/entupimento"):"";
       /* Altura da tremonha: na piramidal é dimensionada pelo VALE (é ele que governa o fluxo)
          — a projeção horizontal do vale é a diagonal √(ta²+tb²), logo hc = √(ta²+tb²)·tg(α_exigido).
          Na cunha há só uma direção convergente. */
@@ -1106,7 +1147,8 @@ const CALCS={
         {k:"Meia-abertura da vertical  θ · fator H(θ)",v:thetaDes.toFixed(0)+"° · "+Hf.toFixed(2).replace(".",",")},
         {k:"Descarga mín. anti-arco (Jenike) B = H·σc/γ",v:(Barco>0?(Math.round(Barco*1000)+" mm"):"≈ 0 (sem coesão relevante)")},
         {k:"Descarga mín. por granulometria  ≈ 8·d50",v:Math.round(Bmec*1000)+" mm"},
-        {k:cunha?"Boca de descarga (fenda: largura × comprimento)":"Lado da boca de descarga recomendado",v:cunha?(fmt(Math.round(Bw*1000))+" × "+fmt(Math.round(Bl*1000))+" mm"):(fmt(Math.round(Bw*1000))+" mm  (mín. prático 600–1200 mm)"),hi:true},
+        {k:"Boca de descarga — largura × comprimento",v:fmt(Math.round(Bw*1000))+" × "+fmt(Math.round(Bl*1000))+" mm"+(bocaUser?"  (informada)":"  (calculada)")+bocaNota,hi:true},
+        {k:"Área da boca de descarga",v:(Bw*Bl).toFixed(2).replace(".",",")+" m²"},
         {sec:"Etapa 3 — Geometria preliminar (prisma + "+(cunha?"tremonha em cunha":"tremonha piramidal")+")"},
         {k:"Seção do corpo  a × b",v:a.toFixed(2).replace(".",",")+" × "+b.toFixed(2).replace(".",",")+" m"},
         {k:(hasH2?"Altura 2 — tremonha  hc (informada)":"Altura 2 — tremonha  hc"),v:hc.toFixed(2).replace(".",",")+" m",hi:true},
@@ -1168,7 +1210,10 @@ const CALCS={
         {k:"Esbeltez do montante  λ = K·L/i",v:CC.lam.toFixed(0)+"  (χ = "+CC.chi.toFixed(2).replace(".",",")+")"+(CC.lam>lamMax?"  ⚠ acima de λ=120 — aumentar a seção":"")},
         {k:"Vão da cinta entre montantes  (perímetro/N)",v:CC.vao.toFixed(2).replace(".",",")+" m"},
         {k:"Alternativas de montante (coluna + cintas + bases)",v:colVar.map(function(c){return c.n+" un: A "+c.A.toFixed(0)+" cm² · col "+Math.round(c.mCol)+" + cintas "+Math.round(c.mCinta)+" + bases "+(150*c.n)+" = "+Math.round(c.custo)+" kg"+(c.n===Ncol?"  ✓":"");}).join("   ·   ")},
-        {k:"Recomendação",v:"Cinta: perfil (U/I/tubular) com W ≥ "+Math.round(Wreq)+" cm³ e I ≥ "+Ireq_cm4.toFixed(0)+" cm⁴. Montante: perfil tubular ou I com A ≥ "+Areq.toFixed(0)+" cm² e i ≥ "+imin.toFixed(1).replace(".",",")+" cm; verificar flambagem, vento e sismo (NBR 8800)."},
+        {k:"PERFIL DA CINTA (W ≥ "+Math.round(Wreq)+" cm³)",v:(function(){var u=selPerfilW(Wreq);return u.n+"   (W "+u.W.toFixed(0)+" cm³ · A "+u.A.toFixed(1).replace(".",",")+" cm²)";})(),hi:true},
+        {k:"PERFIL DO ENRIJECEDOR VERTICAL (W ≥ "+Math.round(Wreq*0.35)+" cm³)",v:(function(){var b=selBarraChata(Wreq*0.35),u=selPerfilW(Wreq*0.35);return (b?b.n+"  ou  ":"")+u.n;})(),hi:true},
+        {k:"PERFIL DO MONTANTE (A ≥ "+Areq.toFixed(0)+" cm² · i ≥ "+imin.toFixed(1).replace(".",",")+" cm)",v:(function(){var p=selTuboCol(Areq,imin);return p.n+" mm   (A "+p.A.toFixed(0)+" cm² · i "+p.i.toFixed(1).replace(".",",")+" cm)";})(),hi:true},
+        {k:"Observação dos perfis",v:"Pré-seleção pelos critérios de módulo de resistência (cintas/enrijecedores) e de área + raio de giração (montantes). Confirmar na tabela do fabricante, incluindo verificação de flambagem local, ligações, vento e sismo (NBR 8800)."},
         {sec:"Etapa 12 — Dimensionamento da tremonha ("+(cunha?"cunha":"piramidal")+")"},
         {k:"Carga vertical na transição  Fv = pv·A + W_trem",v:fmt(Math.round(Fv))+" kN"},
         {k:"Tração meridional  Tm = Fv/(U·sen α)",v:Tm.toFixed(1).replace(".",",")+" kN/m",hi:true},
@@ -1195,6 +1240,10 @@ const CALCS={
         alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaFlow:alfaFlow,flowShallow:flowShallow,
         tcom:tcom,tA:chapaA.tcom,tB:chapaB.tcom,thopcom:thopcom,fy:fy,Vutil:V,Vgeo:Vgeo,
         sst:sst,otimS:otimS,nCintas:nCintas,Wreq:Wreq,Ireq:Ireq_cm4,Ncol:Ncol,otimN:otimN,
+        Bw:Bw,bocaUser:bocaUser,bocaCurta:bocaCurta,
+        perfilCinta:selPerfilW(Wreq).n,
+        perfilEnr:(function(){var b=selBarraChata(Wreq*0.35);return b?b.n:selPerfilW(Wreq*0.35).n;})(),
+        perfilCol:selTuboCol(Areq,imin).n+" mm",
         Areq:Areq,imin:imin,Hleg:Hleg,qext:qext,pvento:pvento,pvac:pvac,Vk:Vk,phD:phD,Pcol:Pcol};
       return OUT;
     }
@@ -3176,17 +3225,25 @@ function gerarRelatorio(){
       doc.setTextColor(G.flowShallow?200:30,G.flowShallow?60:120,G.flowShallow?60:150);
       doc.text((G.cunha?"aresta ":"VALE ")+san(G.alfaVale.toFixed(0))+"° (exig. "+san(G.alfaFlow.toFixed(0))+"°)",cx-oH-4,botY-3,{align:"right"});
       doc.setTextColor(30,120,150);
-      // marcas das cintas no corpo
-      doc.setDrawColor(120,150,175); doc.setLineWidth(0.4);
+      // CINTAS horizontais (traço cheio, ultrapassando a parede) — a cada s
+      doc.setDrawColor(200,120,40); doc.setLineWidth(0.7);
       var nc=Math.max(1,Math.min(G.nCintas,12)), passo=(transY-topY)/(nc+1);
-      for(var ic=1;ic<=nc;ic++){ var yc=topY+passo*ic; doc.line(cx-wH-2,yc,cx+wH+2,yc); }
-      doc.setFontSize(6.5); doc.setTextColor(110,140,165);
+      for(var ic=1;ic<=nc;ic++){ var yc=topY+passo*ic; doc.line(cx-wH-2.5,yc,cx+wH+2.5,yc); }
+      doc.setFontSize(6.5); doc.setTextColor(190,110,30);
       doc.text(san(String(G.nCintas))+" cintas @ "+san(G.sst.toFixed(2))+" m",cx+wH+4,topY+passo+2);
+      doc.text(san(G.perfilCinta),cx+wH+4,topY+passo+6);
+      // ENRIJECEDORES verticais (tracejado fino entre as cintas)
+      doc.setDrawColor(90,120,150); doc.setLineWidth(0.35);
+      var nv=5;
+      for(var iv=1;iv<=nv;iv++){ var xv=cx-wH+(2*wH)*iv/(nv+1); for(var yy=topY+1;yy<transY-1;yy+=3){ doc.line(xv,yy,xv,Math.min(yy+1.6,transY-1)); } }
+      doc.setFontSize(6.5); doc.setTextColor(80,110,140);
+      doc.text("enrijecedores verticais: "+san(G.perfilEnr),cx-wH-3,transY+4,{align:"right"});
       // montantes
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       doc.line(cx-wH+3,botY,cx-wH+3,botY+G_LEG); doc.line(cx+wH-3,botY,cx+wH-3,botY+G_LEG);
       doc.setFontSize(6.5); doc.setTextColor(110,140,165);
       doc.text(san(String(G.Ncol))+" montantes · L = "+san(G.Hleg.toFixed(1))+" m",cx,botY+G_LEG+4,{align:"center"});
+      doc.text(san(G.perfilCol),cx,botY+G_LEG+8,{align:"center"});
       // espessuras indicadas na parede e na tremonha
       doc.setFontSize(6.5); doc.setTextColor(60,90,120);
       doc.text("chapa "+san(G.tcom.toFixed(1))+" mm",cx-wH-3,(topY+transY)/2,{align:"right",angle:90});
@@ -3212,11 +3269,14 @@ function gerarRelatorio(){
       legBody.push([san("Chapa da tremonha"),san(G.thopcom.toFixed(1))+" mm"]);
       legBody.push([san("Enrijecedores — espaçamento  s"),san(G.sst.toFixed(2))+" m"+(G.otimS?"  (otimizado)":"")]);
       legBody.push([san("Cintas — quantidade / W requerido"),san(String(G.nCintas))+" un / "+san(String(Math.round(G.Wreq)))+" cm³"]);
+      legBody.push([san("PERFIL DA CINTA"),san(G.perfilCinta)]);
+      legBody.push([san("PERFIL DO ENRIJECEDOR VERTICAL"),san(G.perfilEnr)]);
       legBody.push([san("Cinta — inércia p/ pressão externa  I"),san(G.Ireq.toFixed(0))+" cm⁴"]);
       legBody.push([san("Vento (Vk) · sucção · vácuo"),san(G.Vk.toFixed(1))+" m/s · "+san(G.pvento.toFixed(2))+" · "+san(G.pvac.toFixed(1))+" kPa"]);
       legBody.push([san("Pressão externa de projeto  q_ext"),san(G.qext.toFixed(2))+" kPa"]);
       legBody.push([san("Montantes — quantidade"),san(String(G.Ncol))+(G.otimN?"  (otimizado)":"")]);
       legBody.push([san("Montante — carga / área / raio de giração"),san(String(Math.round(G.Pcol)))+" kN / "+san(G.Areq.toFixed(0))+" cm² / "+san(G.imin.toFixed(1))+" cm"]);
+      legBody.push([san("PERFIL DO MONTANTE"),san(G.perfilCol)]);
       legBody.push([san("Altura livre dos montantes  L"),san(G.Hleg.toFixed(1))+" m"]);
       legBody.push([san("Aço estrutural  fy"),G.fy+" MPa"]);
     }else{
