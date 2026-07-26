@@ -1112,6 +1112,14 @@ const CALCS={
       // pressão externa: momento de inércia requerido da cinta (estabilidade sob pressão externa)
       var Eaco=200e6, Rc=Lmax/2;
       var Ireq_cm4=qext*Math.pow(Rc,3)*sst/(3*Eaco)*1e8;
+      var perfCinta=selPerfilW(Wreq), perfEnr=selBarraChata(Wreq*0.35)||selPerfilW(Wreq*0.35);
+      var perfCol=selTuboCol(Areq,imin);
+      // Etapa 12 — tremonha (tração meridional) — cunha converge só em 2 paredes
+      var Atrans=a*b, Utrans=cunha?(2*Lmax):(2*(a+b)), Fv=pv*Atrans+Vpir*gamma;
+      var senA=Math.sin(arad), Tm=(senA>0)?Fv/(Utrans*senA):0;
+      var thop=Tm/sadm, thop_req=Math.max(thop+abr,tmin);
+      var thopcom=COM[COM.length-1]; for(var th=0;th<COM.length;th++){ if(COM[th]>=thop_req){ thopcom=COM[th]; break; } }
+      var pnHop=pv, thopMin=(thop+abr<tmin);
       /* PESO DO SILO — chapa do corpo + chapa da tremonha + cintas + enrijecedores + montantes */
       var Acorpo=perim*Hbody;                                   // m² de parede do corpo
       var apo=(a-Bw)/2, bpo=(b-Bl)/2;                           // projeções horizontais da tremonha
@@ -1119,22 +1127,14 @@ const CALCS={
                      :(a+Bw)*Math.sqrt(hc*hc+bpo*bpo)+(b+Bl)*Math.sqrt(hc*hc+apo*apo); // m² (faces)
       var pChapa=Acorpo*(tcom/1000)*RHOACO;                     // kg
       var pTrem=Atrem*(thopcom/1000)*RHOACO;                    // kg
-      var perfCinta=selPerfilW(Wreq), perfEnr=selBarraChata(Wreq*0.35)||selPerfilW(Wreq*0.35);
       var pCintas=perfCinta.A*1e-4*perim*RHOACO*nCintas;        // kg
       var nEnrV=Math.max(4,Math.round(perim/1.5));              // enrijecedores verticais ~1,5 m
       var pEnr=perfEnr.A*1e-4*Hbody*RHOACO*nEnrV;               // kg
-      var perfCol=selTuboCol(Areq,imin);
       var pMont=perfCol.A*1e-4*Hleg*RHOACO*Ncol;                // kg
       var pAcess=0.12*(pChapa+pTrem+pCintas+pEnr);              // 12% — ligações, plataformas, solda
       var pesoSeco=pChapa+pTrem+pCintas+pEnr+pMont+pAcess;      // kg
       var pesoMat=Vgeo*rho*1000;                                // kg de material com o silo cheio
       var pesoCheio=pesoSeco+pesoMat;
-      // Etapa 12 — tremonha (tração meridional) — cunha converge só em 2 paredes
-      var Atrans=a*b, Utrans=cunha?(2*Lmax):(2*(a+b)), Fv=pv*Atrans+Vpir*gamma;
-      var senA=Math.sin(arad), Tm=(senA>0)?Fv/(Utrans*senA):0;
-      var thop=Tm/sadm, thop_req=Math.max(thop+abr,tmin);
-      var thopcom=COM[COM.length-1]; for(var th=0;th<COM.length;th++){ if(COM[th]>=thop_req){ thopcom=COM[th]; break; } }
-      var pnHop=pv, thopMin=(thop+abr<tmin);
       // Etapa 13 — excentricidade
       var e0=num("siEcc"); if(isNaN(e0)||e0<0)e0=0;
       var ecc=e0/Lmin;
