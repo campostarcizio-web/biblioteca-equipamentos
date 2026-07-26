@@ -1620,7 +1620,16 @@ const CALCS={
       /* ===== ANTI-ARCO E INSTRUMENTAÇÃO ===== */
       var nCanhoes=coeso?Math.max(2,Math.ceil(Atrem/3)):0;
       var volCanhao=coeso?(d50>50?70:35):0;
-      var interfSv=(Aboca>0)?(Fv/Aboca):0;                 // kPa — para a calculadora do alimentador
+      /* ===== INTERFACE COM O ALIMENTADOR =====
+         A tensão vertical NA BOCA não é Fv/Aboca (a carga vertical total é absorvida
+         pelas paredes convergentes da tremonha). No campo de tensões radiais de Jenike,
+         em regime de fluxo:  σv,boca = γ·B / (2·(1+m)·tg β)   com m = 1 (cônico) e 0 (plano).
+         Na PARTIDA (silo cheio, antes de o fluxo se estabelecer) a carga é ~3× maior
+         (comutação de tensões) — é essa que dimensiona o acionamento do alimentador. */
+      var mJen=cunha?0:1, tgB=Math.tan(Math.max(betaHop,3)*Math.PI/180);
+      var interfSv=gamma*Bw/(2*(1+mJen)*tgB);              // kPa — regime de fluxo
+      var interfSvI=3*interfSv;                             // kPa — enchimento inicial
+      var interfFv=interfSv*Aboca, interfFvI=interfSvI*Aboca;   // kN
       var OUT=[
         {sec:"Etapa 0 — Classificação normativa"},
         {k:"Classe de avaliação de ações (EN 1991-4)",v:"Classe "+AAC+((AAC==="1")?" — regras simplificadas, sem carga localizada":(AAC==="3")?" — exige análise refinada e carga localizada majorada":" — padrão industrial"),hi:true},
@@ -1783,7 +1792,8 @@ const CALCS={
         {k:"Verificação de ressonância",v:"Manter f afastada das frequências de excitação (alimentadores vibratórios ~10-25 Hz; folga ≥ ±20%)."},
         {sec:"Fluxo — dispositivos e interfaces"},
         {k:"Dispositivos anti-arco",v:coeso?(nCanhoes+" canhões de ar de "+volCanhao+" L a 6–8 bar, distribuídos na tremonha (≈ 1 a cada 3 m² de parede), disparo sequencial na descarga"):"não requeridos — material de bom escoamento (ffc ≥ 4)",hi:coeso},
-        {k:"INTERFACE COM O ALIMENTADOR  —  σv na boca",v:interfSv.toFixed(1).replace(".",",")+" kPa   ·   Fv = "+Fv.toFixed(0)+" kN   (usar na calculadora do Alimentador de Correia)",hi:true},
+        {k:"INTERFACE COM O ALIMENTADOR  —  σv na boca (regime de fluxo)",v:interfSv.toFixed(1).replace(".",",")+" kPa   ·   Fv = "+interfFv.toFixed(1).replace(".",",")+" kN   (campo radial de Jenike: σv = γ·B/(2·(1+m)·tg β))",hi:true},
+        {k:"INTERFACE COM O ALIMENTADOR  —  σv na boca (enchimento inicial)",v:interfSvI.toFixed(1).replace(".",",")+" kPa   ·   Fv = "+interfFvI.toFixed(1).replace(".",",")+" kN   →  usar este valor na calculadora do Alimentador de Correia (dimensiona a partida)",hi:true},
         {k:"Instrumentação recomendada",v:"Sensores de nível (alto/baixo), célula de carga ou strain gauges nos montantes para pesagem, indicador de entupimento na boca e monitoramento de espessura da chapa da tremonha (pontos de desgaste)."},
         {k:"Acessos e manutenção",v:"Plataforma no topo com guarda-corpo, escada tipo marinheiro com guarda-costas, escotilha de inspeção na transição, pontos de içamento dimensionados para o peso seco ("+(pesoSeco/1000).toFixed(1).replace(".",",")+" t) e acesso à boca para troca do revestimento."},
         {k:"Tolerâncias de fabricação e montagem",v:"Planeza da chapa e prumo conforme NBR 8800 / AISC 303; desalinhamento máximo da boca ±10 mm; soldas conforme AWS D1.1 com END nas soldas da transição e da tremonha."},
@@ -1823,7 +1833,7 @@ const CALCS={
         ladoBP:ladoBP,tBP:tBPcom,nCh:nCh,diaCh:diaCh,Lanc:LancCh,Ntrac:Ntrac,
         Rv_perm:Rv_perm,Rv_tot:Rv_tot,Rv_ELU:Rv_ELU,Rh_col:Rh_col,Kbuc:Kbuc,lam:CC.lam,chi:CC.chi,
         dSig:dSig,dSigAdm:dSigAdm,fadOK:fadOK,Ntot:Ntot,fn:fn,Fimp:Fimp,
-        coeso:coeso,nCanhoes:nCanhoes,volCanhao:volCanhao,interfSv:interfSv,Fv:Fv,
+        coeso:coeso,nCanhoes:nCanhoes,volCanhao:volCanhao,interfSv:interfSv,interfSvI:interfSvI,interfFv:interfFv,interfFvI:interfFvI,Fv:Fv,
         hCone:hCone,Vcone:Vcone,rep:rep,ffc:ffc,classe:classe,sc:sc,perim:perim,Aparede:Acorpo,Atrem:Atrem};
       return OUT;
     }
@@ -4438,7 +4448,7 @@ function gerarRelatorio(){
         [san("Frequência natural da estrutura"),san(G.fn.toFixed(2))+" Hz"],
         [san("Força de impacto no enchimento"),san(G.Fimp.toFixed(1))+" kN"],
         [san("Dispositivos anti-arco"),G.coeso?(san(String(G.nCanhoes))+" canhões de "+san(String(G.volCanhao))+" L"):san("não requeridos")],
-        [san("INTERFACE COM O ALIMENTADOR — σv / Fv na boca"),san(G.interfSv.toFixed(1))+" kPa / "+san(G.Fv.toFixed(0))+" kN"]
+        [san("INTERFACE ALIMENTADOR — σv boca (fluxo / partida)"),san(G.interfSv.toFixed(1))+" / "+san(G.interfSvI.toFixed(1))+" kPa"],[san("INTERFACE ALIMENTADOR — Fv boca (fluxo / partida)"),san(G.interfFv.toFixed(1))+" / "+san(G.interfFvI.toFixed(1))+" kN"]
       ],y5+5);
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui e tabelas de pré-dimensionamento executivo — Jenike (fluxo), EN 1991-4/NBR 11700 (ações), NBR 6123 (vento), NBR 15421 (sismo) e NBR 8800 (estrutura)."),14,y6+6);
