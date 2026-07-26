@@ -208,38 +208,204 @@ const SEW_R=[
  {s:"R17",t:130},{s:"R27",t:200},{s:"R37",t:300},{s:"R47",t:450},{s:"R57",t:600},
  {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
  {s:"R137",t:8000},{s:"R147",t:13000},{s:"R167",t:18000}];
-/* ---------- Perfis estruturais para pré-seleção (enrijecedores, cintas e montantes) ----------
-   Perfis U laminados (padrão americano / Gerdau) — A (cm²) e Wx (cm³) de catálogo.
-   Tubos quadrados e barras chatas têm as propriedades calculadas pela geometria. */
-const PERFIS_U=[
- {n:'U 3" (76 x 6,1)',A:7.78,W:18.2},{n:'U 4" (102 x 8,0)',A:10.1,W:33.4},
- {n:'U 5" (127 x 10,4)',A:13.3,W:54.1},{n:'U 6" (152 x 12,2)',A:15.5,W:76.9},
- {n:'U 7" (178 x 14,6)',A:18.6,W:106},{n:'U 8" (203 x 17,1)',A:21.8,W:139},
- {n:'U 9" (229 x 19,9)',A:25.3,W:178},{n:'U 10" (254 x 22,7)',A:28.9,W:228},
- {n:'U 12" (305 x 30,8)',A:39.1,W:347},{n:'U 15" (381 x 50,4)',A:64.2,W:610}];
-const TUBOS_Q=[[100,6.4],[120,6.4],[150,6.4],[150,9.5],[200,8.0],[200,12.5],
- [250,9.5],[250,12.5],[300,12.5],[300,16.0],[350,16.0],[400,16.0],[400,19.0],[500,19.0]];
-function propTubo(d,t){                       // d, t em mm — retorna A (cm²), I (cm⁴), i (cm)
-  var di=d-2*t, A=(d*d-di*di)/100, I=(Math.pow(d,4)-Math.pow(di,4))/12/1e4;
-  return {d:d,t:t,A:A,I:I,i:Math.sqrt(I/A),n:"Tubo □ "+d+"x"+d+"x"+String(t).replace(".",",")};
+/* ================= CATÁLOGO DE PERFIS ESTRUTURAIS COMERCIAIS =================
+   Usado na pré-seleção de cintas (anéis), enrijecedores verticais e montantes.
+   Famílias disponíveis:
+     U   — perfis U laminados padrão americano (Gerdau) — A, Ix, Wx, i_min de catálogo.
+     W   — perfis I / H laminados (Gerdau · ArcelorMittal) — propriedades calculadas
+           pela geometria nominal (d, bf, tw, tf); ~1 a 3% conservadoras vs. catálogo.
+     LI  — cantoneiras de ABAS IGUAIS (ABNT NBR 6109 / ASTM A36).
+     LD  — cantoneiras de ABAS DESIGUAIS.
+           Nas cantoneiras as propriedades (inclusive os eixos principais e o raio de
+           giração mínimo i_z, que governa a flambagem) são calculadas pela geometria
+           nominal, desprezando os raios de concordância — resultado conservador.
+     TQ  — tubos estruturais quadrados;  TR — tubos estruturais retangulares.
+     BC  — barras chatas soldadas (chapa).
+   Todas as propriedades: A em cm², Ix/Iy em cm⁴, W em cm³, i em cm, massa em kg/m. */
+function _massa(A){ return A*0.785; }                 // kg/m a partir de A (cm²)
+
+/* ---- U laminado padrão americano (valores de catálogo) ---- */
+const CAT_U=[
+ {n:'U 3" (76 x 6,1)',   A:7.81, Ix:69,    W:18.0, imin:1.01},
+ {n:'U 4" (102 x 8,0)',  A:10.2, Ix:159,   W:31.5, imin:1.13},
+ {n:'U 5" (127 x 10,4)', A:12.7, Ix:311,   W:49.2, imin:1.23},
+ {n:'U 6" (152 x 12,2)', A:15.4, Ix:545,   W:71.3, imin:1.36},
+ {n:'U 7" (178 x 14,6)', A:18.5, Ix:882,   W:99.5, imin:1.47},
+ {n:'U 8" (203 x 17,1)', A:21.7, Ix:1353,  W:133,  imin:1.58},
+ {n:'U 9" (229 x 19,9)', A:25.4, Ix:1990,  W:174,  imin:1.69},
+ {n:'U 10" (254 x 22,7)',A:28.9, Ix:2801,  W:221,  imin:1.81},
+ {n:'U 12" (305 x 30,7)',A:39.2, Ix:5370,  W:352,  imin:2.02},
+ {n:'U 15" (381 x 50,4)',A:64.5, Ix:13112, W:688,  imin:2.29}];
+
+/* ---- W / HP laminado — d, bf, tw, tf (mm) ---- */
+const DIM_W=[
+ ["W 150 x 13,0",148,100,4.3,4.9],  ["W 150 x 18,0",153,102,5.8,7.1],
+ ["W 150 x 24,0",160,102,6.6,10.3], ["W 150 x 29,8",157,153,6.6,9.3],
+ ["W 150 x 37,1",162,154,8.1,11.6],
+ ["W 200 x 15,0",200,100,4.3,5.2],  ["W 200 x 19,3",203,102,5.8,6.5],
+ ["W 200 x 22,5",206,102,6.2,8.0],  ["W 200 x 26,6",207,133,5.8,8.4],
+ ["W 200 x 31,3",210,134,6.4,10.2], ["W 200 x 35,9",201,165,6.2,10.2],
+ ["W 200 x 46,1",203,203,7.2,11.0], ["W 200 x 52,0",206,204,7.9,12.6],
+ ["W 200 x 59,0",210,205,9.1,14.2], ["W 200 x 71,0",216,206,10.2,17.4],
+ ["W 200 x 86,0",222,209,13.0,20.6],
+ ["W 250 x 17,9",251,101,4.8,5.3],  ["W 250 x 22,3",254,102,5.8,6.9],
+ ["W 250 x 25,3",257,102,6.1,8.4],  ["W 250 x 28,4",260,102,6.4,10.0],
+ ["W 250 x 32,7",258,146,6.1,9.1],  ["W 250 x 38,5",262,147,6.6,11.2],
+ ["W 250 x 44,8",266,148,7.6,13.0], ["W 250 x 73,0",253,254,8.6,14.2],
+ ["W 250 x 80,0",256,255,9.4,15.6], ["W 250 x 101",264,257,11.9,19.6],
+ ["W 310 x 21,0",303,101,5.1,5.7],  ["W 310 x 23,8",305,101,5.6,6.7],
+ ["W 310 x 28,3",309,102,6.0,8.9],  ["W 310 x 32,7",313,102,6.6,10.8],
+ ["W 310 x 38,7",310,165,5.8,9.7],  ["W 310 x 44,5",313,166,6.6,11.2],
+ ["W 310 x 52,0",317,167,7.6,13.2], ["W 310 x 79,0",306,254,8.8,14.6],
+ ["W 310 x 97,0",308,305,9.9,15.4], ["W 310 x 117",314,307,11.9,18.7],
+ ["W 360 x 32,9",349,127,5.8,8.5],  ["W 360 x 39,0",353,128,6.5,10.7],
+ ["W 360 x 44,0",352,171,6.9,9.8],  ["W 360 x 51,0",355,171,7.2,11.6],
+ ["W 360 x 57,8",358,172,7.9,13.1], ["W 360 x 64,0",347,203,7.7,13.5],
+ ["W 360 x 72,0",350,204,8.6,15.1], ["W 360 x 91,0",353,254,9.5,16.4],
+ ["W 360 x 110",360,256,11.4,19.9],
+ ["W 410 x 38,8",399,140,6.4,8.8],  ["W 410 x 46,1",403,140,7.0,11.2],
+ ["W 410 x 53,0",403,177,7.5,10.9], ["W 410 x 60,0",407,178,7.7,12.8],
+ ["W 410 x 67,0",410,179,8.8,14.4], ["W 410 x 75,0",413,180,9.7,16.0],
+ ["W 410 x 85,0",417,181,10.9,18.2],
+ ["W 460 x 52,0",450,152,7.6,10.8], ["W 460 x 60,0",455,153,8.0,13.3],
+ ["W 460 x 68,0",459,154,9.1,15.4], ["W 460 x 74,0",457,190,9.0,14.5],
+ ["W 460 x 82,0",460,191,9.9,16.0], ["W 460 x 89,0",463,192,10.5,17.7],
+ ["W 460 x 97,0",466,193,11.4,19.0],
+ ["W 530 x 66,0",525,165,8.9,11.4], ["W 530 x 74,0",529,166,9.7,13.6],
+ ["W 530 x 82,0",528,209,9.5,13.3], ["W 530 x 85,0",535,166,10.3,16.5],
+ ["W 530 x 92,0",533,209,10.2,15.6],["W 530 x 101",537,210,10.9,17.4],
+ ["W 610 x 101",603,228,10.5,14.9], ["W 610 x 113",608,228,11.2,17.3],
+ ["W 610 x 125",612,229,11.9,19.6], ["W 610 x 140",617,230,13.1,22.2],
+ ["W 610 x 155",611,324,12.7,19.0]];
+
+/* ---- Cantoneiras de abas IGUAIS: [aba (mm), espessura (mm), designação] ---- */
+const DIM_LI=[
+ [38.1,4.8,'L 1 1/2" x 3/16"'],[38.1,6.4,'L 1 1/2" x 1/4"'],
+ [50.8,4.8,'L 2" x 3/16"'],[50.8,6.4,'L 2" x 1/4"'],[50.8,7.9,'L 2" x 5/16"'],
+ [63.5,6.4,'L 2 1/2" x 1/4"'],[63.5,7.9,'L 2 1/2" x 5/16"'],[63.5,9.5,'L 2 1/2" x 3/8"'],
+ [76.2,6.4,'L 3" x 1/4"'],[76.2,7.9,'L 3" x 5/16"'],[76.2,9.5,'L 3" x 3/8"'],[76.2,12.7,'L 3" x 1/2"'],
+ [88.9,6.4,'L 3 1/2" x 1/4"'],[88.9,9.5,'L 3 1/2" x 3/8"'],[88.9,12.7,'L 3 1/2" x 1/2"'],
+ [101.6,6.4,'L 4" x 1/4"'],[101.6,7.9,'L 4" x 5/16"'],[101.6,9.5,'L 4" x 3/8"'],
+ [101.6,12.7,'L 4" x 1/2"'],[101.6,15.9,'L 4" x 5/8"'],[101.6,19.0,'L 4" x 3/4"'],
+ [127.0,9.5,'L 5" x 3/8"'],[127.0,12.7,'L 5" x 1/2"'],[127.0,15.9,'L 5" x 5/8"'],[127.0,19.0,'L 5" x 3/4"'],
+ [152.4,9.5,'L 6" x 3/8"'],[152.4,12.7,'L 6" x 1/2"'],[152.4,15.9,'L 6" x 5/8"'],
+ [152.4,19.0,'L 6" x 3/4"'],[152.4,25.4,'L 6" x 1"'],
+ [203.2,12.7,'L 8" x 1/2"'],[203.2,15.9,'L 8" x 5/8"'],[203.2,19.0,'L 8" x 3/4"'],[203.2,25.4,'L 8" x 1"']];
+
+/* ---- Cantoneiras de abas DESIGUAIS: [aba maior, aba menor, esp., designação] ---- */
+const DIM_LD=[
+ [76.2,50.8,6.4,'L 3" x 2" x 1/4"'],[76.2,50.8,9.5,'L 3" x 2" x 3/8"'],
+ [88.9,63.5,7.9,'L 3 1/2" x 2 1/2" x 5/16"'],[88.9,63.5,9.5,'L 3 1/2" x 2 1/2" x 3/8"'],
+ [101.6,76.2,6.4,'L 4" x 3" x 1/4"'],[101.6,76.2,9.5,'L 4" x 3" x 3/8"'],[101.6,76.2,12.7,'L 4" x 3" x 1/2"'],
+ [127.0,76.2,9.5,'L 5" x 3" x 3/8"'],[127.0,76.2,12.7,'L 5" x 3" x 1/2"'],
+ [127.0,88.9,9.5,'L 5" x 3 1/2" x 3/8"'],[127.0,88.9,12.7,'L 5" x 3 1/2" x 1/2"'],
+ [152.4,101.6,9.5,'L 6" x 4" x 3/8"'],[152.4,101.6,12.7,'L 6" x 4" x 1/2"'],
+ [152.4,101.6,15.9,'L 6" x 4" x 5/8"'],[152.4,101.6,19.0,'L 6" x 4" x 3/4"'],
+ [177.8,101.6,12.7,'L 7" x 4" x 1/2"'],[177.8,101.6,19.0,'L 7" x 4" x 3/4"'],
+ [203.2,152.4,12.7,'L 8" x 6" x 1/2"'],[203.2,152.4,19.0,'L 8" x 6" x 3/4"'],
+ [203.2,152.4,25.4,'L 8" x 6" x 1"'],[228.6,101.6,12.7,'L 9" x 4" x 1/2"']];
+
+/* ---- Tubos estruturais: [h, b, t] em mm (h = altura, b = largura) ---- */
+const DIM_TUB=[
+ [60,60,3.2],[80,80,4.0],[100,100,4.8],[100,100,6.4],[120,120,6.4],[120,120,8.0],
+ [150,150,6.4],[150,150,9.5],[150,150,12.5],[200,200,8.0],[200,200,12.5],[200,200,16.0],
+ [250,250,9.5],[250,250,12.5],[250,250,16.0],[300,300,12.5],[300,300,16.0],[300,300,19.0],
+ [350,350,16.0],[400,400,16.0],[400,400,19.0],[500,500,19.0],[500,500,25.0],
+ [100,50,4.8],[120,60,6.4],[150,100,6.4],[200,100,8.0],[200,120,8.0],[250,150,9.5],
+ [300,150,12.5],[300,200,12.5],[400,200,16.0],[400,300,16.0],[500,300,19.0]];
+
+/* ---- Cálculo de propriedades ---- */
+function _pI(n,d,bf,tw,tf){                   // seção I / H
+  var hw=d-2*tf, A=(2*bf*tf+hw*tw)/100;
+  var Ix=(bf*Math.pow(d,3)-(bf-tw)*Math.pow(hw,3))/12/1e4;
+  var Iy=(2*tf*Math.pow(bf,3)+hw*Math.pow(tw,3))/12/1e4;
+  return {fam:"W",n:n,A:A,Ix:Ix,W:Ix/(d/20),imin:Math.sqrt(Iy/A),kg:_massa(A)};
 }
-function selPerfilW(Wreq){                    // menor perfil U que atende ao módulo requerido
-  for(var i=0;i<PERFIS_U.length;i++){ if(PERFIS_U[i].W>=Wreq) return PERFIS_U[i]; }
-  var n=Math.ceil(Wreq/PERFIS_U[PERFIS_U.length-1].W);
-  return {n:n+" x "+PERFIS_U[PERFIS_U.length-1].n+" (associados)",A:n*PERFIS_U[PERFIS_U.length-1].A,W:n*PERFIS_U[PERFIS_U.length-1].W};
+function _pL(a,b,t,n,fam){                    // cantoneira (a = aba maior, b = menor)
+  var A1=a*t, A2=(b-t)*t, At=A1+A2, A=At/100;
+  var y1=a/2, y2=t/2, x1=t/2, x2=(b+t)/2;
+  var yg=(A1*y1+A2*y2)/At, xg=(A1*x1+A2*x2)/At;
+  var Ix=(t*Math.pow(a,3)/12+A1*Math.pow(y1-yg,2)+(b-t)*Math.pow(t,3)/12+A2*Math.pow(y2-yg,2))/1e4;
+  var Iy=(a*Math.pow(t,3)/12+A1*Math.pow(x1-xg,2)+t*Math.pow(b-t,3)/12+A2*Math.pow(x2-xg,2))/1e4;
+  var Ixy=(A1*(x1-xg)*(y1-yg)+A2*(x2-xg)*(y2-yg))/1e4;
+  var md=(Ix+Iy)/2, rd=Math.sqrt(Math.pow((Ix-Iy)/2,2)+Ixy*Ixy);
+  return {fam:fam,n:n,A:A,Ix:Ix,W:Ix/((a-yg)/10),imin:Math.sqrt(Math.max(md-rd,1e-6)/A),kg:_massa(A)};
 }
-function selBarraChata(Wreq){                 // barra chata soldada (esp. 3/8" a 1")
-  var esp=[9.5,12.7,19.0,25.4];
-  for(var e=0;e<esp.length;e++){ for(var h=50;h<=400;h+=25){
-    var W=esp[e]*h*h/6/1000;                  // cm³
-    if(W>=Wreq) return {n:"Barra chata "+h+" x "+String(esp[e]).replace(".",",")+" mm",W:W,A:esp[e]*h/100};
-  }}
-  return null;
+function _pT(h,b,t){                          // tubo estrutural retangular / quadrado
+  var hi=h-2*t, bi=b-2*t, A=(h*b-hi*bi)/100;
+  var Ix=(b*Math.pow(h,3)-bi*Math.pow(hi,3))/12/1e4;
+  var Iy=(h*Math.pow(b,3)-hi*Math.pow(bi,3))/12/1e4;
+  var q=(h===b)?"□":"▭";
+  return {fam:(h===b)?"TQ":"TR",n:"Tubo "+q+" "+h+" x "+b+" x "+String(t).replace(".",",")+" mm",
+          A:A,Ix:Ix,W:Ix/(h/20),imin:Math.sqrt(Math.min(Ix,Iy)/A),kg:_massa(A)};
 }
-function selTuboCol(Areq,ireq){               // menor tubo quadrado que atende área e raio de giração
-  for(var i=0;i<TUBOS_Q.length;i++){ var p=propTubo(TUBOS_Q[i][0],TUBOS_Q[i][1]); if(p.A>=Areq&&p.i>=ireq) return p; }
-  return propTubo(TUBOS_Q[TUBOS_Q.length-1][0],TUBOS_Q[TUBOS_Q.length-1][1]);
+function _pBC(h,t){                           // barra chata / chapa soldada
+  var A=h*t/100, Ix=t*Math.pow(h,3)/12/1e4, Iy=h*Math.pow(t,3)/12/1e4;
+  return {fam:"BC",n:"Barra chata "+h+" x "+String(t).replace(".",",")+" mm",
+          A:A,Ix:Ix,W:Ix/(h/20),imin:Math.sqrt(Iy/A),kg:_massa(A)};
 }
+const CAT_PERFIS=(function(){
+  var L=[],i;
+  for(i=0;i<CAT_U.length;i++){ var u=CAT_U[i];
+    L.push({fam:"U",n:u.n,A:u.A,Ix:u.Ix,W:u.W,imin:u.imin,kg:_massa(u.A)}); }
+  for(i=0;i<DIM_W.length;i++){ var w=DIM_W[i]; L.push(_pI(w[0],w[1],w[2],w[3],w[4])); }
+  for(i=0;i<DIM_LI.length;i++){ var li=DIM_LI[i]; L.push(_pL(li[0],li[0],li[1],li[2],"LI")); }
+  for(i=0;i<DIM_LD.length;i++){ var ld=DIM_LD[i]; L.push(_pL(ld[0],ld[1],ld[2],ld[3],"LD")); }
+  for(i=0;i<DIM_TUB.length;i++){ var tb=DIM_TUB[i]; L.push(_pT(tb[0],tb[1],tb[2])); }
+  /* Barras chatas: elemento em balanço (soldado pela borda) — limite de flambagem
+     local NBR 8800 para elemento AL: h/t ≤ 0,56·√(E/fy) ≈ 15 (aço A36/ASTM 250 MPa). */
+  var esp=[6.3,8.0,9.5,12.7,16.0,19.0,25.4,31.5];
+  for(var e=0;e<esp.length;e++){ for(var h=75;h<=600;h+=25){
+    if(h/esp[e]<=15) L.push(_pBC(h,esp[e])); } }
+  return L;
+})();
+const FAM_NOME={U:"Perfil U",W:"Perfil W (I/H)",LI:"Cantoneira abas iguais",
+  LD:"Cantoneira abas desiguais",TQ:"Tubo quadrado",TR:"Tubo retangular",BC:"Barra chata"};
+/* Seleciona o perfil mais leve que atende aos critérios.
+   crit = {W: módulo requerido (cm³)} e/ou {A: área (cm²), i: raio de giração mín. (cm)}
+   fam  = "" (todas as famílias) ou sigla da família imposta pelo usuário
+   Retorna {best:perfil, alts:[um por família], dobro:bool} */
+function selPerfil(crit,fam){
+  function ok(p){
+    if(crit.W&&p.W<crit.W) return false;
+    if(crit.A&&p.A<crit.A) return false;
+    if(crit.i&&p.imin<crit.i) return false;
+    return true;
+  }
+  var pool=CAT_PERFIS.filter(function(p){ return (!fam||p.fam===fam)&&ok(p); });
+  var porFam={};
+  pool.forEach(function(p){ if(!porFam[p.fam]||p.kg<porFam[p.fam].kg) porFam[p.fam]=p; });
+  var alts=Object.keys(porFam).map(function(k){ return porFam[k]; }).sort(function(x,y){ return x.kg-y.kg; });
+  if(alts.length) return {best:alts[0],alts:alts,dobro:false};
+  // Nenhum perfil isolado atende — propor seção composta com o maior perfil da família.
+  var univ=CAT_PERFIS.filter(function(p){ return (!fam||p.fam===fam); });
+  if(crit.i){
+    // Critério de coluna: associar perfis NÃO aumenta i_min se eles forem justapostos;
+    // é preciso afastá-los (seção composta em caixão / treliçada).
+    var bi=univ.slice().sort(function(x,y){ return y.A-x.A; })[0];
+    var nd2=Math.max(2,Math.ceil(crit.A/bi.A));
+    return {best:{fam:bi.fam,n:nd2+" x "+bi.n+"  — SEÇÃO COMPOSTA (perfis afastados; definir o "+
+            "espaçamento para i_min ≥ "+crit.i.toFixed(1).replace(".",",")+" cm, com travejamento)",
+            A:nd2*bi.A,Ix:nd2*bi.Ix,W:nd2*bi.W,imin:crit.i,kg:nd2*bi.kg},alts:[],dobro:true};
+  }
+  var base=univ.slice().sort(function(x,y){ return (y.W||0)-(x.W||0); })[0];
+  var nd=Math.max(2,Math.ceil(crit.W/base.W));
+  var comp={fam:base.fam,n:nd+" x "+base.n+"  (perfis associados)",A:nd*base.A,Ix:nd*base.Ix,
+            W:nd*base.W,imin:base.imin,kg:nd*base.kg};
+  return {best:comp,alts:[comp],dobro:true};
+}
+function txtPerfil(p){
+  return p.n+"   (W "+p.W.toFixed(0)+" cm³ · A "+p.A.toFixed(1).replace(".",",")
+    +" cm² · i_min "+p.imin.toFixed(2).replace(".",",")+" cm · "+p.kg.toFixed(1).replace(".",",")+" kg/m)";
+}
+function txtAlts(sel,nmax){
+  return sel.alts.slice(1,(nmax||3)+1).map(function(p){
+    return FAM_NOME[p.fam]+": "+p.n+" ("+p.kg.toFixed(1).replace(".",",")+" kg/m)"; }).join("   ·   ")||"—";
+}
+/* compatibilidade com o restante do código */
+function selPerfilW(Wreq,fam){ return selPerfil({W:Wreq},fam).best; }
+function selBarraChata(Wreq){ return selPerfil({W:Wreq},"BC").best; }
+function selTuboCol(Areq,ireq,fam){ var p=selPerfil({A:Areq,i:ireq},fam).best; p.i=p.imin; return p; }
 const N_MOTOR=1750, FB=1.4;
 /* Redutores industriais SEW (acima da série R) — dados de catálogo SEW-EURODRIVE
    MC..  : MC.P (paralelo) / MC.R (cônico-helicoidal), 2-3 estágios, i 7,1–112, MN2 6–65 kN·m
@@ -921,6 +1087,17 @@ const CALCS={
       {id:"siNcol",label:"Número de montantes (colunas)",tipo:"select",valor:"auto",opcoes:[
         {v:"auto",t:"Otimizar (menor massa de aço)"},
         {v:"4",t:"4 montantes"},{v:"6",t:"6 montantes"},{v:"8",t:"8 montantes"}]},
+      {id:"siFamC",label:"Família de perfis — cintas e enrijecedores",tipo:"select",valor:"",opcoes:[
+        {v:"",t:"Automático — perfil comercial mais leve"},
+        {v:"U",t:"Perfil U laminado"},{v:"W",t:"Perfil W (I / H) laminado"},
+        {v:"LI",t:"Cantoneira de abas iguais"},{v:"LD",t:"Cantoneira de abas desiguais"},
+        {v:"TQ",t:"Tubo estrutural quadrado"},{v:"TR",t:"Tubo estrutural retangular"},
+        {v:"BC",t:"Barra chata / chapa soldada"}]},
+      {id:"siFamM",label:"Família de perfis — montantes",tipo:"select",valor:"",opcoes:[
+        {v:"",t:"Automático — perfil comercial mais leve"},
+        {v:"TQ",t:"Tubo estrutural quadrado"},{v:"TR",t:"Tubo estrutural retangular"},
+        {v:"W",t:"Perfil W (I / H) laminado"},{v:"U",t:"Perfil U laminado"},
+        {v:"LI",t:"Cantoneira de abas iguais"},{v:"LD",t:"Cantoneira de abas desiguais"}]},
       {id:"siHleg",label:"Altura livre dos montantes  L",unidade:"m",tipo:"number",valor:6,step:"0.5"},
       {id:"siSelf",label:"Fator de peso próprio + sobrecargas",unidade:"-",tipo:"number",valor:1.15,step:"0.05"},
       {tipo:"head",label:"Etapa 13 — Descarga excêntrica"},
@@ -1112,8 +1289,12 @@ const CALCS={
       // pressão externa: momento de inércia requerido da cinta (estabilidade sob pressão externa)
       var Eaco=200e6, Rc=Lmax/2;
       var Ireq_cm4=qext*Math.pow(Rc,3)*sst/(3*Eaco)*1e8;
-      var perfCinta=selPerfilW(Wreq), perfEnr=selBarraChata(Wreq*0.35)||selPerfilW(Wreq*0.35);
-      var perfCol=selTuboCol(Areq,imin);
+      /* Pré-seleção de perfis comerciais (catálogo U / W / cantoneiras / tubos / barra chata) */
+      var famC=($("#siFamC")?$("#siFamC").value:"")||"", famM=($("#siFamM")?$("#siFamM").value:"")||"";
+      var selCinta=selPerfil({W:Wreq},famC);
+      var selEnr=selPerfil({W:Wreq*0.35},famC);
+      var selMont=selPerfil({A:Areq,i:imin},famM);
+      var perfCinta=selCinta.best, perfEnr=selEnr.best, perfCol=selMont.best;
       // Etapa 12 — tremonha (tração meridional) — cunha converge só em 2 paredes
       var Atrans=a*b, Utrans=cunha?(2*Lmax):(2*(a+b)), Fv=pv*Atrans+Vpir*gamma;
       var senA=Math.sin(arad), Tm=(senA>0)?Fv/(Utrans*senA):0;
@@ -1227,10 +1408,15 @@ const CALCS={
         {k:"Esbeltez do montante  λ = K·L/i",v:CC.lam.toFixed(0)+"  (χ = "+CC.chi.toFixed(2).replace(".",",")+")"+(CC.lam>lamMax?"  ⚠ acima de λ=120 — aumentar a seção":"")},
         {k:"Vão da cinta entre montantes  (perímetro/N)",v:CC.vao.toFixed(2).replace(".",",")+" m"},
         {k:"Alternativas de montante (coluna + cintas + bases)",v:colVar.map(function(c){return c.n+" un: A "+c.A.toFixed(0)+" cm² · col "+Math.round(c.mCol)+" + cintas "+Math.round(c.mCinta)+" + bases "+(150*c.n)+" = "+Math.round(c.custo)+" kg"+(c.n===Ncol?"  ✓":"");}).join("   ·   ")},
-        {k:"PERFIL DA CINTA (W ≥ "+Math.round(Wreq)+" cm³)",v:(function(){var u=selPerfilW(Wreq);return u.n+"   (W "+u.W.toFixed(0)+" cm³ · A "+u.A.toFixed(1).replace(".",",")+" cm²)";})(),hi:true},
-        {k:"PERFIL DO ENRIJECEDOR VERTICAL (W ≥ "+Math.round(Wreq*0.35)+" cm³)",v:(function(){var b=selBarraChata(Wreq*0.35),u=selPerfilW(Wreq*0.35);return (b?b.n+"  ou  ":"")+u.n;})(),hi:true},
-        {k:"PERFIL DO MONTANTE (A ≥ "+Areq.toFixed(0)+" cm² · i ≥ "+imin.toFixed(1).replace(".",",")+" cm)",v:(function(){var p=selTuboCol(Areq,imin);return p.n+" mm   (A "+p.A.toFixed(0)+" cm² · i "+p.i.toFixed(1).replace(".",",")+" cm)";})(),hi:true},
-        {k:"Observação dos perfis",v:"Pré-seleção pelos critérios de módulo de resistência (cintas/enrijecedores) e de área + raio de giração (montantes). Confirmar na tabela do fabricante, incluindo verificação de flambagem local, ligações, vento e sismo (NBR 8800)."},
+        {sec:"Perfis comerciais indicados"},
+        {k:"Família imposta",v:(famC?FAM_NOME[famC]:"Automático — perfil mais leve do catálogo")+"  (cintas/enrijecedores)   ·   "+(famM?FAM_NOME[famM]:"Automático")+"  (montantes)"},
+        {k:"PERFIL DA CINTA (W ≥ "+Math.round(Wreq)+" cm³ · I ≥ "+Ireq_cm4.toFixed(0)+" cm⁴)",v:txtPerfil(selCinta.best)+(selCinta.dobro?"  ⚠ perfis associados":""),hi:true},
+        {k:"Alternativas de cinta (outras famílias)",v:txtAlts(selCinta,4)},
+        {k:"PERFIL DO ENRIJECEDOR VERTICAL (W ≥ "+Math.round(Wreq*0.35)+" cm³)",v:txtPerfil(selEnr.best),hi:true},
+        {k:"Alternativas de enrijecedor (outras famílias)",v:txtAlts(selEnr,4)},
+        {k:"PERFIL DO MONTANTE (A ≥ "+Areq.toFixed(0)+" cm² · i_min ≥ "+imin.toFixed(1).replace(".",",")+" cm)",v:txtPerfil(selMont.best),hi:true},
+        {k:"Alternativas de montante (outras famílias)",v:txtAlts(selMont,4)},
+        {k:"Observação dos perfis",v:"Catálogo: U laminado, W (I/H) laminado, cantoneiras de abas iguais e desiguais, tubos estruturais quadrados e retangulares e barras chatas. Cintas e enrijecedores são pré-selecionados pelo módulo de resistência W; montantes pela área A e pelo raio de giração mínimo i_min (que nas cantoneiras é o eixo principal z). Propriedades dos perfis W, cantoneiras e tubos calculadas pela geometria nominal, sem raios de concordância — ligeiramente conservadoras. Confirmar na tabela do fabricante, incluindo flambagem local, ligações, vento e sismo (NBR 8800)."},
         {sec:"Peso do silo"},
         {k:"Chapa do corpo  ("+Acorpo.toFixed(0)+" m² × "+tcom.toFixed(1).replace(".",",")+" mm)",v:fmt(Math.round(pChapa))+" kg"},
         {k:"Chapa da tremonha  ("+Atrem.toFixed(0)+" m² × "+thopcom.toFixed(1).replace(".",",")+" mm)",v:fmt(Math.round(pTrem))+" kg"},
@@ -1269,9 +1455,8 @@ const CALCS={
         tcom:tcom,tA:chapaA.tcom,tB:chapaB.tcom,thopcom:thopcom,fy:fy,Vutil:V,Vgeo:Vgeo,
         sst:sst,otimS:otimS,nCintas:nCintas,Wreq:Wreq,Ireq:Ireq_cm4,Ncol:Ncol,otimN:otimN,
         Bw:Bw,bocaUser:bocaUser,bocaCurta:bocaCurta,
-        perfilCinta:selPerfilW(Wreq).n,
-        perfilEnr:(function(){var b=selBarraChata(Wreq*0.35);return b?b.n:selPerfilW(Wreq*0.35).n;})(),
-        perfilCol:selTuboCol(Areq,imin).n+" mm",
+        perfilCinta:perfCinta.n,perfilEnr:perfEnr.n,perfilCol:perfCol.n,
+        altCinta:txtAlts(selCinta,2),altEnr:txtAlts(selEnr,2),altMont:txtAlts(selMont,2),
         pesoSeco:pesoSeco,pesoMat:pesoMat,pesoCheio:pesoCheio,
         Areq:Areq,imin:imin,Hleg:Hleg,qext:qext,pvento:pvento,pvac:pvac,Vk:Vk,phD:phD,Pcol:Pcol};
       return OUT;
@@ -3299,13 +3484,16 @@ function gerarRelatorio(){
       legBody.push([san("Enrijecedores — espaçamento  s"),san(G.sst.toFixed(2))+" m"+(G.otimS?"  (otimizado)":"")]);
       legBody.push([san("Cintas — quantidade / W requerido"),san(String(G.nCintas))+" un / "+san(String(Math.round(G.Wreq)))+" cm³"]);
       legBody.push([san("PERFIL DA CINTA"),san(G.perfilCinta)]);
+      legBody.push([san("Cinta — alternativas"),san(G.altCinta||"-")]);
       legBody.push([san("PERFIL DO ENRIJECEDOR VERTICAL"),san(G.perfilEnr)]);
+      legBody.push([san("Enrijecedor — alternativas"),san(G.altEnr||"-")]);
       legBody.push([san("Cinta — inércia p/ pressão externa  I"),san(G.Ireq.toFixed(0))+" cm⁴"]);
       legBody.push([san("Vento (Vk) · sucção · vácuo"),san(G.Vk.toFixed(1))+" m/s · "+san(G.pvento.toFixed(2))+" · "+san(G.pvac.toFixed(1))+" kPa"]);
       legBody.push([san("Pressão externa de projeto  q_ext"),san(G.qext.toFixed(2))+" kPa"]);
       legBody.push([san("Montantes — quantidade"),san(String(G.Ncol))+(G.otimN?"  (otimizado)":"")]);
       legBody.push([san("Montante — carga / área / raio de giração"),san(String(Math.round(G.Pcol)))+" kN / "+san(G.Areq.toFixed(0))+" cm² / "+san(G.imin.toFixed(1))+" cm"]);
       legBody.push([san("PERFIL DO MONTANTE"),san(G.perfilCol)]);
+      legBody.push([san("Montante — alternativas"),san(G.altMont||"-")]);
       legBody.push([san("PESO SECO DO SILO (estrutura)"),san((G.pesoSeco/1000).toFixed(1))+" t"]);
       legBody.push([san("Material armazenado (cheio)"),san((G.pesoMat/1000).toFixed(1))+" t"]);
       legBody.push([san("PESO TOTAL COM SILO CHEIO"),san((G.pesoCheio/1000).toFixed(1))+" t"]);
