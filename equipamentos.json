@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.38.0",
+    "versao": "1.39.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -155,6 +155,17 @@
       "calculadora": "calha_vibratoria",
       "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo em três linhas de catálogo — calhas CV, alimentadores suspensos MVS e alimentadores Vibraline (36\"×60\" a 84\"×120\") — informa comprimento e área útil da mesa, inclinação e tempo de residência, calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco.",
       "referencia": "Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: fórmula de capacidade Q = 3600·φ1·φ2·V·L·H (pág. 1-9), curva de velocidade V (rpm × amplitude), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada e fator de inclinação; catálogos de calhas vibratórias CV (pág. 1-16), alimentadores vibratórios suspensos MVS (pág. 1-14) e alimentadores Vibraline (pág. 1-19, capacidade referida a 10° de inclinação)"
+    },
+    {
+      "id": "alimentador-correia",
+      "grupo": "Alimentadores",
+      "subgrupo": "Alimentador de Correia (saída de silo)",
+      "subtipo": "Alimentador de correia sob boca de silo (extração volumétrica e dosagem)",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Alimentador de Correia",
+      "calculadora": "alimentador_correia",
+      "descricao": "Pré-dimensionamento de alimentador de correia instalado sob a boca do silo, para extração controlada e dosagem. Diferente do transportador de correia, o alimentador trabalha lento (0,05 a 0,5 m/s), com a seção de carga definida pela boca e pelas saias, e suporta a CARGA VERTICAL do silo sobre a correia. Calcula: altura da camada h = Q/(3600·B·v·ρ) e vazão resultante; carga vertical na boca pelo método de Roberts (fator de sobrecarga adimensional q) nas duas condições críticas — enchimento inicial (partida com o silo cheio) e regime de fluxo, com a relação típica 3:1 da comutação de tensões — ou a partir do σv informado pela calculadora de silo; resistências do alimentador (cisalhamento do material na interface, arraste das saias, atrito de correia e roletes e aceleração do material); potência em regime e na partida, torque no eixo de saída e seleção do motoredutor SEW (série R e industriais M/X); largura da correia por saias, folga e granulometria (≥ 3× o maior bloco); tensões T1/T2 e carcaça EP requerida; e o dimensionamento da INTERFACE DIVERGENTE, que garante extração em todo o comprimento da boca e evita o fluxo em ratoeira (rat-holing). Inclui presets de material com briquete BAR e briquete Bricão.",
+      "referencia": "A. W. Roberts — Feeder Loads and Power Requirements (fator de sobrecarga adimensional q; condição de enchimento inicial × condição de fluxo); A. W. Jenike — tensão vertical na boca de descarga e fluxo de massa; CEMA — Belt Conveyors for Bulk Materials (arraste de saias, tensões T1/T2 e fator de abraçamento); Manual de Britagem Metso/FAÇO (larguras de correia e critério de granulometria); ABNT NBR 6172/6177; catálogo SEW-EURODRIVE (motoredutores série R e redutores industriais M/X)"
     },
     {
       "id": "silo-circular",
