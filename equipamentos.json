@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.40.1",
+    "versao": "1.41.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -131,8 +131,8 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Peneira Vibratória Inclinada",
       "calculadora": "peneira_inclinada",
-      "descricao": "Pré-dimensionamento de peneira vibratória inclinada (movimento circular, inclinação típica 15–20°) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento circular, Q6 = 1,0). Seleciona o modelo Metso da linha inclinada SH/XH pela área ativa, verifica a espessura da camada na descarga e indica a eficiência esperada. Os fatores de correção do material ajustam o rendimento da peneira.",
-      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabelas Q1–Q6 (movimento circular Q6=1,0) e catálogo de peneiras inclinadas SH/XH (5'×14' a 8'×20', inclinação 18–20°); método VSMA"
+      "descricao": "Pré-dimensionamento de peneira vibratória inclinada (movimento circular, inclinação típica 15–20°) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento circular, Q6 = 1,0). Seleciona o modelo pela área ativa em dois catálogos — Simplex SXPI (2010 a 6024, com dimensões e área do deck, potência em CV, número máximo de decks e peso do equipamento por número de decks) e Metso SH/XH — com opção de escolher o modelo manualmente e de fixar a linha de catálogo. Verifica a espessura da camada na descarga, a compatibilidade da inclinação com a faixa da linha SXPI (16° a 20°) e o número de decks contra o máximo do modelo. Os presets de material preenchem densidade, forma da partícula e tipo de tela, e incluem briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³) — para os quais é indicada tela de poliuretano/borracha, de modo a reduzir a degradação da peça — com verificação da relação entre a abertura e o dimensional do briquete.",
+      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabelas Q1–Q6 (movimento circular Q6=1,0); método VSMA. Catálogo Simplex Equipamentos — Peneiras Inclinadas SXPI (livre oscilação circular, inclinações de 16° a 20°, 880 rpm, 1 a 4 decks, telas de aço, borracha ou poliuretano): tabela de modelos 2010 a 6024 com dimensões e área do deck, potência em CV e peso por número de decks. Catálogo Metso de peneiras inclinadas SH/XH (5'×14' a 8'×20', inclinação 18–20°)"
     },
     {
       "id": "peneira-banana",

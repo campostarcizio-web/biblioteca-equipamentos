@@ -160,10 +160,38 @@ const ICON_SCREEN_I='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" 
 const ICON_SCREEN_B='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 14 C18 20 30 30 40 34"/><path d="M8 20 C18 26 30 36 40 40"/><path d="M13 16.5 l1.4 5 M20 21 l1.2 5.2 M27 26 l1 5.2 M34 30.5 l0.8 5.2"/><path d="M40 34 l4 1.2 M8 14 l-3 -1.2"/></svg>';
 const CRUSHER_MAT={calcario:11,minerio_ferro:13,granito:16,basalto:19,quartzito:12,gnaisse:15,dolomita:11,bauxita:9,minerio_cobre:14,carvao:11,concreto:10,arenito:8,gesso:7,cal:9};
 /* Densidade aparente típica (t/m³) para peneiramento */
-const SCREEN_MAT={brita:1.6,granito:1.6,calcario:1.5,minerio_ferro:2.5,carvao:0.9,areia:1.5,agregado:1.6,coque:0.5};
-function penPreset(){var d=SCREEN_MAT[$("#pnMat").value]; if(d==null)return; $("#pnRho").value=d; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"peneira_horizontal");}
-function penPresetI(){var d=SCREEN_MAT[$("#piMat").value]; if(d==null)return; $("#piRho").value=d; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"peneira_inclinada");}
-function penPresetB(){var d=SCREEN_MAT[$("#pbMat").value]; if(d==null)return; $("#pbRho").value=d; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"peneira_banana");}
+/* Materiais para peneiramento — densidade aparente (t/m³), forma da partícula (Q2),
+   tipo de tela sugerido (Q5, primeiro valor disponível no seletor) e dimensional da peça.
+   Briquetes: valores ESTIMADOS de forma conservadora (não constam de tabela de catálogo);
+   a tela de poliuretano/borracha é indicada para reduzir a degradação da peça. */
+const SCREEN_MAT={
+  brita:        {rho:1.6,q2:"1",  q5:["1"],            dim:100},
+  granito:      {rho:1.6,q2:"1",  q5:["1"],            dim:100},
+  calcario:     {rho:1.5,q2:"1",  q5:["1"],            dim:80},
+  agregado:     {rho:1.6,q2:"1",  q5:["1"],            dim:80},
+  areia:        {rho:1.5,q2:"1",  q5:["1"],            dim:5},
+  minerio_ferro:{rho:2.5,q2:"1",  q5:["1"],            dim:100},
+  carvao:       {rho:0.9,q2:"0.9",q5:["1"],            dim:50},
+  coque:        {rho:0.5,q2:"0.9",q5:["1"],            dim:75},
+  briq_bar:     {rho:1.7,q2:"1",  q5:["0.8b","0.85","0.8"],dim:57,
+                 nota:"Briquete BAR 57 × 57 × 37,5 mm · 1,7 t/m³ — peça prensada, aproximadamente equidimensional (Q2 = 1,0). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."},
+  briq_bricao:  {rho:1.3,q2:"0.9",q5:["0.8b","0.85","0.8"],dim:120,
+                 nota:"Briquete Bricão 120 × 108 × 87 mm · 1,3 t/m³ — peça grande e achatada (relação 1,4:1), tratada como alongada (Q2 = 0,9). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."}
+};
+function scrSet(id,vals){
+  var s=$("#"+id); if(!s||!vals) return;
+  for(var v=0;v<vals.length;v++){ for(var i=0;i<s.options.length;i++){
+    if(s.options[i].value===vals[v]){ s.value=vals[v]; return; } } }
+}
+function penApply(pref,sel,calc){
+  var m=SCREEN_MAT[$("#"+sel).value]; if(!m) return;
+  $("#"+pref+"Rho").value=m.rho;
+  scrSet(pref+"Forma",[m.q2]); scrSet(pref+"Tela",m.q5);
+  runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:calc);
+}
+function penPreset(){ penApply("pn","pnMat","peneira_horizontal"); }
+function penPresetI(){ penApply("pi","piMat","peneira_inclinada"); }
+function penPresetB(){ penApply("pb","pbMat","peneira_banana"); }
 function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return; $("#bjWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_mandibulas");}
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
@@ -1824,10 +1852,12 @@ const CALCS={
       {id:"piOver",label:"% de oversize na alimentação (> abertura)",unidade:"%",tipo:"number",valor:40},
       {id:"piHalf",label:"% de material < ½ da abertura na alimentação",unidade:"%",tipo:"number",valor:35},
       {tipo:"head",label:"Material e fatores de correção"},
-      {id:"piMat",label:"Material (preset — preenche a densidade)",tipo:"select",valor:"brita",onchange:"penPresetI()",opcoes:[
+      {id:"piMat",label:"Material (preset — preenche densidade, forma e tela)",tipo:"select",valor:"brita",onchange:"penPresetI()",opcoes:[
         {v:"brita",t:"Brita / pedra britada (1,6)"},{v:"granito",t:"Granito (1,6)"},{v:"calcario",t:"Calcário (1,5)"},
         {v:"agregado",t:"Agregado genérico (1,6)"},{v:"areia",t:"Areia (1,5)"},{v:"minerio_ferro",t:"Minério de ferro (2,5)"},
-        {v:"carvao",t:"Carvão (0,9)"},{v:"coque",t:"Coque (0,5)"}]},
+        {v:"carvao",t:"Carvão (0,9)"},{v:"coque",t:"Coque (0,5)"},
+        {v:"briq_bar",t:"Briquete BAR — 57 × 57 × 37,5 mm · 1,7 t/m³"},
+        {v:"briq_bricao",t:"Briquete Bricão — 120 × 108 × 87 mm · 1,3 t/m³"}]},
       {id:"piForma",label:"Forma da partícula (Q2)",tipo:"select",valor:"1",opcoes:[
         {v:"1",t:"Cúbica (Q2 = 1,0)"},{v:"0.9",t:"Lamelar / alongada (Q2 = 0,9)"}]},
       {id:"piUmido",label:"Peneiramento via úmida (Q3)",tipo:"select",valor:"nao",opcoes:[
@@ -1841,6 +1871,33 @@ const CALCS={
       {id:"piDecks",label:"Posição do deck (Q1)",tipo:"select",valor:"1",opcoes:[
         {v:"1",t:"1º deck / deck único (Q1 = 1,0)"},{v:"0.9",t:"2º deck (Q1 = 0,9)"},{v:"0.8",t:"3º deck (Q1 = 0,8)"}]},
       {id:"piP",label:"Fator de confiança P (1,0 a 1,4)",tipo:"number",valor:1.1,step:"0.05"},
+      {tipo:"head",label:"Catálogo"},
+      {id:"piLinha",label:"Linha de catálogo",tipo:"select",valor:"SXPI",opcoes:[
+        {v:"SXPI",t:"Simplex SXPI — peneiras inclinadas (16° a 20°, 880 rpm)"},
+        {v:"SH",t:"Metso SH/XH — peneiras inclinadas (18° a 20°)"},
+        {v:"todos",t:"Todas as linhas (escolhe a de menor área que atende)"}]},
+      {id:"piModel",label:"Modelo",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (pela área necessária)"},
+        {v:"SXPI 2010",t:"SXPI 2010 · 2000 × 1000 mm · 2,0 m² · 5 CV"},
+        {v:"SXPI 2510",t:"SXPI 2510 · 2500 × 1000 mm · 2,5 m² · 5 CV"},
+        {v:"SXPI 3010",t:"SXPI 3010 · 3000 × 1000 mm · 3,0 m² · 10 CV"},
+        {v:"SXPI 3012",t:"SXPI 3012 · 3000 × 1200 mm · 3,6 m² · 10 CV"},
+        {v:"SXPI 3015",t:"SXPI 3015 · 3000 × 1500 mm · 4,5 m² · 10 CV"},
+        {v:"SXPI 4013",t:"SXPI 4013 · 4000 × 1300 mm · 5,2 m² · 15 CV"},
+        {v:"SXPI 4015",t:"SXPI 4015 · 4000 × 1500 mm · 6,0 m² · 15 ou 20 CV"},
+        {v:"SXPI 4018",t:"SXPI 4018 · 4000 × 1800 mm · 7,2 m² · 15 ou 20 CV"},
+        {v:"SXPI 4518",t:"SXPI 4518 · 4500 × 1800 mm · 8,1 m² · 15 ou 20 CV"},
+        {v:"SXPI 5020",t:"SXPI 5020 · 5000 × 2000 mm · 10,0 m² · 25 CV"},
+        {v:"SXPI 6020",t:"SXPI 6020 · 6000 × 2000 mm · 12,0 m² · 25 ou 30 CV"},
+        {v:"SXPI 5522",t:"SXPI 5522 · 5500 × 2200 mm · 12,1 m² · 25 ou 30 CV"},
+        {v:"SXPI 6024",t:"SXPI 6024 · 6000 × 2400 mm · 14,4 m² · 40 CV"},
+        {v:"SH 5'×14'",t:"Metso SH 5'×14' · 6,5 m²"},
+        {v:"SH 6'×14'",t:"Metso SH 6'×14' · 7,8 m²"},
+        {v:"SH 7'×16'",t:"Metso SH 7'×16' · 10,4 m²"},
+        {v:"SH 8'×16'",t:"Metso SH 8'×16' · 11,9 m²"},
+        {v:"SH 8'×20'",t:"Metso SH 8'×20' · 14,9 m²"}]},
+      {id:"piNd",label:"Número de decks do equipamento",tipo:"select",valor:"2",opcoes:[
+        {v:"1",t:"1 deck"},{v:"2",t:"2 decks"},{v:"3",t:"3 decks"},{v:"4",t:"4 decks"}]},
       {tipo:"head",label:"Inclinação e verificação de camada"},
       {id:"piIncl",label:"Inclinação da peneira",unidade:"graus",tipo:"number",valor:18,step:"1"},
       {id:"piS",label:"Velocidade de transporte do material  S",unidade:"m/min",tipo:"number",valor:27,step:"1"}
@@ -1860,10 +1917,45 @@ const CALCS={
       var Qn=Q1*Q2*Q3*Q4*Q5*Q6;
       var T=Q/rho;
       var A=(T*P)/(C*M*K*Qn);
-      // Catálogo de peneiras inclinadas Metso SH/XH — área ativa (m²), largura W (m), comprimento L (m)
-      var MOD=[{n:"SH 5'×14'",a:6.5,w:1.525,l:4.270},{n:"SH 6'×14'",a:7.8,w:1.835,l:4.270},{n:"SH 7'×16'",a:10.4,w:2.140,l:4.880},{n:"SH 8'×16'",a:11.9,w:2.445,l:4.880},{n:"SH 8'×20'",a:14.9,w:2.445,l:6.100}];
-      var sel=null; for(var i=0;i<MOD.length;i++){ if(MOD[i].a>=A){ sel=MOD[i]; break; } }
-      var insuf=false; if(!sel){ sel=MOD[MOD.length-1]; insuf=true; }
+      /* ---- Catálogos de peneiras inclinadas ----
+         SXPI — Simplex Equipamentos: área do deck (m²), dimensões (mm), potência (CV),
+                peso (kg) por número de decks e nº máximo de decks. Livre oscilação
+                circular, inclinações de 16° a 20°, 880 rpm.
+         SH/XH — Metso: área ativa, largura e comprimento do deck. */
+      var MOD=[
+        {n:"SXPI 2010",lin:"SXPI",a:2.0, w:1.0,l:2.0,cv:"5",       maxD:4,p:[720,840,980,1130]},
+        {n:"SXPI 2510",lin:"SXPI",a:2.5, w:1.0,l:2.5,cv:"5",       maxD:4,p:[870,1030,1200,1360]},
+        {n:"SXPI 3010",lin:"SXPI",a:3.0, w:1.0,l:3.0,cv:"10",      maxD:4,p:[1380,1610,1870,2120]},
+        {n:"SXPI 3012",lin:"SXPI",a:3.6, w:1.2,l:3.0,cv:"10",      maxD:4,p:[1780,2090,2280,2640]},
+        {n:"SXPI 3015",lin:"SXPI",a:4.5, w:1.5,l:3.0,cv:"10",      maxD:4,p:[2200,2550,3060,3540]},
+        {n:"SXPI 4013",lin:"SXPI",a:5.2, w:1.3,l:4.0,cv:"15",      maxD:4,p:[2430,2860,3350,3880]},
+        {n:"SXPI 4015",lin:"SXPI",a:6.0, w:1.5,l:4.0,cv:"15 ou 20",maxD:4,p:[3040,3580,4180,4850]},
+        {n:"SH 5'×14'",lin:"SH",  a:6.5, w:1.525,l:4.270},
+        {n:"SXPI 4018",lin:"SXPI",a:7.2, w:1.8,l:4.0,cv:"15 ou 20",maxD:4,p:[3250,3750,4330,5170]},
+        {n:"SH 6'×14'",lin:"SH",  a:7.8, w:1.835,l:4.270},
+        {n:"SXPI 4518",lin:"SXPI",a:8.1, w:1.8,l:4.5,cv:"15 ou 20",maxD:4,p:[3450,4060,4680,5420]},
+        {n:"SXPI 5020",lin:"SXPI",a:10.0,w:2.0,l:5.0,cv:"25",      maxD:4,p:[4130,4620,6210,7800]},
+        {n:"SH 7'×16'",lin:"SH",  a:10.4,w:2.140,l:4.880},
+        {n:"SH 8'×16'",lin:"SH",  a:11.9,w:2.445,l:4.880},
+        {n:"SXPI 6020",lin:"SXPI",a:12.0,w:2.0,l:6.0,cv:"25 ou 30",maxD:3,p:[9135,9663,11191,null]},
+        {n:"SXPI 5522",lin:"SXPI",a:12.1,w:2.2,l:5.5,cv:"25 ou 30",maxD:4,p:[6890,8115,9430,10745]},
+        {n:"SXPI 6024",lin:"SXPI",a:14.4,w:2.4,l:6.0,cv:"40",      maxD:3,p:[9760,10300,11700,null]},
+        {n:"SH 8'×20'",lin:"SH",  a:14.9,w:2.445,l:6.100}
+      ];
+      var linha=$("#piLinha")?$("#piLinha").value:"SXPI";
+      var modSel=$("#piModel")?$("#piModel").value:"auto";
+      var nD=$("#piNd")?parseInt($("#piNd").value,10):1; if(isNaN(nD)||nD<1)nD=1;
+      var sel=null, manualM=(modSel!=="auto"), insuf=false;
+      if(manualM){ for(var i=0;i<MOD.length;i++){ if(MOD[i].n===modSel){ sel=MOD[i]; break; } } }
+      if(!sel){
+        manualM=false;
+        var pool=MOD.filter(function(m){ return (linha==="todos")||(m.lin===linha); });
+        for(var i=0;i<pool.length;i++){ if(pool[i].a>=A){ sel=pool[i]; break; } }
+        if(!sel){ sel=pool[pool.length-1]; insuf=true; }
+      }
+      var subDim=manualM&&(sel.a<A);
+      var deckExc=(sel.maxD&&nD>sel.maxD);
+      var pesoEq=(sel.p&&sel.p[nD-1]!=null)?sel.p[nD-1]:null;
       var Dbed=100*T/(6*S*(sel.w-0.15));
       var limCam=4*ab, camOK=(Dbed<=limCam);
       var nModel=A/sel.a;
@@ -1887,12 +1979,25 @@ const CALCS={
         {k:"Q4 — umidade superficial",v:Q4.toFixed(2).replace(".",",")},
         {k:"Q5 — tipo de tela / área aberta",v:Q5.toFixed(2).replace(".",",")},
         {k:"Q6 — movimento circular (peneira inclinada)",v:Q6.toFixed(2).replace(".",",")},
+        {k:"Material — dimensional da peça",v:(function(){var m=SCREEN_MAT[$("#piMat").value];if(!m)return "personalizado";
+           return "maior dimensão ≈ "+m.dim+" mm"+(m.nota?"   ·   "+m.nota:"");})()},
+        {k:"Relação abertura / dimensional da peça",v:(function(){var m=SCREEN_MAT[$("#piMat").value];if(!m)return "—";
+           var r=ab/m.dim; return r.toFixed(2).replace(".",",")+
+             (r>=1?"   ⚠ abertura maior que a peça — praticamente tudo passaria; rever a separação":
+              (r>0.6?"   ⚠ abertura próxima do dimensional — corte pouco seletivo e alta carga sobre a tela":"   OK"));})()},
         {k:"Produto de correção  Qn = Q1·Q2·Q3·Q4·Q5·Q6",v:Qn.toFixed(3).replace(".",","),hi:true},
         {sec:"Área e seleção da peneira"},
         {k:"Área necessária  A = (T·P)/(C·M·K·Qn)",v:A.toFixed(2).replace(".",",")+" m²",hi:true},
-        {k:"Modelo selecionado (linha inclinada SH/XH)",v:sel.n+" · "+sel.a.toFixed(2).replace(".",",")+" m²"+(insuf?"  ⚠ maior modelo do catálogo — área insuficiente, prever 2 peneiras em paralelo":""),hi:true},
-        {k:"Largura × comprimento do deck",v:sel.w.toFixed(2).replace(".",",")+" × "+sel.l.toFixed(2).replace(".",",")+" m"},
-        {k:"Inclinação adotada",v:incl.toFixed(0)+"°"+inclNote},
+        {k:"MODELO SELECIONADO",v:sel.n+" · "+sel.a.toFixed(2).replace(".",",")+" m²"+
+           (manualM?"  (escolha do usuário)":"  (automático)")+
+           (subDim?"  ⚠ área do modelo MENOR que a necessária ("+A.toFixed(2).replace(".",",")+" m²)":"")+
+           (insuf?"  ⚠ maior modelo do catálogo — área insuficiente, prever 2 peneiras em paralelo":""),hi:true},
+        {k:"Linha / fabricante",v:(sel.lin==="SXPI")?"Simplex SXPI — peneira vibratória inclinada de livre oscilação circular, 16° a 20°, 880 rpm, telas de aço, borracha ou poliuretano":"Metso SH/XH — peneira inclinada de movimento circular, 18° a 20°"},
+        {k:"Dimensões do deck",v:(sel.lin==="SXPI")?((sel.l*1000).toFixed(0)+" × "+(sel.w*1000).toFixed(0)+" mm  (comprimento × largura)"):(sel.w.toFixed(2).replace(".",",")+" × "+sel.l.toFixed(2).replace(".",",")+" m  (largura × comprimento)"),hi:true},
+        {k:"Número de decks adotado",v:nD+(sel.maxD?("  (catálogo: até "+sel.maxD+" decks)"):"")+(deckExc?"  ⚠ acima do máximo do modelo":""),hi:true},
+        {k:"Potência de catálogo",v:sel.cv?(sel.cv+" CV"):"— (consultar fabricante)",hi:!!sel.cv},
+        {k:"Peso do equipamento (catálogo)",v:(pesoEq!=null)?(fmt(pesoEq)+" kg  ("+nD+" deck"+(nD>1?"s":"")+")"):"— (não tabelado para esta combinação)",hi:pesoEq!=null},
+        {k:"Inclinação adotada",v:incl.toFixed(0)+"°"+inclNote+((sel.lin==="SXPI"&&(incl<16||incl>20))?"  ⚠ fora da faixa da linha SXPI (16° a 20°)":"")},
         {k:"Ocupação da área ativa (A / área do modelo)",v:(nModel*100).toFixed(0)+" %"},
         {sec:"Camada de material e eficiência"},
         {k:"Velocidade de transporte  S",v:S.toFixed(0)+" m/min"},
@@ -1902,7 +2007,8 @@ const CALCS={
         {k:"Para eficiência de 95%",v:"operar com 80% da capacidade calculada ou aumentar a área em 20%"},
         {k:"Observação",v:"Pré-dimensionamento de peneira inclinada (movimento circular, "+incl.toFixed(0)+"°). As curvas de capacidade básica do método VSMA já se referem à peneira inclinada de movimento circular (Q6 = 1,0). A inclinação favorece o transporte (maior S), reduzindo a espessura da camada. Confirmar tela, amplitude/frequência e o modelo na folha de dados do fabricante."}
       ];
-      OUT.geo={tipo:"peneira",model:sel.n,A:A,Amod:sel.a,W:sel.w,L:sel.l,ab:ab,C:C,M:M,K:K,Qn:Qn,T:T,Dbed:Dbed,decks:Q1,incl:incl};
+      OUT.geo={tipo:"peneira",model:sel.n,A:A,Amod:sel.a,W:sel.w,L:sel.l,ab:ab,C:C,M:M,K:K,Qn:Qn,T:T,Dbed:Dbed,decks:Q1,incl:incl,
+        linha:sel.lin,cv:sel.cv||null,nD:nD,peso:pesoEq,maxD:sel.maxD||null,subDim:subDim,deckExc:deckExc};
       return OUT;
     }
   },
@@ -3793,8 +3899,12 @@ function gerarRelatorio(){
       doc.autoTable({startY:baseY+18,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
-          [san("Modelo (área ativa Metso)"),G.model+" · "+san(G.Amod.toFixed(2))+" m²"],
+          [san("Modelo selecionado"),san(G.model)+" · "+san(G.Amod.toFixed(2))+" m²"+(G.subDim?san(" — abaixo da area necessaria"):"")],
+          [san("Linha de catálogo"),san(G.linha==="SXPI"?"Simplex SXPI (inclinada, 16-20 graus, 880 rpm)":(G.linha==="SH"?"Metso SH/XH":"—"))],
           [san("Largura × comprimento do deck"),san(G.W.toFixed(2))+" × "+san(G.L.toFixed(2))+" m"],
+          [san("Número de decks"),G.nD?(san(String(G.nD))+(G.maxD?(" (máx. "+san(String(G.maxD))+")"):"")+(G.deckExc?san(" — acima do maximo"):"")):"—"],
+          [san("Potência de catálogo"),G.cv?(san(G.cv)+" CV"):"—"],
+          [san("Peso do equipamento (catálogo)"),(G.peso!=null)?(san(String(G.peso))+" kg"):"—"],
           [san("Abertura desejada (separação)"),san(String(Math.round(G.ab)))+" mm"],
           [san("Alimentação volumétrica  T"),san(G.T.toFixed(1))+" m³/h"],
           [san("Capacidade básica  C"),san(G.C.toFixed(1))+" m³/h·m²"],
