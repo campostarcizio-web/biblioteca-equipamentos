@@ -1325,8 +1325,13 @@ const CALCS={
       else { Vcil=V-Vpir-Vcone*0.5; semCorpo=(Vcil<=0); Hcil=semCorpo?0:Vcil/(a*b); }
       var geoFixa=(hasH1||hasH2);
       var Vgeo=Vcil+Vpir, VgeoC=Vgeo+Vcone;
-      var autonGeo=(Q>0)?Vgeo*rho*eta/Q:0;
-      var geoSub=(geoFixa&&Vgeo<V*0.999);
+      /* Volume ÚTIL do silo pela geometria informada = volume geométrico × fator de
+         enchimento η (folga de topo, ângulo de repouso e volume morto não retomável).
+         É este o volume que a instalação realmente armazena em operação — o volume
+         geométrico (cheio até a borda) é usado apenas no dimensionamento estrutural. */
+      var Vutil=Vgeo*eta, Mutil=Vutil*rho;
+      var autonGeo=(Q>0)?Mutil/Q:0;
+      var geoSub=(Vutil<V*0.999);
       var Htot=Hcil+hc, esbeltez=Htot/Lmin;
       /* ===== CLASSE DE ESBELTEZ (EN 1991-4) ===== */
       var Rh=(a*b)/(2*(a+b)), dc=4*Rh;                   // dimensão característica
@@ -1638,8 +1643,8 @@ const CALCS={
         {k:"Fatores de descarga adotados  Ch / Cw",v:Ch.toFixed(2).replace(".",",")+" / "+Cw.toFixed(2).replace(".",",")+"   (pela classe de esbeltez)"},
         {k:"Coeficiente de ponderação do granel  γf",v:gf.toFixed(2).replace(".",",")+"   (NBR 8800 — ELU)",hi:true},
         {sec:"Etapa 2 — Capacidade"},
-        {k:"Massa requerida  m = Q · t",v:fmt(Math.round(massa))+" t"},
-        {k:"Volume útil  V = m / (ρ · η)",v:V.toFixed(1).replace(".",",")+" m³",hi:true},
+        {k:"REQUERIDO — massa  m = Q · t",v:fmt(Math.round(massa))+" t"},
+        {k:"REQUERIDO — volume  V = m / (ρ · η)",v:V.toFixed(1).replace(".",",")+" m³",hi:true},
         {k:"Peso específico  γ = ρ · g",v:gamma.toFixed(1).replace(".",",")+" kN/m³"},
         {k:"Cone de empilhamento no topo  (ângulo de repouso "+rep.toFixed(0)+"°)",v:"h = "+hCone.toFixed(2).replace(".",",")+" m  ·  V = "+Vcone.toFixed(1).replace(".",",")+" m³  (50% considerado como útil)"},
         {sec:"Etapa 1 — Material e Flow Function"},
@@ -1671,8 +1676,11 @@ const CALCS={
         {k:"Altura 1 — parte reta  Hcil",v:Hcil.toFixed(2).replace(".",",")+" m"+(hasH1?"  (informada)":"  (calculada pela capacidade)")+(semCorpo?"  ⚠ a tremonha sozinha já excede o volume — reduzir a×b":""),hi:true},
         {k:"Altura 2 — tremonha  hc",v:hc.toFixed(2).replace(".",",")+" m"+(hasH2?"  (informada)":"  (calculada pelo ábaco)"),hi:true},
         {k:"ALTURA TOTAL  Htot",v:Htot.toFixed(2).replace(".",",")+" m",hi:true},
-        {k:"Volume geométrico  (corpo + tremonha)",v:Vgeo.toFixed(1).replace(".",",")+" m³"+(geoSub?"  ⚠ abaixo do volume útil requerido ("+V.toFixed(1).replace(".",",")+" m³)":"")+"   ·   com cone de topo: "+VgeoC.toFixed(1).replace(".",",")+" m³"},
-        {k:"Autonomia real com a geometria adotada",v:autonGeo.toFixed(2).replace(".",",")+" h"},
+        {k:"Volume GEOMÉTRICO  (corpo + tremonha, cheio até a borda)",v:Vgeo.toFixed(1).replace(".",",")+" m³   ·   com cone de topo: "+VgeoC.toFixed(1).replace(".",",")+" m³"},
+        {k:"VOLUME ÚTIL DO SILO  (geometria informada × η = "+eta.toFixed(2).replace(".",",")+")",v:Vutil.toFixed(1).replace(".",",")+" m³"+(geoSub?"  ⚠ abaixo do volume requerido ("+V.toFixed(1).replace(".",",")+" m³)":"  ✓ atende ao volume requerido de "+V.toFixed(1).replace(".",",")+" m³"),hi:true},
+        {k:"MASSA ÚTIL ARMAZENADA  (volume útil × ρ)",v:Mutil.toFixed(1).replace(".",",")+" t   —  contra "+massa.toFixed(0)+" t requeridas",hi:true},
+        {k:"Massa com o silo cheio até a borda  (caso estrutural)",v:(Vgeo*rho).toFixed(1).replace(".",",")+" t   (é este o valor usado no dimensionamento da estrutura, a favor da segurança)"},
+        {k:"Autonomia real com a geometria adotada",v:autonGeo.toFixed(2).replace(".",",")+" h"+(autonGeo<t?"  ⚠ abaixo do tempo de autonomia pedido ("+t.toFixed(1).replace(".",",")+" h)":""),hi:true},
         {k:"Boca de descarga — largura × comprimento",v:(Bw*1000).toFixed(0)+" × "+(Bl*1000).toFixed(0)+" mm"+(bocaUser?"  (informada)":"  (calculada)")+bocaNota,hi:true},
         {k:"Área da boca de descarga",v:Aboca.toFixed(3).replace(".",",")+" m²"},
         {k:"Ângulo das faces  (lado a / lado b)",v:alfaA.toFixed(1).replace(".",",")+"° / "+alfaB.toFixed(1).replace(".",",")+"°"},
@@ -1780,7 +1788,8 @@ const CALCS={
         {k:"Placas de base",v:fmt(Math.round(pBases))+" kg"},
         {k:"Ligações, plataformas e solda  (12%)",v:fmt(Math.round(pAcess))+" kg"},
         {k:"PESO SECO DO SILO (estrutura vazia)",v:fmt(Math.round(pesoSeco))+" kg  ·  "+(pesoSeco/1000).toFixed(1).replace(".",",")+" t",hi:true},
-        {k:"Material armazenado (silo cheio)",v:fmt(Math.round(pesoMat))+" kg  ·  "+(pesoMat/1000).toFixed(1).replace(".",",")+" t"},
+        {k:"Material — OPERAÇÃO NORMAL  (volume útil × ρ)",v:fmt(Math.round(Mutil*1000))+" kg  ·  "+Mutil.toFixed(1).replace(".",",")+" t",hi:true},
+        {k:"Material — SILO CHEIO ATÉ A BORDA  (caso estrutural)",v:fmt(Math.round(pesoMat))+" kg  ·  "+(pesoMat/1000).toFixed(1).replace(".",",")+" t   (volume geométrico "+Vgeo.toFixed(1).replace(".",",")+" m³ × ρ)"},
         {k:"PESO TOTAL COM SILO CHEIO",v:fmt(Math.round(pesoCheio))+" kg  ·  "+(pesoCheio/1000).toFixed(1).replace(".",",")+" t",hi:true},
         {sec:"Etapa 14 — Fadiga, impacto e dinâmica"},
         {k:"Ciclos de projeto  (n/ano × vida)",v:fmt(nCic)+" × "+vida.toFixed(0)+" anos = "+fmt(Ntot)+" ciclos"},
@@ -1813,7 +1822,7 @@ const CALCS={
       ];
       OUT.geo={tipo:"ret",D:a,b:b,Hcil:Hcil,hc:hc,Htot:Htot,Brec:Bw,Bl:Bl,cunha:cunha,alfa:alfa,
         alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaFlow:alfaFlow,flowShallow:flowShallow,
-        tcom:tcom,tA:chapaA.tcom,tB:chapaB.tcom,thopcom:thopcom,fy:fy,Vutil:V,Vgeo:Vgeo,VgeoC:VgeoC,
+        tcom:tcom,tA:chapaA.tcom,tB:chapaB.tcom,thopcom:thopcom,fy:fy,Vutil:V,Vsilo:Vutil,Mutil:Mutil,Vgeo:Vgeo,VgeoC:VgeoC,
         sst:sst,otimS:otimS,nCintas:nCintas,nEnrV:nEnrV,Wreq:Wreq,Ireq:Ireq_cm4,Ncol:Ncol,otimN:otimN,
         Bw:Bw,bocaUser:bocaUser,bocaCurta:bocaCurta,vaoCinta:vaoCinta,
         perfilCinta:perfCinta.n,perfilEnr:perfEnr.n,perfilCol:perfCol.n,perfilAnel:perfAnel.n,
@@ -3085,6 +3094,34 @@ const CALCS={
   }
 };
 
+/* Restaura todos os campos de uma calculadora aos valores padrão do registro CALCS */
+function resetCampos(id){
+  var calc=CALCS[id]; if(!calc) return;
+  calc.campos.forEach(function(f){
+    if(!f.id||f.tipo==="head") return;
+    var el=document.getElementById(f.id); if(!el) return;
+    if(f.valor!==undefined&&f.valor!==null) el.value=f.valor;
+  });
+  runCalc(id);
+}
+
+/* ---------- Proteção dos campos numéricos contra a roda do mouse ----------
+   Em <input type="number"> com foco, o navegador incrementa/decrementa o valor quando a
+   roda do mouse passa por cima. Em formulários longos como os das calculadoras isso muda
+   dados de entrada silenciosamente durante a rolagem da página. O listener abaixo tira o
+   foco do campo no início da rolagem, impedindo a alteração. */
+document.addEventListener("wheel",function(ev){
+  var el=document.activeElement;
+  if(el&&el.tagName==="INPUT"&&el.type==="number"){ el.blur(); }
+},{passive:true,capture:true});
+document.addEventListener("focusin",function(ev){
+  var el=ev.target;
+  if(el&&el.tagName==="INPUT"&&el.type==="number"&&!el.dataset.nw){
+    el.dataset.nw="1";
+    el.addEventListener("wheel",function(e){ e.preventDefault(); this.blur(); },{passive:false});
+  }
+});
+
 /* ---------- Menu ---------- */
 function buildMenu(){
   const menu=DB.meta.menu||[];
@@ -3740,6 +3777,7 @@ function openItem(i){
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
         <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
         <button class="btn btn2" onclick="gerarRelatorio()">Gerar relatório (PDF)</button>
+        <button class="btn btn2" onclick="resetCampos('${e.calculadora}')" title="Restaura todos os campos aos valores padrão da calculadora">Restaurar padrões</button>
         ${ANIM[e.calculadora]||""}
       </div>
       <div class="results" id="results"><div class="sec-t">Resultados</div>
@@ -4367,7 +4405,9 @@ function gerarRelatorio(){
         [san("Seção interna  a × b"),san(G.D.toFixed(2))+" × "+san(G.b.toFixed(2))+" m"],
         [san("Altura 1 (corpo) / Altura 2 (tremonha)"),san(G.Hcil.toFixed(2))+" / "+san(G.hc.toFixed(2))+" m"],
         [san("Altura total / altura livre dos montantes"),san(G.Htot.toFixed(2))+" / "+san(G.Hleg.toFixed(2))+" m"],
-        [san("Volume geométrico / com cone de topo"),san(G.Vgeo.toFixed(1))+" / "+san(G.VgeoC.toFixed(1))+" m³"],
+        [san("Volume geométrico (cheio até a borda)"),san(G.Vgeo.toFixed(1))+" m³"],
+        [san("VOLUME ÚTIL DO SILO (geometria × η)"),san(G.Vsilo.toFixed(1))+" m³"],
+        [san("MASSA ÚTIL ARMAZENADA"),san(G.Mutil.toFixed(1))+" t"],
         [san("Boca de descarga  Bw × Bl"),san(String(Math.round(G.Bw*1000)))+" × "+san(String(Math.round(G.Bl*1000)))+" mm"+(G.bocaCurta?san(" — abaixo do minimo"):"")],
         [san("Tipo de tremonha"),G.cunha?san("em cunha (fluxo plano)"):san("piramidal (fluxo cônico)")],
         [san("Ábaco de Jenike — θ limite / θ projeto"),san(G.thetaLim.toFixed(1))+"° / "+san(G.thetaDes.toFixed(1))+"°"],
