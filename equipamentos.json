@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.35.0",
+    "versao": "1.36.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -175,7 +175,7 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Silo Retangular",
       "calculadora": "silo_retangular",
-      "descricao": "Pré-dimensionamento de silo prismático (seção retangular) com tremonha piramidal. Roteiro completo (Etapas 1-14): caracterização do minério (com presets, incluindo briquete BAR e briquete Bricão), capacidade, Flow Function (Jenike), regime de fluxo e descarga, geometria (corpo + tremonha piramidal), raio hidráulico A/U, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas planas a flexão, enrijecedores horizontais, montantes, tremonha e descarga excêntrica, fadiga/dinâmica — conforme Jenike, EN 1991-4 e ABNT NBR 8800.",
+      "descricao": "Pré-dimensionamento de silo prismático (seção retangular) com tremonha piramidal ou em cunha (boca em fenda, fluxo plano), com verificação do ÂNGULO DE VALE (que governa o fluxo de massa), chapa dimensionada por faixa de altura e por par de paredes, vento pela NBR 6123 e vácuo interno calculados automaticamente, e otimização do espaçamento de cintas e do número de montantes pela menor massa de aço. Roteiro completo (Etapas 1-14): caracterização do minério (com presets, incluindo briquete BAR e briquete Bricão), capacidade, Flow Function (Jenike), regime de fluxo e descarga, geometria (corpo + tremonha piramidal), raio hidráulico A/U, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas planas a flexão, enrijecedores horizontais, montantes, tremonha e descarga excêntrica, fadiga/dinâmica — conforme Jenike, EN 1991-4 e ABNT NBR 8800.",
       "referencia": "A. W. Jenike (Flow Function, fluxo de massa, descarga anti-arco); EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; ABNT NBR 8800 (paredes planas a flexão, enrijecedores e estrutura)"
     }
   ]
