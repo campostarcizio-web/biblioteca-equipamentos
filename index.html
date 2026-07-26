@@ -1549,10 +1549,15 @@ const CALCS={
       var nCh=parseFloat($("#rNch")?$("#rNch").value:"4")||4;
       var fcd=0.85*fck/1.4;                                // MPa
       var Abp=Pcol*1000/(fcd*1e6)*1e4;                     // cm² — área de contato requerida
-      var ladoBP=Math.ceil(Math.sqrt(Math.max(Abp,100))*1.15/5)*5;   // cm (com folga p/ chumbadores)
-      var tBP=Math.max(16,Math.ceil(ladoBP*10*Math.sqrt(3*(Pcol*1000/(ladoBP*ladoBP*1e-4))/1e6/(0.9*fy*1e6))*0.5));
-      if(!isFinite(tBP)||tBP<16)tBP=16; if(tBP>63)tBP=63;
-      var tBPcom=[16,19,22.4,25,31.5,38,50,63].find(function(x){return x>=tBP;})||63;
+      var ladoBP=Math.ceil(Math.sqrt(Math.max(Abp,100))*1.15/5)*5*10;   // mm (com folga p/ chumbadores)
+      /* espessura da placa: balanço em flexão sob a pressão de contato
+         t = c·√(2·fp/(0,90·fy))  — c = balanço livre ≈ 0,25 · lado */
+      var fpBP=Pcol*1000/(ladoBP*ladoBP);                  // MPa (N/mm²)
+      var cBP=0.25*ladoBP;                                  // mm
+      var tBP=cBP*Math.sqrt(2*fpBP/(0.90*fy));
+      if(!isFinite(tBP)||tBP<16)tBP=16;
+      var tBPcom=[16,19,22.4,25,31.5,38,50,63,75].find(function(x){return x>=tBP;})||75;
+      var bpExc=(tBP>75);
       var Ntrac=Math.max(0,Nuplift);
       var AsCh=(Ntrac>0)?(Ntrac*1000/nCh)/(0.75*fub/1.35)/100:0;   // cm² por chumbador
       var DIACH=[16,20,22,25,32,38,45,50];                 // mm
@@ -1586,7 +1591,7 @@ const CALCS={
       var pEnr=perfEnr.A*1e-4*Hbody*RHOACO*nEnrV;
       var pAnel=perfAnel.A*1e-4*perim*RHOACO;
       var pMont=perfCol.A*1e-4*Hleg*RHOACO*Ncol;
-      var pBases=Ncol*(ladoBP*ladoBP*(tBPcom/10)*1e-3*7.85);
+      var pBases=Ncol*(ladoBP/10*ladoBP/10*(tBPcom/10)*1e-3*7.85);
       var pAcess=0.12*(pChapa+pTrem+pCintas+pEnr+pAnel);
       var pesoSeco=pChapa+pTrem+pLiner+pCintas+pEnr+pAnel+pMont+pBases+pAcess;
       var pesoMat=Vgeo*rho*1000;
@@ -1748,7 +1753,7 @@ const CALCS={
         {sec:"Etapa 12 — Placa de base, chumbadores e fundação"},
         {k:"Concreto do bloco  fck / fcd",v:fck.toFixed(0)+" / "+fcd.toFixed(1).replace(".",",")+" MPa"},
         {k:"Área de contato requerida  A = N/fcd",v:Abp.toFixed(0)+" cm²"},
-        {k:"PLACA DE BASE",v:ladoBP.toFixed(0)+" × "+ladoBP.toFixed(0)+" mm  ·  espessura "+tBPcom.toFixed(1).replace(".",",")+" mm",hi:true},
+        {k:"PLACA DE BASE",v:ladoBP.toFixed(0)+" × "+ladoBP.toFixed(0)+" mm  ·  espessura "+tBPcom.toFixed(1).replace(".",",")+" mm   (pressão de contato "+fpBP.toFixed(1).replace(".",",")+" MPa ≤ fcd "+fcd.toFixed(1).replace(".",",")+" MPa)"+(bpExc?"  ⚠ espessura elevada — prever enrijecedores na placa":""),hi:true},
         {k:"CHUMBADORES por montante",v:nCh.toFixed(0)+" × Ø"+diaCh+" mm ("+((fub>=1035)?"ASTM A490":(fub>=825)?"ASTM A325":"ASTM A307")+")"+(upliftCrit?("   · As requerida "+AsCh.toFixed(2).replace(".",",")+" cm²/un"):"   · sem tração — dimensionados por construção"),hi:true},
         {k:"Comprimento de ancoragem mínimo",v:LancCh+" mm  (≈ 12 × Ø)  — verificar cone de arrancamento do concreto (ACI 318 Ap. D / NBR 6118)"},
         {k:"REAÇÃO POR MONTANTE — permanente / total (serviço)",v:Rv_perm.toFixed(0)+" / "+Rv_tot.toFixed(0)+" kN",hi:true},
