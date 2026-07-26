@@ -1035,16 +1035,37 @@ const CALCS={
       var fself=num("siSelf"); if(isNaN(fself)||fself<1)fself=1.15;
       var Wmat=massa*g, Wtot=Wmat*fself;
       var chi=0.6, fy_kNcm2=fy/10, lamMax=120, Kbuc=2.0;
+      /* Coluna: χ de flambagem pela curva da NBR 8800 (λ0 = (λ/π)·√(fy/E)).
+         O raio de giração cresce com a seção (i ≈ 0,4·√A p/ perfis tubulares/I usuais),
+         então colunas maiores são mais eficientes — o contrapeso é a cinta, cujo vão
+         entre montantes cai com o número de colunas, e o custo fixo de cada base/fundação. */
+      var perim=2*(a+b), Ecol=200000;                // MPa
+      function chiNBR(lam){
+        var l0=(lam/Math.PI)*Math.sqrt(fy/Ecol);
+        return (l0<=1.5)?Math.pow(0.658,l0*l0):(0.877/(l0*l0));
+      }
       function custoCol(n){
-        var P=Wtot/n, A=P/(chi*0.90*fy_kNcm2);       // cm²
-        var imn=Kbuc*(Hleg*100)/lamMax;              // cm
-        var Amin=Math.max(A,4*imn*0.6);              // área mínima compatível com o raio de giração
-        var m=n*Amin*1e-4*Hleg*RHOACO;               // kg de aço nas colunas
-        return {n:n,P:P,A:Amin,imin:imn,massa:m};
+        var P=Wtot/n, A=Math.max(20,P/(0.6*0.90*fy_kNcm2)), chiU=0.6, lam=0, imn=0;
+        for(var it=0;it<6;it++){                     // itera χ ↔ seção
+          imn=0.4*Math.sqrt(A);                      // cm
+          lam=Kbuc*(Hleg*100)/Math.max(imn,0.1);
+          chiU=chiNBR(lam);
+          A=Math.max(20,P/(chiU*0.90*fy_kNcm2));
+        }
+        var iReq=Kbuc*(Hleg*100)/lamMax;             // raio de giração p/ λ ≤ 120
+        var mCol=n*A*1e-4*Hleg*RHOACO;               // kg — colunas
+        var vaoC=perim/n;                            // vão da cinta entre montantes
+        var Mc=(phD*sst)*vaoC*vaoC/10;               // kN·m
+        var Wc=Mc/(sadm*1000)*1e6;                   // cm³
+        var Ac=Math.max(8,Math.pow(Wc,0.75));        // cm²
+        var mCintaTot=Ac*1e-4*perim*RHOACO*nCintas;  // kg — todas as cintas do corpo
+        var mBase=150*n;                             // kg-equivalente por base/fundação
+        return {n:n,P:P,A:A,imin:iReq,lam:lam,chi:chiU,vao:vaoC,mCol:mCol,mCinta:mCintaTot,
+                massa:mCol,custo:mCol+mCintaTot+mBase};
       }
       var colSel=$("#siNcol").value, otimN=(colSel==="auto");
       var COLS=[4,6,8], colOpt=null, colVar=[];
-      for(var ci2=0;ci2<COLS.length;ci2++){ var rc=custoCol(COLS[ci2]); colVar.push(rc); if(!colOpt||rc.massa<colOpt.massa)colOpt=rc; }
+      for(var ci2=0;ci2<COLS.length;ci2++){ var rc=custoCol(COLS[ci2]); colVar.push(rc); if(!colOpt||rc.custo<colOpt.custo)colOpt=rc; }
       var CC=otimN?colOpt:custoCol(parseFloat(colSel)||4);
       var Ncol=CC.n, Pcol=CC.P, Areq=CC.A, imin=CC.imin;
       // pressão externa: momento de inércia requerido da cinta (estabilidade sob pressão externa)
@@ -1120,7 +1141,7 @@ const CALCS={
         {k:"Espessura recomendada da chapa (comercial)",v:tcom.toFixed(1).replace(".",",")+" mm"+(govMin?"  (mínimo prático)":""),hi:true},
         {k:"Parede do lado a  (vão "+Math.min(sst,a).toFixed(2).replace(".",",")+" m)",v:"chapa "+chapaA.tcom.toFixed(1).replace(".",",")+" mm"},
         {k:"Parede do lado b  (vão "+Math.min(sst,b).toFixed(2).replace(".",",")+" m)",v:"chapa "+chapaB.tcom.toFixed(1).replace(".",",")+" mm"},
-        {k:"Chapa por faixa de altura (pressão de Janssen crescente)",v:(function(){var n=3,out=[];for(var i2=1;i2<=n;i2++){var z2=Hbody*i2/n;var pz=Ch*jph(z2);var cz=chapaPara(pz,sst);out.push("0–"+z2.toFixed(1).replace(".",",")+" m: "+cz.tcom.toFixed(1).replace(".",",")+" mm");}return out.join("  ·  ");})(),hi:true},
+        {k:"Chapa por faixa de altura (do topo para a transição)",v:(function(){var n=3,out=[];for(var i2=1;i2<=n;i2++){var z0=Hbody*(i2-1)/n,z2=Hbody*i2/n;var pz=Ch*jph(z2);var cz=chapaPara(pz,sst);out.push(z0.toFixed(1).replace(".",",")+"–"+z2.toFixed(1).replace(".",",")+" m: "+cz.tcom.toFixed(1).replace(".",",")+" mm ("+pz.toFixed(0)+" kPa)");}return out.join("  ·  ");})(),hi:true},
         {k:"Observação da parede",v:"Parede plana trabalha a flexão (não há tração circunferencial como no silo circular). A chapa pode ser escalonada por faixa de altura — as faixas superiores usam pressão menor."},
         {sec:"Etapa 10 — Ações externas (vento NBR 6123 + vácuo)"},
         {k:"Modo de cálculo",v:(extMode==="auto")?"Automático (NBR 6123 + vácuo selecionado)":"Manual (informado pelo usuário)",hi:true},
@@ -1144,7 +1165,9 @@ const CALCS={
         {k:"Carga por montante  P = Wtot / N",v:fmt(Math.round(Pcol))+" kN"},
         {k:"Área bruta requerida  A ≈ P/(χ·0,90·fy)",v:Areq.toFixed(0)+" cm²  (χ ≈ 0,6)"},
         {k:"Raio de giração mínimo  i = K·L/λ  (K=2, λ=120)",v:imin.toFixed(1).replace(".",",")+" cm"},
-        {k:"Alternativas de montante (massa de aço)",v:colVar.map(function(c){return c.n+" un: "+c.A.toFixed(0)+" cm² / "+c.massa.toFixed(0)+" kg"+(c.n===Ncol?" ✓":"");}).join("   ·   ")},
+        {k:"Esbeltez do montante  λ = K·L/i",v:CC.lam.toFixed(0)+"  (χ = "+CC.chi.toFixed(2).replace(".",",")+")"+(CC.lam>lamMax?"  ⚠ acima de λ=120 — aumentar a seção":"")},
+        {k:"Vão da cinta entre montantes  (perímetro/N)",v:CC.vao.toFixed(2).replace(".",",")+" m"},
+        {k:"Alternativas de montante (coluna + cintas + bases)",v:colVar.map(function(c){return c.n+" un: A "+c.A.toFixed(0)+" cm² · col "+Math.round(c.mCol)+" + cintas "+Math.round(c.mCinta)+" + bases "+(150*c.n)+" = "+Math.round(c.custo)+" kg"+(c.n===Ncol?"  ✓":"");}).join("   ·   ")},
         {k:"Recomendação",v:"Cinta: perfil (U/I/tubular) com W ≥ "+Math.round(Wreq)+" cm³ e I ≥ "+Ireq_cm4.toFixed(0)+" cm⁴. Montante: perfil tubular ou I com A ≥ "+Areq.toFixed(0)+" cm² e i ≥ "+imin.toFixed(1).replace(".",",")+" cm; verificar flambagem, vento e sismo (NBR 8800)."},
         {sec:"Etapa 12 — Dimensionamento da tremonha ("+(cunha?"cunha":"piramidal")+")"},
         {k:"Carga vertical na transição  Fv = pv·A + W_trem",v:fmt(Math.round(Fv))+" kN"},
