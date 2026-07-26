@@ -183,7 +183,11 @@ const SILO_MAT={
   carvao:{rho:0.9,phi:45,delta:30,c:1.5,d50:6},
   carvao_seco:{rho:0.8,phi:38,delta:25,c:0.2,d50:6},
   coque:{rho:0.5,phi:40,delta:30,c:0.3,d50:25},
-  calcario:{rho:1.5,phi:38,delta:28,c:0.5,d50:10}
+  calcario:{rho:1.5,phi:38,delta:28,c:0.5,d50:10},
+  /* Briquetes — estimativas CONSERVADORAS considerando geração de finos no manuseio/estocagem.
+     d50 adotado = maior dimensão da peça (governa o arco mecânico). Confirmar em ensaio Jenike Shear. */
+  briq_bar:{rho:1.7,phi:40,delta:28,c:0.5,d50:57},
+  briq_bricao:{rho:1.3,phi:42,delta:26,c:0.4,d50:120}
 };
 function siloPreset(){
   var p=SILO_MAT[$("#siMat").value]; if(!p) return;
@@ -569,7 +573,9 @@ const CALCS={
         {v:"carvao",t:"Carvão (ROM, fino úmido)"},
         {v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},
-        {v:"calcario",t:"Calcário britado"}]},
+        {v:"calcario",t:"Calcário britado"},
+        {v:"briq_bar",t:"Briquete BAR — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:2.2,step:"0.05"},
       {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:35},
       {id:"siDelta",label:"Atrito parede-material  δ",unidade:"°",tipo:"number",valor:25},
@@ -823,7 +829,9 @@ const CALCS={
         {v:"carvao",t:"Carvão (ROM, fino úmido)"},
         {v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},
-        {v:"calcario",t:"Calcário britado"}]},
+        {v:"calcario",t:"Calcário britado"},
+        {v:"briq_bar",t:"Briquete BAR — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:2.2,step:"0.05"},
       {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:35},
       {id:"siDelta",label:"Atrito parede-material  δ",unidade:"°",tipo:"number",valor:25},
