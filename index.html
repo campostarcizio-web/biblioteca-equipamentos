@@ -1015,12 +1015,16 @@ const CALCS={
         var Wreq=Mbelt/(sadm*1000)*1e6;              // cm³
         var Acinta=Math.max(8,Math.pow(Wreq,0.75));  // cm² — área aproximada p/ o módulo requerido
         var mCinta=(Acinta*1e-4*RHOACO)/s;           // kg por m² de parede (cintas a cada s)
-        return {s:s,tcom:ch.tcom,tcalc:ch.tcalc,govMin:ch.govMin,Wreq:Wreq,Acinta:Acinta,massa:mChapa+mCinta,mChapa:mChapa,mCinta:mCinta};
+        /* custo de fabricação: cada cinta exige corte, ajuste e solda dos dois lados.
+           Proxy de 12 kg-equivalente por metro de cinta — evita ótimo em espaçamento impraticável. */
+        var mFab=12/s;
+        return {s:s,tcom:ch.tcom,tcalc:ch.tcalc,govMin:ch.govMin,Wreq:Wreq,Acinta:Acinta,
+                massa:mChapa+mCinta,mChapa:mChapa,mCinta:mCinta,custo:mChapa+mCinta+mFab};
       }
       var sIn=num("rS"), lsIn=num("siLs");
       var sUser=(!isNaN(sIn)&&sIn>0)?sIn:((!isNaN(lsIn)&&lsIn>0)?lsIn:0);
       var sOpt=null, varr=[];
-      for(var sv=0.6;sv<=3.01;sv+=0.1){ var r=custoCinta(Math.round(sv*10)/10); varr.push(r); if(!sOpt||r.massa<sOpt.massa)sOpt=r; }
+      for(var sv=1.0;sv<=3.01;sv+=0.1){ var r=custoCinta(Math.round(sv*10)/10); varr.push(r); if(!sOpt||r.custo<sOpt.custo)sOpt=r; }
       var otimS=(sUser<=0);
       var CB=otimS?sOpt:custoCinta(sUser);
       var sst=CB.s, tcom=CB.tcom, tflex=CB.tcalc, govMin=CB.govMin, Wreq=CB.Wreq;
