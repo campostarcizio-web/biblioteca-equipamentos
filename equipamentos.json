@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.39.0",
+    "versao": "1.39.1",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -9,7 +9,7 @@
       { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
       { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador Cônico", "Britador de Impacto", "Britador de Martelos"] },
       { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] },
-      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)"] }
+      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)", "Alimentador de Correia (saída de silo)"] }
     ]
   },
   "equipamentos": [
