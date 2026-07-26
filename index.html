@@ -2187,12 +2187,18 @@ const CALCS={
       var LARG=[16,20,24,30,36,42,48,54,60,72,84];
       var WB={Plylon:[5.2,6.5,7.7,11.9,14.3,17.7,20.2,26.8,29.8,35.7,41.6],
               HDRN:[6.4,8.0,9.6,13.5,16.2,21.0,24.0,37.6,41.8,50.1,58.4]};
-      var Bguia=(Bin>0)?Bin:0;
-      var Bpor_guia=(Bguia>0)?(Bguia/0.65*1000/25.4):0;    // pol necessárias p/ a guia informada
+      var gamaP=rhoT*1000;
+      // Critério de CAPACIDADE: de D = Q/(γ·V·B·3600) com o limite D ≤ B/2  →  B ≥ √(2Q/(3600·γ·V))
+      var Bcap_m=Math.sqrt(2*(Q*1000)/(3600*gamaP*V));     // abertura de guia mínima (m)
+      var Bpor_cap=Bcap_m/0.65*1000/25.4;                  // pol de correia correspondentes
+      var Bpor_guia=(Bin>0)?(Bin/0.65*1000/25.4):0;        // pol necessárias p/ a guia informada
       var Bpor_gran=3*Fmax/25.4;                           // ≥ 3 × o maior bloco
+      var Breq_pol=Math.max(Bpor_cap,Bpor_guia,Bpor_gran);
       var Bauto=LARG[LARG.length-1], granInsuf=true;
       for(var i=0;i<LARG.length;i++){
-        if(LARG[i]>=Math.max(Bpor_guia,Bpor_gran)){ Bauto=LARG[i]; granInsuf=false; break; } }
+        if(LARG[i]>=Breq_pol){ Bauto=LARG[i]; granInsuf=false; break; } }
+      var govLarg=(Bpor_guia>=Bpor_cap&&Bpor_guia>=Bpor_gran)?"abertura de guia informada":
+                  (Bpor_cap>=Bpor_gran?"capacidade (limite D ≤ B/2)":"granulometria (3 × maior bloco)");
       var Bsel=$("#acBsel").value, manualB=(Bsel!=="auto");
       var Bpol=manualB?parseInt(Bsel,10):Bauto;
       var Bmm=Math.round(Bpol*25.4);
@@ -2215,7 +2221,7 @@ const CALCS={
       /* ---- TENSÃO EFETIVA  Te = Pe + P1 + Ps + Pfs + Ph  (pág. 1-21) ---- */
       var Pe=L*(Kx+Ky*Wb+0.02*Wb)+45.4;                                    // correia vazia
       var P1=Ky*(1.2*B*B*gama*L2 + B*D*L3*gama);                           // movimentar o material
-      var Ps=(1.2*B-D)*gama*L1*fm*B;                                       // cisalhamento do material
+      var Ps=Math.max(0,(1.2*B-D))*gama*L1*fm*B;                           // cisalhamento do material
       var Pfs=D*gama*Ka*fsm*((2.4*B-D)*L1 + D*L3) + 8.93*L;                // atrito nas guias laterais
       var Ph=B*D*gama*H;                                                   // elevação
       var Te=Pe+P1+Ps+Pfs+Ph;                                              // kgf
@@ -2248,7 +2254,8 @@ const CALCS={
         {k:"Velocidade da correia  V",v:V.toFixed(2).replace(".",",")+" m/s"+(Vok?"  (≤ V máx. "+Vmax.toFixed(1).replace(".",",")+" m/s — material "+(abras==="abr"?"abrasivo":"não abrasivo")+")":"  ⚠ acima da velocidade máxima recomendada ("+Vmax.toFixed(1).replace(".",",")+" m/s)"),hi:true},
         {k:"Abertura da guia de material  B",v:(B*1000).toFixed(0)+" mm"+(Bin>0?"  (informada)":"  (0,65 × largura da correia)"),hi:true},
         {k:"Altura da camada  D = Q / (γ·V·B·3600)",v:(D*1000).toFixed(0)+" mm"+(Din>0?"  (informada — calculada "+(Dcalc*1000).toFixed(0)+" mm)":"  (calculada)"),hi:true},
-        {k:"Limite  D ≤ B/2",v:(Dmax*1000).toFixed(0)+" mm"+(Dok?"  ✓ atende":"  ⚠ camada acima do limite — aumentar B, V ou a largura da correia")},
+        {k:"Limite  D ≤ B/2",v:(Dmax*1000).toFixed(0)+" mm"+(Dok?"  ✓ atende":"  ⚠ CAMADA ACIMA DO LIMITE — o resultado sai da faixa de validade do método; aumentar a largura da correia, a abertura B ou a velocidade V"),hi:!Dok},
+        {k:"Abertura de guia mínima pela capacidade  B ≥ √(2Q/(3600·γ·V))",v:(Bcap_m*1000).toFixed(0)+" mm  →  correia "+(Bpor_cap).toFixed(1).replace(".",",")+"\""},
         {k:"Capacidade resultante  Q = 3600·B·D·V·γ",v:Qreal.toFixed(0)+" t/h"+(Math.abs(Qreal-Q)/Q<0.02?"  ✓ confere":"  (recalculada com a camada informada)")},
         {k:"Carga de material sobre a correia  Wm",v:Wm.toFixed(1).replace(".",",")+" kgf/m"},
         {k:"Maior bloco do material",v:fmt(Math.round(Fmax))+" mm"},
@@ -2286,7 +2293,7 @@ const CALCS={
         {k:"Controle da vazão",v:"Alimentador de correia aceita variador contínuo de velocidade (inversor), permitindo dosagem contínua e precisa e ampla variação da taxa de alimentação — a vazão é praticamente linear com V."},
         {sec:"Etapa 6 — Tensões de operação e seleção da correia"},
         {k:"LARGURA DA CORREIA",v:Bpol+"\" ("+Bmm+" mm)"+(manualB?"  (escolha do usuário)":"  (automático)")+(Bestreita?"  ⚠ menor que a calculada ("+Bauto+"\")":"")+(granInsuf?"  ⚠ acima do maior catálogo":""),hi:true},
-        {k:"Critério de largura",v:"guia B = "+(B*1000).toFixed(0)+" mm → "+(Bpor_guia>0?Bpor_guia.toFixed(1).replace(".",","):"—")+"\"   ·   granulometria (3 × bloco) → "+Bpor_gran.toFixed(1).replace(".",",")+"\""},
+        {k:"Critérios de largura  (governa: "+govLarg+")",v:"capacidade → "+Bpor_cap.toFixed(1).replace(".",",")+"\"   ·   granulometria (3 × bloco) → "+Bpor_gran.toFixed(1).replace(".",",")+"\""+(Bpor_guia>0?("   ·   guia informada → "+Bpor_guia.toFixed(1).replace(".",",")+"\""):"")},
         {k:"Verificação de bloco  (largura ≥ 3 × maior bloco)",v:lumpOK?"OK — "+Bmm+" mm ≥ "+(3*Fmax).toFixed(0)+" mm":"⚠ insuficiente — usar correia mais larga ou reduzir o bloco"},
         {k:"Tensão máxima  T1 = (1 + K)·Te",v:fmt(Math.round(T1))+" kgf   (K = "+K.toFixed(2).replace(".",",")+")",hi:true},
         {k:"Tensão no lado frouxo  T2 = K·Te",v:fmt(Math.round(T2))+" kgf"},
