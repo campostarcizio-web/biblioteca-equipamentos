@@ -1,15 +1,58 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.47.1",
+    "versao": "1.48.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
-      { "grupo": "Transportadores", "subgrupos": ["Correia Transportadora Convencional", "Flexowell", "Arraste Tubular", "Elevador de Canecas", "Helicoidal"] },
-      { "grupo": "Silos", "subgrupos": ["Silo Circular", "Silo Retangular"] },
-      { "grupo": "Britadores", "subgrupos": ["Britador de Mandíbulas", "Britador Cônico", "Britador de Impacto", "Britador de Martelos"] },
-      { "grupo": "Peneiras", "subgrupos": ["Peneira Vibratória Horizontal", "Peneira Vibratória Inclinada", "Peneira Vibratória Banana (CBS)"] },
-      { "grupo": "Alimentadores", "subgrupos": ["Calha Vibratória (saída de silo)", "Alimentador de Correia (moega de alimentação)"] }
+      {
+        "grupo": "Transportadores",
+        "subgrupos": [
+          "Correia Transportadora Convencional",
+          "Flexowell",
+          "Arraste Tubular",
+          "Elevador de Canecas",
+          "Helicoidal"
+        ]
+      },
+      {
+        "grupo": "Silos",
+        "subgrupos": [
+          "Silo Circular",
+          "Silo Retangular"
+        ]
+      },
+      {
+        "grupo": "Britadores",
+        "subgrupos": [
+          "Britador de Mandíbulas",
+          "Britador Cônico",
+          "Britador de Impacto",
+          "Britador de Martelos"
+        ]
+      },
+      {
+        "grupo": "Peneiras",
+        "subgrupos": [
+          "Peneira Vibratória Horizontal",
+          "Peneira Vibratória Inclinada",
+          "Peneira Vibratória Banana (CBS)"
+        ]
+      },
+      {
+        "grupo": "Alimentadores",
+        "subgrupos": [
+          "Calha Vibratória (saída de silo)",
+          "Alimentador de Correia (moega de alimentação)"
+        ]
+      },
+      {
+        "grupo": "Ativadores de Silo",
+        "subgrupos": [
+          "Cone Vibratório Circular",
+          "Cone Vibratório Retangular"
+        ]
+      }
     ]
   },
   "equipamentos": [
@@ -188,6 +231,28 @@
       "calculadora": "silo_retangular",
       "descricao": "Pré-dimensionamento EXECUTIVO de silo prismático (seção retangular) com tremonha piramidal ou em cunha. FLUXO: ábaco de Jenike para o ângulo de tremonha (cônico e plano) com verificação do ângulo de vale, abertura anti-arco, diâmetro de rathole quando o fluxo de massa não é atingível, e vazão de descarga por Beverloo comparada à produção. AÇÕES: classes de esbeltez e de avaliação da EN 1991-4, três casos de carga com limites superior e inferior de K e μ, carga localizada (patch load), ações térmicas, pressões de tremonha por Walker/Enstad e pressão de switch na transição. VENTO E SISMO: NBR 6123 com força global de arrasto e momento de tombamento, e NBR 15421 com cortante sísmico de base — a ação lateral governante é identificada. ESTRUTURA (NBR 8800): chapa por ELU e ELS (flecha), escalonada por faixa de altura, verificação de flambagem local da parede sob a compressão de atrito, cintas e enrijecedores com o vão real entre montantes, ANEL DE TRANSIÇÃO dimensionado à flexão e tração, montantes em combinação ELU com vento/sismo e curva de flambagem, tração de arrancamento, placa de base, chumbadores e comprimento de ancoragem, verificação de fadiga e frequência natural. Entrega ainda: revestimento interno com efeito no atrito de parede, dispositivos anti-arco, reações por montante para o projeto de fundação, interface com o alimentador (σv e Fv na boca), pesos discriminados e croqui executivo com elevação, planta e seis tabelas de dados construtivos.",
       "referencia": "A. W. Jenike (Bulletin 123) — Flow Function, ábaco de fluxo de massa (θ × δ × φw) para tremonha cônica e plana, abertura anti-arco e diâmetro de rathole; correlação de Beverloo para a vazão de descarga por gravidade. EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez, limites superior e inferior de K e μ com os três casos de carga, carga localizada, pressões de tremonha por Walker/Enstad no enchimento e na descarga, pressão de switch na transição e ações térmicas. ABNT NBR 6123 (vento: S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). ABNT NBR 15421 (sismo). ABNT NBR 8800 (estrutura: combinações de ELU e ELS, chapa a flexão e flecha, enrijecedores, cintas, anel de transição, montantes com curva de flambagem, flambagem local da parede, placa de base, chumbadores e fadiga pelo Anexo K / EN 1993-1-9)"
+    },
+    {
+      "id": "cone-vibratorio-circular",
+      "grupo": "Ativadores de Silo",
+      "subgrupo": "Cone Vibratório Circular",
+      "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Cone Vibratório Circular",
+      "calculadora": "cone_vibratorio_circular",
+      "descricao": "Seção circular ou oval — área calculada como elipse (π/4 · A · B). É a forma padrão de fábrica e a que distribui melhor a vibração no tronco. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo.",
+      "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível"
+    },
+    {
+      "id": "cone-vibratorio-retangular",
+      "grupo": "Ativadores de Silo",
+      "subgrupo": "Cone Vibratório Retangular",
+      "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Cone Vibratório Retangular",
+      "calculadora": "cone_vibratorio_retangular",
+      "descricao": "Seção retangular — área calculada como A · B. O ângulo governante é o ÂNGULO DE VALE do canto, sempre mais raso que o das faces, e é ele que decide o escoamento. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo.",
+      "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível"
     }
   ]
 }

@@ -189,6 +189,13 @@ function penApply(pref,sel,calc){
   scrSet(pref+"Forma",[m.q2]); scrSet(pref+"Tela",m.q5);
   runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:calc);
 }
+function conePreset2(){
+  var p=SILO_MAT[$("#cvMat").value];
+  var alvo=(CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"cone_vibratorio_circular";
+  if(p){ $("#cvRho").value=p.rho; $("#cvPhi").value=p.phi; $("#cvDelta").value=p.delta;
+         $("#cvCoes").value=p.c; $("#cvD50").value=p.d50; }
+  runCalc(alvo);
+}
 function penPreset(){ penApply("pn","pnMat","peneira_horizontal"); }
 function penPresetI(){ penApply("pi","piMat","peneira_inclinada"); }
 function penPresetB(){ penApply("pb","pbMat","peneira_banana"); }
@@ -196,7 +203,7 @@ function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
 function conePreset(){var w=CRUSHER_MAT[$("#bcMat").value]; if(w==null)return; $("#bcWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_conico");}
-function icon(e){if(e&&e.calculadora==="alimentador_correia")return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function icon(e){if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")===0)return ICON_FEEDER;if(e&&e.calculadora==="alimentador_correia")return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -522,6 +529,194 @@ function sewDrive(sew,Pmaj){
     (d.acima?"  ⚠ torque acima de 500 kN·m — consultar SEW (solução especial)":"")+
     (d.iok?"":"  ⚠ relação i = "+sew.i.toFixed(1).replace(".",",")+" fora da faixa da série ("+d.irange+
        ") — prever redução primária (motor de 6/8 polos, acoplamento por correias/corrente ou inversor com redução de rotação)");
+}
+
+function coneVibCalc(CVCIRC){
+      var g=9.80665;
+      var A=num("cvA")/1000, B=num("cvB")/1000, H=num("cvH")/1000, C=num("cvC")/1000, D=num("cvD")/1000;
+      var rho=num("cvRho"), phi=num("cvPhi"), phw=num("cvDelta"), coes=num("cvCoes"), d50=num("cvD50");
+      var esp=num("cvEsp"), pctRef=num("cvRef");
+      if([A,B,H,C,D,rho,phi,phw,coes,d50,esp,pctRef].some(function(x){return isNaN(x);})) return null;
+      if(A<=0||B<=0||H<=0||C<=0||D<=0||rho<=0||phi<=0||phi>=90) return null;
+      if(C>=A||D>=B) return null;
+      var circ=CVCIRC;
+      function area(a,b){ return circ?(Math.PI/4*a*b):(a*b); }
+      function perim(a,b){ return circ?(Math.PI*(3*(a+b)/2-Math.sqrt(a*b))/2*2):(2*(a+b)); }
+      /* ---- VOLUME: tronco (frustum) menos o cone defletor ---- */
+      var A1=area(A,B), A2=area(C,D);
+      var Vtronco=(H/3)*(A1+A2+Math.sqrt(A1*A2));
+      var temDefl=($("#cvDefl").value==="sim");
+      var DbIn=num("cvDb"), DhIn=num("cvDh");
+      var Db=temDefl?((!isNaN(DbIn)&&DbIn>0)?DbIn/1000:0.55*A):0;
+      var Dh=temDefl?((!isNaN(DhIn)&&DhIn>0)?DhIn/1000:(Db/2)):0;
+      if(Db>=A*0.9)Db=A*0.9;
+      var Adefl=temDefl?area(Db,Db):0;
+      var Vdefl=temDefl?(Adefl*Dh/3):0;
+      var Vutil=Vtronco-Vdefl;
+      var mMat=Vutil*rho*1000;                                  // kg de material no cone
+      /* ---- ÂNGULOS DAS PAREDES ---- */
+      var proj=(A-C)/2, projB=(B-D)/2;
+      var alfaA=Math.atan(H/Math.max(proj,1e-4))*180/Math.PI;
+      var alfaB=Math.atan(H/Math.max(projB,1e-4))*180/Math.PI;
+      var alfaVale=circ?Math.min(alfaA,alfaB)
+                       :Math.atan(H/Math.sqrt(proj*proj+projB*projB))*180/Math.PI;
+      var geratriz=Math.sqrt(H*H+proj*proj);
+      /* ---- ÂNGULO EXIGIDO (Jenike com bônus de vibração) ----
+         A vibração reduz o atrito efetivo de parede: o ativador admite paredes ~10 a 15°
+         mais rasas que a tremonha estática equivalente. */
+      var JEN_D=[30,40,50,60,70], JEN_W=[0,10,20,30,40];
+      var JEN_CON=[[33,24,13,0,0],[35,28,19,7,0],[36,30,23,13,0],[37,32,26,18,7],[38,33,28,22,13]];
+      function bil(T,xs,ys,x,y){
+        function idx(v,arr){ if(v<=arr[0])return [0,0,0]; if(v>=arr[arr.length-1])return [arr.length-1,arr.length-1,0];
+          for(var i=1;i<arr.length;i++){ if(v<=arr[i]) return [i-1,i,(v-arr[i-1])/(arr[i]-arr[i-1])]; } return [arr.length-1,arr.length-1,0]; }
+        var ix=idx(x,xs), iy=idx(y,ys);
+        var v0=T[ix[0]][iy[0]]+(T[ix[0]][iy[1]]-T[ix[0]][iy[0]])*iy[2];
+        var v1=T[ix[1]][iy[0]]+(T[ix[1]][iy[1]]-T[ix[1]][iy[0]])*iy[2];
+        return v0+(v1-v0)*ix[2];
+      }
+      var thLim=bil(JEN_CON,JEN_D,JEN_W,phi,phw);
+      var bonusVib=13;                                          // graus ganhos pela vibração
+      var alfaExig=Math.max(25,(90-Math.max(3,thLim-3))-bonusVib);
+      var anguloOK=(alfaVale>=alfaExig-0.5);
+      /* ---- ABERTURA ANTI-ARCO ---- */
+      var pr=phi*Math.PI/180, gamma=rho*g;
+      var sc=2*coes*Math.cos(pr)/(1-Math.sin(pr)); if(!isFinite(sc)||sc<0)sc=0;
+      var Hf=2.0+(90-alfaExig)/60;
+      var Barco=(sc>0.001)?(Hf*sc/gamma):0;
+      var BarcoVib=Barco*0.6;                                   // a vibração reduz o arco ~40%
+      var Bmec=8*d50/1000;
+      var Bmin=Math.max(BarcoVib,Bmec,0.25);
+      var Bdesc=Math.min(C,D);
+      var bocaOK=(Bdesc>=Bmin-0.001);
+      /* ---- VAZÃO DE DESCARGA (Beverloo) ---- */
+      var Deq=circ?Math.sqrt(C*D):(2*Math.sqrt(area(C,D)/Math.PI));
+      var Wbev=0.58*(rho*1000)*Math.sqrt(g)*Math.pow(Math.max(Deq-1.5*d50/1000,0.001),2.5);
+      var Qbev=Wbev*3.6;                                        // t/h
+      /* ---- MASSAS ---- */
+      var Alat=((perim(A,B)+perim(C,D))/2)*geratriz;            // m² da superfície do tronco
+      var Adeflat=temDefl?(perim(Db,Db)/2*Math.sqrt(Dh*Dh+Db*Db/4)):0;
+      var mChapa=(Alat+Adeflat)*(esp/1000)*7850;
+      var mEstr=mChapa*(1+pctRef/100);                          // + flange, reforços e manga
+      var partM=parseFloat($("#cvPart").value)||0.5;
+      var mVib=mEstr+partM*mMat;                                // massa vibrante
+      /* ---- VIBRAÇÃO ---- */
+      var polos=parseFloat($("#cvPolos").value)||6;
+      var fRede=parseFloat($("#cvFreq").value)||60;
+      var rpm=120*fRede/polos, fop=rpm/60, w=2*Math.PI*fop;
+      var ka=parseFloat($("#cvKa").value)||1.5;
+      var Fc=ka*mVib*g/1000;                                    // kN — força centrífuga total
+      var Me=Fc*1000/(w*w)*1000;                                // kg·mm — momento estático total
+      var App=2*Me/mVib;                                        // mm pico a pico
+      var ampOK=(App>=1.0&&App<=4.0);
+      var acel=ka;                                              // em g
+      /* ---- CATÁLOGO DE MOTOVIBRADORES (força centrífuga kN × potência kW) ---- */
+      var MVCAT={2:[[1.0,0.04],[2.5,0.09],[5,0.17],[8,0.26],[12,0.38],[18,0.55],[25,0.75],[35,1.1]],
+                 4:[[1.0,0.06],[2,0.12],[3,0.18],[5,0.28],[7,0.40],[10,0.55],[14,0.75],[20,1.1],[26,1.5],[35,2.0],[45,2.6],[60,3.5]],
+                 6:[[1.0,0.10],[2,0.20],[3.5,0.32],[5,0.45],[8,0.70],[12,1.0],[16,1.3],[22,1.8],[30,2.4],[40,3.2],[55,4.2]],
+                 8:[[2,0.25],[4,0.48],[7,0.80],[10,1.1],[15,1.6],[22,2.3],[30,3.0],[42,4.0]]};
+      var fCorr=(fRede===50)?Math.pow(50/60,2):1;               // força cai com f² a 50 Hz
+      function selMV(Freq){
+        var T=MVCAT[polos]||MVCAT[6], acima=false, sel=null;
+        for(var i=0;i<T.length;i++){ if(T[i][0]*fCorr>=Freq){ sel=T[i]; break; } }
+        if(!sel){ sel=T[T.length-1]; acima=true; }
+        return {F:sel[0]*fCorr,kw:sel[1],acima:acima};
+      }
+      var mv1=selMV(Fc);                                        // OPÇÃO 1 — um motovibrador
+      var mv2=selMV(Fc/2);                                      // OPÇÃO 2 — dois motovibradores
+      var P1=mv1.kw, P2=2*mv2.kw;
+      var Me1=Fc*1000/(w*w)*1000, Me2=Me1/2;                    // kg·mm por unidade
+      /* ---- MOLAS DE ISOLAMENTO ---- */
+      var nMol=parseFloat($("#cvNmol").value)||4;
+      var relF=parseFloat($("#cvRelF").value)||4;
+      var fn=fop/relF;
+      var kTot=mVib*Math.pow(2*Math.PI*fn,2)/1000;              // N/mm
+      var kMola=kTot/nMol;                                      // N/mm por mola
+      var defEst=mVib*g/(kTot*1000)*1000;                       // mm — flecha estática
+      var transm=1/(relF*relF-1)*100;                           // % de transmissibilidade
+      /* ---- CARGAS NO FLANGE DO SILO ---- */
+      var svIn=num("cvPv");
+      var svEst=(!isNaN(svIn)&&svIn>0)?svIn:(gamma*Math.min(A,B)/2);   // kPa
+      var Fsilo=svEst*A1;                                       // kN — empuxo vertical do silo
+      var Pest=(mEstr+mMat)*g/1000;                             // kN — peso estático do conjunto
+      var Pdin=Fc;                                              // kN — força dinâmica (alternada)
+      var Ptot=Pest+Fsilo;
+      var OUT=[
+        {sec:"Função do equipamento"},
+        {k:"Tipo",v:"Cone vibratório (ativador de silo / descarregador vibratório) — tronco suspenso por molas sob a boca do silo, com cone defletor interno e manga flexível de vedação, acionado por motovibrador.",hi:true},
+        {k:"Princípio",v:"O defletor interno recebe a coluna de material e desvia a carga para a periferia, aliviando a boca de descarga. A vibração do tronco reduz o atrito efetivo com a parede e rompe arcos e ratoeiras, restabelecendo o escoamento sem fluidizar o material."},
+        {sec:"Etapa 1 — Geometria e VOLUME ÚTIL"},
+        {k:"Seção adotada",v:circ?"Circular / oval":"Retangular"},
+        {k:"Entrada  A × B",v:(A*1000).toFixed(0)+" × "+(B*1000).toFixed(0)+" mm   (área "+A1.toFixed(3).replace(".",",")+" m²)",hi:true},
+        {k:"Descarga  C × D",v:(C*1000).toFixed(0)+" × "+(D*1000).toFixed(0)+" mm   (área "+A2.toFixed(3).replace(".",",")+" m²)",hi:true},
+        {k:"Altura do cone  H",v:(H*1000).toFixed(0)+" mm"},
+        {k:"Volume do tronco  V = (H/3)·(A1 + A2 + √(A1·A2))",v:Vtronco.toFixed(3).replace(".",",")+" m³"},
+        {k:"Cone defletor  (base × altura)",v:temDefl?((Db*1000).toFixed(0)+" × "+(Dh*1000).toFixed(0)+" mm   →  volume ocupado "+Vdefl.toFixed(3).replace(".",",")+" m³"+((DbIn>0||DhIn>0)?"  (informado)":"  (automático)")):"sem defletor"},
+        {k:"VOLUME ÚTIL DO CONE  (tronco − defletor)",v:Vutil.toFixed(3).replace(".",",")+" m³   =   "+(Vutil*1000).toFixed(0)+" litros",hi:true},
+        {k:"MASSA DE MATERIAL NO CONE",v:fmt(Math.round(mMat))+" kg   ("+(mMat/1000).toFixed(2).replace(".",",")+" t)",hi:true},
+        {k:"Geratriz da parede",v:(geratriz*1000).toFixed(0)+" mm"},
+        {k:"Área da superfície do tronco",v:Alat.toFixed(2).replace(".",",")+" m²"},
+        {sec:"Etapa 2 — Verificação de fluxo"},
+        {k:"Ângulo das paredes  (direção A / direção B)",v:alfaA.toFixed(1).replace(".",",")+"° / "+alfaB.toFixed(1).replace(".",",")+"°"},
+        {k:"Ângulo governante  (vale, no retangular)",v:alfaVale.toFixed(1).replace(".",",")+"°",hi:true},
+        {k:"Ângulo exigido  (Jenike − "+bonusVib+"° de bônus da vibração)",v:alfaExig.toFixed(1).replace(".",",")+"°"+(anguloOK?"   ✓ atende":"   ⚠ parede mais rasa que o exigido — aumentar H ou reduzir a boca de entrada"),hi:true},
+        {k:"Abertura anti-arco estática  B = H(θ)·σc/γ",v:(Barco*1000).toFixed(0)+" mm"},
+        {k:"Abertura anti-arco COM vibração  (≈ 0,6 × estática)",v:(BarcoVib*1000).toFixed(0)+" mm"},
+        {k:"Abertura por bloqueio mecânico  (8 × d50)",v:(Bmec*1000).toFixed(0)+" mm"},
+        {k:"ABERTURA MÍNIMA EXIGIDA  ·  adotada",v:(Bmin*1000).toFixed(0)+" mm  ·  "+(Bdesc*1000).toFixed(0)+" mm"+(bocaOK?"   ✓ atende":"   ⚠ descarga abaixo do mínimo — risco de arco mesmo com vibração"),hi:true},
+        {k:"Vazão de descarga por gravidade (Beverloo)",v:fmt(Math.round(Qbev))+" t/h   (limite físico da boca; a vazão real é imposta pelo alimentador a jusante)"},
+        {sec:"Etapa 3 — Massa vibrante"},
+        {k:"Chapa do cone e do defletor  ("+Alat.toFixed(2).replace(".",",")+" + "+Adeflat.toFixed(2).replace(".",",")+" m² × "+esp.toFixed(1).replace(".",",")+" mm)",v:fmt(Math.round(mChapa))+" kg"},
+        {k:"Estrutura completa  (+ "+pctRef.toFixed(0)+"% de flange, reforços e manga)",v:fmt(Math.round(mEstr))+" kg",hi:true},
+        {k:"Material no cone  ×  participação de "+(partM*100).toFixed(0)+"%",v:fmt(Math.round(mMat))+" × "+partM.toFixed(2).replace(".",",")+" = "+fmt(Math.round(partM*mMat))+" kg"},
+        {k:"MASSA VIBRANTE  m_vib",v:fmt(Math.round(mVib))+" kg",hi:true},
+        {sec:"Etapa 4 — Vibração requerida"},
+        {k:"Motovibrador — polos / rede / rotação",v:polos+" polos · "+fRede+" Hz · "+rpm.toFixed(0)+" rpm   (f_op = "+fop.toFixed(1).replace(".",",")+" Hz)",hi:true},
+        {k:"Fator de aceleração adotado  ka",v:ka.toFixed(1).replace(".",",")+"   →  aceleração imposta "+acel.toFixed(1).replace(".",",")+" g"},
+        {k:"FORÇA CENTRÍFUGA TOTAL REQUERIDA  Fc = ka · m_vib · g",v:kNkg(Fc),hi:true},
+        {k:"Momento estático total  Me = Fc / ω²",v:Me.toFixed(0)+" kg·mm"},
+        {k:"AMPLITUDE pico a pico  App = 2·Me / m_vib",v:App.toFixed(2).replace(".",",")+" mm"+(ampOK?"   ✓ dentro da faixa útil de 1 a 4 mm":(App<1?"   ⚠ abaixo de 1 mm — vibração ineficaz; usar mais polos (menor rotação) ou aumentar ka":"   ⚠ acima de 4 mm — danifica a manga flexível; reduzir ka ou usar menos polos")),hi:true},
+        {sec:"Etapa 5 — OPÇÃO 1: um motovibrador"},
+        {k:"Força centrífuga por unidade",v:kNkg(Fc)+"   (uma unidade cobre a força total)"},
+        {k:"MOTOVIBRADOR SELECIONADO",v:"1 × "+mv1.F.toFixed(1).replace(".",",")+" kN · "+polos+" polos · "+rpm.toFixed(0)+" rpm · "+mv1.kw.toFixed(2).replace(".",",")+" kW"+(mv1.acima?"   ⚠ acima do maior modelo tabelado — adotar 2 unidades":""),hi:true},
+        {k:"POTÊNCIA INSTALADA — opção 1",v:P1.toFixed(2).replace(".",",")+" kW   ("+(P1/0.7457).toFixed(2).replace(".",",")+" cv)",hi:true},
+        {k:"Momento estático a regular",v:Me1.toFixed(0)+" kg·mm  (contrapesos em ambas as pontas do eixo)"},
+        {k:"Movimento resultante",v:"Vibração CIRCULAR / rotacional no plano do vibrador. Montagem lateral no tronco, com o eixo horizontal. Solução usual em ativadores de até ~1,5 m de diâmetro."},
+        {sec:"Etapa 5 — OPÇÃO 2: dois motovibradores"},
+        {k:"Força centrífuga por unidade  (Fc / 2)",v:kNkg(Fc/2)},
+        {k:"MOTOVIBRADORES SELECIONADOS",v:"2 × "+mv2.F.toFixed(1).replace(".",",")+" kN · "+polos+" polos · "+rpm.toFixed(0)+" rpm · "+mv2.kw.toFixed(2).replace(".",",")+" kW cada"+(mv2.acima?"   ⚠ acima do maior modelo tabelado":""),hi:true},
+        {k:"POTÊNCIA INSTALADA — opção 2",v:P2.toFixed(2).replace(".",",")+" kW   ("+(P2/0.7457).toFixed(2).replace(".",",")+" cv)   —  "+((P2>P1)?("+"+((P2/P1-1)*100).toFixed(0)+"% vs. opção 1"):((P2<P1)?("−"+((1-P2/P1)*100).toFixed(0)+"% vs. opção 1"):"igual à opção 1")),hi:true},
+        {k:"Momento estático por unidade",v:Me2.toFixed(0)+" kg·mm"},
+        {k:"Movimento resultante",v:"Vibração LINEAR DIRIGIDA — os dois vibradores contra-rotativos se auto-sincronizam e as componentes transversais se cancelam. Melhor para ativadores grandes, material coesivo e para reduzir o desgaste da manga flexível. Montagem simétrica, obrigatoriamente com sentidos de rotação opostos."},
+        {k:"Recomendação",v:(Fc>12)?"Adotar a OPÇÃO 2 — a força requerida é elevada e a vibração linear dirigida distribui melhor o esforço no tronco.":(alfaVale<alfaExig?"Adotar a OPÇÃO 2 — a geometria está no limite e a vibração dirigida compensa parcialmente o ângulo raso.":"A OPÇÃO 1 atende e é mais simples e barata. A opção 2 fica reservada a material coesivo ou a exigência de vibração dirigida."),hi:true},
+        {sec:"Etapa 6 — Molas de isolamento"},
+        {k:"Relação de frequências adotada  f_op / f_n",v:relF.toFixed(0)+"   →  f_n = "+fn.toFixed(2).replace(".",",")+" Hz"},
+        {k:"Rigidez total requerida  k = m_vib · (2π·f_n)²",v:kTot.toFixed(0)+" N/mm"},
+        {k:"NÚMERO DE MOLAS  ·  rigidez por mola",v:nMol.toFixed(0)+" molas  ·  "+kMola.toFixed(0)+" N/mm cada",hi:true},
+        {k:"Flecha estática sob o peso vibrante",v:defEst.toFixed(1).replace(".",",")+" mm"},
+        {k:"Transmissibilidade ao silo  T = 1/(r²−1)",v:transm.toFixed(1).replace(".",",")+" %"+((transm<10)?"   ✓ bom isolamento":"   ⚠ isolamento fraco — aumentar a relação de frequências"),hi:true},
+        {k:"Manga flexível",v:"Prever manga de vedação entre o flange do silo e o tronco vibrante, com folga axial ≥ 3 × a amplitude ("+(3*App).toFixed(1).replace(".",",")+" mm) e material compatível com o produto. É o componente de maior desgaste do conjunto."},
+        {sec:"Etapa 7 — Cargas no flange do silo"},
+        {k:"Pressão vertical do silo na entrada  σv",v:svEst.toFixed(1).replace(".",",")+" kPa"+((svIn>0)?"  (informada)":"  (estimada por γ·B/2 — usar o valor da calculadora de silo)")},
+        {k:"Empuxo vertical do silo sobre o cone",v:kNkg(Fsilo)},
+        {k:"Peso estático do conjunto (estrutura + material)",v:kNkg(Pest)},
+        {k:"CARGA VERTICAL ESTÁTICA TOTAL no flange",v:kNkg(Ptot),hi:true},
+        {k:"CARGA DINÂMICA ALTERNADA  (± Fc)",v:"± "+kNkg(Fc)+"   — atua nas duas direções a "+fop.toFixed(1).replace(".",",")+" Hz",hi:true},
+        {k:"Observação estrutural",v:"O flange do silo recebe a carga estática permanente mais a componente dinâmica transmitida pelas molas ("+transm.toFixed(1).replace(".",",")+"% de Fc = "+kNkg(Fc*transm/100)+"). Verificar a fadiga das soldas do flange e do anel de apoio; prever inspeção periódica das molas e da manga."},
+        {sec:"Observações"},
+        {k:"Quando usar",v:"Ativador indicado para material coesivo, úmido ou de granulometria fina que forma arco ou ratoeira; também para silos com tremonha rasa que não atinge fluxo de massa. Não substitui a geometria correta da tremonha — corrige o escoamento, mas o ângulo de parede continua sendo a primeira linha de projeto."},
+        {k:"Cuidados de operação",v:"Nunca operar o vibrador com o silo parado e o material consolidado por longo período (compacta em vez de soltar). Acionar o vibrador SOMENTE com o alimentador a jusante em operação, e de forma intermitente. Vibração contínua compacta o material e reduz a vida da manga e das molas."},
+        {k:"Observação de projeto",v:"⚠ Pré-dimensionamento. A força centrífuga e a amplitude devem ser confirmadas com o fabricante do motovibrador para a massa vibrante real, e as molas selecionadas em catálogo pela rigidez e pela carga estática. Verificar ainda a partida (o vibrador passa pela frequência de ressonância ao acelerar e ao parar)."}
+      ];
+      OUT.geo={tipo:"conevib",A:A,B:B,H:H,C:C,D:D,circ:circ,A1:A1,A2:A2,Vtronco:Vtronco,
+        temDefl:temDefl,Db:Db,Dh:Dh,Vdefl:Vdefl,Vutil:Vutil,mMat:mMat,
+        alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaExig:alfaExig,anguloOK:anguloOK,geratriz:geratriz,
+        Barco:Barco,BarcoVib:BarcoVib,Bmec:Bmec,Bmin:Bmin,Bdesc:Bdesc,bocaOK:bocaOK,Qbev:Qbev,
+        esp:esp,Alat:Alat,mChapa:mChapa,mEstr:mEstr,partM:partM,mVib:mVib,
+        polos:polos,fRede:fRede,rpm:rpm,fop:fop,ka:ka,Fc:Fc,Me:Me,App:App,ampOK:ampOK,
+        mv1F:mv1.F,mv1kw:mv1.kw,P1:P1,Me1:Me1,mv2F:mv2.F,mv2kw:mv2.kw,P2:P2,Me2:Me2,
+        nMol:nMol,relF:relF,fn:fn,kTot:kTot,kMola:kMola,defEst:defEst,transm:transm,
+        svEst:svEst,Fsilo:Fsilo,Pest:Pest,Ptot:Ptot,rho:rho,d50:d50};
+  return OUT;
 }
 
 const CALCS={
@@ -2654,6 +2849,128 @@ const CALCS={
       return OUT;
     }
   },
+  cone_vibratorio_circular:{
+    titulo:"Cone Vibratório CIRCULAR (saída de silo) — pré-dimensionamento",
+    referencia:"Ativador de silo de seção circular / oval: área da entrada e da descarga calculadas como elipse (π/4 · A · B), que é a forma padrão de fábrica e a de melhor distribuição da vibração. Ativador de silo / descarregador vibratório: cone tronco-cônico suspenso por molas sob a boca do silo, com cone defletor interno (anti-arco) e manga flexível de vedação, acionado por motovibrador(es). Dimensionamento pela FORÇA CENTRÍFUGA requerida Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material; momento estático Me = Fc/ω² e amplitude pico a pico App = 2·Me/m_vib (faixa útil 1 a 4 mm). Isolamento por molas com relação de frequências f_op/f_n ≥ 4 (transmissibilidade < 7%). Abertura anti-arco por A. W. Jenike com bônus de vibração; vazão de descarga por Beverloo. Catálogo de motovibradores tipo Italvibras MVSI / OLI MVE (força centrífuga × rotação × potência).",
+    campos:[
+      {tipo:"head",label:"Geometria do cone"},
+      {id:"cvA",label:"A — diâmetro de entrada do cone (flange no silo)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"cvB",label:"B — segundo eixo da entrada (igual a A se circular; diferente = oval)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"cvH",label:"Altura do cone  H",unidade:"mm",tipo:"number",valor:600,step:"25"},
+      {id:"cvC",label:"C — diâmetro de descarga do cone",unidade:"mm",tipo:"number",valor:300,step:"25"},
+      {id:"cvD",label:"D — segundo eixo da descarga (igual a C se circular)",unidade:"mm",tipo:"number",valor:300,step:"25"},
+      {tipo:"head",label:"Cone defletor interno (anti-arco)"},
+      {id:"cvDefl",label:"Cone defletor",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"Com defletor — padrão do ativador (quebra o arco e alivia a descarga)"},
+        {v:"nao",t:"Sem defletor — só o tronco vibrante"}]},
+      {id:"cvDb",label:"Diâmetro da base do defletor  (0 = automático, 0,55 · A)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {id:"cvDh",label:"Altura do defletor  (0 = automático, base a 45°)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {tipo:"head",label:"Material armazenado"},
+      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_bar",onchange:"conePreset2()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
+        {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
+        {v:"pelota",t:"Pelotas de minério de ferro"},{v:"sinter",t:"Sínter"},
+        {v:"carvao",t:"Carvão (ROM, fino úmido)"},{v:"carvao_seco",t:"Carvão seco"},
+        {v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
+        {v:"briq_bar",t:"Briquete BAR (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+      {id:"cvRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
+      {id:"cvPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
+      {id:"cvDelta",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
+      {id:"cvCoes",label:"Coesão  c",unidade:"kPa",tipo:"number",valor:0.5,step:"0.1"},
+      {id:"cvD50",label:"Granulometria  d50 / maior peça",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"cvPv",label:"Pressão vertical do silo sobre o cone  σv  (0 = estimar)",unidade:"kPa",tipo:"number",valor:0,step:"1"},
+      {tipo:"head",label:"Construção do cone"},
+      {id:"cvEsp",label:"Espessura da chapa do cone",unidade:"mm",tipo:"number",valor:6.3,step:"0.1"},
+      {id:"cvRef",label:"Flange, reforços e manga — % sobre a chapa",unidade:"%",tipo:"number",valor:35,step:"5"},
+      {tipo:"head",label:"Vibração"},
+      {id:"cvPolos",label:"Motovibrador — número de polos",tipo:"select",valor:"6",opcoes:[
+        {v:"2",t:"2 polos — alta frequência, baixa amplitude (finos secos)"},
+        {v:"4",t:"4 polos — uso geral"},
+        {v:"6",t:"6 polos — recomendado em ativadores (maior amplitude)"},
+        {v:"8",t:"8 polos — material muito coesivo / grande amplitude"}]},
+      {id:"cvFreq",label:"Frequência da rede",tipo:"select",valor:"60",opcoes:[
+        {v:"60",t:"60 Hz (Brasil)"},{v:"50",t:"50 Hz"}]},
+      {id:"cvKa",label:"Fator de aceleração  ka = Fc / (m_vib · g)",tipo:"select",valor:"1.5",opcoes:[
+        {v:"1.0",t:"1,0 — material de bom escoamento"},
+        {v:"1.5",t:"1,5 — usual em ativadores"},
+        {v:"2.0",t:"2,0 — material coesivo / úmido"},
+        {v:"2.5",t:"2,5 — muito coesivo, com histórico de arco"}]},
+      {id:"cvPart",label:"Participação da massa de material na vibração",tipo:"select",valor:"0.5",opcoes:[
+        {v:"0.3",t:"30% — granular de livre escoamento"},
+        {v:"0.5",t:"50% — usual"},
+        {v:"0.7",t:"70% — coesivo, move-se solidário ao cone"}]},
+      {id:"cvNmol",label:"Número de molas de suspensão",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 molas"},{v:"4",t:"4 molas"},{v:"6",t:"6 molas"},{v:"8",t:"8 molas"}]},
+      {id:"cvRelF",label:"Relação de frequências  f_op / f_n  (isolamento)",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 — mínimo aceitável (transmissibilidade ~12%)"},
+        {v:"4",t:"4 — recomendado (~7%)"},
+        {v:"5",t:"5 — isolamento severo (~4%)"}]}
+    ],
+    calcular:function(){ return coneVibCalc(true); }
+  },
+  cone_vibratorio_retangular:{
+    titulo:"Cone Vibratório RETANGULAR (saída de silo) — pré-dimensionamento",
+    referencia:"Ativador de silo de seção retangular: área da entrada e da descarga calculadas como A · B, e o ângulo governante é o ÂNGULO DE VALE do canto — sempre mais raso que o das faces, e por isso o que decide o escoamento. Ativador de silo / descarregador vibratório: cone tronco-cônico suspenso por molas sob a boca do silo, com cone defletor interno (anti-arco) e manga flexível de vedação, acionado por motovibrador(es). Dimensionamento pela FORÇA CENTRÍFUGA requerida Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material; momento estático Me = Fc/ω² e amplitude pico a pico App = 2·Me/m_vib (faixa útil 1 a 4 mm). Isolamento por molas com relação de frequências f_op/f_n ≥ 4 (transmissibilidade < 7%). Abertura anti-arco por A. W. Jenike com bônus de vibração; vazão de descarga por Beverloo. Catálogo de motovibradores tipo Italvibras MVSI / OLI MVE (força centrífuga × rotação × potência).",
+    campos:[
+      {tipo:"head",label:"Geometria do cone"},
+      {id:"cvA",label:"A — entrada do cone (flange no silo)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"cvB",label:"B — entrada do cone (perpendicular a A)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"cvH",label:"Altura do cone  H",unidade:"mm",tipo:"number",valor:600,step:"25"},
+      {id:"cvC",label:"C — descarga do cone",unidade:"mm",tipo:"number",valor:300,step:"25"},
+      {id:"cvD",label:"D — descarga do cone (perpendicular a C)",unidade:"mm",tipo:"number",valor:300,step:"25"},
+      {tipo:"head",label:"Cone defletor interno (anti-arco)"},
+      {id:"cvDefl",label:"Cone defletor",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"Com defletor — padrão do ativador (quebra o arco e alivia a descarga)"},
+        {v:"nao",t:"Sem defletor — só o tronco vibrante"}]},
+      {id:"cvDb",label:"Base do defletor  (0 = automático, 0,55 · A)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {id:"cvDh",label:"Altura do defletor  (0 = automático, base a 45°)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {tipo:"head",label:"Material armazenado"},
+      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_bar",onchange:"conePreset2()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
+        {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
+        {v:"pelota",t:"Pelotas de minério de ferro"},{v:"sinter",t:"Sínter"},
+        {v:"carvao",t:"Carvão (ROM, fino úmido)"},{v:"carvao_seco",t:"Carvão seco"},
+        {v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
+        {v:"briq_bar",t:"Briquete BAR (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+      {id:"cvRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
+      {id:"cvPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
+      {id:"cvDelta",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
+      {id:"cvCoes",label:"Coesão  c",unidade:"kPa",tipo:"number",valor:0.5,step:"0.1"},
+      {id:"cvD50",label:"Granulometria  d50 / maior peça",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"cvPv",label:"Pressão vertical do silo sobre o cone  σv  (0 = estimar)",unidade:"kPa",tipo:"number",valor:0,step:"1"},
+      {tipo:"head",label:"Construção do cone"},
+      {id:"cvEsp",label:"Espessura da chapa do cone",unidade:"mm",tipo:"number",valor:6.3,step:"0.1"},
+      {id:"cvRef",label:"Flange, reforços e manga — % sobre a chapa",unidade:"%",tipo:"number",valor:35,step:"5"},
+      {tipo:"head",label:"Vibração"},
+      {id:"cvPolos",label:"Motovibrador — número de polos",tipo:"select",valor:"6",opcoes:[
+        {v:"2",t:"2 polos — alta frequência, baixa amplitude (finos secos)"},
+        {v:"4",t:"4 polos — uso geral"},
+        {v:"6",t:"6 polos — recomendado em ativadores (maior amplitude)"},
+        {v:"8",t:"8 polos — material muito coesivo / grande amplitude"}]},
+      {id:"cvFreq",label:"Frequência da rede",tipo:"select",valor:"60",opcoes:[
+        {v:"60",t:"60 Hz (Brasil)"},{v:"50",t:"50 Hz"}]},
+      {id:"cvKa",label:"Fator de aceleração  ka = Fc / (m_vib · g)",tipo:"select",valor:"1.5",opcoes:[
+        {v:"1.0",t:"1,0 — material de bom escoamento"},
+        {v:"1.5",t:"1,5 — usual em ativadores"},
+        {v:"2.0",t:"2,0 — material coesivo / úmido"},
+        {v:"2.5",t:"2,5 — muito coesivo, com histórico de arco"}]},
+      {id:"cvPart",label:"Participação da massa de material na vibração",tipo:"select",valor:"0.5",opcoes:[
+        {v:"0.3",t:"30% — granular de livre escoamento"},
+        {v:"0.5",t:"50% — usual"},
+        {v:"0.7",t:"70% — coesivo, move-se solidário ao cone"}]},
+      {id:"cvNmol",label:"Número de molas de suspensão",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 molas"},{v:"4",t:"4 molas"},{v:"6",t:"6 molas"},{v:"8",t:"8 molas"}]},
+      {id:"cvRelF",label:"Relação de frequências  f_op / f_n  (isolamento)",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 — mínimo aceitável (transmissibilidade ~12%)"},
+        {v:"4",t:"4 — recomendado (~7%)"},
+        {v:"5",t:"5 — isolamento severo (~4%)"}]}
+    ],
+    calcular:function(){ return coneVibCalc(false); }
+  },
   calha_vibratoria:{
     titulo:"Calha Vibratória (saída de silo) — pré-dimensionamento",
     referencia:"Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: Q = 3600·φ1·φ2·V·L·H (m³/h), curva de velocidade V (rpm × amplitude 3–7 mm), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada (H ≤ 0,5/0,3/0,2·L) e fator de inclinação descendente; catálogos de calhas CV (sob silo) e alimentadores suspensos MVS",
@@ -4191,6 +4508,129 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — elevação e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="conevib"){
+      /* ---------- Croqui do cone vibratório (ativador de silo) ---------- */
+      var MX0=15,MX1=195;
+      function fitX(xc,w){ return Math.max(MX0+w/2,Math.min(MX1-w/2,xc)); }
+      function nota(xc,y,t,r,gg,b,fs){ doc.setFontSize(fs||6); doc.setTextColor(r,gg,b);
+        var w=doc.getTextWidth(san(t)); doc.text(san(t),fitX(xc,w),y,{align:"center"}); }
+      function tag(xc,y,t,r,gg,b){ doc.setFontSize(6.5);
+        var w=doc.getTextWidth(san(t))+4, xf=fitX(xc,w);
+        doc.setFillColor(r,gg,b); doc.setTextColor(255,255,255);
+        doc.roundedRect(xf-w/2,y,w,6,1.2,1.2,"F"); doc.text(san(t),xf,y+4.3,{align:"center"}); }
+      var cx=88, esc=Math.min(62/Math.max(G.A,0.2),70);
+      var wA=Math.max(20,Math.min(62,G.A*esc/2)), wC=Math.max(5,wA*(G.C/G.A));
+      var yT=52, yB=yT+Math.max(20,Math.min(46,G.H*esc));
+      /* material no cone */
+      doc.setFillColor(245,228,190);
+      doc.triangle(cx-wA,yT,cx+wA,yT,cx,yB+((wC>0)?0:0),"F");
+      doc.setFillColor(255,255,255);
+      doc.triangle(cx-wC,yB,cx+wC,yB,cx,yB+7,"F");
+      /* paredes do cone */
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.2);
+      doc.line(cx-wA,yT,cx-wC,yB); doc.line(cx+wA,yT,cx+wC,yB);
+      doc.line(cx-wC,yB,cx+wC,yB);
+      /* flange do silo */
+      doc.setLineWidth(1.6); doc.line(cx-wA-9,yT,cx+wA+9,yT);
+      doc.setLineWidth(0.8); doc.line(cx-wA-16,yT-9,cx-wA-9,yT); doc.line(cx+wA+16,yT-9,cx+wA+9,yT);
+      nota(cx,yT-12,"boca do silo",110,130,150);
+      /* manga flexível */
+      doc.setDrawColor(190,120,60); doc.setLineWidth(0.7); doc.setLineDashPattern([1.2,1.2],0);
+      doc.line(cx-wA-7,yT+1,cx-wA+1,yT+7); doc.line(cx+wA+7,yT+1,cx+wA-1,yT+7);
+      doc.setLineDashPattern([],0);
+      nota(cx-wA-20,yT+10,"manga",190,120,60,5.6);
+      /* cone defletor */
+      if(G.temDefl){
+        var wD=wA*(G.Db/G.A), hD=Math.max(6,Math.min(26,G.Dh*esc));
+        doc.setFillColor(205,215,228); doc.setDrawColor(60,90,120); doc.setLineWidth(0.7);
+        doc.triangle(cx-wD,yT+4+hD,cx+wD,yT+4+hD,cx,yT+4,"FD");
+        nota(cx,yT+4+hD+4,"defletor "+Math.round(G.Db*1000)+" x "+Math.round(G.Dh*1000)+" mm",60,90,120,5.6);
+      }
+      /* molas de suspensão */
+      doc.setDrawColor(200,120,40); doc.setLineWidth(0.7);
+      [-1,1].forEach(function(sg){
+        var xm=cx+sg*(wA+6);
+        for(var i=0;i<4;i++){ doc.line(xm-2.2,yT+3+i*3.2,xm+2.2,yT+4.6+i*3.2);
+                              doc.line(xm+2.2,yT+4.6+i*3.2,xm-2.2,yT+6.2+i*3.2); }
+      });
+      nota(cx+wA+22,yT+20,G.nMol+" molas",200,120,40,5.8);
+      /* motovibrador */
+      doc.setFillColor(200,60,50); doc.setDrawColor(150,40,30); doc.setLineWidth(0.5);
+      doc.roundedRect(cx-wA-24,yT+22,15,10,1.5,1.5,"FD");
+      doc.setDrawColor(200,60,50); doc.setLineWidth(0.8);
+      doc.line(cx-wA-9,yT+27,cx-wA*0.75,yT+30);
+      nota(cx-wA-17,yT+37,"motovibrador",200,60,50,5.8);
+      /* cotas */
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150);
+      doc.line(cx-wA,yT-5,cx+wA,yT-5);
+      doc.line(cx-wA,yT-6.5,cx-wA,yT-3.5); doc.line(cx+wA,yT-6.5,cx+wA,yT-3.5);
+      nota(cx,yT-6.5,"A = "+Math.round(G.A*1000)+" mm   ·   B = "+Math.round(G.B*1000)+" mm",30,120,150,7);
+      doc.setDrawColor(30,155,196);
+      doc.line(cx-wC,yB+11,cx+wC,yB+11);
+      doc.line(cx-wC,yB+9.5,cx-wC,yB+12.5); doc.line(cx+wC,yB+9.5,cx+wC,yB+12.5);
+      nota(cx,yB+16,"C = "+Math.round(G.C*1000)+" mm   ·   D = "+Math.round(G.D*1000)+" mm",30,120,150,7);
+      var xh=cx+wA+30;
+      doc.setDrawColor(30,155,196); doc.line(xh,yT,xh,yB);
+      doc.line(xh-1.5,yT,xh+1.5,yT); doc.line(xh-1.5,yB,xh+1.5,yB);
+      doc.setFontSize(7); doc.setTextColor(30,120,150);
+      doc.text(san("H = "+Math.round(G.H*1000)+" mm"),Math.min(xh+2,178),(yT+yB)/2);
+      nota(cx+wA*0.55,(yT+yB)/2+3,G.alfaVale.toFixed(1)+"°",30,120,150,6.5);
+      /* volume útil em destaque */
+      tag(cx,yB+21,"VOLUME ÚTIL = "+(G.Vutil*1000).toFixed(0)+" L   ·   "+Math.round(G.mMat)+" kg",22,120,90);
+      /* forças */
+      tag(cx-42,yB+31,"Fc = "+G.Fc.toFixed(1)+" kN / "+fmt(kgf(G.Fc))+" kg",200,60,50);
+      tag(cx+42,yB+31,"App = "+G.App.toFixed(2)+" mm",30,120,190);
+      function tab(t,body,sy){
+        doc.autoTable({startY:sy,theme:"grid",margin:{left:14,right:14},head:[[t,"Valor"]],body:body,
+          headStyles:{fillColor:[22,38,60],textColor:255,fontSize:8.5},bodyStyles:{fontSize:7.4},
+          alternateRowStyles:{fillColor:[244,247,250]},
+          columnStyles:{0:{cellWidth:104},1:{cellWidth:78,halign:"right",fontStyle:"bold"}}});
+        return doc.lastAutoTable.finalY; }
+      var y1=tab("1 — GEOMETRIA E VOLUME",[
+        [san("Seção"),G.circ?san("circular / oval"):san("retangular")],
+        [san("Entrada  A × B"),san(String(Math.round(G.A*1000)))+" × "+san(String(Math.round(G.B*1000)))+" mm"],
+        [san("Descarga  C × D"),san(String(Math.round(G.C*1000)))+" × "+san(String(Math.round(G.D*1000)))+" mm"],
+        [san("Altura do cone  H"),san(String(Math.round(G.H*1000)))+" mm"],
+        [san("Área de entrada / de descarga"),san(G.A1.toFixed(3))+" / "+san(G.A2.toFixed(3))+" m²"],
+        [san("Volume do tronco"),san(G.Vtronco.toFixed(3))+" m³"],
+        [san("Cone defletor (base × altura)"),G.temDefl?(san(String(Math.round(G.Db*1000)))+" × "+san(String(Math.round(G.Dh*1000)))+" mm"):san("sem defletor")],
+        [san("Volume ocupado pelo defletor"),san(G.Vdefl.toFixed(3))+" m³"],
+        [san("VOLUME ÚTIL DO CONE"),san(G.Vutil.toFixed(3))+" m³  ("+san(String(Math.round(G.Vutil*1000)))+" L)"],
+        [san("MASSA DE MATERIAL NO CONE"),san(String(Math.round(G.mMat)))+" kg"],
+        [san("Ângulo das paredes (A / B)"),san(G.alfaA.toFixed(1))+"° / "+san(G.alfaB.toFixed(1))+"°"],
+        [san("Ângulo governante / exigido"),san(G.alfaVale.toFixed(1))+"° / "+san(G.alfaExig.toFixed(1))+"°"+(G.anguloOK?san("  OK"):san("  raso"))],
+        [san("Abertura anti-arco (com vibração) / adotada"),san(String(Math.round(G.BarcoVib*1000)))+" / "+san(String(Math.round(G.Bdesc*1000)))+" mm"+(G.bocaOK?san("  OK"):san("  insuficiente"))],
+        [san("Vazão de descarga (Beverloo)"),san(String(Math.round(G.Qbev)))+" t/h"]
+      ],yB+40);
+      var y2=tab("2 — VIBRAÇÃO E ACIONAMENTO",[
+        [san("Chapa do cone / estrutura completa"),san(String(Math.round(G.mChapa)))+" / "+san(String(Math.round(G.mEstr)))+" kg"],
+        [san("Participação do material"),san(String(Math.round(G.partM*100)))+" %"],
+        [san("MASSA VIBRANTE  m_vib"),san(String(Math.round(G.mVib)))+" kg"],
+        [san("Polos / rede / rotação"),san(String(G.polos))+" polos · "+san(String(G.fRede))+" Hz · "+san(G.rpm.toFixed(0))+" rpm"],
+        [san("Fator de aceleração  ka"),san(G.ka.toFixed(1))],
+        [san("FORÇA CENTRÍFUGA  Fc"),san(G.Fc.toFixed(1))+" kN  ("+fmt(kgf(G.Fc))+" kg)"],
+        [san("Momento estático total  Me"),san(G.Me.toFixed(0))+" kg·mm"],
+        [san("AMPLITUDE pico a pico  App"),san(G.App.toFixed(2))+" mm"+(G.ampOK?san("  OK"):san("  fora de 1 a 4 mm"))],
+        [san("OPÇÃO 1 — 1 motovibrador"),"1 × "+san(G.mv1F.toFixed(1))+" kN · "+san(G.mv1kw.toFixed(2))+" kW"],
+        [san("OPÇÃO 1 — potência instalada"),san(G.P1.toFixed(2))+" kW"],
+        [san("OPÇÃO 2 — 2 motovibradores"),"2 × "+san(G.mv2F.toFixed(1))+" kN · "+san(G.mv2kw.toFixed(2))+" kW"],
+        [san("OPÇÃO 2 — potência instalada"),san(G.P2.toFixed(2))+" kW"],
+        [san("Momento estático por unidade (opção 2)"),san(G.Me2.toFixed(0))+" kg·mm"]
+      ],y1+5);
+      var y3=tab("3 — MOLAS E CARGAS NO FLANGE",[
+        [san("Relação f_op / f_n  ·  f_n"),san(G.relF.toFixed(0))+"  ·  "+san(G.fn.toFixed(2))+" Hz"],
+        [san("Rigidez total / por mola"),san(G.kTot.toFixed(0))+" / "+san(G.kMola.toFixed(0))+" N/mm"],
+        [san("Número de molas"),san(String(G.nMol))],
+        [san("Flecha estática"),san(G.defEst.toFixed(1))+" mm"],
+        [san("Transmissibilidade ao silo"),san(G.transm.toFixed(1))+" %"],
+        [san("Pressão vertical do silo  σv"),san(G.svEst.toFixed(1))+" kPa"],
+        [san("Empuxo do silo / peso do conjunto"),san(G.Fsilo.toFixed(1))+" / "+san(G.Pest.toFixed(1))+" kN"],
+        [san("CARGA ESTÁTICA no flange"),san(G.Ptot.toFixed(1))+" kN  ("+fmt(kgf(G.Ptot))+" kg)"],
+        [san("CARGA DINÂMICA alternada  ± Fc"),"± "+san(G.Fc.toFixed(1))+" kN  ("+fmt(kgf(G.Fc))+" kg)"],
+        [san("Transmitida ao silo pelas molas"),san((G.Fc*G.transm/100).toFixed(2))+" kN  ("+fmt(kgf(G.Fc*G.transm/100))+" kg)"]
+      ],y2+5);
+      doc.setFontSize(7); doc.setTextColor(110);
+      doc.text(san("Croqui esquemático (fora de escala) — cone vibratório / ativador de silo. Acionar o vibrador somente com o alimentador a jusante em operação."),14,y3+6);
     } else if(G.tipo==="alimcor"){
       /* ---------- Croqui do alimentador de correia (figura da pag. 1-21) ---------- */
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
