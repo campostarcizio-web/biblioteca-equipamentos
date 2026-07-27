@@ -4054,66 +4054,74 @@ function gerarRelatorio(){
     doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
     doc.setFont("helvetica","normal");
     if(G.tipo==="arraste"){
+      /* ---- Croqui do arraste tubular ----
+         Área útil da página: x de 14 a 196 mm. Todo rótulo passa por fitX(), que centra
+         o texto e o desloca para dentro quando encostaria na margem. */
+      var MX0=15, MX1=195;
+      function fitX(xc,w){ return Math.max(MX0+w/2,Math.min(MX1-w/2,xc)); }
+      function tag(xc,y,txt,corR,corG,corB,sub){
+        doc.setFontSize(6.5);
+        var w=doc.getTextWidth(san(txt))+4, xf=fitX(xc,w);
+        doc.setFillColor(corR,corG,corB); doc.setTextColor(255,255,255);
+        doc.roundedRect(xf-w/2,y,w,6,1.2,1.2,"F");
+        doc.text(san(txt),xf,y+4.3,{align:"center"});
+        if(sub){ doc.setTextColor(corR,corG,corB); doc.setFontSize(5.8);
+          var w2=doc.getTextWidth(san(sub)); doc.text(san(sub),fitX(xc,w2),y-1.6,{align:"center"}); }
+        return xf;
+      }
+      function nota(xc,y,txt,corR,corG,corB,fs){
+        doc.setFontSize(fs||6); doc.setTextColor(corR,corG,corB);
+        var w=doc.getTextWidth(san(txt)); doc.text(san(txt),fitX(xc,w),y,{align:"center"});
+      }
+      /* perfil do transportador */
+      var x0=46,y0=112,x1=76,x2=134,y2=80,x3=170;
       doc.setDrawColor(20,40,60); doc.setLineWidth(1.4);
-      var x0=28,y0=104,x1=62,x2=128,y2=70,x3=182;
       doc.line(x0,y0,x1,y0); doc.line(x1,y0,x2,y2); doc.line(x2,y2,x3,y2);
+      /* fluxo do material */
       doc.setDrawColor(217,169,74); doc.setLineWidth(0.8);
-      doc.line(x0,y0-13,x0,y0-4); doc.line(x0-2.2,y0-7,x0,y0-4); doc.line(x0+2.2,y0-7,x0,y0-4);
-      doc.line(x3,y2+4,x3,y2+13); doc.line(x3-2.2,y2+10,x3,y2+13); doc.line(x3+2.2,y2+10,x3,y2+13);
-      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
-      doc.line(x0,y0+8,x1,y0+8); doc.text("Lh1 = "+san(G.Lh1.toFixed(1))+" m",(x0+x1)/2,y0+12,{align:"center"});
-      doc.text("Li = "+san(G.Li.toFixed(1))+" m  /  "+san(G.theta.toFixed(0))+"°",(x1+x2)/2-1,(y0+y2)/2-3,{align:"center"});
-      doc.line(x2,y2-8,x3,y2-8); doc.text("Lh2 = "+san(G.Lh2.toFixed(1))+" m",(x2+x3)/2,y2-10,{align:"center"});
-      doc.line(x3+8,y2,x3+8,y0); doc.line(x3+6.5,y2,x3+9.5,y2); doc.line(x3+6.5,y0,x3+9.5,y0);
-      doc.text("H = "+san(G.H.toFixed(2))+" m",x3+10,(y2+y0)/2+1);
-      /* ---- CARGAS PONTUAIS NAS EXTREMIDADES ---- */
-      function seta(x,y,txt,sub){
-        doc.setDrawColor(200,60,50); doc.setLineWidth(0.8);
-        doc.line(x,y-16,x,y-4); doc.line(x-2.4,y-7.5,x,y-4); doc.line(x+2.4,y-7.5,x,y-4);
-        doc.setFillColor(200,60,50); doc.setTextColor(255,255,255); doc.setFontSize(6.5);
-        var w=doc.getTextWidth(txt)+4;
-        doc.roundedRect(x-w/2,y-24,w,6,1.2,1.2,"F");
-        doc.text(san(txt),x,y-19.7,{align:"center"});
-        if(sub){ doc.setTextColor(200,60,50); doc.setFontSize(6);
-          doc.text(san(sub),x,y-26.5,{align:"center"}); }
-      }
-      seta(x0,y0-14,G.Pent.toFixed(1)+" kN / "+fmt(kgf(G.Pent))+" kg","ENTRADA");
-      seta(x3,y2-14,G.Psai.toFixed(1)+" kN / "+fmt(kgf(G.Psai))+" kg","DESCARGA");
-      doc.setTextColor(200,60,50); doc.setFontSize(6);
-      doc.text(san("retorno + esticador + "+G.nCh+" chute(s)"),x0,y0+18,{align:"center"});
-      /* ---- CARGAS HORIZONTAIS: acionamento e esticador ---- */
-      function setaH(x,y,dir,txt,sub){
-        var L=17;
-        doc.setDrawColor(30,120,190); doc.setLineWidth(0.9);
-        doc.line(x,y,x+dir*L,y);
-        doc.line(x+dir*L-dir*3.2,y-2.3,x+dir*L,y);
-        doc.line(x+dir*L-dir*3.2,y+2.3,x+dir*L,y);
-        doc.setFillColor(30,120,190); doc.setTextColor(255,255,255); doc.setFontSize(6.5);
-        var w=doc.getTextWidth(txt)+4;
-        var xb=x+dir*L+dir*(w/2+1.5);
-        doc.roundedRect(xb-w/2,y-3.2,w,6,1.2,1.2,"F");
-        doc.text(san(txt),xb,y+1.1,{align:"center"});
-        if(sub){ doc.setTextColor(30,120,190); doc.setFontSize(5.8);
-          doc.text(san(sub),xb,y-5,{align:"center"}); }
-      }
-      /* esticador: puxa a corrente para tras, na extremidade de entrada */
-      setaH(x0-3,y0+4,-1,G.Hestic.toFixed(1)+" kN / "+fmt(kgf(G.Hestic))+" kg","ESTICADOR  H = 2·T0");
-      /* acionamento: os dois ramos puxam o eixo em direcao ao transportador */
-      setaH(x3+3,y2+4,1,G.Hacion.toFixed(1)+" kN / "+fmt(kgf(G.Hacion))+" kg","ACIONAMENTO  H = T1+T2");
-      /* ancoragem liquida do conjunto */
-      doc.setDrawColor(30,120,190); doc.setLineWidth(0.5); doc.setLineDashPattern([1.5,1.5],0);
-      doc.line(x1+6,y0+22,x2-6,y0+22);
-      doc.line(x2-9,y0+20.2,x2-6,y0+22); doc.line(x2-9,y0+23.8,x2-6,y0+22);
-      doc.setLineDashPattern([],0);
-      doc.setTextColor(30,120,190); doc.setFontSize(6);
-      doc.text(san("ancoragem do conjunto  H = F = "+G.Hancor.toFixed(1)+" kN / "+fmt(kgf(G.Hancor))+" kg"),(x1+x2)/2,y0+26,{align:"center"});
-      doc.text(san("motor + redutor: "+G.Pmot.toFixed(1)+" kN = "+Math.round(G.mAcion)+" kg"),x3,y2-30,{align:"center"});
+      doc.line(x0,y0-10,x0,y0-3); doc.line(x0-2.2,y0-6,x0,y0-3); doc.line(x0+2.2,y0-6,x0,y0-3);
+      doc.line(x3,y2+3,x3,y2+10); doc.line(x3-2.2,y2+7,x3,y2+10); doc.line(x3+2.2,y2+7,x3,y2+10);
+      /* cotas de comprimento */
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(7.5);
+      doc.line(x0,y0+8,x1,y0+8); nota((x0+x1)/2,y0+12,"Lh1 = "+G.Lh1.toFixed(1)+" m",30,120,150,7.5);
+      nota((x1+x2)/2,(y0+y2)/2-2,"Li = "+G.Li.toFixed(1)+" m  /  "+G.theta.toFixed(0)+"°",30,120,150,7.5);
+      doc.setDrawColor(30,155,196); doc.line(x2,y2-8,x3,y2-8);
+      nota((x2+x3)/2,y2-10,"Lh2 = "+G.Lh2.toFixed(1)+" m",30,120,150,7.5);
+      doc.setDrawColor(30,155,196);
+      doc.line(x3+7,y2,x3+7,y0); doc.line(x3+5.5,y2,x3+8.5,y2); doc.line(x3+5.5,y0,x3+8.5,y0);
+      doc.setTextColor(30,120,150); doc.setFontSize(7);
+      doc.text(san("H = "+G.H.toFixed(2)+" m"),x3+9,(y2+y0)/2+1);
       /* carga distribuída */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.3);
-      for(var xs=x0+6;xs<x1;xs+=7){ doc.line(xs,y0-9,xs,y0-4); }
-      doc.setTextColor(110,130,150); doc.setFontSize(6);
-      doc.text(san("q = "+G.qDistOp.toFixed(2)+" kN/m = "+kgf(G.qDistOp)+" kg/m"),(x0+x1)/2+4,y0-11,{align:"center"});
-      doc.autoTable({startY:140,theme:"grid",margin:{left:14,right:14},
+      for(var xs=x0+5;xs<x1;xs+=6){ doc.line(xs,y0-8,xs,y0-3); }
+      nota((x0+x1)/2+3,y0-10,"q = "+G.qDistOp.toFixed(2)+" kN/m = "+kgf(G.qDistOp)+" kg/m",110,130,150);
+      /* ---- CARGAS VERTICAIS (vermelho) ---- */
+      function setaV(x,y,txt,sub){
+        doc.setDrawColor(200,60,50); doc.setLineWidth(0.8);
+        doc.line(x,y-16,x,y-4); doc.line(x-2.4,y-7.5,x,y-4); doc.line(x+2.4,y-7.5,x,y-4);
+        tag(x,y-24,txt,200,60,50,sub);
+      }
+      setaV(x0,y0,G.Pent.toFixed(1)+" kN / "+fmt(kgf(G.Pent))+" kg","ENTRADA");
+      setaV(x3,y2,G.Psai.toFixed(1)+" kN / "+fmt(kgf(G.Psai))+" kg","DESCARGA");
+      nota(x0,y0+20,"retorno + esticador + "+G.nCh+" chute(s)",200,60,50);
+      nota(x3,y2-30,"motoredutor "+G.Pmot.toFixed(1)+" kN / "+Math.round(G.mAcion)+" kg",200,60,50);
+      /* ---- CARGAS HORIZONTAIS (azul) ---- */
+      function setaH(x,y,dir,txt,sub){
+        var L=16, xt=x+dir*L;
+        doc.setDrawColor(30,120,190); doc.setLineWidth(0.9);
+        doc.line(x,y,xt,y);
+        doc.line(xt-dir*3.2,y-2.3,xt,y); doc.line(xt-dir*3.2,y+2.3,xt,y);
+        tag((x+xt)/2,y+3.5,txt,30,120,190,null);
+        if(sub) nota((x+xt)/2,y-2.5,sub,30,120,190,5.8);
+      }
+      setaH(x0-4,y0+30,-1,G.Hestic.toFixed(1)+" kN / "+fmt(kgf(G.Hestic))+" kg","ESTICADOR  H = 2·T0");
+      setaH(x3+4,y2+22,1,G.Hacion.toFixed(1)+" kN / "+fmt(kgf(G.Hacion))+" kg","ACIONAMENTO  H = T1+T2");
+      doc.setDrawColor(30,120,190); doc.setLineWidth(0.5); doc.setLineDashPattern([1.5,1.5],0);
+      doc.line(x1+4,y0+24,x2-4,y0+24);
+      doc.line(x2-7,y0+22.2,x2-4,y0+24); doc.line(x2-7,y0+25.8,x2-4,y0+24);
+      doc.setLineDashPattern([],0);
+      nota((x1+x2)/2,y0+22,"ancoragem do conjunto  H = F = "+G.Hancor.toFixed(1)+" kN / "+fmt(kgf(G.Hancor))+" kg",30,120,190);
+      doc.autoTable({startY:158,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
           [san("Tubo (ASME B36.10 · Sch 40)"),san(G.size)],
