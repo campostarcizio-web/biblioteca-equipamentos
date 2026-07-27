@@ -633,6 +633,68 @@ function coneVibCalc(CVCIRC){
       var kMola=kTot/nMol;                                      // N/mm por mola
       var defEst=mVib*g/(kTot*1000)*1000;                       // mm — flecha estática
       var transm=1/(relF*relF-1)*100;                           // % de transmissibilidade
+      /* ================= TIRANTES DO CONE DEFLETOR =================
+         O defletor é suspenso do tronco por tirantes. Eles recebem:
+         (a) a carga estática da coluna de material que se apoia no defletor, σv · A_defl;
+         (b) o peso próprio do defletor;
+         (c) a força de INÉRCIA alternada da vibração, ± m_defl,vib · ka · g, a f_op.
+         A parcela (c) é alternada e ocorre milhões de vezes: em tirante rosqueado a
+         FADIGA governa, e não a resistência estática. */
+      var svTir=num("cvPv");
+      var svDefl=(!isNaN(svTir)&&svTir>0)?svTir:(rho*g*Math.min(A,B)/2);
+      var mDefl=temDefl?(Adeflat*(esp/1000)*7850):0;                  // kg — chapa do defletor
+      var mMatDefl=temDefl?(mMat*Adefl/A1):0;                          // kg — material sobre o defletor
+      var Fmat=temDefl?(svDefl*Adefl):0;                               // kN — coluna sobre o defletor
+      var Fpeso=mDefl*g/1000;                                          // kN
+      var Fest_tir=Fmat+Fpeso;                                         // kN — estática
+      var mDeflVib=mDefl+partM*mMatDefl;
+      var Fdin_tir=mDeflVib*ka*g/1000;                                 // kN — amplitude da inércia
+      var nTir=parseFloat($("#cvNtir")?$("#cvNtir").value:"4")||4;
+      var betaT=num("cvBtir"); if(isNaN(betaT)||betaT<0||betaT>75)betaT=30;
+      var cosB=Math.cos(betaT*Math.PI/180);
+      var kDes=num("cvKdes"); if(isNaN(kDes)||kDes<1)kDes=1.25;
+      var ACO_T={a36:{fy:250,fu:400,n:"ASTM A36 / SAE 1020"},
+                 a325:{fy:640,fu:830,n:"ASTM A325 / classe 8.8"},
+                 inox:{fy:210,fu:520,n:"Inox AISI 304"}};
+      var acoT=ACO_T[$("#cvAcoTir")?$("#cvAcoTir").value:"a36"]||ACO_T.a36;
+      /* esforço por tirante */
+      var Nest=Fest_tir*kDes/(nTir*cosB);                              // kN — estático por tirante
+      var Ndin=Fdin_tir*kDes/(nTir*cosB);                              // kN — amplitude por tirante
+      var Nd=1.4*Nest+1.4*Ndin;                                        // kN — ELU (estático + pico dinâmico)
+      /* ---- (1) ÁREA POR RESISTÊNCIA ESTÁTICA (NBR 8800) ----
+         escoamento da seção bruta: Ag ≥ Nd·γa1/fy ;  ruptura da rosca: As ≥ Nd·γa2/(0,75·fu) */
+      var AsEst=Math.max(Nd*1000*1.10/acoT.fy, Nd*1000*1.35/(0.75*acoT.fu));   // mm²
+      /* ---- (2) ÁREA POR FADIGA (NBR 8800 Anexo K / EN 1993-1-9) ----
+         Δσ = 2·N_din/As  (a carga alterna nos dois sentidos).
+         Categoria de detalhe para barra rosqueada tracionada: 50 (laminada) ou 36 (usinada).
+         Para N > 10⁸ ciclos vale o limite de corte ΔσL = ΔσD·(5/100)^(1/5),
+         com ΔσD = ΔσC·(2/5)^(1/3). */
+      var dSigC=parseFloat($("#cvRosca")?$("#cvRosca").value:"50")||50;
+      var hDia=num("cvHdia"); if(isNaN(hDia)||hDia<=0)hDia=4;
+      var vidaT=num("cvVida"); if(isNaN(vidaT)||vidaT<=0)vidaT=15;
+      var Ncic=fop*hDia*300*vidaT*3600;                                // ciclos na vida
+      var dSigD=dSigC*Math.pow(2/5,1/3), dSigL=dSigD*Math.pow(0.05,0.2);
+      var dSigAdm;
+      if(Ncic<=5e6) dSigAdm=dSigC*Math.pow(2e6/Math.max(Ncic,1),1/3);
+      else if(Ncic<=1e8) dSigAdm=dSigD*Math.pow(5e6/Ncic,1/5);
+      else dSigAdm=dSigL;
+      var AsFad=2*Ndin*1000/dSigAdm;                                   // mm² — Δσ = 2·Ndin/As
+      var AsReq=Math.max(AsEst,AsFad);
+      var govFad=(AsFad>AsEst);
+      /* ---- diâmetro comercial (área efetiva de tração da rosca métrica) ---- */
+      var ROSCA=[[12,84.3],[16,157],[20,245],[24,353],[27,459],[30,561],[36,817],[42,1121],
+                 [48,1473],[56,2030],[64,2676]];
+      var dTir=null;
+      for(var it=0;it<ROSCA.length;it++){ if(ROSCA[it][1]>=AsReq){ dTir=ROSCA[it]; break; } }
+      var tirInsuf=false;
+      if(!dTir){ dTir=ROSCA[ROSCA.length-1]; tirInsuf=true; }
+      /* nº mínimo de tirantes para caber no maior diâmetro comercial */
+      var nMinTir=nTir;
+      if(tirInsuf){ nMinTir=Math.ceil(nTir*AsReq/ROSCA[ROSCA.length-1][1]); }
+      var AsAd=dTir[1];
+      var utilEst=AsEst/AsAd*100, utilFad=AsFad/AsAd*100;
+      var dSigReal=2*Ndin*1000/AsAd;
+      var qtdOK=!tirInsuf;
       /* ---- CARGAS NO FLANGE DO SILO ---- */
       var svIn=num("cvPv");
       var svEst=(!isNaN(svIn)&&svIn>0)?svIn:(gamma*Math.min(A,B)/2);   // kPa
@@ -695,7 +757,30 @@ function coneVibCalc(CVCIRC){
         {k:"Flecha estática sob o peso vibrante",v:defEst.toFixed(1).replace(".",",")+" mm"},
         {k:"Transmissibilidade ao silo  T = 1/(r²−1)",v:transm.toFixed(1).replace(".",",")+" %"+((transm<10)?"   ✓ bom isolamento":"   ⚠ isolamento fraco — aumentar a relação de frequências"),hi:true},
         {k:"Manga flexível",v:"Prever manga de vedação entre o flange do silo e o tronco vibrante, com folga axial ≥ 3 × a amplitude ("+(3*App).toFixed(1).replace(".",",")+" mm) e material compatível com o produto. É o componente de maior desgaste do conjunto."},
-        {sec:"Etapa 7 — Cargas no flange do silo"},
+        {sec:"Etapa 7 — TIRANTES do cone defletor"},
+        {k:"Configuração",v:nTir.toFixed(0)+" tirantes a "+betaT.toFixed(0)+"° da vertical  ·  "+acoT.n+"  ·  rosca "+((dSigC>=50)?"laminada":"usinada")+" (categoria "+dSigC.toFixed(0)+")",hi:true},
+        {k:"Pressão vertical sobre o defletor  σv",v:svDefl.toFixed(1).replace(".",",")+" kPa"+((svTir>0)?"  (informada)":"  (estimada)")},
+        {k:"Carga ESTÁTICA da coluna de material  σv · A_defl",v:kNkg(Fmat)+"   (A_defl = "+Adefl.toFixed(3).replace(".",",")+" m²)"},
+        {k:"Peso próprio do defletor",v:kNkg(Fpeso)+"   ("+fmt(Math.round(mDefl))+" kg de chapa)"},
+        {k:"CARGA ESTÁTICA TOTAL nos tirantes",v:kNkg(Fest_tir),hi:true},
+        {k:"Massa vibrante do defletor  (chapa + "+(partM*100).toFixed(0)+"% do material sobre ele)",v:fmt(Math.round(mDeflVib))+" kg"},
+        {k:"CARGA DINÂMICA ALTERNADA  ± m·ka·g",v:"± "+kNkg(Fdin_tir)+"   a "+fop.toFixed(1).replace(".",",")+" Hz",hi:true},
+        {k:"Fator de desigualdade entre tirantes",v:kDes.toFixed(2).replace(".",",")+"   (a carga não se reparte igualmente)"},
+        {k:"Esforço por tirante — estático / dinâmico",v:kNkg(Nest)+"   /   ± "+kNkg(Ndin)+"   (÷ cos β = "+cosB.toFixed(3).replace(".",",")+")",hi:true},
+        {k:"Esforço de cálculo por tirante  Nd = 1,4·(N_est + N_din)",v:kNkg(Nd),hi:true},
+        {k:"① Área requerida por RESISTÊNCIA ESTÁTICA (NBR 8800)",v:AsEst.toFixed(0)+" mm²   (escoamento fy "+acoT.fy+" MPa · ruptura da rosca 0,75·fu)"},
+        {k:"Ciclos de fadiga na vida  (f_op × "+hDia.toFixed(1).replace(".",",")+" h/dia × 300 dias × "+vidaT.toFixed(0)+" anos)",v:Ncic.toExponential(2).replace(".",",")+" ciclos"},
+        {k:"Δσ admissível  (categoria "+dSigC.toFixed(0)+", limite de corte "+dSigL.toFixed(1).replace(".",",")+" MPa)",v:dSigAdm.toFixed(1).replace(".",",")+" MPa"},
+        {k:"② Área requerida por FADIGA  As = 2·N_din/Δσ_adm",v:AsFad.toFixed(0)+" mm²"+(govFad?"   ← GOVERNA":""),hi:govFad},
+        {k:"ÁREA EFETIVA REQUERIDA  (a maior das duas)",v:AsReq.toFixed(0)+" mm²   —  governa a "+(govFad?"FADIGA":"resistência estática"),hi:true},
+        {k:"DIÂMETRO MÍNIMO DO TIRANTE",v:"M"+dTir[0]+"   (área efetiva de tração "+AsAd+" mm²)"+(tirInsuf?"   ⚠ ACIMA DO MAIOR DIÂMETRO COMERCIAL":""),hi:true},
+        {k:"VERIFICAÇÃO DA QUANTIDADE DE TIRANTES",v:qtdOK?
+            (nTir.toFixed(0)+" tirantes M"+dTir[0]+" ATENDEM à carga solicitante   ✓   (uso: "+utilEst.toFixed(0)+"% estático · "+utilFad.toFixed(0)+"% fadiga)"):
+            ("⚠ "+nTir.toFixed(0)+" tirantes NÃO ATENDEM — a área exigida ("+AsReq.toFixed(0)+" mm²) supera o maior tirante comercial (M64, 2.676 mm²). Adotar no mínimo "+nMinTir+" tirantes, ou aumentar o número de pontos de apoio do defletor."),hi:true},
+        {k:"Δσ efetivo com o tirante adotado",v:dSigReal.toFixed(1).replace(".",",")+" MPa   contra "+dSigAdm.toFixed(1).replace(".",",")+" MPa admissíveis"+((dSigReal<=dSigAdm)?"   ✓ atende":"   ⚠ não atende")},
+        {k:"Por que a fadiga governa",v:"O tirante recebe uma carga ALTERNADA a "+fop.toFixed(1).replace(".",",")+" Hz — são "+Ncic.toExponential(1).replace(".",",")+" ciclos na vida do equipamento, muito além do limite de corte. Barra rosqueada tracionada é um detalhe de categoria baixa (o fundo do filete concentra tensão), então o Δσ admissível cai para "+dSigL.toFixed(1).replace(".",",")+" MPa. É por isso que tirantes de ativador são muito maiores do que a carga estática sugeriria — e por que ruptura de tirante é a falha mais comum nesses equipamentos."},
+        {k:"Recomendações construtivas dos tirantes",v:"Usar rosca LAMINADA (não usinada) — dobra a categoria de fadiga. Prever porca e contraporca ou trava química em todos os pontos. Evitar solda transversal no corpo do tirante (reduz a categoria para 36 ou menos). Prever inspeção periódica do aperto e ensaio por líquido penetrante nas roscas. Nos ativadores maiores, substituir tirantes por chapas radiais soldadas de seção equivalente, que têm categoria de fadiga superior."},
+        {sec:"Etapa 8 — Cargas no flange do silo"},
         {k:"Pressão vertical do silo na entrada  σv",v:svEst.toFixed(1).replace(".",",")+" kPa"+((svIn>0)?"  (informada)":"  (estimada por γ·B/2 — usar o valor da calculadora de silo)")},
         {k:"Empuxo vertical do silo sobre o cone",v:kNkg(Fsilo)},
         {k:"Peso estático do conjunto (estrutura + material)",v:kNkg(Pest)},
@@ -715,7 +800,7 @@ function coneVibCalc(CVCIRC){
         polos:polos,fRede:fRede,rpm:rpm,fop:fop,ka:ka,Fc:Fc,Me:Me,App:App,ampOK:ampOK,
         mv1F:mv1.F,mv1kw:mv1.kw,P1:P1,Me1:Me1,mv2F:mv2.F,mv2kw:mv2.kw,P2:P2,Me2:Me2,
         nMol:nMol,relF:relF,fn:fn,kTot:kTot,kMola:kMola,defEst:defEst,transm:transm,
-        svEst:svEst,Fsilo:Fsilo,Pest:Pest,Ptot:Ptot,rho:rho,d50:d50};
+        svEst:svEst,Fsilo:Fsilo,Pest:Pest,Ptot:Ptot,rho:rho,d50:d50,nTir:nTir,betaT:betaT,acoT:acoT.n,dSigC:dSigC,Fmat:Fmat,Fpeso:Fpeso,Fest_tir:Fest_tir,Fdin_tir:Fdin_tir,Nest:Nest,Ndin:Ndin,Nd:Nd,AsEst:AsEst,AsFad:AsFad,AsReq:AsReq,govFad:govFad,dTir:dTir[0],AsAd:AsAd,tirInsuf:tirInsuf,nMinTir:nMinTir,qtdOK:qtdOK,Ncic:Ncic,dSigAdm:dSigAdm,dSigReal:dSigReal,utilEst:utilEst,utilFad:utilFad,mDefl:mDefl};
   return OUT;
 }
 
@@ -2906,7 +2991,21 @@ const CALCS={
       {id:"cvRelF",label:"Relação de frequências  f_op / f_n  (isolamento)",tipo:"select",valor:"4",opcoes:[
         {v:"3",t:"3 — mínimo aceitável (transmissibilidade ~12%)"},
         {v:"4",t:"4 — recomendado (~7%)"},
-        {v:"5",t:"5 — isolamento severo (~4%)"}]}
+        {v:"5",t:"5 — isolamento severo (~4%)"}]},
+      {tipo:"head",label:"Tirantes de fixação do cone defletor"},
+      {id:"cvNtir",label:"Número de tirantes que interligam o defletor ao tronco",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 tirantes"},{v:"4",t:"4 tirantes"},{v:"6",t:"6 tirantes"},{v:"8",t:"8 tirantes"},{v:"12",t:"12 tirantes"}]},
+      {id:"cvBtir",label:"Inclinação do tirante com a vertical  β",unidade:"°",tipo:"number",valor:30,step:"5"},
+      {id:"cvAcoTir",label:"Material do tirante",tipo:"select",valor:"a36",opcoes:[
+        {v:"a36",t:"ASTM A36 / SAE 1020  (fy 250 · fu 400 MPa)"},
+        {v:"a325",t:"ASTM A325 / classe 8.8  (fy 640 · fu 830 MPa)"},
+        {v:"inox",t:"Inox AISI 304  (fy 210 · fu 520 MPa)"}]},
+      {id:"cvRosca",label:"Execução da rosca (categoria de fadiga)",tipo:"select",valor:"50",opcoes:[
+        {v:"50",t:"Rosca LAMINADA — categoria 50 (recomendado)"},
+        {v:"36",t:"Rosca USINADA / cortada — categoria 36"}]},
+      {id:"cvHdia",label:"Horas de vibração por dia",unidade:"h",tipo:"number",valor:4,step:"0.5"},
+      {id:"cvVida",label:"Vida de projeto",unidade:"anos",tipo:"number",valor:15,step:"5"},
+      {id:"cvKdes",label:"Fator de desigualdade de distribuição entre tirantes",unidade:"-",tipo:"number",valor:1.25,step:"0.05"}
     ],
     calcular:function(){ return coneVibCalc(true); }
   },
@@ -4545,6 +4644,9 @@ function gerarRelatorio(){
         doc.setFillColor(205,215,228); doc.setDrawColor(60,90,120); doc.setLineWidth(0.7);
         doc.triangle(cx-wD,yT+4+hD,cx+wD,yT+4+hD,cx,yT+4,"FD");
         nota(cx,yT+4+hD+4,"defletor "+Math.round(G.Db*1000)+" x "+Math.round(G.Dh*1000)+" mm",60,90,120,5.6);
+        doc.setDrawColor(150,40,120); doc.setLineWidth(0.9);
+        doc.line(cx-wD*0.9,yT+4+hD,cx-wA*0.72,yT+2); doc.line(cx+wD*0.9,yT+4+hD,cx+wA*0.72,yT+2);
+        nota(cx,yT-1,G.nTir+" tirantes M"+G.dTir,150,40,120,5.8);
       }
       /* molas de suspensão */
       doc.setDrawColor(200,120,40); doc.setLineWidth(0.7);
@@ -4629,8 +4731,23 @@ function gerarRelatorio(){
         [san("CARGA DINÂMICA alternada  ± Fc"),"± "+san(G.Fc.toFixed(1))+" kN  ("+fmt(kgf(G.Fc))+" kg)"],
         [san("Transmitida ao silo pelas molas"),san((G.Fc*G.transm/100).toFixed(2))+" kN  ("+fmt(kgf(G.Fc*G.transm/100))+" kg)"]
       ],y2+5);
+      var y4=tab("4 — TIRANTES DO CONE DEFLETOR",[
+        [san("Configuração"),san(String(G.nTir))+" tirantes a "+san(String(Math.round(G.betaT)))+"° · "+san(G.acoT)],
+        [san("Categoria de fadiga da rosca"),san(String(G.dSigC))],
+        [san("Carga estática (material + peso próprio)"),san(G.Fest_tir.toFixed(2))+" kN  ("+fmt(kgf(G.Fest_tir))+" kg)"],
+        [san("Carga dinâmica alternada  ± Fdin"),"± "+san(G.Fdin_tir.toFixed(2))+" kN  ("+fmt(kgf(G.Fdin_tir))+" kg)"],
+        [san("Esforço por tirante — estático / dinâmico"),san(G.Nest.toFixed(2))+" / ± "+san(G.Ndin.toFixed(2))+" kN"],
+        [san("Esforço de cálculo  Nd"),san(G.Nd.toFixed(2))+" kN  ("+fmt(kgf(G.Nd))+" kg)"],
+        [san("Ciclos de fadiga na vida"),san(G.Ncic.toExponential(2))],
+        [san("Área requerida — estática / fadiga"),san(G.AsEst.toFixed(0))+" / "+san(G.AsFad.toFixed(0))+" mm²"+(G.govFad?san("  (fadiga governa)"):san("  (estatica governa)"))],
+        [san("ÁREA EFETIVA REQUERIDA"),san(G.AsReq.toFixed(0))+" mm²"],
+        [san("DIÂMETRO MÍNIMO DO TIRANTE"),"M"+san(String(G.dTir))+"  (As "+san(String(G.AsAd))+" mm²)"],
+        [san("Δσ efetivo / admissível"),san(G.dSigReal.toFixed(1))+" / "+san(G.dSigAdm.toFixed(1))+" MPa"],
+        [san("QUANTIDADE DE TIRANTES"),G.qtdOK?(san(String(G.nTir))+" ATENDEM  ("+san(G.utilEst.toFixed(0))+"% est. · "+san(G.utilFad.toFixed(0))+"% fad.)"):san("NAO ATENDEM - adotar "+G.nMinTir)]
+      ],y3+5);
       doc.setFontSize(7); doc.setTextColor(110);
-      doc.text(san("Croqui esquemático (fora de escala) — cone vibratório / ativador de silo. Acionar o vibrador somente com o alimentador a jusante em operação."),14,y3+6);
+      doc.text(san("Croqui esquemático (fora de escala) — cone vibratório / ativador de silo. Acionar o vibrador somente com o alimentador a jusante em operação."),14,y4+6);
+      doc.text(san("Tirantes do defletor dimensionados por resistência estática (NBR 8800) e por fadiga (Anexo K / EN 1993-1-9) — em barra rosqueada a fadiga costuma governar."),14,y4+10);
     } else if(G.tipo==="alimcor"){
       /* ---------- Croqui do alimentador de correia (figura da pag. 1-21) ---------- */
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
