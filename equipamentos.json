@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.50.1",
+    "versao": "1.51.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -196,7 +196,7 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Calha Vibratória",
       "calculadora": "calha_vibratoria",
-      "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo em três linhas de catálogo — calhas CV, alimentadores suspensos MVS e alimentadores Vibraline (36\"×60\" a 84\"×120\") — informa comprimento e área útil da mesa, inclinação e tempo de residência, calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco.",
+      "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo em três linhas de catálogo — calhas CV, alimentadores suspensos MVS e alimentadores Vibraline (36\"×60\" a 84\"×120\") — informa comprimento e área útil da mesa, inclinação e tempo de residência, calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco. Inclui presets de material que preenchem densidade, maior bloco e os fatores φ1 e φ2 — brita, calcário, minério granulado e fino, pelota, sínter, carvão úmido e seco, coque, briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³) — com alerta específico de degradação para os briquetes, que são peças prensadas e friáveis.",
       "referencia": "Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: fórmula de capacidade Q = 3600·φ1·φ2·V·L·H (pág. 1-9), curva de velocidade V (rpm × amplitude), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada e fator de inclinação; catálogos de calhas vibratórias CV (pág. 1-16), alimentadores vibratórios suspensos MVS (pág. 1-14) e alimentadores Vibraline (pág. 1-19, capacidade referida a 10° de inclinação)"
     },
     {

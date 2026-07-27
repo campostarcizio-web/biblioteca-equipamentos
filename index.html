@@ -189,6 +189,30 @@ function penApply(pref,sel,calc){
   scrSet(pref+"Forma",[m.q2]); scrSet(pref+"Tela",m.q5);
   runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:calc);
 }
+/* Presets de material da CALHA VIBRATÓRIA — preenche densidade, maior bloco e os
+   fatores φ1 (granulometria) e φ2 (umidade) do método do Manual de Britagem.
+   Briquetes: peça prensada e friável — φ1 tratado como material em pedaços. */
+const CALHA_MAT={
+  brita:      {rho:1.6,d:100,g:"0.85",u:"1"},
+  calcario:   {rho:1.5,d:80, g:"0.85",u:"1"},
+  fe_gran:    {rho:2.5,d:12, g:"1",   u:"1"},
+  fe_fino:    {rho:2.6,d:1,  g:"1",   u:"0.8"},
+  pelota:     {rho:2.3,d:16, g:"1",   u:"1"},
+  sinter:     {rho:1.8,d:20, g:"0.85",u:"1"},
+  carvao:     {rho:0.9,d:50, g:"0.85",u:"0.8"},
+  carvao_seco:{rho:0.8,d:50, g:"0.85",u:"1"},
+  coque:      {rho:0.5,d:75, g:"0.85",u:"1"},
+  briq_bar:   {rho:1.7,d:57, g:"0.85",u:"1",briq:true,
+               nota:"Briquete BAR 57 × 57 × 37,5 mm · 1,7 t/m³"},
+  briq_bricao:{rho:1.3,d:120,g:"0.85",u:"1",briq:true,
+               nota:"Briquete Bricão 120 × 108 × 87 mm · 1,3 t/m³"}
+};
+function calhaPreset(){
+  var m=CALHA_MAT[sel("chMat","custom")];
+  if(m){ $("#cvRho").value=m.rho; $("#cvFmax").value=m.d;
+         scrSet("cvGran",[m.g]); scrSet("cvUmid",[m.u]); }
+  runCalc("calha_vibratoria");
+}
 function conePreset2(){
   var p=SILO_MAT[$("#cvMat").value];
   var alvo=(CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"cone_vibratorio_circular";
@@ -3098,6 +3122,19 @@ const CALCS={
     campos:[
       {tipo:"head",label:"Alimentação"},
       {id:"cvQ",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
+      {id:"chMat",label:"Material (preset — preenche ρ, bloco, φ1 e φ2)",tipo:"select",valor:"custom",onchange:"calhaPreset()",opcoes:[
+        {v:"custom",t:"Personalizado"},
+        {v:"brita",t:"Brita / pedra britada (1,6 t/m³)"},
+        {v:"calcario",t:"Calcário britado (1,5 t/m³)"},
+        {v:"fe_gran",t:"Minério de ferro granulado (2,5 t/m³)"},
+        {v:"fe_fino",t:"Minério de ferro fino / sinter feed, úmido (2,6 t/m³)"},
+        {v:"pelota",t:"Pelotas de minério de ferro (2,3 t/m³)"},
+        {v:"sinter",t:"Sínter (1,8 t/m³)"},
+        {v:"carvao",t:"Carvão úmido (0,9 t/m³)"},
+        {v:"carvao_seco",t:"Carvão seco (0,8 t/m³)"},
+        {v:"coque",t:"Coque (0,5 t/m³)"},
+        {v:"briq_bar",t:"Briquete BAR — 57 × 57 × 37,5 mm · 1,7 t/m³"},
+        {v:"briq_bricao",t:"Briquete Bricão — 120 × 108 × 87 mm · 1,3 t/m³"}]},
       {id:"cvRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
       {id:"cvFmax",label:"Maior bloco do material  F_máx",unidade:"mm",tipo:"number",valor:150},
       {tipo:"head",label:"Material (fatores φ1 e φ2)"},
@@ -3163,6 +3200,12 @@ const CALCS={
         {k:"Densidade aparente",v:rho.toFixed(2).replace(".",",")+" t/m³"},
         {k:"Vazão volumétrica  T = Q / ρ",v:Tvol.toFixed(1).replace(".",",")+" m³/h",hi:true},
         {k:"Maior bloco do material  F_máx",v:fmt(Math.round(Fmax))+" mm"},
+        {k:"Material selecionado",v:(function(){var m=CALHA_MAT[sel("chMat","custom")];
+           return m?(m.nota||("preset — ρ "+m.rho.toFixed(2).replace(".",",")+" t/m³ · bloco "+m.d+" mm")):"personalizado (valores informados manualmente)";})()},
+        {k:"Alerta de degradação",v:(function(){var m=CALHA_MAT[sel("chMat","custom")];
+           if(!m||!m.briq) return "—";
+           return "⚠ BRIQUETE — peça prensada e friável. A vibração gera finos por atrito e impacto: usar a MENOR amplitude que atenda à vazão (3 a 4 mm), evitar altura de camada excessiva na comporta, revestir a mesa com poliuretano ou UHMW-PE e limitar a queda na transferência. Vibração contínua com o silo cheio compacta e quebra o briquete — acionar de forma intermitente e somente com o equipamento a jusante em operação.";})(),
+         hi:(function(){var m=CALHA_MAT[sel("chMat","custom")];return !!(m&&m.briq);})()},
         {sec:"Fatores e velocidade do material"},
         {k:"Fator de granulometria  φ1",v:f1.toFixed(2).replace(".",",")},
         {k:"Fator de umidade  φ2",v:f2.toFixed(2).replace(".",",")},
