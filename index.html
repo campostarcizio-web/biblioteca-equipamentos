@@ -208,7 +208,11 @@ function icon(e){if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")==
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
 function nextStd(mm){for(const d of DIAM_STD){if(d>=mm)return d;}return DIAM_STD[DIAM_STD.length-1];}
-function num(id){return parseFloat($("#"+id).value);}
+/* Leitura segura: se o campo não existir na calculadora aberta, devolve NaN em vez
+   de lançar exceção — evita que um campo faltante derrube todo o resultado. */
+function num(id){var e=$("#"+id); return e?parseFloat(e.value):NaN;}
+function sel(id,pad){var e=$("#"+id); return (e&&e.value!=="")?e.value:pad;}
+function selN(id,pad){var v=parseFloat(sel(id,String(pad))); return isFinite(v)?v:pad;}
 /* Pré-seleção de materiais típicos de mineração (valores representativos de literatura — confirmar em ensaio Jenike Shear) */
 const SILO_MAT={
   fe_gran:{rho:2.5,phi:35,delta:25,c:0.3,d50:12},
@@ -545,7 +549,7 @@ function coneVibCalc(CVCIRC){
       /* ---- VOLUME: tronco (frustum) menos o cone defletor ---- */
       var A1=area(A,B), A2=area(C,D);
       var Vtronco=(H/3)*(A1+A2+Math.sqrt(A1*A2));
-      var temDefl=($("#cvDefl").value==="sim");
+      var temDefl=(sel("cvDefl","sim")==="sim");
       var DbIn=num("cvDb"), DhIn=num("cvDh");
       var Db=temDefl?((!isNaN(DbIn)&&DbIn>0)?DbIn/1000:0.55*A):0;
       var Dh=temDefl?((!isNaN(DhIn)&&DhIn>0)?DhIn/1000:(Db/2)):0;
@@ -597,13 +601,13 @@ function coneVibCalc(CVCIRC){
       var Adeflat=temDefl?(perim(Db,Db)/2*Math.sqrt(Dh*Dh+Db*Db/4)):0;
       var mChapa=(Alat+Adeflat)*(esp/1000)*7850;
       var mEstr=mChapa*(1+pctRef/100);                          // + flange, reforços e manga
-      var partM=parseFloat($("#cvPart").value)||0.5;
+      var partM=selN("cvPart",0.5);
       var mVib=mEstr+partM*mMat;                                // massa vibrante
       /* ---- VIBRAÇÃO ---- */
-      var polos=parseFloat($("#cvPolos").value)||6;
-      var fRede=parseFloat($("#cvFreq").value)||60;
+      var polos=selN("cvPolos",6);
+      var fRede=selN("cvFreq",60);
       var rpm=120*fRede/polos, fop=rpm/60, w=2*Math.PI*fop;
-      var ka=parseFloat($("#cvKa").value)||1.5;
+      var ka=selN("cvKa",1.5);
       var Fc=ka*mVib*g/1000;                                    // kN — força centrífuga total
       var Me=Fc*1000/(w*w)*1000;                                // kg·mm — momento estático total
       var App=2*Me/mVib;                                        // mm pico a pico
@@ -630,8 +634,8 @@ function coneVibCalc(CVCIRC){
       var P1=mv1.kw, P2=2*mv2.kw;
       var Me1=Fc*1000/(w*w)*1000, Me2=Me1/2;                    // kg·mm por unidade
       /* ---- MOLAS DE ISOLAMENTO ---- */
-      var nMol=parseFloat($("#cvNmol").value)||4;
-      var relF=parseFloat($("#cvRelF").value)||4;
+      var nMol=selN("cvNmol",4);
+      var relF=selN("cvRelF",4);
       var fn=fop/relF;
       var kTot=mVib*Math.pow(2*Math.PI*fn,2)/1000;              // N/mm
       var kMola=kTot/nMol;                                      // N/mm por mola
@@ -653,14 +657,14 @@ function coneVibCalc(CVCIRC){
       var Fest_tir=Fmat+Fpeso;                                         // kN — estática
       var mDeflVib=mDefl+partM*mMatDefl;
       var Fdin_tir=mDeflVib*ka*g/1000;                                 // kN — amplitude da inércia
-      var nTir=parseFloat($("#cvNtir")?$("#cvNtir").value:"4")||4;
-      var betaT=num("cvBtir"); if(isNaN(betaT)||betaT<0||betaT>75)betaT=30;
+      var nTir=selN("cvNtir",4);
+      var betaT=num("cvBtir"); if(!isFinite(betaT)||betaT<0||betaT>75)betaT=30;
       var cosB=Math.cos(betaT*Math.PI/180);
-      var kDes=num("cvKdes"); if(isNaN(kDes)||kDes<1)kDes=1.25;
+      var kDes=num("cvKdes"); if(!isFinite(kDes)||kDes<1)kDes=1.25;
       var ACO_T={a36:{fy:250,fu:400,n:"ASTM A36 / SAE 1020"},
                  a325:{fy:640,fu:830,n:"ASTM A325 / classe 8.8"},
                  inox:{fy:210,fu:520,n:"Inox AISI 304"}};
-      var acoT=ACO_T[$("#cvAcoTir")?$("#cvAcoTir").value:"a36"]||ACO_T.a36;
+      var acoT=ACO_T[sel("cvAcoTir","a36")]||ACO_T.a36;
       /* esforço por tirante */
       var Nest=Fest_tir*kDes/(nTir*cosB);                              // kN — estático por tirante
       var Ndin=Fdin_tir*kDes/(nTir*cosB);                              // kN — amplitude por tirante
@@ -673,9 +677,9 @@ function coneVibCalc(CVCIRC){
          Categoria de detalhe para barra rosqueada tracionada: 50 (laminada) ou 36 (usinada).
          Para N > 10⁸ ciclos vale o limite de corte ΔσL = ΔσD·(5/100)^(1/5),
          com ΔσD = ΔσC·(2/5)^(1/3). */
-      var dSigC=parseFloat($("#cvRosca")?$("#cvRosca").value:"50")||50;
-      var hDia=num("cvHdia"); if(isNaN(hDia)||hDia<=0)hDia=4;
-      var vidaT=num("cvVida"); if(isNaN(vidaT)||vidaT<=0)vidaT=15;
+      var dSigC=selN("cvRosca",50);
+      var hDia=num("cvHdia"); if(!isFinite(hDia)||hDia<=0)hDia=4;
+      var vidaT=num("cvVida"); if(!isFinite(vidaT)||vidaT<=0)vidaT=15;
       var Ncic=fop*hDia*300*vidaT*3600;                                // ciclos na vida
       var dSigD=dSigC*Math.pow(2/5,1/3), dSigL=dSigD*Math.pow(0.05,0.2);
       var dSigAdm;
@@ -3070,7 +3074,21 @@ const CALCS={
       {id:"cvRelF",label:"Relação de frequências  f_op / f_n  (isolamento)",tipo:"select",valor:"4",opcoes:[
         {v:"3",t:"3 — mínimo aceitável (transmissibilidade ~12%)"},
         {v:"4",t:"4 — recomendado (~7%)"},
-        {v:"5",t:"5 — isolamento severo (~4%)"}]}
+        {v:"5",t:"5 — isolamento severo (~4%)"}]},
+      {tipo:"head",label:"Tirantes de fixação do cone defletor"},
+      {id:"cvNtir",label:"Número de tirantes que interligam o defletor ao tronco",tipo:"select",valor:"4",opcoes:[
+        {v:"3",t:"3 tirantes"},{v:"4",t:"4 tirantes"},{v:"6",t:"6 tirantes"},{v:"8",t:"8 tirantes"},{v:"12",t:"12 tirantes"}]},
+      {id:"cvBtir",label:"Inclinação do tirante com a vertical  β",unidade:"°",tipo:"number",valor:30,step:"5"},
+      {id:"cvAcoTir",label:"Material do tirante",tipo:"select",valor:"a36",opcoes:[
+        {v:"a36",t:"ASTM A36 / SAE 1020  (fy 250 · fu 400 MPa)"},
+        {v:"a325",t:"ASTM A325 / classe 8.8  (fy 640 · fu 830 MPa)"},
+        {v:"inox",t:"Inox AISI 304  (fy 210 · fu 520 MPa)"}]},
+      {id:"cvRosca",label:"Execução da rosca (categoria de fadiga)",tipo:"select",valor:"50",opcoes:[
+        {v:"50",t:"Rosca LAMINADA — categoria 50 (recomendado)"},
+        {v:"36",t:"Rosca USINADA / cortada — categoria 36"}]},
+      {id:"cvHdia",label:"Horas de vibração por dia",unidade:"h",tipo:"number",valor:4,step:"0.5"},
+      {id:"cvVida",label:"Vida de projeto",unidade:"anos",tipo:"number",valor:15,step:"5"},
+      {id:"cvKdes",label:"Fator de desigualdade de distribuição entre tirantes",unidade:"-",tipo:"number",valor:1.25,step:"0.05"}
     ],
     calcular:function(){ return coneVibCalc(false); }
   },
