@@ -1890,7 +1890,21 @@ const CALCS={
       {id:"tcMuc",label:"Atrito corrente-tubo  μc",tipo:"select",valor:"0.3",opcoes:[
         {v:"0.25",t:"0,25 — lubrificado"},{v:"0.3",t:"0,30 — normal"},{v:"0.35",t:"0,35 — seco/abrasivo"}]},
       {id:"tcSF",label:"Fator de segurança da corrente",tipo:"select",valor:"6",opcoes:[
-        {v:"5",t:"5 (leve)"},{v:"6",t:"6 (normal)"},{v:"8",t:"8 (severo/abrasivo)"}]}
+        {v:"5",t:"5 (leve)"},{v:"6",t:"6 (normal)"},{v:"8",t:"8 (severo/abrasivo)"}]},
+      {id:"tcChain",label:"Bitola da corrente",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — a maior entre carga, desgaste e prática do tubo"},
+        {v:"carga",t:"Mínima pela CARGA (assumindo verificação do disco com o fabricante)"},
+        {v:"14",t:"Ø 14 mm"},{v:"16",t:"Ø 16 mm"},{v:"18",t:"Ø 18 mm"},{v:"20",t:"Ø 20 mm"},
+        {v:"22",t:"Ø 22 mm"},{v:"26",t:"Ø 26 mm"},{v:"30",t:"Ø 30 mm"},{v:"34",t:"Ø 34 mm"}]},
+      {id:"tcWear",label:"Desgaste admissível da bitola até a troca",tipo:"select",valor:"20",opcoes:[
+        {v:"10",t:"10% — serviço leve, material não abrasivo"},
+        {v:"20",t:"20% — usual em granéis abrasivos"},
+        {v:"30",t:"30% — limite de sucata da corrente"}]},
+      {id:"tcPd",label:"Passo entre discos",unidade:"m",tipo:"number",valor:0.25,step:"0.05"},
+      {id:"tcPadm",label:"Pressão de contato admissível no articulamento  (elo redondo, p = F/d²)",tipo:"select",valor:"45",opcoes:[
+        {v:"30",t:"30 N/mm² — seco e muito abrasivo (vida longa)"},
+        {v:"45",t:"45 N/mm² — usual em arraste tubular (calibrado na prática de catálogo)"},
+        {v:"60",t:"60 N/mm² — corrente temperada / serviço leve"}]}
     ],
     calcular:function(){
       var g=9.81, eta=0.85;
@@ -1946,13 +1960,41 @@ const CALCS={
       var Rm=800, BLreq=F*SF, dreq=Math.sqrt(BLreq/(2*(Math.PI/4)*Rm));
       var CH=[14,16,18,20,22,26,30,34];
       function chCom(d){ for(var i=0;i<CH.length;i++){ if(CH[i]>=d) return CH[i]; } return CH[CH.length-1]; }
-      var dCarga=chCom(dreq);                 // bitola comercial exigida pela CARGA
-      var dGeom=S.d;                          // bitola imposta pela GEOMETRIA do tubo/discos
-      var dsel=Math.max(dCarga,dGeom);
-      var govGeom=(dGeom>dCarga);
-      var BLsel=2*(Math.PI/4)*dsel*dsel*Rm;
-      var BLcarga=2*(Math.PI/4)*dCarga*dCarga*Rm;
+      function BLd(d){ return 2*(Math.PI/4)*d*d*Rm; }
+      /* --- (1) CARGA: resistência estática --- */
+      var dCarga=chCom(dreq);
+      /* --- (2) DESGASTE: a corrente perde seção ao longo da vida. A bitola tem de
+             atender ao FS AINDA GASTA, no limite de troca. BL ∝ d², logo
+             d_novo = d_carga / (1 − w). --- */
+      var wPc=parseFloat($("#tcWear")?$("#tcWear").value:"20")||20, wf=wPc/100;
+      var dDesg=chCom(dreq/(1-wf));
+      /* --- (3) ARTICULAMENTO: pressão de contato entre elos. A cada volta cada elo
+             articula duas vezes sob tração. Área de contato ≈ d² (proxy de elo redondo).
+             p = F/d² ≤ p_adm  →  d ≥ √(F/p_adm).  É este critério, e não a resistência
+             estática, que costuma governar a corrente em arraste tubular. --- */
+      var padm=parseFloat($("#tcPadm")?$("#tcPadm").value:"45")||45;
+      var dArt=chCom(Math.sqrt(F/padm));
+      /* --- (4) DISCO: força de arraste por disco, transmitida localmente à corrente --- */
+      var pDisc=num("tcPd"); if(isNaN(pDisc)||pDisc<=0)pDisc=0.25;
+      var nDisc=Math.max(1,Math.round((Lh1+Li+Lh2)/pDisc));
+      var Fdisc=F/nDisc;                       // N por disco
+      var tauDisc=Fdisc/(2*(Math.PI/4)*S.d*S.d); // N/mm² no elo, referência
+      /* --- (5) PRÁTICA DO FABRICANTE para o tubo --- */
+      var dPrat=S.d;
+      var dAuto=Math.max(dCarga,dDesg,dArt,dPrat);
+      var govs=[["carga",dCarga],["desgaste",dDesg],["articulamento",dArt],["prática do tubo",dPrat]]
+                 .filter(function(x){return x[1]===dAuto;}).map(function(x){return x[0];}).join(" e ");
+      var chSel=$("#tcChain")?$("#tcChain").value:"auto";
+      var dsel, modoCh;
+      if(chSel==="auto"){ dsel=dAuto; modoCh="automático"; }
+      else if(chSel==="carga"){ dsel=dCarga; modoCh="mínima pela carga (imposta pelo usuário)"; }
+      else { dsel=parseFloat(chSel)||dAuto; modoCh="imposta pelo usuário"; }
+      var abaixoAuto=(dsel<dAuto);
+      var BLsel=BLd(dsel), BLcarga=BLd(dCarga);
       var FSef=BLsel/F, FScarga=BLcarga/F;
+      var FSgasto=BLd(dsel*(1-wf))/F;          // FS no fim da vida, já gasta
+      var pArt=F/(dsel*dsel);                  // N/mm² de contato com a bitola adotada
+      var okDesg=(FSgasto>=SF), okArt=(pArt<=padm), okPrat=(dsel>=dPrat);
       /* menor tubo da tabela que ainda atende à capacidade — para orientar a redução */
       var menorTubo=null;
       for(var mt=0;mt<TC.length;mt++){
@@ -1996,17 +2038,32 @@ const CALCS={
         {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true},
         {sec:"Corrente de elos redondos (tipo RUD)"},
         {k:"Carga de ruptura requerida  F · FS",v:fmt(Math.round(BLreq/1000))+" kN  (FS "+SF.toFixed(0)+")"},
-        {k:"Bitola exigida pela CARGA  d = √(F·FS / (2·(π/4)·Rm))",v:dreq.toFixed(1).replace(".",",")+" mm  →  comercial Ø "+dCarga+" mm   (ruptura "+fmt(Math.round(BLcarga/1000))+" kN · FS "+FScarga.toFixed(1).replace(".",",")+")",hi:true},
-        {k:"Bitola exigida pela GEOMETRIA do tubo "+S.n+"\" (discos e roda dentada)",v:"Ø "+dGeom+" mm",hi:true},
-        {k:"BITOLA ADOTADA  (a maior das duas)",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~"+Rm+" N/mm²)   —  governa a "+(govGeom?"GEOMETRIA":"CARGA"),hi:true},
-        {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS efetivo "+FSef.toFixed(1).replace(".",",")+")"},
-        {k:"Por que o FS efetivo ficou alto?",v:govGeom?
-            ("A corrente NÃO é dimensionada pela carga neste caso. O esforço de tração pediria apenas Ø "+dCarga+
-             " mm (FS "+FScarga.toFixed(1).replace(".",",")+"), mas o tubo de "+S.n+"\" exige Ø "+dGeom+
-             " mm para acomodar a fixação dos discos, o passo do elo e a roda dentada. O FS de "+FSef.toFixed(1).replace(".",",")+
-             " é consequência da geometria, não de superdimensionamento. Para reduzir a corrente é preciso reduzir o TUBO — o que só é possível se a capacidade e o dimensional da peça permitirem."):
-            ("A carga governa a seleção — o FS efetivo de "+FSef.toFixed(1).replace(".",",")+
-             " decorre apenas do arredondamento para a bitola comercial acima da requerida."),hi:true},
+        {k:"① CARGA — resistência estática  d = √(F·FS/(2·(π/4)·Rm))",v:dreq.toFixed(1).replace(".",",")+" mm  →  comercial Ø "+dCarga+" mm   (ruptura "+fmt(Math.round(BLcarga/1000))+" kN · FS "+FScarga.toFixed(1).replace(".",",")+")"},
+        {k:"② DESGASTE — manter o FS com "+wPc.toFixed(0)+"% de bitola perdida",v:"Ø "+dDesg+" mm   (d_carga / (1 − "+(wf).toFixed(2).replace(".",",")+"))"},
+        {k:"③ ARTICULAMENTO — pressão de contato entre elos  d = √(F/p_adm)",v:"Ø "+dArt+" mm   (p_adm = "+padm.toFixed(0)+" N/mm²)",hi:true},
+        {k:"④ PRÁTICA DO FABRICANTE para o tubo "+S.n+"\"",v:"Ø "+dPrat+" mm   (fixação do disco de Ø"+(S.di-10).toFixed(0)+" mm e padronização da roda dentada)"},
+        {k:"Força de arraste por disco  (passo "+pDisc.toFixed(2).replace(".",",")+" m · "+nDisc+" discos)",v:fmt(Math.round(Fdisc))+" N por disco"},
+        {k:"BITOLA ADOTADA",v:"Ø "+dsel+" mm  (elo redondo, aço de corrente ~"+Rm+" N/mm²)   —  "+modoCh+
+           ((chSel==="auto")?("; governa "+govs):""),hi:true},
+        {k:"Carga de ruptura da corrente Ø "+dsel,v:fmt(Math.round(BLsel/1000))+" kN  (FS estático "+FSef.toFixed(1).replace(".",",")+")"},
+        {k:"Verificação ② — FS no fim da vida (bitola gasta "+wPc.toFixed(0)+"%)",v:FSgasto.toFixed(1).replace(".",",")+(okDesg?"   ✓ ainda atende ao FS de projeto":"   ⚠ abaixo do FS de projeto — reduzir o intervalo de troca ou aumentar a bitola"),hi:!okDesg},
+        {k:"Verificação ③ — pressão de contato  p = F/d²",v:pArt.toFixed(1).replace(".",",")+" N/mm²"+(okArt?"   ✓ ≤ "+padm.toFixed(0)+" N/mm²":"   ⚠ acima do admissível — desgaste acelerado no articulamento"),hi:!okArt},
+        {k:"Verificação ④ — bitola vs. prática do tubo",v:okPrat?"✓ igual ou acima da prática do fabricante":
+           ("⚠ ABAIXO da prática para o tubo "+S.n+"\" (Ø "+dPrat+" mm) — tecnicamente possível, mas exige acerto com o fabricante: fixação do disco, roda dentada de passo compatível e vida útil"),hi:!okPrat},
+        {k:"Por que o FS estático fica tão alto?",v:
+            "Corrente de arraste NÃO se dimensiona por resistência estática, e sim por VIDA ÚTIL. A tração pede apenas Ø "+dCarga+
+            " mm, mas a corrente trabalha em meio abrasivo, articula duas vezes por volta sob carga e perde seção por desgaste. "+
+            "O que governa é a pressão de contato no articulamento (critério ③) e a reserva de material para o desgaste (critério ②). "+
+            "Um FS estático de 20 a 40 é NORMAL neste equipamento — não indica superdimensionamento. "+
+            "A roda dentada, sozinha, não impede uma bitola menor: ela pode ser fabricada para qualquer passo. "+
+            "O que impede é o desgaste e a fixação do disco.",hi:true},
+        {k:"Como REDUZIR a bitola de fato",v:
+            "(a) reduzir o TUBO se a capacidade permitir — menos área, menos arraste"+
+            (menorTubo?("; menor tubo viável para "+Q.toFixed(0)+" t/h e peça de "+dim.toFixed(0)+" mm: "+menorTubo.n+"\" → Ø "+menorTubo.d+" mm"+((menorTubo.n===S.n)?" (já é o adotado)":"")):"")+
+            ".  (b) reduzir o atrito — revestimento do tubo baixa μ e a tração.  "+
+            "(c) aumentar p_adm com corrente temperada/endurecida ou elo com bucha.  "+
+            "(d) aceitar troca mais frequente, reduzindo o desgaste admissível.  "+
+            "(e) usar corrente forjada com pino e bucha em vez de elo redondo — a área de articulamento é muito maior para a mesma massa."},
         {k:"Menor tubo que ainda atende  Q = "+Q.toFixed(0)+" t/h e peça de "+dim.toFixed(0)+" mm",v:menorTubo?
             (menorTubo.n+"\" (DN "+menorTubo.dn+") → corrente Ø "+menorTubo.d+" mm"+
              ((menorTubo.n===S.n)?"   ✓ o tubo adotado já é o menor possível":"   ← reduzindo para este tubo a corrente cai para Ø "+menorTubo.d+" mm")):
