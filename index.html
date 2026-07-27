@@ -3149,6 +3149,15 @@ const CALCS={
       {id:"cvRpm",label:"Rotação do vibrador",unidade:"rpm",tipo:"number",valor:900,step:"10"},
       {id:"cvIncl",label:"Inclinação descendente da mesa",tipo:"select",valor:"0",opcoes:[
         {v:"0",t:"Horizontal (fator 1,0)"},{v:"5",t:"5° descendente (fator 1,3)"},{v:"10",t:"10° descendente (fator 1,6)"}]},
+      {tipo:"head",label:"Construção e pesos"},
+      {id:"chEsp",label:"Espessura da chapa da mesa",unidade:"mm",tipo:"number",valor:8,step:"0.5"},
+      {id:"chLat",label:"Altura das laterais da mesa  (0 = automática)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {id:"chRef",label:"Reforços, berço e travessas — % sobre a chapa",unidade:"%",tipo:"number",valor:45,step:"5"},
+      {id:"chMvib",label:"Massa de CADA motovibrador  (0 = estimar pela potência)",unidade:"kg",tipo:"number",valor:0,step:"10"},
+      {id:"chNmol",label:"Número de molas de suspensão",tipo:"select",valor:"4",opcoes:[
+        {v:"4",t:"4 molas"},{v:"6",t:"6 molas"},{v:"8",t:"8 molas"}]},
+      {id:"chComp",label:"Comporta de regulagem e vedação flexível",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"Com comporta e manga flexível"},{v:"nao",t:"Sem comporta (vazão só por rotação)"}]},
       {tipo:"head",label:"Catálogo"},
       {id:"cvModel",label:"Modelo (calhas CV / suspensos MVS / Vibraline)",tipo:"select",valor:"auto",opcoes:[
         {v:"auto",t:"Automático (pela capacidade)"},
@@ -3194,6 +3203,38 @@ const CALCS={
       var Hreq=Tvol/(3600*f1*f2*V*L);        // m — altura de camada (abertura de comporta) necessária
       var capMaxGeom=3600*f1*f2*V*L*Hmax*rho; // t/h máx. da mesa nesta condição (V, material, Hmax)
       var camadaOK=(Hreq<=Hmax), blocoOK=(Fmax<=M.fmax), qBaixa=(Q<M.cmin*0.999), qAlta=(Q>M.cmax*1.001);
+      /* ===================== PESO ESTIMADO DO CONJUNTO =====================
+         Mesa (fundo + duas laterais) em chapa, mais reforços e berço; motovibrador(es)
+         conforme a potência de catálogo do modelo; molas de suspensão; comporta e manga.
+         O material sobre a mesa entra só no peso em operação. */
+      var espCh=num("chEsp"); if(!isFinite(espCh)||espCh<=0)espCh=8;
+      var pctRefCh=num("chRef"); if(!isFinite(pctRefCh)||pctRefCh<0)pctRefCh=45;
+      var latIn=num("chLat");
+      var hLat=(isFinite(latIn)&&latIn>0)?(latIn/1000):Math.max(0.30,1.6*Hmax);   // m
+      var Afundo=M.C*L, Alat2=2*M.C*hLat;
+      var mChapaCh=(Afundo+Alat2)*(espCh/1000)*7850;                 // kg
+      var mMesa=mChapaCh*(1+pctRefCh/100);
+      /* motovibradores: até 7 kW o catálogo indica 1 unidade; acima, 2 unidades */
+      var nVib=(M.kw<7)?1:2, kwUn=M.kw/nVib;
+      var mVibIn=num("chMvib");
+      /* correlação empírica para motovibradores pesados: m ≈ 95 · P^0,85 (kg, kW) */
+      var mVibUn=(isFinite(mVibIn)&&mVibIn>0)?mVibIn:(95*Math.pow(kwUn,0.85));
+      var mVibTot=nVib*mVibUn;
+      /* molas e berço de apoio */
+      var nMolCh=selvN("chNmol",4);
+      var mMolas=nMolCh*(6+0.012*(mMesa+mVibTot));                   // kg — molas + suportes
+      /* comporta e vedação */
+      var temComp=(selv("chComp","sim")==="sim");
+      var mComp=temComp?(0.35*L*M.C*100+45):0;                       // kg — comporta + manga
+      var mVazioCh=mMesa+mVibTot+mMolas+mComp;
+      var mMatMesa=Tvol/3600*(M.C/Math.max(V,0.01))*rho*1000;        // kg sobre a mesa
+      if(!isFinite(mMatMesa)||mMatMesa<0)mMatMesa=0;
+      var mOperCh=mVazioCh+mMatMesa;
+      /* cargas na estrutura de apoio */
+      var gCh=9.80665;
+      var Pest_ch=mOperCh*gCh/1000;                                  // kN — estática
+      var FcCh=1.5*(mMesa+mVibTot+0.5*mMatMesa)*gCh/1000;            // kN — dinâmica (ka ≈ 1,5)
+      var PporMola=Pest_ch/nMolCh;
       var OUT=[
         {sec:"Requisito de descarga"},
         {k:"Vazão de projeto",v:Q.toFixed(0)+" t/h"},
@@ -3227,10 +3268,23 @@ const CALCS={
         {k:"Boca de saída do silo compatível (catálogo)",v:M.vib?"Bica/tremonha não é componente padrão do Vibraline — projetar para a instalação":M.boca+" mm"},
         {k:"Tamanho máx. de bloco do modelo",v:fmt(Math.round(M.fmax))+" mm"+(blocoOK?"  (atende F_máx)":"  ⚠ menor que F_máx — usar modelo maior")},
         {k:"Motorização do vibrador (catálogo)",v:M.kw.toFixed(1).replace(".",",")+" kW"+(M.kw<7?"  (~"+(M.kw/0.7457).toFixed(0)+" HP)":"  (2 vibradores, ~"+(M.kw/0.7457).toFixed(0)+" HP no total)"),hi:true},
+        {sec:"Peso estimado do conjunto"},
+        {k:"Mesa — fundo "+Afundo.toFixed(2).replace(".",",")+" m² + laterais "+Alat2.toFixed(2).replace(".",",")+" m² × "+espCh.toFixed(1).replace(".",",")+" mm",v:fmt(Math.round(mChapaCh))+" kg   (laterais de "+(hLat*1000).toFixed(0)+" mm"+((latIn>0)?", informada":", automática")+")"},
+        {k:"Mesa com reforços, berço e travessas  (+"+pctRefCh.toFixed(0)+"%)",v:fmt(Math.round(mMesa))+" kg",hi:true},
+        {k:"Motovibrador(es)  ("+nVib+" × "+kwUn.toFixed(1).replace(".",",")+" kW)",v:fmt(Math.round(mVibTot))+" kg   ("+Math.round(mVibUn)+" kg cada"+((mVibIn>0)?", informada":", estimada por m ≈ 95·P^0,85")+")",hi:true},
+        {k:"Molas de suspensão e suportes  ("+nMolCh+" un)",v:fmt(Math.round(mMolas))+" kg"},
+        {k:"Comporta de regulagem e manga flexível",v:temComp?(fmt(Math.round(mComp))+" kg"):"—  (sem comporta)"},
+        {k:"PESO TOTAL ESTIMADO — VAZIO",v:fmt(Math.round(mVazioCh))+" kg  ·  "+(mVazioCh/1000).toFixed(2).replace(".",",")+" t",hi:true},
+        {k:"Material sobre a mesa em operação",v:fmt(Math.round(mMatMesa))+" kg"},
+        {k:"PESO TOTAL ESTIMADO — EM OPERAÇÃO",v:fmt(Math.round(mOperCh))+" kg  ·  "+(mOperCh/1000).toFixed(2).replace(".",",")+" t",hi:true},
+        {k:"CARGA ESTÁTICA na estrutura de apoio",v:kNkg(Pest_ch),hi:true},
+        {k:"CARGA DINÂMICA alternada  (± Fc, ka ≈ 1,5)",v:"± "+kNkg(FcCh)+"   a "+(rpm/60).toFixed(1).replace(".",",")+" Hz",hi:true},
+        {k:"Carga por mola  (estática)",v:kNkg(PporMola)},
+        {k:"Observação de pesos",v:"Estimativa de pré-projeto. A massa da mesa vem da geometria do modelo de catálogo e da espessura informada; a do motovibrador, de correlação empírica com a potência — substituir pelo peso real da folha de dados assim que o fornecedor for definido. As molas devem ser selecionadas em catálogo pela carga estática por unidade e pela frequência natural (f_op/f_n ≥ 4)."},
         {k:"Controle da vazão",v:"Regulável pela rotação (inversor de frequência), pela amplitude (contrapesos do vibrador) e pela posição da comporta (altura de camada H)."},
         {k:"Observação",v:"Pré-dimensionamento de calha/alimentador vibratório sob a boca do silo. A capacidade cresce com V (rpm/amplitude/inclinação), L e H, e é reduzida por φ1 (granulometria) e φ2 (umidade). Confirmar câmara/boca do silo, ângulo de fluxo (fluxo de massa) e o modelo na folha de dados do fabricante."}
       ];
-      OUT.geo={tipo:"calha",model:M.n,L:L,C:M.C,Hreq:Hreq,Hmax:Hmax,V:V,Tvol:Tvol,Q:Q,boca:M.boca,kw:M.kw,Fmax:Fmax,fmax:M.fmax,incl:incl,fIncl:fIncl};
+      OUT.geo={tipo:"calha",model:M.n,L:L,C:M.C,mMesa:mMesa,mVibTot:mVibTot,nVib:nVib,mMolas:mMolas,mComp:mComp,mVazioCh:mVazioCh,mMatMesa:mMatMesa,mOperCh:mOperCh,Pest_ch:Pest_ch,FcCh:FcCh,nMolCh:nMolCh,hLat:hLat,espCh:espCh,Hreq:Hreq,Hmax:Hmax,V:V,Tvol:Tvol,Q:Q,boca:M.boca,kw:M.kw,Fmax:Fmax,fmax:M.fmax,incl:incl,fIncl:fIncl};
       return OUT;
     }
   },
@@ -4966,7 +5020,13 @@ function gerarRelatorio(){
           [san("Altura de camada máxima  H_máx"),san(String(Math.round(G.Hmax*1000)))+" mm"],
           [san("Boca de saída do silo (catálogo)"),G.boca+" mm"],
           [san("Maior bloco / máx. do modelo"),san(String(Math.round(G.Fmax)))+" / "+san(String(Math.round(G.fmax)))+" mm"],
-          [san("Motorização do vibrador"),san(G.kw.toFixed(1))+" kW"]
+          [san("Motorização do vibrador"),san(G.kw.toFixed(1))+" kW ("+san(String(G.nVib))+" un)"],
+          [san("Mesa com reforços / motovibrador(es)"),san(String(Math.round(G.mMesa)))+" / "+san(String(Math.round(G.mVibTot)))+" kg"],
+          [san("Molas ("+G.nMolCh+") / comporta e manga"),san(String(Math.round(G.mMolas)))+" / "+san(String(Math.round(G.mComp)))+" kg"],
+          [san("PESO TOTAL — VAZIO"),san((G.mVazioCh/1000).toFixed(2))+" t"],
+          [san("PESO TOTAL — EM OPERAÇÃO"),san((G.mOperCh/1000).toFixed(2))+" t"],
+          [san("CARGA ESTÁTICA no apoio"),san(G.Pest_ch.toFixed(2))+" kN  ("+fmt(kgf(G.Pest_ch))+" kg)"],
+          [san("CARGA DINÂMICA alternada  ± Fc"),"± "+san(G.FcCh.toFixed(2))+" kN  ("+fmt(kgf(G.FcCh))+" kg)"]
         ],
         headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
         alternateRowStyles:{fillColor:[244,247,250]},
