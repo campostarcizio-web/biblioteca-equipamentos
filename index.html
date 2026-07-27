@@ -1937,7 +1937,11 @@ const CALCS={
       {id:"tcMch",label:"Chute de entrada — cada (0 = estimar)",unidade:"kg",tipo:"number",valor:0,step:"10"},
       {id:"tcNch",label:"Número de chutes de entrada",tipo:"select",valor:"1",opcoes:[
         {v:"1",t:"1 ponto de alimentação"},{v:"2",t:"2 pontos"},{v:"3",t:"3 pontos"}]},
-      {id:"tcMsup",label:"Suportes e flanges — % sobre o tubo",unidade:"%",tipo:"number",valor:18,step:"1"}
+      {id:"tcMsup",label:"Suportes e flanges — % sobre o tubo",unidade:"%",tipo:"number",valor:18,step:"1"},
+      {id:"tcT0",label:"Pré-tensão do esticador  T0  (fração da tração de trabalho F)",tipo:"select",valor:"0.5",opcoes:[
+        {v:"0.3",t:"0,30 · F — mínima, corrente curta e bem guiada"},
+        {v:"0.5",t:"0,50 · F — usual"},
+        {v:"0.8",t:"0,80 · F — traçado longo ou com trechos verticais"}]}
     ],
     calcular:function(){
       var g=9.81, eta=0.85;
@@ -2074,6 +2078,21 @@ const CALCS={
       var Pmotor=mAcion*g/1000;                                            // kN — só motor + redutor
       /* Torque de reação do acionamento na estrutura (braço = raio da roda dentada) */
       var Treac=(nspr>0)?(9550*Pmaj/nspr):0;                               // N·m
+      /* ---- CARGAS HORIZONTAIS: ACIONAMENTO E ESTICADOR ----
+         T0 = pré-tensão dada pelo esticador (mantém a corrente engrenada e sem folga)
+         T1 = F + T0  (ramo tracionado, entra na roda motriz)
+         T2 = T0      (ramo frouxo, sai da roda motriz)
+         · Na ESTAÇÃO DE ACIONAMENTO o eixo recebe os DOIS ramos: H = T1 + T2 = F + 2·T0.
+           É a carga local que dimensiona mancais, eixo, carcaça e chumbadores da estação.
+         · No ESTICADOR o dispositivo tensiona os dois ramos: H = 2·T0.
+         · Na ANCORAGEM do conjunto o que a estrutura de apoio precisa reter é a REAÇÃO
+           LÍQUIDA ao arraste, igual à tração de trabalho F. */
+      var kT0=parseFloat($("#tcT0")?$("#tcT0").value:"0.5")||0.5;
+      var FkN=F/1000;
+      var T0=kT0*FkN, T1=FkN+T0, T2=T0;
+      var Hacion=T1+T2;                                                    // kN — eixo do acionamento
+      var Hestic=2*T0;                                                     // kN — dispositivo esticador
+      var Hancor=FkN;                                                      // kN — ancoragem líquida
       /* menor tubo da tabela que ainda atende à capacidade — para orientar a redução */
       var menorTubo=null;
       for(var mt=0;mt<TC.length;mt++){
@@ -2162,14 +2181,19 @@ const CALCS={
         {k:"CARGA PONTUAL — extremidade de DESCARGA  (acionamento + motor + redutor)",v:kNkg(PsaidaV)+" vazio  ·  "+kNkg(PsaidaO)+" em operação",hi:true},
         {k:"     dos quais MOTOR + REDUTOR",v:kNkg(Pmotor)+"   — sempre na extremidade final",hi:true},
         {k:"Torque de reação do acionamento na estrutura",v:fmt(Math.round(Treac))+" N·m   (prever chumbadores e berço para absorver a reação do redutor)"},
-        {k:"Observação para o projeto estrutural",v:"As cargas pontuais das extremidades devem ser lançadas como reações concentradas no pórtico ou no piso; a carga distribuída, ao longo dos vãos entre suportes. Prever também o esforço horizontal do esticador da corrente ("+kNkg(F*2/1000)+", ≈ 2 × a tração de trabalho) na estação de retorno."},
+        {k:"Pré-tensão do esticador  T0 = "+kT0.toFixed(2).replace(".",",")+" · F",v:kNkg(T0)},
+        {k:"Ramo tracionado T1 = F + T0   ·   ramo frouxo T2 = T0",v:kNkg(T1)+"   ·   "+kNkg(T2)},
+        {k:"CARGA HORIZONTAL na ESTAÇÃO DE ACIONAMENTO  H = T1 + T2",v:kNkg(Hacion)+"   (eixo, mancais, carcaça e chumbadores da estação)",hi:true},
+        {k:"CARGA HORIZONTAL no ESTICADOR  H = 2 · T0",v:kNkg(Hestic)+"   (fuso/cilindro, guias e berço do esticador)",hi:true},
+        {k:"CARGA HORIZONTAL de ANCORAGEM do conjunto  H = F",v:kNkg(Hancor)+"   (reação líquida ao arraste — é o que a estrutura de apoio precisa reter)",hi:true},
+        {k:"Observação para o projeto estrutural",v:"As cargas pontuais das extremidades devem ser lançadas como reações concentradas no pórtico ou no piso; a carga distribuída, ao longo dos vãos entre suportes. As cargas HORIZONTAIS do acionamento e do esticador atuam no plano do tubo e devem ser lançadas junto com as verticais; a ancoragem do conjunto deve reter "+kNkg(Hancor)+" na direção do transporte."},
         {k:"Menor tubo que ainda atende  Q = "+Q.toFixed(0)+" t/h e peça de "+dim.toFixed(0)+" mm",v:menorTubo?
             (menorTubo.n+"\" (DN "+menorTubo.dn+") → corrente Ø "+menorTubo.d+" mm"+
              ((menorTubo.n===S.n)?"   ✓ o tubo adotado já é o menor possível":"   ← reduzindo para este tubo a corrente cai para Ø "+menorTubo.d+" mm")):
             "nenhum tubo da tabela atende — rever vazão, taxa de preenchimento ou dimensional da peça"},
         {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
       ];
-      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d,red:(sew.foraR?"industrial":sew.red.s),Ltot:Ltot,mTubo:mTubo,mSup:mSup,mCorr:mCorr,mDiscos:mDiscos,nDisc:nDiscTot,mCab:mCab,mRet:mRet,mChutes:mChutes,nCh:nCh,mMot:mMot,mRed:mRed,mAcion:mAcion,mVazio:mVazio,mMatOp:mMatOp,mOper:mOper,qDist:qDist,qDistOp:qDistOp,Pent:PentradaV,PentO:PentradaO,Psai:PsaidaV,PsaiO:PsaidaO,Pmot:Pmotor,Treac:Treac,Fest:F*2/1000};
+      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d,red:(sew.foraR?"industrial":sew.red.s),Ltot:Ltot,mTubo:mTubo,mSup:mSup,mCorr:mCorr,mDiscos:mDiscos,nDisc:nDiscTot,mCab:mCab,mRet:mRet,mChutes:mChutes,nCh:nCh,mMot:mMot,mRed:mRed,mAcion:mAcion,mVazio:mVazio,mMatOp:mMatOp,mOper:mOper,qDist:qDist,qDistOp:qDistOp,Pent:PentradaV,PentO:PentradaO,Psai:PsaidaV,PsaiO:PsaidaO,Pmot:Pmotor,Treac:Treac,T0:T0,T1:T1,T2:T2,Hacion:Hacion,Hestic:Hestic,Hancor:Hancor,kT0:kT0};
       return OUT;
     }
   },
@@ -4057,13 +4081,39 @@ function gerarRelatorio(){
       seta(x3,y2-14,G.Psai.toFixed(1)+" kN / "+fmt(kgf(G.Psai))+" kg","DESCARGA");
       doc.setTextColor(200,60,50); doc.setFontSize(6);
       doc.text(san("retorno + esticador + "+G.nCh+" chute(s)"),x0,y0+18,{align:"center"});
+      /* ---- CARGAS HORIZONTAIS: acionamento e esticador ---- */
+      function setaH(x,y,dir,txt,sub){
+        var L=17;
+        doc.setDrawColor(30,120,190); doc.setLineWidth(0.9);
+        doc.line(x,y,x+dir*L,y);
+        doc.line(x+dir*L-dir*3.2,y-2.3,x+dir*L,y);
+        doc.line(x+dir*L-dir*3.2,y+2.3,x+dir*L,y);
+        doc.setFillColor(30,120,190); doc.setTextColor(255,255,255); doc.setFontSize(6.5);
+        var w=doc.getTextWidth(txt)+4;
+        var xb=x+dir*L+dir*(w/2+1.5);
+        doc.roundedRect(xb-w/2,y-3.2,w,6,1.2,1.2,"F");
+        doc.text(san(txt),xb,y+1.1,{align:"center"});
+        if(sub){ doc.setTextColor(30,120,190); doc.setFontSize(5.8);
+          doc.text(san(sub),xb,y-5,{align:"center"}); }
+      }
+      /* esticador: puxa a corrente para tras, na extremidade de entrada */
+      setaH(x0-3,y0+4,-1,G.Hestic.toFixed(1)+" kN / "+fmt(kgf(G.Hestic))+" kg","ESTICADOR  H = 2·T0");
+      /* acionamento: os dois ramos puxam o eixo em direcao ao transportador */
+      setaH(x3+3,y2+4,1,G.Hacion.toFixed(1)+" kN / "+fmt(kgf(G.Hacion))+" kg","ACIONAMENTO  H = T1+T2");
+      /* ancoragem liquida do conjunto */
+      doc.setDrawColor(30,120,190); doc.setLineWidth(0.5); doc.setLineDashPattern([1.5,1.5],0);
+      doc.line(x1+6,y0+22,x2-6,y0+22);
+      doc.line(x2-9,y0+20.2,x2-6,y0+22); doc.line(x2-9,y0+23.8,x2-6,y0+22);
+      doc.setLineDashPattern([],0);
+      doc.setTextColor(30,120,190); doc.setFontSize(6);
+      doc.text(san("ancoragem do conjunto  H = F = "+G.Hancor.toFixed(1)+" kN / "+fmt(kgf(G.Hancor))+" kg"),(x1+x2)/2,y0+26,{align:"center"});
       doc.text(san("motor + redutor: "+G.Pmot.toFixed(1)+" kN = "+Math.round(G.mAcion)+" kg"),x3,y2-30,{align:"center"});
       /* carga distribuída */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.3);
       for(var xs=x0+6;xs<x1;xs+=7){ doc.line(xs,y0-9,xs,y0-4); }
       doc.setTextColor(110,130,150); doc.setFontSize(6);
       doc.text(san("q = "+G.qDistOp.toFixed(2)+" kN/m = "+kgf(G.qDistOp)+" kg/m"),(x0+x1)/2+4,y0-11,{align:"center"});
-      doc.autoTable({startY:132,theme:"grid",margin:{left:14,right:14},
+      doc.autoTable({startY:140,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
           [san("Tubo (ASME B36.10 · Sch 40)"),san(G.size)],
@@ -4090,7 +4140,11 @@ function gerarRelatorio(){
           [san("PONTUAL na DESCARGA — vazio / operação"),san(G.Psai.toFixed(1))+" / "+san(G.PsaiO.toFixed(1))+" kN  ("+fmt(kgf(G.Psai))+" / "+fmt(kgf(G.PsaiO))+" kg)"],
           [san("      dos quais motor + redutor"),san(G.Pmot.toFixed(1))+" kN  ("+fmt(kgf(G.Pmot))+" kg)"],
           [san("Torque de reação do acionamento"),san(String(Math.round(G.Treac)))+" N·m"],
-          [san("Esforço horizontal do esticador"),san(G.Fest.toFixed(1))+" kN  ("+fmt(kgf(G.Fest))+" kg)"]
+          [san("Pré-tensão do esticador  T0 = "+san(G.kT0.toFixed(2))+"·F"),san(G.T0.toFixed(1))+" kN  ("+fmt(kgf(G.T0))+" kg)"],
+          [san("Ramo tracionado T1 / ramo frouxo T2"),san(G.T1.toFixed(1))+" / "+san(G.T2.toFixed(1))+" kN  ("+fmt(kgf(G.T1))+" / "+fmt(kgf(G.T2))+" kg)"],
+          [san("HORIZONTAL na estação de ACIONAMENTO"),san(G.Hacion.toFixed(1))+" kN  ("+fmt(kgf(G.Hacion))+" kg)"],
+          [san("HORIZONTAL no ESTICADOR"),san(G.Hestic.toFixed(1))+" kN  ("+fmt(kgf(G.Hestic))+" kg)"],
+          [san("HORIZONTAL de ANCORAGEM do conjunto"),san(G.Hancor.toFixed(1))+" kN  ("+fmt(kgf(G.Hancor))+" kg)"]
         ],
         headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:7.6},
         alternateRowStyles:{fillColor:[244,247,250]},
