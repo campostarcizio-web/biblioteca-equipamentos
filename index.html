@@ -259,9 +259,25 @@ const SEW_MOTORS=[
  {kw:55,d:"DRN250M4"},{kw:75,d:"DRN280S4"},{kw:90,d:"DRN280M4"},{kw:110,d:"DRN315S4"},
  {kw:132,d:"DRN315M4"},{kw:160,d:"DRN315L4"},{kw:200,d:"DRN355M4"}];
 const SEW_R=[
- {s:"R17",t:130},{s:"R27",t:200},{s:"R37",t:300},{s:"R47",t:450},{s:"R57",t:600},
- {s:"R67",t:820},{s:"R77",t:1300},{s:"R87",t:2000},{s:"R97",t:3300},{s:"R107",t:4900},
- {s:"R137",t:8000},{s:"R147",t:13000},{s:"R167",t:18000}];
+ {s:"R17",t:130,m:9},{s:"R27",t:200,m:12},{s:"R37",t:300,m:16},{s:"R47",t:450,m:22},{s:"R57",t:600,m:30},
+ {s:"R67",t:820,m:40},{s:"R77",t:1300,m:60},{s:"R87",t:2000,m:95},{s:"R97",t:3300,m:150},{s:"R107",t:4900,m:230},
+ {s:"R137",t:8000,m:390},{s:"R147",t:13000,m:600},{s:"R167",t:18000,m:900}];
+/* Massa aproximada do motor DRN (4 polos, TEFC) por potência — kg.
+   Valores de ordem de grandeza para estimativa de carga; confirmar na folha SEW. */
+function massaMotor(kw){
+  var T=[[0.12,10],[0.25,13],[0.55,17],[0.75,20],[1.5,28],[2.2,35],[4,52],[5.5,68],[7.5,85],
+         [11,125],[15,155],[18.5,190],[22,220],[30,290],[37,360],[45,420],[55,500],[75,650],[90,760],[110,900]];
+  if(kw<=T[0][0])return T[0][1];
+  for(var i=1;i<T.length;i++){ if(kw<=T[i][0]){ var f=(kw-T[i-1][0])/(T[i][0]-T[i-1][0]);
+    return T[i-1][1]+f*(T[i][1]-T[i-1][1]); } }
+  return T[T.length-1][1]*kw/T[T.length-1][0];
+}
+/* Massa aproximada do redutor: série R pela tabela; industriais estimados pelo torque. */
+function massaRedutor(sew){
+  if(sew&&!sew.foraR&&sew.red&&sew.red.m) return sew.red.m;
+  var T=(sew&&sew.Tsel)?sew.Tsel:0;
+  return Math.max(900,0.055*Math.pow(Math.max(T,1),0.92));
+}
 /* ================= CATÁLOGO DE PERFIS ESTRUTURAIS COMERCIAIS =================
    Usado na pré-seleção de cintas (anéis), enrijecedores verticais e montantes.
    Famílias disponíveis:
@@ -1904,7 +1920,19 @@ const CALCS={
       {id:"tcPadm",label:"Pressão de contato admissível no articulamento  (elo redondo, p = F/d²)",tipo:"select",valor:"45",opcoes:[
         {v:"30",t:"30 N/mm² — seco e muito abrasivo (vida longa)"},
         {v:"45",t:"45 N/mm² — usual em arraste tubular (calibrado na prática de catálogo)"},
-        {v:"60",t:"60 N/mm² — corrente temperada / serviço leve"}]}
+        {v:"60",t:"60 N/mm² — corrente temperada / serviço leve"}]},
+      {tipo:"head",label:"Pesos e cargas pontuais"},
+      {id:"tcMatD",label:"Material do disco",tipo:"select",valor:"uhmw",opcoes:[
+        {v:"uhmw",t:"UHMW-PE (940 kg/m³) — padrão, baixo atrito"},
+        {v:"aco",t:"Aço carbono (7850 kg/m³) — abrasivo/quente"},
+        {v:"ferro",t:"Ferro fundido (7200 kg/m³) — serviço severo"}]},
+      {id:"tcTd",label:"Espessura do disco",unidade:"mm",tipo:"number",valor:12,step:"1"},
+      {id:"tcMcab",label:"Estação de ACIONAMENTO, sem motoredutor (0 = estimar)",unidade:"kg",tipo:"number",valor:0,step:"10"},
+      {id:"tcMret",label:"Estação de RETORNO com esticador (0 = estimar)",unidade:"kg",tipo:"number",valor:0,step:"10"},
+      {id:"tcMch",label:"Chute de entrada — cada (0 = estimar)",unidade:"kg",tipo:"number",valor:0,step:"10"},
+      {id:"tcNch",label:"Número de chutes de entrada",tipo:"select",valor:"1",opcoes:[
+        {v:"1",t:"1 ponto de alimentação"},{v:"2",t:"2 pontos"},{v:"3",t:"3 pontos"}]},
+      {id:"tcMsup",label:"Suportes e flanges — % sobre o tubo",unidade:"%",tipo:"number",valor:18,step:"1"}
     ],
     calcular:function(){
       var g=9.81, eta=0.85;
@@ -1995,6 +2023,52 @@ const CALCS={
       var FSgasto=BLd(dsel*(1-wf))/F;          // FS no fim da vida, já gasta
       var pArt=F/(dsel*dsel);                  // N/mm² de contato com a bitola adotada
       var okDesg=(FSgasto>=SF), okArt=(pArt<=padm), okPrat=(dsel>=dPrat);
+      /* ===================== PESOS E CARGAS PONTUAIS =====================
+         O circuito da corrente é fechado: o comprimento de corrente e o número de discos
+         valem para IDA + VOLTA, ou seja 2 × o comprimento do traçado. */
+      var Ltot=Lh1+Li+Lh2;                                   // m — comprimento do traçado
+      var Lcircuito=2*Ltot;                                  // m — corrente ida e volta
+      var espTubo=(S.de-S.di)/2;                             // mm — parede
+      var qTubo=Math.PI/4*(S.de*S.de-S.di*S.di)/1e6*7850;    // kg/m de tubo
+      var mTubo=qTubo*Ltot;
+      var pctSup=num("tcMsup"); if(isNaN(pctSup)||pctSup<0)pctSup=18;
+      var mSup=mTubo*pctSup/100;                             // suportes, flanges, curvas
+      var qCorr=qc*(dsel/S.d)*(dsel/S.d);                    // kg/m corrigido pela bitola adotada
+      var mCorr=qCorr*Lcircuito;
+      var RHOD={uhmw:940,aco:7850,ferro:7200};
+      var matD=$("#tcMatD")?$("#tcMatD").value:"uhmw";
+      var rhoD=RHOD[matD]||940;
+      var tD=num("tcTd"); if(isNaN(tD)||tD<=0)tD=12;
+      var dDisco=Math.max(50,S.di-8);                        // mm — folga de 4 mm por lado
+      var mDisco1=Math.PI/4*Math.pow(dDisco/1000,2)*(tD/1000)*rhoD;   // kg por disco
+      var nDiscTot=Math.max(2,Math.round(Lcircuito/pDisc));
+      var mDiscos=mDisco1*nDiscTot;
+      /* Estações de extremidade — estimativas escaladas pelo diâmetro nominal do tubo,
+         cobrindo roda dentada, eixo, mancais, carcaça e (no retorno) o esticador. */
+      var mCabIn=num("tcMcab"), mRetIn=num("tcMret"), mChIn=num("tcMch");
+      var mCabEst=80+0.90*S.dn, mRetEst=70+0.80*S.dn, mChEst=110+1.10*S.dn;
+      var mCab=(!isNaN(mCabIn)&&mCabIn>0)?mCabIn:mCabEst;
+      var mRet=(!isNaN(mRetIn)&&mRetIn>0)?mRetIn:mRetEst;
+      var mCh1=(!isNaN(mChIn)&&mChIn>0)?mChIn:mChEst;
+      var nCh=parseFloat($("#tcNch")?$("#tcNch").value:"1")||1;
+      var mChutes=mCh1*nCh;
+      /* Acionamento — motor + redutor SEW adotados, sempre na extremidade de DESCARGA */
+      var mMot=massaMotor(sew.mot.kw), mRed=massaRedutor(sew);
+      var mAcion=mMot+mRed;
+      /* Material dentro do transportador em operação (só no ramo de transporte) */
+      var mMatOp=qm*Ltot;
+      var mVazio=mTubo+mSup+mCorr+mDiscos+mCab+mRet+mChutes+mAcion;
+      var mOper=mVazio+mMatOp;
+      /* ---- CARGAS PONTUAIS PARA A ESTRUTURA DE APOIO ---- */
+      var qDist=(qTubo*(1+pctSup/100)+qCorr*2+mDisco1*2/pDisc)*g/1000;   // kN/m (vazio)
+      var qDistOp=qDist+qm*g/1000;                                        // kN/m (operação)
+      var PentradaV=(mRet+mChutes)*g/1000;                                 // kN — extremidade de entrada
+      var PentradaO=PentradaV+(qm*2)*g/1000;                               // + acúmulo local de material
+      var PsaidaV=(mCab+mAcion)*g/1000;                                    // kN — extremidade de descarga
+      var PsaidaO=PsaidaV+(qm*2)*g/1000;
+      var Pmotor=mAcion*g/1000;                                            // kN — só motor + redutor
+      /* Torque de reação do acionamento na estrutura (braço = raio da roda dentada) */
+      var Treac=(nspr>0)?(9550*Pmaj/nspr):0;                               // N·m
       /* menor tubo da tabela que ainda atende à capacidade — para orientar a redução */
       var menorTubo=null;
       for(var mt=0;mt<TC.length;mt++){
@@ -2064,13 +2138,33 @@ const CALCS={
             "(c) aumentar p_adm com corrente temperada/endurecida ou elo com bucha.  "+
             "(d) aceitar troca mais frequente, reduzindo o desgaste admissível.  "+
             "(e) usar corrente forjada com pino e bucha em vez de elo redondo — a área de articulamento é muito maior para a mesma massa."},
+        {sec:"Pesos do equipamento"},
+        {k:"Comprimento do traçado  /  circuito de corrente (ida + volta)",v:Ltot.toFixed(1).replace(".",",")+" m  /  "+Lcircuito.toFixed(1).replace(".",",")+" m"},
+        {k:"Tubo "+S.n+"\"  (parede "+espTubo.toFixed(1).replace(".",",")+" mm · "+qTubo.toFixed(1).replace(".",",")+" kg/m)",v:fmt(Math.round(mTubo))+" kg"},
+        {k:"Suportes, flanges e curvas  ("+pctSup.toFixed(0)+"% do tubo)",v:fmt(Math.round(mSup))+" kg"},
+        {k:"Corrente Ø "+dsel+"  ("+qCorr.toFixed(1).replace(".",",")+" kg/m × "+Lcircuito.toFixed(1).replace(".",",")+" m)",v:fmt(Math.round(mCorr))+" kg"},
+        {k:"Discos  ("+nDiscTot+" un · Ø"+dDisco.toFixed(0)+" × "+tD.toFixed(0)+" mm · "+({uhmw:"UHMW-PE",aco:"aço carbono",ferro:"ferro fundido"}[matD])+" · "+mDisco1.toFixed(2).replace(".",",")+" kg/un)",v:fmt(Math.round(mDiscos))+" kg"},
+        {k:"Estação de ACIONAMENTO (roda, eixo, mancais, carcaça)",v:fmt(Math.round(mCab))+" kg"+((mCabIn>0)?"  (informada)":"  (estimada)")},
+        {k:"Estação de RETORNO com esticador",v:fmt(Math.round(mRet))+" kg"+((mRetIn>0)?"  (informada)":"  (estimada)")},
+        {k:"Chutes de entrada  ("+nCh+" × "+Math.round(mCh1)+" kg)",v:fmt(Math.round(mChutes))+" kg"+((mChIn>0)?"  (informado)":"  (estimado)")},
+        {k:"Motor "+sew.mot.d+" ("+sew.mot.kw+" kW)  +  redutor "+(sew.foraR?"industrial":sew.red.s),v:Math.round(mMot)+" + "+Math.round(mRed)+" = "+fmt(Math.round(mAcion))+" kg",hi:true},
+        {k:"PESO TOTAL VAZIO",v:fmt(Math.round(mVazio))+" kg  ·  "+(mVazio/1000).toFixed(2).replace(".",",")+" t",hi:true},
+        {k:"Material dentro do transportador  ("+qm.toFixed(1).replace(".",",")+" kg/m × "+Ltot.toFixed(1).replace(".",",")+" m)",v:fmt(Math.round(mMatOp))+" kg"},
+        {k:"PESO TOTAL EM OPERAÇÃO",v:fmt(Math.round(mOper))+" kg  ·  "+(mOper/1000).toFixed(2).replace(".",",")+" t",hi:true},
+        {sec:"Cargas para a estrutura de apoio"},
+        {k:"Carga DISTRIBUÍDA ao longo do tubo — vazio / operação",v:qDist.toFixed(2).replace(".",",")+" / "+qDistOp.toFixed(2).replace(".",",")+" kN/m",hi:true},
+        {k:"CARGA PONTUAL — extremidade de ENTRADA  (retorno + esticador + chutes)",v:PentradaV.toFixed(1).replace(".",",")+" kN vazio  ·  "+PentradaO.toFixed(1).replace(".",",")+" kN em operação",hi:true},
+        {k:"CARGA PONTUAL — extremidade de DESCARGA  (acionamento + motor + redutor)",v:PsaidaV.toFixed(1).replace(".",",")+" kN vazio  ·  "+PsaidaO.toFixed(1).replace(".",",")+" kN em operação",hi:true},
+        {k:"     dos quais MOTOR + REDUTOR",v:Pmotor.toFixed(1).replace(".",",")+" kN   ("+fmt(Math.round(mAcion))+" kg — sempre na extremidade final)",hi:true},
+        {k:"Torque de reação do acionamento na estrutura",v:fmt(Math.round(Treac))+" N·m   (prever chumbadores e berço para absorver a reação do redutor)"},
+        {k:"Observação para o projeto estrutural",v:"As cargas pontuais das extremidades devem ser lançadas como reações concentradas no pórtico ou no piso; a carga distribuída, ao longo dos vãos entre suportes. Prever também o esforço horizontal do esticador da corrente ("+fmt(Math.round(F*2/1000))+" kN, ≈ 2 × a tração de trabalho) na estação de retorno."},
         {k:"Menor tubo que ainda atende  Q = "+Q.toFixed(0)+" t/h e peça de "+dim.toFixed(0)+" mm",v:menorTubo?
             (menorTubo.n+"\" (DN "+menorTubo.dn+") → corrente Ø "+menorTubo.d+" mm"+
              ((menorTubo.n===S.n)?"   ✓ o tubo adotado já é o menor possível":"   ← reduzindo para este tubo a corrente cai para Ø "+menorTubo.d+" mm")):
             "nenhum tubo da tabela atende — rever vazão, taxa de preenchimento ou dimensional da peça"},
         {k:"Observação",v:"Pré-dimensionamento — confirmar capacidade/potência no configurador Schrage e a corrente no catálogo RUD. Velocidade de corrente baixa (≤ 0,5 m/s) garante transporte suave e baixo desgaste."}
       ];
-      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d};
+      OUT.geo={tipo:"arraste",size:S.n+" pol (DN "+S.dn+")",di:S.di,fill:fillPc,dim:dim,Vsel:Vshow,H:H,Lhoriz:Lhoriz,Lh1:Lh1,Li:Li,Lh2:Lh2,theta:theta,Pmaj:Pmaj,chainD:dsel,motorkw:sew.mot.kw,motord:sew.mot.d,red:(sew.foraR?"industrial":sew.red.s),Ltot:Ltot,mTubo:mTubo,mSup:mSup,mCorr:mCorr,mDiscos:mDiscos,nDisc:nDiscTot,mCab:mCab,mRet:mRet,mChutes:mChutes,nCh:nCh,mMot:mMot,mRed:mRed,mAcion:mAcion,mVazio:mVazio,mMatOp:mMatOp,mOper:mOper,qDist:qDist,qDistOp:qDistOp,Pent:PentradaV,PentO:PentradaO,Psai:PsaidaV,PsaiO:PsaidaO,Pmot:Pmotor,Treac:Treac,Fest:F*2/1000};
       return OUT;
     }
   },
@@ -3943,7 +4037,28 @@ function gerarRelatorio(){
       doc.line(x2,y2-8,x3,y2-8); doc.text("Lh2 = "+san(G.Lh2.toFixed(1))+" m",(x2+x3)/2,y2-10,{align:"center"});
       doc.line(x3+8,y2,x3+8,y0); doc.line(x3+6.5,y2,x3+9.5,y2); doc.line(x3+6.5,y0,x3+9.5,y0);
       doc.text("H = "+san(G.H.toFixed(2))+" m",x3+10,(y2+y0)/2+1);
-      doc.autoTable({startY:130,theme:"grid",margin:{left:14,right:14},
+      /* ---- CARGAS PONTUAIS NAS EXTREMIDADES ---- */
+      function seta(x,y,txt,sub){
+        doc.setDrawColor(200,60,50); doc.setLineWidth(0.8);
+        doc.line(x,y-16,x,y-4); doc.line(x-2.4,y-7.5,x,y-4); doc.line(x+2.4,y-7.5,x,y-4);
+        doc.setFillColor(200,60,50); doc.setTextColor(255,255,255); doc.setFontSize(6.5);
+        var w=doc.getTextWidth(txt)+4;
+        doc.roundedRect(x-w/2,y-24,w,6,1.2,1.2,"F");
+        doc.text(san(txt),x,y-19.7,{align:"center"});
+        if(sub){ doc.setTextColor(200,60,50); doc.setFontSize(6);
+          doc.text(san(sub),x,y-26.5,{align:"center"}); }
+      }
+      seta(x0,y0-14,G.Pent.toFixed(1)+" kN","ENTRADA");
+      seta(x3,y2-14,G.Psai.toFixed(1)+" kN","DESCARGA");
+      doc.setTextColor(200,60,50); doc.setFontSize(6);
+      doc.text(san("retorno + esticador + "+G.nCh+" chute(s)"),x0,y0+18,{align:"center"});
+      doc.text(san("motor + redutor: "+Math.round(G.mAcion)+" kg ("+G.Pmot.toFixed(1)+" kN)"),x3,y2-30,{align:"center"});
+      /* carga distribuída */
+      doc.setDrawColor(120,140,160); doc.setLineWidth(0.3);
+      for(var xs=x0+6;xs<x1;xs+=7){ doc.line(xs,y0-9,xs,y0-4); }
+      doc.setTextColor(110,130,150); doc.setFontSize(6);
+      doc.text(san("q = "+G.qDistOp.toFixed(2)+" kN/m (operacao)"),(x0+x1)/2+4,y0-11,{align:"center"});
+      doc.autoTable({startY:132,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
           [san("Tubo (ASME B36.10 · Sch 40)"),san(G.size)],
@@ -3955,13 +4070,28 @@ function gerarRelatorio(){
           [san("Comprimento horizontal total"),san(G.Lhoriz.toFixed(1))+" m"],
           [san("Potência majorada (+20%)"),san(G.Pmaj.toFixed(2))+" kW"],
           [san("Motor SEW"),san(String(G.motorkw))+" kW · "+san(G.motord)],
-          [san("Corrente de elos redondos (RUD)"),"Ø "+G.chainD+" mm"]
+          [san("Corrente de elos redondos (RUD)"),"Ø "+G.chainD+" mm"],
+          [san("Redutor SEW"),san(G.red)],
+          [san("Tubo + suportes"),san(String(Math.round(G.mTubo)))+" + "+san(String(Math.round(G.mSup)))+" kg"],
+          [san("Corrente + discos ("+G.nDisc+" un)"),san(String(Math.round(G.mCorr)))+" + "+san(String(Math.round(G.mDiscos)))+" kg"],
+          [san("Estação de acionamento / de retorno"),san(String(Math.round(G.mCab)))+" / "+san(String(Math.round(G.mRet)))+" kg"],
+          [san("Chutes de entrada ("+G.nCh+")"),san(String(Math.round(G.mChutes)))+" kg"],
+          [san("Motor + redutor"),san(String(Math.round(G.mMot)))+" + "+san(String(Math.round(G.mRed)))+" = "+san(String(Math.round(G.mAcion)))+" kg"],
+          [san("PESO TOTAL VAZIO"),san((G.mVazio/1000).toFixed(2))+" t"],
+          [san("Material no transportador"),san((G.mMatOp/1000).toFixed(2))+" t"],
+          [san("PESO TOTAL EM OPERAÇÃO"),san((G.mOper/1000).toFixed(2))+" t"],
+          [san("Carga distribuída — vazio / operação"),san(G.qDist.toFixed(2))+" / "+san(G.qDistOp.toFixed(2))+" kN/m"],
+          [san("PONTUAL na ENTRADA — vazio / operação"),san(G.Pent.toFixed(1))+" / "+san(G.PentO.toFixed(1))+" kN"],
+          [san("PONTUAL na DESCARGA — vazio / operação"),san(G.Psai.toFixed(1))+" / "+san(G.PsaiO.toFixed(1))+" kN"],
+          [san("      dos quais motor + redutor"),san(G.Pmot.toFixed(1))+" kN"],
+          [san("Torque de reação do acionamento"),san(String(Math.round(G.Treac)))+" N·m"],
+          [san("Esforço horizontal do esticador"),san(G.Fest.toFixed(1))+" kN"]
         ],
-        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8.5},
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:7.6},
         alternateRowStyles:{fillColor:[244,247,250]},
-        columnStyles:{0:{cellWidth:120},1:{cellWidth:62,halign:"right",fontStyle:"bold"}}});
+        columnStyles:{0:{cellWidth:112},1:{cellWidth:70,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
-      doc.text(san("Croqui esquemático (fora de escala) — perfil e medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
+      doc.text(san("Croqui esquemático (fora de escala) — perfil, medidas e cargas para o projeto da estrutura de apoio."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="canecas"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       var bx=58,bw=26,bty=46,bby=150;
