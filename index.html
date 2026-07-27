@@ -208,7 +208,7 @@ const CALHA_MAT={
                nota:"Briquete Bricão 120 × 108 × 87 mm · 1,3 t/m³"}
 };
 function calhaPreset(){
-  var m=CALHA_MAT[sel("chMat","custom")];
+  var m=CALHA_MAT[selv("chMat","custom")];
   if(m){ $("#cvRho").value=m.rho; $("#cvFmax").value=m.d;
          scrSet("cvGran",[m.g]); scrSet("cvUmid",[m.u]); }
   runCalc("calha_vibratoria");
@@ -235,8 +235,8 @@ function nextStd(mm){for(const d of DIAM_STD){if(d>=mm)return d;}return DIAM_STD
 /* Leitura segura: se o campo não existir na calculadora aberta, devolve NaN em vez
    de lançar exceção — evita que um campo faltante derrube todo o resultado. */
 function num(id){var e=$("#"+id); return e?parseFloat(e.value):NaN;}
-function sel(id,pad){var e=$("#"+id); return (e&&e.value!=="")?e.value:pad;}
-function selN(id,pad){var v=parseFloat(sel(id,String(pad))); return isFinite(v)?v:pad;}
+function selv(id,pad){var e=$("#"+id); return (e&&e.value!=="")?e.value:pad;}
+function selvN(id,pad){var v=parseFloat(selv(id,String(pad))); return isFinite(v)?v:pad;}
 /* Pré-seleção de materiais típicos de mineração (valores representativos de literatura — confirmar em ensaio Jenike Shear) */
 const SILO_MAT={
   fe_gran:{rho:2.5,phi:35,delta:25,c:0.3,d50:12},
@@ -573,7 +573,7 @@ function coneVibCalc(CVCIRC){
       /* ---- VOLUME: tronco (frustum) menos o cone defletor ---- */
       var A1=area(A,B), A2=area(C,D);
       var Vtronco=(H/3)*(A1+A2+Math.sqrt(A1*A2));
-      var temDefl=(sel("cvDefl","sim")==="sim");
+      var temDefl=(selv("cvDefl","sim")==="sim");
       var DbIn=num("cvDb"), DhIn=num("cvDh");
       var Db=temDefl?((!isNaN(DbIn)&&DbIn>0)?DbIn/1000:0.55*A):0;
       var Dh=temDefl?((!isNaN(DhIn)&&DhIn>0)?DhIn/1000:(Db/2)):0;
@@ -625,13 +625,13 @@ function coneVibCalc(CVCIRC){
       var Adeflat=temDefl?(perim(Db,Db)/2*Math.sqrt(Dh*Dh+Db*Db/4)):0;
       var mChapa=(Alat+Adeflat)*(esp/1000)*7850;
       var mEstr=mChapa*(1+pctRef/100);                          // + flange, reforços e manga
-      var partM=selN("cvPart",0.5);
+      var partM=selvN("cvPart",0.5);
       var mVib=mEstr+partM*mMat;                                // massa vibrante
       /* ---- VIBRAÇÃO ---- */
-      var polos=selN("cvPolos",6);
-      var fRede=selN("cvFreq",60);
+      var polos=selvN("cvPolos",6);
+      var fRede=selvN("cvFreq",60);
       var rpm=120*fRede/polos, fop=rpm/60, w=2*Math.PI*fop;
-      var ka=selN("cvKa",1.5);
+      var ka=selvN("cvKa",1.5);
       var Fc=ka*mVib*g/1000;                                    // kN — força centrífuga total
       var Me=Fc*1000/(w*w)*1000;                                // kg·mm — momento estático total
       var App=2*Me/mVib;                                        // mm pico a pico
@@ -658,8 +658,8 @@ function coneVibCalc(CVCIRC){
       var P1=mv1.kw, P2=2*mv2.kw;
       var Me1=Fc*1000/(w*w)*1000, Me2=Me1/2;                    // kg·mm por unidade
       /* ---- MOLAS DE ISOLAMENTO ---- */
-      var nMol=selN("cvNmol",4);
-      var relF=selN("cvRelF",4);
+      var nMol=selvN("cvNmol",4);
+      var relF=selvN("cvRelF",4);
       var fn=fop/relF;
       var kTot=mVib*Math.pow(2*Math.PI*fn,2)/1000;              // N/mm
       var kMola=kTot/nMol;                                      // N/mm por mola
@@ -681,14 +681,14 @@ function coneVibCalc(CVCIRC){
       var Fest_tir=Fmat+Fpeso;                                         // kN — estática
       var mDeflVib=mDefl+partM*mMatDefl;
       var Fdin_tir=mDeflVib*ka*g/1000;                                 // kN — amplitude da inércia
-      var nTir=selN("cvNtir",4);
+      var nTir=selvN("cvNtir",4);
       var betaT=num("cvBtir"); if(!isFinite(betaT)||betaT<0||betaT>75)betaT=30;
       var cosB=Math.cos(betaT*Math.PI/180);
       var kDes=num("cvKdes"); if(!isFinite(kDes)||kDes<1)kDes=1.25;
       var ACO_T={a36:{fy:250,fu:400,n:"ASTM A36 / SAE 1020"},
                  a325:{fy:640,fu:830,n:"ASTM A325 / classe 8.8"},
                  inox:{fy:210,fu:520,n:"Inox AISI 304"}};
-      var acoT=ACO_T[sel("cvAcoTir","a36")]||ACO_T.a36;
+      var acoT=ACO_T[selv("cvAcoTir","a36")]||ACO_T.a36;
       /* esforço por tirante */
       var Nest=Fest_tir*kDes/(nTir*cosB);                              // kN — estático por tirante
       var Ndin=Fdin_tir*kDes/(nTir*cosB);                              // kN — amplitude por tirante
@@ -701,7 +701,7 @@ function coneVibCalc(CVCIRC){
          Categoria de detalhe para barra rosqueada tracionada: 50 (laminada) ou 36 (usinada).
          Para N > 10⁸ ciclos vale o limite de corte ΔσL = ΔσD·(5/100)^(1/5),
          com ΔσD = ΔσC·(2/5)^(1/3). */
-      var dSigC=selN("cvRosca",50);
+      var dSigC=selvN("cvRosca",50);
       var hDia=num("cvHdia"); if(!isFinite(hDia)||hDia<=0)hDia=4;
       var vidaT=num("cvVida"); if(!isFinite(vidaT)||vidaT<=0)vidaT=15;
       var Ncic=fop*hDia*300*vidaT*3600;                                // ciclos na vida
@@ -3200,12 +3200,12 @@ const CALCS={
         {k:"Densidade aparente",v:rho.toFixed(2).replace(".",",")+" t/m³"},
         {k:"Vazão volumétrica  T = Q / ρ",v:Tvol.toFixed(1).replace(".",",")+" m³/h",hi:true},
         {k:"Maior bloco do material  F_máx",v:fmt(Math.round(Fmax))+" mm"},
-        {k:"Material selecionado",v:(function(){var m=CALHA_MAT[sel("chMat","custom")];
+        {k:"Material selecionado",v:(function(){var m=CALHA_MAT[selv("chMat","custom")];
            return m?(m.nota||("preset — ρ "+m.rho.toFixed(2).replace(".",",")+" t/m³ · bloco "+m.d+" mm")):"personalizado (valores informados manualmente)";})()},
-        {k:"Alerta de degradação",v:(function(){var m=CALHA_MAT[sel("chMat","custom")];
+        {k:"Alerta de degradação",v:(function(){var m=CALHA_MAT[selv("chMat","custom")];
            if(!m||!m.briq) return "—";
            return "⚠ BRIQUETE — peça prensada e friável. A vibração gera finos por atrito e impacto: usar a MENOR amplitude que atenda à vazão (3 a 4 mm), evitar altura de camada excessiva na comporta, revestir a mesa com poliuretano ou UHMW-PE e limitar a queda na transferência. Vibração contínua com o silo cheio compacta e quebra o briquete — acionar de forma intermitente e somente com o equipamento a jusante em operação.";})(),
-         hi:(function(){var m=CALHA_MAT[sel("chMat","custom")];return !!(m&&m.briq);})()},
+         hi:(function(){var m=CALHA_MAT[selv("chMat","custom")];return !!(m&&m.briq);})()},
         {sec:"Fatores e velocidade do material"},
         {k:"Fator de granulometria  φ1",v:f1.toFixed(2).replace(".",",")},
         {k:"Fator de umidade  φ2",v:f2.toFixed(2).replace(".",",")},
