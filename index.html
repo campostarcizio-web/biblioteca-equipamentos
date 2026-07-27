@@ -609,17 +609,21 @@ function coneVibCalc(CVCIRC){
       var App=2*Me/mVib;                                        // mm pico a pico
       var ampOK=(App>=1.0&&App<=4.0);
       var acel=ka;                                              // em g
-      /* ---- CATÁLOGO DE MOTOVIBRADORES (força centrífuga kN × potência kW) ---- */
-      var MVCAT={2:[[1.0,0.04],[2.5,0.09],[5,0.17],[8,0.26],[12,0.38],[18,0.55],[25,0.75],[35,1.1]],
-                 4:[[1.0,0.06],[2,0.12],[3,0.18],[5,0.28],[7,0.40],[10,0.55],[14,0.75],[20,1.1],[26,1.5],[35,2.0],[45,2.6],[60,3.5]],
-                 6:[[1.0,0.10],[2,0.20],[3.5,0.32],[5,0.45],[8,0.70],[12,1.0],[16,1.3],[22,1.8],[30,2.4],[40,3.2],[55,4.2]],
-                 8:[[2,0.25],[4,0.48],[7,0.80],[10,1.1],[15,1.6],[22,2.3],[30,3.0],[42,4.0]]};
+      /* ===== CATÁLOGO OLI — motovibradores elétricos MVE (catálogo geral 06/2026) =====
+         Cada item: [modelo, força centrífuga a 60 Hz (kgf), potência de entrada (kW), massa (kg)].
+         A 50 Hz a força cai para (50/60)² = 69% do valor de 60 Hz (massas ajustadas a 70%).
+         Designação: MVE <tamanho>/<rpm>E-<carcaça>  —  36E = 3600 rpm (2 polos), 18E = 1800 (4),
+         12E = 1200 (6) e 090E = 900 rpm (8 polos). Força em kgf: 1 kgf = 9,81 N. */
+      var MVCAT={2:[["60/36E-10A0",71,0.09,4],["100/36E-10A0",95,0.09,5],["200/36E-20A0",189,0.18,7],["300/36E-30A0",323,0.28,10],["400/36E-30A0",411,0.33,10],["500/36E-40A0",534,0.58,16],["700/36E-40A0",765,0.61,17],["800/36E-50A0",800,0.84,20]],
+                 4:[["40/18E-10A0",36,0.04,5],["90/18E-20A0",76,0.08,7],["200/18E-30A0",196,0.15,12],["300/18E-50A0",336,0.73,22],["400/18E-40A0",423,0.32,20],["500/18E-40A0",508,0.4,21],["700/18E-50A0",712,0.73,27],["950/18E-50A0",957,0.77,33]],
+                 6:[["50/12E-30A0",53,0.14,10],["100/12E-30A0",106,0.14,11],["200/12E-40A0",188,0.18,19],["300/12E-50A0",320,0.3,26],["500/12E-50A0",517,0.4,34],["510/12E-51A0",739,0.4,35],["800/12E-60A0",873,0.75,65]],
+                 8:[["150/090E-40A0",151,0.25,21],["250/090E-50A0",257,0.3,29],["400/090E-50A0",380,0.3,34],["650/090E-60A0",621,0.45,63],["900/090E-60A0",849,0.54,70]]};
       var fCorr=(fRede===50)?Math.pow(50/60,2):1;               // força cai com f² a 50 Hz
-      function selMV(Freq){
+      function selMV(FreqkN){
         var T=MVCAT[polos]||MVCAT[6], acima=false, sel=null;
-        for(var i=0;i<T.length;i++){ if(T[i][0]*fCorr>=Freq){ sel=T[i]; break; } }
+        for(var i=0;i<T.length;i++){ if(T[i][1]*9.81/1000*fCorr>=FreqkN){ sel=T[i]; break; } }
         if(!sel){ sel=T[T.length-1]; acima=true; }
-        return {F:sel[0]*fCorr,kw:sel[1],acima:acima};
+        return {n:"MVE "+sel[0],F:sel[1]*9.81/1000*fCorr,Fkgf:sel[1]*fCorr,kw:sel[2],m:sel[3],acima:acima};
       }
       var mv1=selMV(Fc);                                        // OPÇÃO 1 — um motovibrador
       var mv2=selMV(Fc/2);                                      // OPÇÃO 2 — dois motovibradores
@@ -739,13 +743,13 @@ function coneVibCalc(CVCIRC){
         {k:"AMPLITUDE pico a pico  App = 2·Me / m_vib",v:App.toFixed(2).replace(".",",")+" mm"+(ampOK?"   ✓ dentro da faixa útil de 1 a 4 mm":(App<1?"   ⚠ abaixo de 1 mm — vibração ineficaz; usar mais polos (menor rotação) ou aumentar ka":"   ⚠ acima de 4 mm — danifica a manga flexível; reduzir ka ou usar menos polos")),hi:true},
         {sec:"Etapa 5 — OPÇÃO 1: um motovibrador"},
         {k:"Força centrífuga por unidade",v:kNkg(Fc)+"   (uma unidade cobre a força total)"},
-        {k:"MOTOVIBRADOR SELECIONADO",v:"1 × "+mv1.F.toFixed(1).replace(".",",")+" kN · "+polos+" polos · "+rpm.toFixed(0)+" rpm · "+mv1.kw.toFixed(2).replace(".",",")+" kW"+(mv1.acima?"   ⚠ acima do maior modelo tabelado — adotar 2 unidades":""),hi:true},
+        {k:"MOTOVIBRADOR SELECIONADO",v:"1 × "+mv1.n+"   —  "+mv1.F.toFixed(1).replace(".",",")+" kN ("+fmt(Math.round(mv1.Fkgf))+" kgf) · "+rpm.toFixed(0)+" rpm · "+mv1.kw.toFixed(2).replace(".",",")+" kW · "+mv1.m+" kg"+(mv1.acima?"   ⚠ acima do maior modelo tabelado — adotar 2 unidades":""),hi:true},
         {k:"POTÊNCIA INSTALADA — opção 1",v:P1.toFixed(2).replace(".",",")+" kW   ("+(P1/0.7457).toFixed(2).replace(".",",")+" cv)",hi:true},
         {k:"Momento estático a regular",v:Me1.toFixed(0)+" kg·mm  (contrapesos em ambas as pontas do eixo)"},
         {k:"Movimento resultante",v:"Vibração CIRCULAR / rotacional no plano do vibrador. Montagem lateral no tronco, com o eixo horizontal. Solução usual em ativadores de até ~1,5 m de diâmetro."},
         {sec:"Etapa 5 — OPÇÃO 2: dois motovibradores"},
         {k:"Força centrífuga por unidade  (Fc / 2)",v:kNkg(Fc/2)},
-        {k:"MOTOVIBRADORES SELECIONADOS",v:"2 × "+mv2.F.toFixed(1).replace(".",",")+" kN · "+polos+" polos · "+rpm.toFixed(0)+" rpm · "+mv2.kw.toFixed(2).replace(".",",")+" kW cada"+(mv2.acima?"   ⚠ acima do maior modelo tabelado":""),hi:true},
+        {k:"MOTOVIBRADORES SELECIONADOS",v:"2 × "+mv2.n+"   —  "+mv2.F.toFixed(1).replace(".",",")+" kN ("+fmt(Math.round(mv2.Fkgf))+" kgf) · "+rpm.toFixed(0)+" rpm · "+mv2.kw.toFixed(2).replace(".",",")+" kW · "+mv2.m+" kg cada"+(mv2.acima?"   ⚠ acima do maior modelo tabelado":""),hi:true},
         {k:"POTÊNCIA INSTALADA — opção 2",v:P2.toFixed(2).replace(".",",")+" kW   ("+(P2/0.7457).toFixed(2).replace(".",",")+" cv)   —  "+((P2>P1)?("+"+((P2/P1-1)*100).toFixed(0)+"% vs. opção 1"):((P2<P1)?("−"+((1-P2/P1)*100).toFixed(0)+"% vs. opção 1"):"igual à opção 1")),hi:true},
         {k:"Momento estático por unidade",v:Me2.toFixed(0)+" kg·mm"},
         {k:"Movimento resultante",v:"Vibração LINEAR DIRIGIDA — os dois vibradores contra-rotativos se auto-sincronizam e as componentes transversais se cancelam. Melhor para ativadores grandes, material coesivo e para reduzir o desgaste da manga flexível. Montagem simétrica, obrigatoriamente com sentidos de rotação opostos."},
@@ -798,7 +802,7 @@ function coneVibCalc(CVCIRC){
         Barco:Barco,BarcoVib:BarcoVib,Bmec:Bmec,Bmin:Bmin,Bdesc:Bdesc,bocaOK:bocaOK,Qbev:Qbev,
         esp:esp,Alat:Alat,mChapa:mChapa,mEstr:mEstr,partM:partM,mVib:mVib,
         polos:polos,fRede:fRede,rpm:rpm,fop:fop,ka:ka,Fc:Fc,Me:Me,App:App,ampOK:ampOK,
-        mv1F:mv1.F,mv1kw:mv1.kw,P1:P1,Me1:Me1,mv2F:mv2.F,mv2kw:mv2.kw,P2:P2,Me2:Me2,
+        mv1F:mv1.F,mv1kw:mv1.kw,mv1n:mv1.n,mv1m:mv1.m,P1:P1,Me1:Me1,mv2F:mv2.F,mv2kw:mv2.kw,mv2n:mv2.n,mv2m:mv2.m,P2:P2,Me2:Me2,
         nMol:nMol,relF:relF,fn:fn,kTot:kTot,kMola:kMola,defEst:defEst,transm:transm,
         svEst:svEst,Fsilo:Fsilo,Pest:Pest,Ptot:Ptot,rho:rho,d50:d50,nTir:nTir,betaT:betaT,acoT:acoT.n,dSigC:dSigC,Fmat:Fmat,Fpeso:Fpeso,Fest_tir:Fest_tir,Fdin_tir:Fdin_tir,Nest:Nest,Ndin:Ndin,Nd:Nd,AsEst:AsEst,AsFad:AsFad,AsReq:AsReq,govFad:govFad,dTir:dTir[0],AsAd:AsAd,tirInsuf:tirInsuf,nMinTir:nMinTir,qtdOK:qtdOK,Ncic:Ncic,dSigAdm:dSigAdm,dSigReal:dSigReal,utilEst:utilEst,utilFad:utilFad,mDefl:mDefl};
   return OUT;
@@ -4713,9 +4717,9 @@ function gerarRelatorio(){
         [san("FORÇA CENTRÍFUGA  Fc"),san(G.Fc.toFixed(1))+" kN  ("+fmt(kgf(G.Fc))+" kg)"],
         [san("Momento estático total  Me"),san(G.Me.toFixed(0))+" kg·mm"],
         [san("AMPLITUDE pico a pico  App"),san(G.App.toFixed(2))+" mm"+(G.ampOK?san("  OK"):san("  fora de 1 a 4 mm"))],
-        [san("OPÇÃO 1 — 1 motovibrador"),"1 × "+san(G.mv1F.toFixed(1))+" kN · "+san(G.mv1kw.toFixed(2))+" kW"],
+        [san("OPÇÃO 1 — 1 motovibrador OLI"),"1 × "+san(G.mv1n)+" · "+san(G.mv1kw.toFixed(2))+" kW · "+san(String(G.mv1m))+" kg"],
         [san("OPÇÃO 1 — potência instalada"),san(G.P1.toFixed(2))+" kW"],
-        [san("OPÇÃO 2 — 2 motovibradores"),"2 × "+san(G.mv2F.toFixed(1))+" kN · "+san(G.mv2kw.toFixed(2))+" kW"],
+        [san("OPÇÃO 2 — 2 motovibradores OLI"),"2 × "+san(G.mv2n)+" · "+san(G.mv2kw.toFixed(2))+" kW · "+san(String(G.mv2m))+" kg"],
         [san("OPÇÃO 2 — potência instalada"),san(G.P2.toFixed(2))+" kW"],
         [san("Momento estático por unidade (opção 2)"),san(G.Me2.toFixed(0))+" kg·mm"]
       ],y1+5);
