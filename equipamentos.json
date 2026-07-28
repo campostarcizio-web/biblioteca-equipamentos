@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.53.2",
+    "versao": "1.54.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -44,7 +44,7 @@
         "subgrupos": [
           "Calha Vibratória (saída de silo)",
           "Alimentador de Correia (moega de alimentação)",
-          "Alimentador de Correia (moega de retomada)"
+          "Alimentador de Correia (moega de carregamento)"
         ]
       },
       {
@@ -258,13 +258,13 @@
     {
       "id": "alimentador-correia-retomada",
       "grupo": "Alimentadores",
-      "subgrupo": "Alimentador de Correia (moega de retomada)",
-      "subtipo": "Alimentador de correia sob moega de retomada de pilha (túnel de retomada)",
+      "subgrupo": "Alimentador de Correia (moega de carregamento)",
+      "subtipo": "Alimentador de correia sob moega de carregamento abastecida por pá-carregadeira",
       "fabricante": "Pré-dimensionamento",
-      "modelo": "Alimentador de Correia — Retomada",
+      "modelo": "Alimentador de Correia — Moega de Carregamento",
       "calculadora": "alimentador_correia_retomada",
-      "descricao": "Pré-dimensionamento de alimentador de correia instalado sob MOEGA DE RETOMADA DE PILHA, em túnel de retomada, pelo método do Manual de Britagem Metso/FAÇO (págs. 1-20 a 1-23): tensão efetiva Te = Pe + P1 + Ps + Pfs + Ph, com as parcelas de cisalhamento do material e de atrito nas guias laterais que distinguem o alimentador do transportador. Acrescenta o tratamento específico da retomada: a pressão vertical na boca é calculada por Janssen na moega enterrada e SATURA em γ·Rh/(K·μ), de modo que acima de cerca de quatro raios hidráulicos de altura a pilha praticamente não aumenta o esforço no alimentador — resultado que contraria a intuição de que o estoque alto sobrecarrega o equipamento. Verifica ainda a cobertura das bocas sobre a linha de retomada (relação entre volume vivo e volume morto da pilha), divide a vazão entre os alimentadores sob a mesma pilha e traz os cuidados de operação do túnel — drenagem, umidade, consolidação após parada longa, chave de emergência e sensor de rasgo de correia. Presets de material incluindo briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³), com os coeficientes de atrito interno e com o aço das tabelas da pág. 1-22.",
-      "referencia": "Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23 (tensão efetiva, coeficientes fm e fsm, velocidades máximas e peso da correia); pressão na moega de retomada pela teoria de Janssen com saturação; ABNT NBR 6172/6177; CEMA; acionamento SEW-EURODRIVE (série R e industriais M/X)"
+      "descricao": "Pré-dimensionamento de alimentador de correia instalado sob MOEGA DE CARREGAMENTO abastecida por PÁ-CARREGADEIRA, pelo método do Manual de Britagem Metso/FAÇO (págs. 1-20 a 1-23): tensão efetiva Te = Pe + P1 + Ps + Pfs + Ph, com as parcelas de cisalhamento do material e de atrito nas guias laterais que distinguem o alimentador do transportador. A moega é entrada diretamente pelos seus dimensionais — a e b no topo, altura h e abertura de descarga c × d sobre o alimentador — e dela saem o volume útil pelo tronco de pirâmide V = (h/3)·(A1 + A2 + √(A1·A2)), a massa de material contida V·ρ, a autonomia da moega cheia para a vazão de projeto, o número de conchas da pá-carregadeira para enchê-la e os ângulos das paredes convergentes. A carga vertical sobre a abertura é obtida por Janssen aplicado à própria moega, com saturação em γ·Rh/(K·μ): o atrito nas paredes sustenta parte da coluna, e a carga no alimentador fica bem abaixo do peso total do material contido. Não há coluna de estoque acima do equipamento — nenhuma parcela do cálculo depende de pilha. Verifica a coerência entre a abertura da moega e a geometria do alimentador (c vs L2, d vs largura entre guias) e traz os cuidados de operação próprios do carregamento por equipamento móvel: grelha de proteção, batentes e defensas, revestimento antidesgaste na zona de impacto da concha e autonomia mínima entre ciclos. Presets de material incluindo briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³), com os coeficientes de atrito interno e com o aço das tabelas da pág. 1-22.",
+      "referencia": "Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23 (tensão efetiva, coeficientes fm e fsm, velocidades máximas e peso da correia); volume da moega pelo tronco de pirâmide; carga vertical na abertura pela teoria de Janssen com saturação em γ·Rh/(K·μ); ABNT NBR 6172/6177; CEMA; acionamento SEW-EURODRIVE (série R e industriais M/X)"
     }
   ]
 }
