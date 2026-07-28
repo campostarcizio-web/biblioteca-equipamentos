@@ -1146,7 +1146,11 @@ function moegaCalc(){
   if(!isFinite(A)||A<=0)A=4.0; if(!isFinite(B)||B<=0)B=3.5;
   if(!isFinite(H)||H<=0)H=2.5; if(!isFinite(C)||C<=0)C=1.2;
   if(!isFinite(D)||D<=0)D=0.8; if(!isFinite(Hc)||Hc<0)Hc=0.5;
-  if(C>A*0.98)C=A*0.98; if(D>B*0.98)D=B*0.98;
+  var tipoM=selv("mgTipo","pir"), cunha=(tipoM==="cunha");
+  /* Na moega em CUNHA a convergência é só na direção B: a fenda ocupa todo o
+     comprimento A e as paredes de topo são verticais. */
+  if(cunha) C=A;
+  if(C>A*0.999)C=A; if(D>B*0.98)D=B*0.98;
   var Q=num("mgQ"); if(!isFinite(Q)||Q<=0)Q=300;
   var rho=num("mgRho"); if(!isFinite(rho)||rho<=0)rho=1.7;
   var g=9.80665, gamma=rho*g;                       // kN/m³
@@ -1171,14 +1175,17 @@ function moegaCalc(){
 
   /* ---------- ETAPA 1 — GEOMETRIA ---------- */
   var A1=A*B, A2=C*D;                                // áreas superior e da boca
-  var tA=(A-C)/2, tB=(B-D)/2;                        // recuos horizontais das faces
+  var tA=cunha?0:(A-C)/2, tB=(B-D)/2;                // recuos horizontais das faces
   function angFace(t){ return (t<=0.0005)?90:Math.atan(H/t)*180/Math.PI; }
   var alfaA=angFace(tA), alfaB=angFace(tB);
-  /* ÂNGULO DE VALE — a aresta de encontro entre duas faces inclinadas é SEMPRE mais rasa
-     que qualquer uma delas: cot²αv = cot²αA + cot²αB. É o vale que governa o escoamento. */
-  var alfaVale=(H>0)?Math.atan(H/Math.sqrt(tA*tA+tB*tB))*180/Math.PI:0;
+  /* ÂNGULO DE VALE — na PIRÂMIDE a aresta de encontro entre duas faces inclinadas é SEMPRE
+     mais rasa que qualquer uma delas: cot²αv = cot²αA + cot²αB. É o vale que governa o
+     escoamento. Na CUNHA não existe vale: as paredes de topo são verticais e o ângulo que
+     governa é o da própria face inclinada — e é por isso que a cunha exige muito menos. */
+  var alfaVale=cunha?alfaB:((H>0)?Math.atan(H/Math.sqrt(tA*tA+tB*tB))*180/Math.PI:0);
   var aVrad=alfaVale*Math.PI/180, betaHop=90-alfaVale;
-  var Vtronco=(H/3)*(A1+A2+Math.sqrt(A1*A2));
+  /* volume: prisma trapezoidal na cunha, tronco de pirâmide na piramidal */
+  var Vtronco=cunha?((H/2)*A*(B+D)):((H/3)*(A1+A2+Math.sqrt(A1*A2)));
   var Vcol=A1*Hc;
   var hCone=(Math.min(A,B)/2)*Math.tan(rep*Math.PI/180);
   var Vcone=A1*hCone/3;
@@ -1188,7 +1195,9 @@ function moegaCalc(){
   var nCargas=(Vcarga>0)?(Vutil/Vcarga):0;
   /* superfícies e perímetros */
   var slA=Math.sqrt(H*H+tA*tA), slB=Math.sqrt(H*H+tB*tB);      // comprimento inclinado das faces
-  var ArA=2*((A+C)/2)*slB, ArB=2*((B+D)/2)*slA;                 // área das 4 faces (trapézios)
+  /* piramidal: 4 faces trapezoidais · cunha: 2 faces inclinadas + 2 topos verticais */
+  var ArA=cunha?(2*A*slB):(2*((A+C)/2)*slB);
+  var ArB=cunha?(2*((B+D)/2)*H):(2*((B+D)/2)*slA);
   var Achapa=ArA+ArB+2*(A+B)*Hc;
   var perim=2*(A+B), perimB=2*(C+D);
 
@@ -1206,15 +1215,33 @@ function moegaCalc(){
     var v0=v00+(v01-v00)*iy[2], v1=v10+(v11-v10)*iy[2];
     return v0+(v1-v0)*ix[2];
   }
-  /* A moega piramidal converge nas duas direções → ábaco AXISSIMÉTRICO (cônico).
-     O limite plano é mostrado como referência: é o que valeria numa tremonha em cunha. */
+  /* A moega PIRAMIDAL converge nas duas direções → ábaco AXISSIMÉTRICO (cônico).
+     A moega em CUNHA converge só numa → ábaco PLANO, bem mais permissivo. */
   var thLimCon=bilm(JEN_CON,JEN_D,JEN_W,deff,phw);
   var thLimPla=bilm(JEN_PLA,JEN_D,JEN_W,deff,phw);
   var margJ=3.0;
-  var thDes=Math.max(3,thLimCon-margJ);
-  var alfaExig=90-thDes;                              // ângulo de FACE exigido para fluxo de massa
-  var alfaExigPla=90-Math.max(3,thLimPla-margJ);
-  var valeOK=(alfaVale>=alfaExig-0.5);
+  var alfaExigCon=90-Math.max(3,thLimCon-margJ);      // exigido no regime axissimétrico
+  var alfaExigPla=90-Math.max(3,thLimPla-margJ);      // exigido no regime plano (fenda)
+  /* ---- QUAL REGIME SE APLICA: decidido pela GEOMETRIA, não pelo rótulo escolhido ----
+     Jenike: a tremonha escoa em regime PLANO quando a boca é um rasgo alongado (L ≥ 3·B)
+     E as paredes de topo, que fecham o comprimento do rasgo, são íngremes o bastante para
+     não formarem vale ativo. Nesse caso quem governa é a FACE CONVERGENTE, e o vale
+     geométrico deixa de ser o critério. Fora disso vale o regime AXISSIMÉTRICO e é o
+     ÂNGULO DE VALE que governa. Uma moega piramidal com boca muito alongada e paredes de
+     topo quase verticais é, para efeito de escoamento, uma cunha — e seria injusto cobrar
+     dela o ângulo do ábaco cônico. */
+  var slotAlongA=(C>=D);
+  var endAng=slotAlongA?alfaA:alfaB;                  // parede de topo (fecha o rasgo)
+  var faceAng=slotAlongA?alfaB:alfaA;                 // face convergente
+  var razBoca=Math.max(C,D)/Math.max(Math.min(C,D),1e-6);
+  var slotOK=(razBoca>=3);
+  var endOK=(endAng>=alfaExigCon-0.5);
+  var regPlano=cunha||(slotOK&&endOK);
+  var alfaExig=regPlano?alfaExigPla:alfaExigCon;
+  var thDes=90-alfaExig;
+  var alfaGov=regPlano?faceAng:alfaVale;              // ângulo que efetivamente governa
+  var govNome=regPlano?"face convergente":"aresta de vale";
+  var valeOK=(alfaGov>=alfaExig-0.5);
   var faceOK=(Math.min(alfaA,alfaB)>=alfaExig-0.5);
   var fluxoMassa=valeOK;
   var regime=fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL";
@@ -1223,11 +1250,11 @@ function moegaCalc(){
   function interpG(x){ if(x<=GT_X[0])return GT_Y[0]; if(x>=GT_X[3])return GT_Y[3];
     for(var i=1;i<4;i++){ if(x<=GT_X[i]) return GT_Y[i-1]+(GT_Y[i]-GT_Y[i-1])*(x-GT_X[i-1])/(GT_X[i]-GT_X[i-1]); } return GT_Y[3]; }
   var Gfun=interpG(deff);
-  var Hfat=2.0+thDes/60;
+  var Hfat=(regPlano?1.0:2.0)+thDes/60;                // H(θ) — metade no regime de fenda
   var Barco=(sc>0.001)?Hfat*sc/gamma:0;
   var Drat=(sc>0.001)?Gfun*sc/gamma:0;
-  var Bmec=8*d50/1000;                                 // arco mecânico (entupimento por blocos)
-  var Bmin=Math.max(Barco,Bmec,0.5);
+  var Bmec=(regPlano?6:8)*d50/1000;                     // arco mecânico (entupimento por blocos)
+  var Bmin=Math.max(Barco,Bmec,regPlano?0.4:0.5);
   if(!fluxoMassa) Bmin=Math.max(Bmin,Drat);
   var Bboca=Math.min(C,D);
   var bocaOK=(Bboca>=Bmin-0.001);
@@ -1278,7 +1305,8 @@ function moegaCalc(){
     var bRl=Math.atan(t/H);                                  // β da face, da vertical
     var muHe=Math.min(muW,(1-Km)/(2*Math.max(Math.tan(bRl),0.01)));
     var Ffl=1-0.2/(1+Math.tan(bRl)/Math.max(muHe,0.01));
-    var nl=2*(Ffl*muHe/Math.max(Math.tan(bRl),0.01)+Ffl)-2;
+    var Sf=cunha?1:2;
+    var nl=Sf*(Ffl*muHe/Math.max(Math.tan(bRl),0.01)+Ffl)-2;
     var hh=(t>0.001)?(H*(dimTopo/2)/t):(H*50);               // vértice → transição
     var x0=Math.max(hh-H,0.001);                             // vértice → boca
     var pvMax=0,pvT=0;
@@ -1292,9 +1320,9 @@ function moegaCalc(){
     return {beta:bRl*180/Math.PI,muHe:muHe,Ff:Ffl,n:nl,hh:hh,x0:x0,
             pvMax:pvMax,pvT:pvT,pn:Ffl*pvMax,pt:muHe*Ffl*pvMax};
   }
-  var hopA=hopperEN(tA,A), hopB=hopperEN(tB,B);
-  var hopGov=(hopA.pn>=hopB.pn)?hopA:hopB;
-  var hopGovNome=(hopA.pn>=hopB.pn)?"faces perpendiculares a A":"faces perpendiculares a B";
+  var hopA=cunha?null:hopperEN(tA,A), hopB=hopperEN(tB,B);
+  var hopGov=(hopA&&hopA.pn>=hopB.pn)?hopA:hopB;
+  var hopGovNome=cunha?"faces inclinadas (convergência só na direção B)":((hopA.pn>=hopB.pn)?"faces perpendiculares a A":"faces perpendiculares a B");
   var Ff=hopGov.Ff, muH=hopGov.muHe, nEN=hopGov.n;
   var pnF=hopGov.pn, ptF=hopGov.pt;
   /* PRESSÃO DE SWITCH: no início da descarga o estado de tensões passa de ativo para
@@ -1337,7 +1365,8 @@ function moegaCalc(){
   /* tração meridional na face inclinada */
   var Fvert=pvD*A1+Vtronco*gamma;                      // kN — carga vertical total sobre a tremonha
   var senAV=Math.sin(aVrad);
-  var nMer=(senAV>0)?Fvert/((perim+perimB)/2*senAV):0; // kN/m
+  var Umer=cunha?(2*A):((perim+perimB)/2);            // largura que resiste à tração
+  var nMer=(senAV>0)?Fvert/(Umer*senAV):0;            // kN/m
   var tTrac=nMer*gf/sadm;                              // mm
   var treq=Math.max(tTrac+abr,chFace.tcom,chSwitch.tcom,tmin);
   var tcom=COM[COM.length-1]; for(var ti=0;ti<COM.length;ti++){ if(COM[ti]>=treq){ tcom=COM[ti]; break; } }
@@ -1466,7 +1495,7 @@ function moegaCalc(){
   /* ================= RESULTADOS ================= */
   var OUT=[
     {sec:"Etapa 0 — Classificação normativa e material"},
-    {k:"Tipo de equipamento",v:"MOEGA DE ALIMENTAÇÃO em tronco de pirâmide "+(Hc>0.01?("com colarinho reto de "+(Hc*1000).toFixed(0)+" mm no topo"):"sem colarinho reto")+", apoiada sobre "+Ncol.toFixed(0)+" montantes metálicos, abastecida por "+abastTxt+".",hi:true},
+    {k:"Tipo de equipamento",v:"MOEGA DE ALIMENTAÇÃO "+(cunha?"EM CUNHA (fenda) — convergência só na direção B, paredes de topo verticais e fenda de descarga em todo o comprimento A":"PIRAMIDAL — convergência nas duas direções")+", "+(Hc>0.01?("com colarinho reto de "+(Hc*1000).toFixed(0)+" mm no topo"):"sem colarinho reto")+", apoiada sobre "+Ncol.toFixed(0)+" montantes metálicos, abastecida por "+abastTxt+".",hi:true},
     {k:"Classe de avaliação da ação (EN 1991-4)",v:"AAC "+AAC+"   ·   massa armazenada "+Mutil.toFixed(1).replace(".",",")+" t   —  Classe 1 até 100 t · Classe 2 de 100 a 10.000 t · Classe 3 acima de 10.000 t"},
     {k:"Classe de esbeltez  hc/dc",v:hcDc.toFixed(2).replace(".",",")+"   →   "+clsEsb+"   (Ch = "+Ch.toFixed(2).replace(".",",")+" · Cw = "+Cw.toFixed(2).replace(".",",")+")"},
     {k:"Material",v:"γ = "+rho.toFixed(2).replace(".",",")+" t/m³   ·   φi = "+phi.toFixed(0)+"°   ·   φw = "+phw.toFixed(0)+"°   ·   δ = "+deff.toFixed(0)+"°   ·   c = "+coes.toFixed(2).replace(".",",")+" kPa   ·   d50 = "+d50.toFixed(0)+" mm"},
@@ -1475,12 +1504,12 @@ function moegaCalc(){
     {sec:"Etapa 1 — Geometria e volumes"},
     {k:"Dimensional superior  A × B",v:(A*1000).toFixed(0)+" × "+(B*1000).toFixed(0)+" mm   (área "+A1.toFixed(2).replace(".",",")+" m²)",hi:true},
     {k:"Altura da moega  H   ·   colarinho reto  Hc",v:(H*1000).toFixed(0)+" mm   ·   "+(Hc*1000).toFixed(0)+" mm   →   altura total "+(Htot*1000).toFixed(0)+" mm"},
-    {k:"Boca de descarga  C × D",v:(C*1000).toFixed(0)+" × "+(D*1000).toFixed(0)+" mm   (área "+A2.toFixed(3).replace(".",",")+" m²)",hi:true},
+    {k:"Boca de descarga  C × D",v:(C*1000).toFixed(0)+" × "+(D*1000).toFixed(0)+" mm   (área "+A2.toFixed(3).replace(".",",")+" m²)"+(cunha?"   —  na cunha C é imposto igual a A: a fenda percorre todo o comprimento":""),hi:true},
     {k:"Recuos horizontais  (A−C)/2  ·  (B−D)/2",v:(tA*1000).toFixed(0)+" mm   ·   "+(tB*1000).toFixed(0)+" mm"},
-    {k:"ÂNGULO DAS FACES  αA / αB  (da horizontal)",v:alfaA.toFixed(1).replace(".",",")+"°  /  "+alfaB.toFixed(1).replace(".",",")+"°",hi:true},
-    {k:"ÂNGULO DE VALE  αv   (cot²αv = cot²αA + cot²αB)",v:alfaVale.toFixed(1).replace(".",",")+"°   —  a aresta de encontro das faces é SEMPRE mais rasa que qualquer face isolada; é ela que governa o escoamento, e não o ângulo que se lê no desenho de uma face",hi:true},
-    {k:"Comprimento inclinado das faces",v:slB.toFixed(2).replace(".",",")+" m (faces A)   ·   "+slA.toFixed(2).replace(".",",")+" m (faces B)   ·   aresta de vale "+Math.sqrt(H*H+tA*tA+tB*tB).toFixed(2).replace(".",",")+" m"},
-    {k:"VOLUME GEOMÉTRICO  V = (H/3)·(A1 + A2 + √(A1·A2)) + A1·Hc",v:Vgeo.toFixed(2).replace(".",",")+" m³   (tronco "+Vtronco.toFixed(2).replace(".",",")+" + colarinho "+Vcol.toFixed(2).replace(".",",")+")",hi:true},
+    {k:"ÂNGULO DAS FACES  αA / αB  (da horizontal)",v:cunha?("paredes de topo verticais (90°)  /  faces inclinadas "+alfaB.toFixed(1).replace(".",",")+"°"):(alfaA.toFixed(1).replace(".",",")+"°  /  "+alfaB.toFixed(1).replace(".",",")+"°"),hi:true},
+    {k:(cunha?"ÂNGULO GOVERNANTE  (face inclinada — a cunha não tem vale)":"ÂNGULO DE VALE  αv   (cot²αv = cot²αA + cot²αB)"),v:alfaVale.toFixed(1).replace(".",",")+"°   —  "+(cunha?"na cunha as paredes de topo são verticais e não formam aresta: o ângulo de projeto é o da própria face inclinada, e é justamente por isso que a cunha escoa com parede muito mais rasa que a pirâmide":"a aresta de encontro das faces é SEMPRE mais rasa que qualquer face isolada; é ela que governa o escoamento, e não o ângulo que se lê no desenho de uma face"),hi:true},
+    {k:"Comprimento inclinado das faces",v:cunha?(slB.toFixed(2).replace(".",",")+" m (faces inclinadas)   ·   topos verticais de "+H.toFixed(2).replace(".",",")+" m"):(slB.toFixed(2).replace(".",",")+" m (faces A)   ·   "+slA.toFixed(2).replace(".",",")+" m (faces B)   ·   aresta de vale "+Math.sqrt(H*H+tA*tA+tB*tB).toFixed(2).replace(".",",")+" m")},
+    {k:(cunha?"VOLUME GEOMÉTRICO  V = (H/2)·A·(B + D) + A1·Hc":"VOLUME GEOMÉTRICO  V = (H/3)·(A1 + A2 + √(A1·A2)) + A1·Hc"),v:Vgeo.toFixed(2).replace(".",",")+" m³   ("+(cunha?"prisma trapezoidal ":"tronco ")+Vtronco.toFixed(2).replace(".",",")+" + colarinho "+Vcol.toFixed(2).replace(".",",")+")",hi:true},
     {k:"Montículo sobre a boca  (ângulo de repouso "+rep.toFixed(0)+"°)",v:"h = "+hCone.toFixed(2).replace(".",",")+" m   ·   V = "+Vcone.toFixed(2).replace(".",",")+" m³   —  volume adicional que a moega recebe, mas que não deve ser considerado útil"},
     {k:"Área de chapa (4 faces + colarinho)",v:Achapa.toFixed(2).replace(".",",")+" m²"},
 
@@ -1493,18 +1522,20 @@ function moegaCalc(){
     {k:"Peso do granel na moega cheia",v:kNkg(Wmat)},
 
     {sec:"Etapa 3 — Regime de fluxo (ábaco de Jenike)"},
-    {k:"Ângulo limite do ábaco  (δ = "+deff.toFixed(0)+"° · φw = "+phw.toFixed(0)+"°)",v:"tremonha piramidal (axissimétrica): θ ≤ "+thLimCon.toFixed(1).replace(".",",")+"° da vertical   ·   em cunha (fenda): θ ≤ "+thLimPla.toFixed(1).replace(".",",")+"°"},
+    {k:"Ábaco de Jenike  (δ = "+deff.toFixed(0)+"° · φw = "+phw.toFixed(0)+"°)",v:"axissimétrico (pirâmide): θ ≤ "+thLimCon.toFixed(1).replace(".",",")+"° da vertical   ·   plano (rasgo/cunha): θ ≤ "+thLimPla.toFixed(1).replace(".",",")+"°"},
+    {k:"REGIME DE ESCOAMENTO APLICÁVEL — decidido pela GEOMETRIA",v:(regPlano?"PLANO (fenda)":"AXISSIMÉTRICO (pirâmide)")+"   —   boca "+Math.round(Math.max(C,D)*1000)+" × "+Math.round(Math.min(C,D)*1000)+" mm dá relação "+razBoca.toFixed(1).replace(".",",")+":1 "+(slotOK?"✓ ≥ 3:1 (é rasgo)":"✗ < 3:1 (não é rasgo)")+"   ·   parede de topo "+endAng.toFixed(1).replace(".",",")+"° "+(endOK?"✓ ≥ "+alfaExigCon.toFixed(1).replace(".",",")+"° (não forma vale ativo)":"✗ < "+alfaExigCon.toFixed(1).replace(".",",")+"° (forma vale ativo)")+(cunha?"   ·   tipo declarado: cunha":"")+".  Uma moega piramidal com boca muito alongada e paredes de topo quase verticais é, para efeito de escoamento, uma cunha — e não deve ser cobrada pelo ábaco cônico.",hi:true},
     {k:"Margem de projeto adotada",v:"3°   —  prática consagrada: projetar 3° mais íngreme que o limite do ábaco, para cobrir a dispersão do ensaio e a variação de umidade"},
-    {k:"ÂNGULO DE FACE EXIGIDO para fluxo de massa",v:alfaExig.toFixed(1).replace(".",",")+"°   (numa tremonha em cunha bastariam "+alfaExigPla.toFixed(1).replace(".",",")+"°)",hi:true},
-    {k:"Verificação das faces  (αA, αB ≥ exigido)",v:Math.min(alfaA,alfaB).toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(faceOK?"   ✓ as faces atendem":"   ⚠ as faces já não atendem")},
-    {k:"VERIFICAÇÃO DO VALE  (αv ≥ exigido) — esta é a que decide",v:alfaVale.toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(valeOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — diferença de "+(alfaExig-alfaVale).toFixed(1).replace(".",",")+"°"),hi:true},
+    {k:"ÂNGULO EXIGIDO para fluxo de massa",v:alfaExig.toFixed(1).replace(".",",")+"°   "+(regPlano?"(pelo ábaco plano; se a geometria não fosse de rasgo, o cônico exigiria "+alfaExigCon.toFixed(1).replace(".",",")+"°)":"(pelo ábaco cônico; num rasgo bastariam "+alfaExigPla.toFixed(1).replace(".",",")+"°)"),hi:true},
+    {k:"Faces  αA / αB  vs exigido",v:alfaA.toFixed(1).replace(".",",")+"° / "+alfaB.toFixed(1).replace(".",",")+"°  vs  "+alfaExig.toFixed(1).replace(".",",")+"°"+(faceOK?"   ✓ ambas atendem":"   ⚠ a mais rasa não atende")},
+    {k:"VERIFICAÇÃO GOVERNANTE — "+govNome,v:alfaGov.toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(valeOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — diferença de "+(alfaExig-alfaGov).toFixed(1).replace(".",",")+"°")+"   —  "+(regPlano?"em regime de rasgo o escoamento é plano: quem governa é a face convergente. O vale geométrico ("+alfaVale.toFixed(1).replace(".",",")+"°) existe no desenho, mas as paredes de topo são íngremes demais para formar zona morta ativa.":"a aresta de vale é mais rasa que qualquer face e forma zona morta: é ela o critério"),hi:true},
     {k:"REGIME DE FLUXO RESULTANTE",v:regime+(fluxoMassa?"   —  todo o material se move junto; sem zonas mortas, sem segregação, desgaste distribuído":"   —  o material escoa por um canal central; forma-se zona morta nos cantos, com segregação, degradação do material parado e risco de tubulação (rathole)"),hi:true},
     {k:"Diâmetro de tubulação (rathole)  Df = G(δ)·σc/γ",v:(Drat>0.001?(Math.round(Drat*1000)+" mm   (G = "+Gfun.toFixed(1).replace(".",",")+")"+(fluxoMassa?"   —  não se aplica em fluxo de massa":"   —  em fluxo de funil a boca precisa superar este valor, e não apenas o arco")):"≈ 0 — material sem coesão relevante")},
-    {k:"Abertura mínima anti-arco  B = H(θ)·σc/γ",v:(Barco>0.001?(Math.round(Barco*1000)+" mm"):"≈ 0 — sem coesão relevante")+"   ·   arco mecânico 8·d50 = "+Math.round(Bmec*1000)+" mm"},
+    {k:"Abertura mínima anti-arco  B = H(θ)·σc/γ",v:(Barco>0.001?(Math.round(Barco*1000)+" mm   (H(θ) = "+Hfat.toFixed(2).replace(".",",")+")"):"≈ 0 — sem coesão relevante")+"   ·   arco mecânico "+(regPlano?6:8)+"·d50 = "+Math.round(Bmec*1000)+" mm"+(regPlano?"   —  em rasgo a abertura exigida é cerca de metade da de uma boca quadrada":"")},
     {k:"ABERTURA MÍNIMA GOVERNANTE",v:Math.round(Bmin*1000)+" mm   vs   menor dimensão da boca "+Math.round(Bboca*1000)+" mm"+(bocaOK?"   ✓ ATENDE":"   ⚠ INSUFICIENTE — risco de arco ou entupimento"),hi:true},
     {k:"Índice de escoamento  ffc = γ·B/σc",v:(ffc>900?"não coesivo":(ffc.toFixed(1).replace(".",",")+"   —  ffc < 4 indica material coesivo; confirmar σc e σ1 em ensaio Jenike Shear antes de fechar o projeto"))},
     {k:"Recomendação de fluxo",v:(fluxoMassa? "Geometria adequada ao fluxo de massa. Manter o acabamento da chapa (jateada e pintada, ou revestida) — o valor de φw adotado só é válido com superfície lisa e sem corrosão."
-      : "Para converter em fluxo de massa há três caminhos, em ordem de custo: (a) revestir as faces com UHMW ou aço inox 304 2B, o que reduz φw em 8 a 15° e afrouxa o ângulo exigido; (b) adotar tremonha em CUNHA (fenda), que exige apenas "+alfaExigPla.toFixed(1).replace(".",",")+"° em vez de "+alfaExig.toFixed(1).replace(".",",")+"° — quase sempre a solução mais econômica; (c) aumentar H para "+(Math.sqrt(tA*tA+tB*tB)*Math.tan(alfaExig*Math.PI/180)).toFixed(2).replace(".",",")+" m, mantendo A, B, C e D. Alternativamente, aceitar o fluxo de funil e garantir boca maior que o rathole, com ativação (cone vibratório ou canhões de ar).")},
+      : (cunha? "Mesmo em cunha o ângulo não atende. Restam: (a) revestir as faces com UHMW ou inox 304 2B, que reduz φw em 8 a 15°; (b) aumentar H para "+(tB*Math.tan(alfaExig*Math.PI/180)).toFixed(2).replace(".",",")+" m mantendo B e D; (c) aceitar o fluxo de funil com boca acima do rathole e ativação."
+        : "Para converter em fluxo de massa há três caminhos, em ordem de custo: (a) transformar a boca em RASGO — alongar C até passar de 3:1 sobre D e deixar as paredes de topo com pelo menos "+alfaExigCon.toFixed(1).replace(".",",")+"°, o que muda o regime para plano e derruba a exigência de "+alfaExigCon.toFixed(1).replace(".",",")+"° para "+alfaExigPla.toFixed(1).replace(".",",")+"°; (b) revestir as faces com UHMW ou aço inox 304 2B, o que reduz φw em 8 a 15° e afrouxa o ângulo exigido; (c) aumentar H para "+(Math.sqrt(tA*tA+tB*tB)*Math.tan(alfaExig*Math.PI/180)).toFixed(2).replace(".",",")+" m, mantendo A, B, C e D. Alternativamente, aceitar o fluxo de funil e garantir boca maior que o rathole, com ativação (cone vibratório ou canhões de ar)."))},
 
     {sec:"Etapa 4 — Vazão de descarga por gravidade (Beverloo)"},
     {k:"Correlação de fenda  W = 1,03·ρb·√g·L·(B − k·d)^1,5",v:Qbev.toFixed(0)+" t/h   (L = "+Lslot.toFixed(2).replace(".",",")+" m · B = "+Wslot.toFixed(2).replace(".",",")+" m · k = 1,5)",hi:true},
@@ -1603,13 +1634,14 @@ function moegaCalc(){
     {k:"Instrumentação mínima",v:"Sensor de nível alto (intertravado com o equipamento de abastecimento ou com o alarme de operação), sensor de nível baixo (garante o leito amortecedor e evita descarga sobre o fundo nu) e, se houver ativador, chave de fluxo na descarga."},
 
     {sec:"Verificação global"},
-    {k:"Fluxo",v:(fluxoMassa?"✓ fluxo de massa atendido pelo ângulo de vale":"⚠ fluxo de funil — ver Etapa 3")+"   ·   abertura "+(bocaOK?"✓ acima do mínimo":"⚠ abaixo do mínimo"),hi:!(fluxoMassa&&bocaOK)},
+    {k:"Fluxo",v:(fluxoMassa?("✓ fluxo de massa — "+govNome+" "+alfaGov.toFixed(1).replace(".",",")+"° ≥ "+alfaExig.toFixed(1).replace(".",",")+"° (regime "+(regPlano?"plano":"axissimétrico")+")"):"⚠ fluxo de funil — ver Etapa 3")+"   ·   abertura "+(bocaOK?"✓ acima do mínimo":"⚠ abaixo do mínimo"),hi:!(fluxoMassa&&bocaOK)},
     {k:"Capacidade",v:(autonMin>=3?"✓":"⚠")+" autonomia de "+autonMin.toFixed(1).replace(".",",")+" min   ·   "+(folgaQ>=1.5?"✓":"⚠")+" descarga por gravidade "+folgaQ.toFixed(1).replace(".",",")+" × a vazão de projeto"},
     {k:"Estrutura",v:(lamC<=lamMax?"✓":"⚠")+" esbeltez dos montantes λ = "+lamC.toFixed(0)+"   ·   "+(fadOK?"✓":"⚠")+" fadiga na transição   ·   espessura da moega "+tcom.toFixed(1).replace(".",",")+" mm"},
     {k:"Observação de projeto",v:"⚠ PRÉ-DIMENSIONAMENTO. Os parâmetros de fluxo (φi, φw, δ, σc) devem ser confirmados em ensaio Jenike Shear com amostra real na umidade de operação — é o único caminho para fechar o projeto de uma moega com segurança. A verificação estrutural definitiva exige modelo com as combinações completas da NBR 8800, incluindo a moega parcialmente cheia e o carregamento excêntrico."}
   ];
-  OUT.geo={tipo:"moega",A:A,B:B,H:H,C:C,D:D,Hc:Hc,Htot:Htot,Hleg:Hleg,
+  OUT.geo={tipo:"moega",cunha:cunha,A:A,B:B,H:H,C:C,D:D,Hc:Hc,Htot:Htot,Hleg:Hleg,
     alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaExig:alfaExig,fluxoMassa:fluxoMassa,
+    regPlano:regPlano,alfaGov:alfaGov,govNome:govNome,razBoca:razBoca,endAng:endAng,
     Vgeo:Vgeo,Vutil:Vutil,Mutil:Mutil,autonMin:autonMin,Q:Q,rho:rho,
     Bmin:Bmin,bocaOK:bocaOK,Qbev:Qbev,folgaQ:folgaQ,
     phTot:phTot,pvD:pvD,pSwitch:pSwitch,hSwitch:hSwitch,pnDes:pnDes,
@@ -1644,10 +1676,13 @@ const CALCS={
       {id:"mgD50",label:"Maior dimensão característica do material  d50",unidade:"mm",tipo:"number",valor:57,step:"1"},
       {id:"mgRep",label:"Ângulo de repouso (montículo no topo)",unidade:"°",tipo:"number",valor:35,step:"1"},
       {tipo:"head",label:"Geometria da moega"},
+      {id:"mgTipo",label:"Tipo de moega",tipo:"select",valor:"pir",opcoes:[
+        {v:"pir",t:"Piramidal — converge nas duas direções"},
+        {v:"cunha",t:"Em cunha (fenda) — converge só na direção B"}]},
       {id:"mgA",label:"A — dimensional superior",unidade:"mm",tipo:"number",valor:4000,step:"50"},
       {id:"mgB",label:"B — dimensional superior (perpendicular a A)",unidade:"mm",tipo:"number",valor:3500,step:"50"},
       {id:"mgH",label:"H — altura do tronco de pirâmide",unidade:"mm",tipo:"number",valor:2500,step:"50"},
-      {id:"mgC",label:"C — boca de descarga (direção de A)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"mgC",label:"C — boca de descarga (direção de A; na cunha é imposto = A)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
       {id:"mgD",label:"D — boca de descarga (direção de B)",unidade:"mm",tipo:"number",valor:800,step:"50"},
       {id:"mgHc",label:"Hc — colarinho reto no topo (0 = sem colarinho)",unidade:"mm",tipo:"number",valor:500,step:"50"},
       {id:"mgHleg",label:"Altura livre sob a moega (montantes)",unidade:"m",tipo:"number",valor:4.0,step:"0.5"},
@@ -5756,177 +5791,217 @@ function gerarRelatorio(){
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) conforme a figura da pág. 1-21 do Manual de Britagem — alimentador de correia sob moega de alimentação."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="moega"){
-      /* ============ CROQUI EXECUTIVO DA MOEGA DE ALIMENTAÇÃO ============ */
-      function nt(x,y,t,r,g2,b2,fs){ doc.setTextColor(r,g2,b2); doc.setFontSize(fs||6.6); doc.text(san(t),x,y); }
+      /* ============ CROQUI EXECUTIVO DA MOEGA DE ALIMENTAÇÃO ============
+         Área útil da página: x de 14 a 196 mm, y de 26 a 285 mm. Todo rótulo passa por
+         fx(), que o mantém dentro das margens. A escala é única para as duas vistas e
+         considera a altura TOTAL (colarinho + tremonha + montantes), de modo que os
+         montantes saiam na mesma proporção do resto — e não esticados. */
+      var XL=15, XR=195;
+      function fx(x,w){ var h=(w||0)/2; return Math.max(XL+h,Math.min(XR-h,x)); }
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w=doc.getTextWidth(san(t)); doc.text(san(t),fx(x,w),y,{align:"center"}); }
       function cotaH(x1,x2,y,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
-        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
-        doc.setTextColor(30,120,150); doc.setFontSize(6.6);
-        doc.text(san(t),(x1+x2)/2,y-1.4,{align:"center"}); }
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.4,x1,y+1.4); doc.line(x2,y-1.4,x2,y+1.4);
+        ntc((x1+x2)/2,y-1.3,t,30,120,150,6.2); }
       function cotaV(x,y1,y2,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
-        doc.line(x,y1,x,y2); doc.line(x-1.5,y1,x+1.5,y1); doc.line(x-1.5,y2,x+1.5,y2);
-        doc.setTextColor(30,120,150); doc.setFontSize(6.6);
-        doc.text(san(t),x+1.6,(y1+y2)/2); }
+        var xc=fx(x); doc.line(xc,y1,xc,y2); doc.line(xc-1.4,y1,xc+1.4,y1); doc.line(xc-1.4,y2,xc+1.4,y2);
+        nt(xc+1.5,(y1+y2)/2,t,30,120,150,6.2); }
 
-      /* ---------- VISTA FRONTAL (direção A) ---------- */
-      var esc=Math.min(78/Math.max(G.A,G.B), 46/Math.max(G.Htot,0.1));
-      var cx=62, yTop=40;
-      var wT=G.A*esc/2, wB=G.C*esc/2, hCol=G.Hc*esc, hTr=G.H*esc;
-      var yMid=yTop+hCol, yBot=yMid+hTr, yLeg=yBot+G.Hleg*esc*0.55;
+      /* ---------- ESCALA ÚNICA ----------
+         Duas vistas lado a lado, cada uma com 70 mm de campo de desenho e 18 mm de
+         corredor de cotas. Altura disponível para a elevação: 96 mm. */
+      var Lg=Math.min(G.Hleg,Math.max(G.Htot*1.2,2.0));   // altura de perna desenhada
+      var escX=64/Math.max(G.A,G.B);
+      var escY=90/Math.max(G.Htot+Lg,0.1);
+      var esc=Math.min(escX,escY);
+      var cxA=62, cxB=146, yTop=44;
+      var hCol=G.Hc*esc, hTr=G.H*esc, hLg=Lg*esc;
+      var yMid=yTop+hCol, yBot=yMid+hTr, yLeg=yBot+hLg;
 
-      /* granel */
-      doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
-      doc.triangle(cx-wT,yMid,cx+wT,yMid,cx,yMid+hTr*0.92,"F");
-      if(hCol>1) doc.rect(cx-wT,yTop+2,2*wT,hCol-2,"F");
-      doc.setFillColor(228,206,158);
-      doc.triangle(cx-wT*0.55,yTop+2,cx+wT*0.55,yTop+2,cx,yTop-6,"F");
-      nt(cx+wT*0.6,yTop-3,"monticulo (angulo de repouso)",150,120,60,6);
+      function vista(cx,dimTopo,dimBoca,rotulo,ang,angLab,verticalEnd){
+        var wT=dimTopo*esc/2, wB=dimBoca*esc/2;
+        /* granel */
+        doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
+        if(hCol>1) doc.rect(cx-wT,yTop+1.5,2*wT,hCol-1.5,"F");
+        doc.triangle(cx-wT,yMid,cx+wT,yMid,cx,yMid+hTr*0.9,"F");
+        doc.setFillColor(228,206,158);
+        doc.triangle(cx-wT*0.5,yTop+1.5,cx+wT*0.5,yTop+1.5,cx,yTop-5,"F");
+        /* casco */
+        doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+        if(hCol>1){ doc.line(cx-wT,yTop,cx-wT,yMid); doc.line(cx+wT,yTop,cx+wT,yMid);
+                    doc.line(cx-wT,yTop,cx+wT,yTop); }
+        doc.line(cx-wT,yMid,cx-wB,yBot); doc.line(cx+wT,yMid,cx+wB,yBot);
+        doc.line(cx-wB,yBot,cx+wB,yBot);
+        doc.setLineWidth(0.35); doc.setDrawColor(150,168,186);
+        doc.line(cx-wT-2,yMid,cx+wT+2,yMid);
+        /* montantes — nas arestas do topo, largura proporcional */
+        var wCol=Math.max(1.8,esc*0.16);
+        doc.setFillColor(70,92,122); doc.setDrawColor(45,62,86); doc.setLineWidth(0.4);
+        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-wCol/2,yMid,wCol,hLg,"FD"); });
+        /* viga de apoio sob a transição */
+        doc.setFillColor(90,112,142);
+        doc.rect(cx-wT-wCol/2,yMid-1.4,2*wT+wCol,2.8,"F");
+        /* contraventamento */
+        doc.setDrawColor(70,92,122); doc.setLineWidth(0.45);
+        doc.line(cx-wT,yMid+hLg*0.15,cx+wT,yMid+hLg*0.85);
+        doc.line(cx+wT,yMid+hLg*0.15,cx-wT,yMid+hLg*0.85);
+        /* placa de base */
+        doc.setFillColor(45,62,86);
+        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-3.2,yLeg,6.4,1.5,"F"); });
+        doc.setDrawColor(120,140,160); doc.setLineWidth(0.5);
+        doc.line(cx-wT-8,yLeg+1.5,cx+wT+8,yLeg+1.5);
+        for(var hx=0;hx<9;hx++){ var xh=cx-wT-8+(2*wT+16)*hx/8;
+          doc.line(xh,yLeg+1.5,xh-2,yLeg+4); }
+        /* cotas */
+        cotaH(cx-wT,cx+wT,yTop-10,rotulo[0]);
+        cotaH(cx-wB,cx+wB,yBot+8,rotulo[1]);
+        /* ângulo */
+        doc.setDrawColor(160,178,196); doc.setLineWidth(0.22);
+        doc.line(cx-wT,yMid,cx-wT+12,yMid);
+        nt(cx-wT+2,yMid+4.6,angLab+" = "+(verticalEnd?"90,0":ang.toFixed(1))+"°",95,115,140,6.2);
+        ntc(cx,yTop-16,rotulo[2],85,105,130,7.2);
+        return {wT:wT,wB:wB,wCol:wCol};
+      }
 
-      /* casco */
-      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
-      if(hCol>1){ doc.line(cx-wT,yTop,cx-wT,yMid); doc.line(cx+wT,yTop,cx+wT,yMid);
-                  doc.line(cx-wT,yTop,cx+wT,yTop); }
-      doc.line(cx-wT,yMid,cx-wB,yBot); doc.line(cx+wT,yMid,cx+wB,yBot);
-      doc.line(cx-wB,yBot,cx+wB,yBot);
-      doc.setLineWidth(0.4); doc.setDrawColor(120,140,160);
-      doc.line(cx-wT,yMid,cx+wT,yMid);
-      nt(cx-wT-1,yMid-1.2,"transicao",120,140,160,6);
+      var vA=vista(cxA,G.A,G.C,["A = "+Math.round(G.A*1000)+" mm","C = "+Math.round(G.C*1000)+" mm","VISTA A-A"],G.alfaA,"aA",G.cunha);
+      var vB=vista(cxB,G.B,G.D,["B = "+Math.round(G.B*1000)+" mm","D = "+Math.round(G.D*1000)+" mm","VISTA B-B"],G.alfaB,"aB",false);
 
-      /* grelha */
-      if(G.grOn){ doc.setDrawColor(40,90,140); doc.setLineWidth(0.8);
-        for(var gi=0;gi<=6;gi++){ var gx=cx-wT+2*wT*gi/6; doc.line(gx,yTop-1.5,gx,yTop+1.5); }
-        doc.line(cx-wT,yTop-1.5,cx+wT,yTop-1.5);
-        nt(cx-wT-26,yTop-4,"grelha "+G.grMalha.toFixed(0)+" mm",40,90,140,6.2);
-        nt(cx-wT-26,yTop-1,san(G.perfGr),40,90,140,6.2); }
+      /* tipo de moega */
+      ntc(105,32,(G.cunha?"MOEGA EM CUNHA (fenda)":"MOEGA PIRAMIDAL")+" · escoamento "+(G.regPlano?"PLANO (rasgo)":"AXISSIMETRICO")+
+        "   ·   "+(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL"),
+        G.fluxoMassa?40:190,G.fluxoMassa?120:90,G.fluxoMassa?80:60,7.6);
 
-      /* faixa de switch */
-      doc.setDrawColor(190,70,60); doc.setLineWidth(0.7);
-      var hsw=Math.min(G.hSwitch*esc,hTr*0.5);
-      doc.line(cx-wT+ (wT-wB)*hsw/hTr, yMid+hsw, cx+wT-(wT-wB)*hsw/hTr, yMid+hsw);
-      nt(cx+wT+2,yMid+hsw+2,"switch "+G.pSwitch.toFixed(0)+" kPa",190,70,60,6.2);
+      /* grelha, no topo da vista A */
+      if(G.grOn){ doc.setDrawColor(40,90,140); doc.setLineWidth(0.7);
+        for(var gi=0;gi<=6;gi++){ var gx=cxA-vA.wT+2*vA.wT*gi/6; doc.line(gx,yTop-2,gx,yTop+0.5); }
+        doc.line(cxA-vA.wT,yTop-2,cxA+vA.wT,yTop-2);
+        nt(cxA-vA.wT,yTop-4.2,"grelha "+G.grMalha.toFixed(0)+" mm · "+san(G.perfGr),40,90,140,6.0); }
 
-      /* montantes */
-      doc.setDrawColor(60,80,110); doc.setLineWidth(1.4);
-      [-1,1].forEach(function(sg){ var xm=cx+sg*wT*0.82;
-        doc.line(xm,yMid,xm,yLeg); doc.line(xm-3,yLeg,xm+3,yLeg); });
-      doc.setLineWidth(0.5); doc.setDrawColor(60,80,110);
-      doc.line(cx-wT*0.82,(yMid+yLeg)/2,cx+wT*0.82,(yMid+yLeg)/2);
-      nt(cx-wT*0.82-30,(yMid+yLeg)/2+8,G.Ncol.toFixed(0)+" montantes",60,80,110,6.4);
-      nt(cx-wT*0.82-30,(yMid+yLeg)/2+11,san(G.perfCol),60,80,110,6.4);
+      /* faixa de switch, na vista B */
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.6);
+      var hsw=Math.min(G.hSwitch*esc,hTr*0.45);
+      var wsw=vB.wT-(vB.wT-vB.wB)*hsw/Math.max(hTr,0.01);
+      doc.line(cxB-wsw,yMid+hsw,cxB+wsw,yMid+hsw);
+      nt(cxB+wsw+1.5,yMid+hsw+1.4,"switch "+G.pSwitch.toFixed(0)+" kPa",190,70,60,6.0);
 
-      /* placa de base e reacoes */
-      doc.setFillColor(60,80,110);
-      [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT*0.82-3.5,yLeg,7,1.6,"F"); });
-      doc.setDrawColor(190,70,60); doc.setLineWidth(0.7);
-      [-1,1].forEach(function(sg){ var xm=cx+sg*wT*0.82;
-        doc.line(xm,yLeg+3,xm,yLeg+10); doc.line(xm-1.4,yLeg+7.6,xm,yLeg+10); doc.line(xm+1.4,yLeg+7.6,xm,yLeg+10); });
-      nt(cx-wT*0.82-32,yLeg+13,"V = "+G.Pcol.toFixed(0)+" kN ("+Math.round(G.Pcol*1000/9.80665)+" kg)",190,70,60,6.4);
-      nt(cx-wT*0.82-32,yLeg+16,"por montante",190,70,60,6.2);
-      /* acao lateral */
-      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
-      doc.line(cx-wT-14,yMid+hTr*0.3,cx-wT-3,yMid+hTr*0.3);
-      doc.line(cx-wT-6,yMid+hTr*0.3-1.4,cx-wT-3,yMid+hTr*0.3);
-      doc.line(cx-wT-6,yMid+hTr*0.3+1.4,cx-wT-3,yMid+hTr*0.3);
-      nt(cx-wT-34,yMid+hTr*0.3-2,G.latGov.split(" ")[0]+" "+G.Flat.toFixed(0)+" kN",40,140,90,6.2);
+      /* cotas verticais — corredor à direita de cada vista */
+      if(hCol>1) cotaV(cxA+vA.wT+7,yTop,yMid,"Hc="+Math.round(G.Hc*1000));
+      cotaV(cxA+vA.wT+7,yMid,yBot,"H = "+Math.round(G.H*1000)+" mm");
+      cotaV(cxB+vB.wT+7,yMid,yLeg,"livre "+G.Hleg.toFixed(2)+" m");
 
-      /* cotas da vista frontal */
-      cotaH(cx-wT,cx+wT,yTop-9,"A = "+Math.round(G.A*1000)+" mm");
-      cotaH(cx-wB,cx+wB,yBot+9,"C = "+Math.round(G.C*1000)+" mm");
-      if(hCol>1) cotaV(cx+wT+16,yTop,yMid,"Hc = "+Math.round(G.Hc*1000));
-      cotaV(cx+wT+16,yMid,yBot,"H = "+Math.round(G.H*1000)+" mm");
-      cotaV(cx+wT+30,yBot,yLeg,"livre "+G.Hleg.toFixed(2)+" m");
-      /* angulo da face */
-      doc.setDrawColor(150,170,190); doc.setLineWidth(0.25);
-      doc.line(cx-wT,yMid,cx-wT+16,yMid);
-      nt(cx-wT+3,yMid+5,"aA = "+G.alfaA.toFixed(1)+"°",100,120,145,6.4);
-
-      /* ---------- VISTA LATERAL (direção B) ---------- */
-      var cx2=150, wT2=G.B*esc/2, wB2=G.D*esc/2;
-      doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
-      doc.triangle(cx2-wT2,yMid,cx2+wT2,yMid,cx2,yMid+hTr*0.92,"F");
-      if(hCol>1) doc.rect(cx2-wT2,yTop+2,2*wT2,hCol-2,"F");
-      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
-      if(hCol>1){ doc.line(cx2-wT2,yTop,cx2-wT2,yMid); doc.line(cx2+wT2,yTop,cx2+wT2,yMid);
-                  doc.line(cx2-wT2,yTop,cx2+wT2,yTop); }
-      doc.line(cx2-wT2,yMid,cx2-wB2,yBot); doc.line(cx2+wT2,yMid,cx2+wB2,yBot);
-      doc.line(cx2-wB2,yBot,cx2+wB2,yBot);
-      doc.setDrawColor(60,80,110); doc.setLineWidth(1.4);
-      [-1,1].forEach(function(sg){ var xm=cx2+sg*wT2*0.82;
-        doc.line(xm,yMid,xm,yLeg); doc.line(xm-3,yLeg,xm+3,yLeg); });
-      cotaH(cx2-wT2,cx2+wT2,yTop-9,"B = "+Math.round(G.B*1000)+" mm");
-      cotaH(cx2-wB2,cx2+wB2,yBot+9,"D = "+Math.round(G.D*1000)+" mm");
-      doc.setDrawColor(150,170,190); doc.setLineWidth(0.25);
-      doc.line(cx2-wT2,yMid,cx2-wT2+16,yMid);
-      nt(cx2-wT2+3,yMid+5,"aB = "+G.alfaB.toFixed(1)+"°",100,120,145,6.4);
-      nt(cx2-14,yTop-14,"VISTA B-B",90,110,135,7.4);
-      nt(cx-14,yTop-14,"VISTA A-A",90,110,135,7.4);
+      /* cargas nos apoios — abaixo da linha de terra, centralizadas */
+      var yC=yLeg+8;
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.6);
+      [-1,1].forEach(function(sg){ var xm=cxA+sg*vA.wT;
+        doc.line(xm,yC-4,xm,yC+1); doc.line(xm-1.2,yC-1.2,xm,yC+1); doc.line(xm+1.2,yC-1.2,xm,yC+1); });
+      ntc(cxA,yC+5,"V = "+G.Pcol.toFixed(0)+" kN ("+fmt(Math.round(G.Pcol*1000/9.80665))+" kg) por montante",190,70,60,6.4);
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.6);
+      doc.line(cxB-vB.wT-10,yC-2,cxB-vB.wT-2,yC-2);
+      doc.line(cxB-vB.wT-4.6,yC-3.4,cxB-vB.wT-2,yC-2);
+      doc.line(cxB-vB.wT-4.6,yC-0.6,cxB-vB.wT-2,yC-2);
+      ntc(cxB,yC+5,"acao lateral "+G.Flat.toFixed(0)+" kN — "+G.latGov,40,140,90,6.4);
 
       /* ---------- PLANTA ---------- */
-      var pEsc=Math.min(60/Math.max(G.A,G.B),1000);
-      var px=cx, py=yLeg+34, pa=G.A*pEsc/2, pb=G.B*pEsc/2, pc=G.C*pEsc/2, pd=G.D*pEsc/2;
+      var yP0=yC+14;
+      var pEsc=Math.min(58/Math.max(G.A,G.B),(258-yP0-8)/Math.max(G.B,0.1));
+      var px=105, py=yP0+G.B*pEsc/2+4;
+      var pa=G.A*pEsc/2, pb=G.B*pEsc/2, pc=G.C*pEsc/2, pd=G.D*pEsc/2;
+      doc.setFillColor(248,244,234); doc.rect(px-pa,py-pb,2*pa,2*pb,"F");
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       doc.rect(px-pa,py-pb,2*pa,2*pb);
-      doc.setLineWidth(0.7); doc.setDrawColor(190,70,60);
+      doc.setDrawColor(140,160,180); doc.setLineWidth(0.28);
+      if(G.cunha){ doc.line(px-pa,py-pd,px+pa,py-pd); doc.line(px-pa,py+pd,px+pa,py+pd); }
+      else { doc.line(px-pa,py-pb,px-pc,py-pd); doc.line(px+pa,py-pb,px+pc,py-pd);
+             doc.line(px-pa,py+pb,px-pc,py+pd); doc.line(px+pa,py+pb,px+pc,py+pd); }
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.8);
       doc.rect(px-pc,py-pd,2*pc,2*pd);
-      doc.setDrawColor(140,160,180); doc.setLineWidth(0.3);
-      doc.line(px-pa,py-pb,px-pc,py-pd); doc.line(px+pa,py-pb,px+pc,py-pd);
-      doc.line(px-pa,py+pb,px-pc,py+pd); doc.line(px+pa,py+pb,px+pc,py+pd);
-      nt(px-pa,py-pb-3,"PLANTA",90,110,135,7.4);
-      nt(px+pc+1.5,py,"boca C x D",190,70,60,6.2);
-      /* aresta de vale */
-      doc.setDrawColor(200,120,40); doc.setLineWidth(0.6);
-      doc.line(px-pa,py-pb,px-pc,py-pd);
-      nt(px-pa-2,py-pb-6,"aresta de vale  av = "+G.alfaVale.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)",200,120,40,6.4);
-      /* montantes na planta */
-      doc.setFillColor(60,80,110);
-      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(s){
-        doc.rect(px+s[0]*pa*0.82-1.6,py+s[1]*pb*0.82-1.6,3.2,3.2,"F"); });
+      /* aresta de vale (só na pirâmide) */
+      if(!G.cunha&&!G.regPlano){ doc.setDrawColor(205,125,40); doc.setLineWidth(0.7);
+        doc.line(px-pa,py-pb,px-pc,py-pd); }
+      nt(px-pa-1,py-pb-2.6,(G.regPlano?"regime PLANO (rasgo "+G.razBoca.toFixed(1)+":1)  ·  ":"regime AXISSIMETRICO  ·  ")+
+        G.govNome+" = "+G.alfaGov.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)"+(G.fluxoMassa?"  ATENDE":"  NAO ATENDE"),
+        G.fluxoMassa?40:190,G.fluxoMassa?120:90,G.fluxoMassa?80:60,6.2);
+      doc.setFillColor(70,92,122);
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(sg){
+        doc.rect(px+sg[0]*pa-1.5,py+sg[1]*pb-1.5,3,3,"F"); });
+      ntc(px,py+pd-1,"boca "+Math.round(G.C*1000)+" x "+Math.round(G.D*1000),190,70,60,6.0);
       cotaH(px-pa,px+pa,py+pb+7,"A = "+Math.round(G.A*1000)+" mm");
       cotaV(px+pa+7,py-pb,py+pb,"B = "+Math.round(G.B*1000));
+      ntc(px,py-pb-8,"PLANTA",85,105,130,7.2);
 
-      /* ---------- TABELA DE DADOS ---------- */
-      doc.autoTable({startY:py+pb+14,theme:"grid",margin:{left:14,right:14},
-        styles:{fontSize:7,cellPadding:1.2},
-        headStyles:{fillColor:[20,40,60],textColor:255,fontSize:7.2},
-        columnStyles:{0:{cellWidth:62},1:{cellWidth:56},2:{cellWidth:64}},
-        head:[["Geometria e fluxo","Acoes e pressoes","Estrutura"]],
+      /* ---------- TABELAS EM PÁGINA PRÓPRIA ---------- */
+      doc.addPage();
+      doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+      try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+      doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+      doc.text(san("Moega de Alimentacao — resumo construtivo"),60,12);
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
+      doc.setFont("helvetica","normal");
+      doc.autoTable({startY:26,theme:"grid",margin:{left:14,right:14},
+        styles:{fontSize:8,cellPadding:1.6},
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:8.4},
+        columnStyles:{0:{cellWidth:88},1:{cellWidth:94,halign:"right",fontStyle:"bold"}},
+        head:[["Geometria e fluxo","Valor"]],
         body:[
-          [san("A x B = "+Math.round(G.A*1000)+" x "+Math.round(G.B*1000)+" mm"),
-           san("ph de projeto = "+G.phTot.toFixed(1)+" kPa"),
-           san("Chapa da moega = "+G.tcom.toFixed(1)+" mm")],
-          [san("H = "+Math.round(G.H*1000)+" mm  ·  Hc = "+Math.round(G.Hc*1000)+" mm"),
-           san("pv na transicao = "+G.pvD.toFixed(1)+" kPa"),
-           san("Chapa do colarinho = "+G.tcolar.toFixed(1)+" mm")],
-          [san("Boca C x D = "+Math.round(G.C*1000)+" x "+Math.round(G.D*1000)+" mm"),
-           san("pn na tremonha = "+G.pnDes.toFixed(1)+" kPa"),
-           san("Enrijecedores a cada "+G.sst.toFixed(1)+" m: "+G.perfEnr)],
-          [san("Angulos aA / aB = "+G.alfaA.toFixed(1)+"° / "+G.alfaB.toFixed(1)+"°"),
-           san("Switch = "+G.pSwitch.toFixed(1)+" kPa em "+Math.round(G.hSwitch*1000)+" mm"),
-           san("Cinta de borda: "+G.perfCinta)],
-          [san("ANGULO DE VALE = "+G.alfaVale.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)"),
-           san("Tracao meridional = "+G.nMer.toFixed(1)+" kN/m"),
-           san("Anel de transicao: "+G.perfAnel)],
-          [san("Regime: "+(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL")),
-           san("Vento Vk = "+G.Vk.toFixed(1)+" m/s"),
-           san("Vigas de apoio: "+G.perfViga)],
-          [san("Abertura minima = "+Math.round(G.Bmin*1000)+" mm "+(G.bocaOK?"(atende)":"(INSUFICIENTE)")),
-           san("Acao lateral = "+G.Flat.toFixed(0)+" kN ("+G.latGov+")"),
-           san(G.Ncol.toFixed(0)+" montantes: "+G.perfCol)],
-          [san("Volume util = "+G.Vutil.toFixed(2)+" m3  ·  "+G.Mutil.toFixed(1)+" t"),
-           san(G.movel?("Impacto da descarga = "+G.Fimp.toFixed(0)+" kN"):"Sem equipamento movel"),
-           san("Placa de base "+G.ladoBP.toFixed(0)+" x "+G.ladoBP.toFixed(0)+" x "+G.tBP.toFixed(1)+" mm")],
-          [san("Autonomia = "+G.autonMin.toFixed(1)+" min a "+G.Q.toFixed(0)+" t/h"),
-           san(G.movel?("Choque na defensa = "+G.Fdef.toFixed(0)+" kN"):"—"),
-           san(G.nCh.toFixed(0)+" chumbadores Ø"+G.diaCh.toFixed(0)+" mm")],
-          [san("Descarga por gravidade = "+G.Qbev.toFixed(0)+" t/h ("+G.folgaQ.toFixed(1)+"x)"),
-           san("Peso do granel = "+G.Wmat.toFixed(0)+" kN"),
-           san("Peso vazia = "+Math.round(G.mVazio)+" kg")],
-          [san(G.grOn?("Grelha "+G.grMalha.toFixed(0)+" mm  ·  vao "+G.grVao.toFixed(2)+" m"):"Sem grelha"),
-           san("Reacao vertical total = "+(G.Wperm+G.Wmat).toFixed(0)+" kN"),
-           san(G.grOn?("Barra da grelha: "+G.perfGr):"—")]
+          [san("Tipo de moega"),san(G.cunha?"Em cunha (fenda)":"Piramidal")],
+          [san("A x B (topo)"),san(Math.round(G.A*1000)+" x "+Math.round(G.B*1000)+" mm")],
+          [san("H (tremonha) · Hc (colarinho)"),san(Math.round(G.H*1000)+" mm · "+Math.round(G.Hc*1000)+" mm")],
+          [san("Boca C x D"),san(Math.round(G.C*1000)+" x "+Math.round(G.D*1000)+" mm")],
+          [san("Angulos das faces aA / aB"),san((G.cunha?"90,0":G.alfaA.toFixed(1))+"° / "+G.alfaB.toFixed(1)+"°")],
+          [san("ANGULO GOVERNANTE ("+G.govNome+")"),san(G.alfaGov.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)")],
+          [san("Regime de escoamento"),san((G.regPlano?"PLANO — rasgo "+G.razBoca.toFixed(1)+":1, topo "+G.endAng.toFixed(1)+"°":"AXISSIMETRICO — vale "+G.alfaVale.toFixed(1)+"°"))],
+          [san("REGIME DE FLUXO"),san(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL")],
+          [san("Abertura minima exigida"),san(Math.round(G.Bmin*1000)+" mm "+(G.bocaOK?"(atende)":"(INSUFICIENTE)"))],
+          [san("Volume geometrico / util"),san(G.Vgeo.toFixed(2)+" / "+G.Vutil.toFixed(2)+" m3")],
+          [san("Massa util armazenada"),san(G.Mutil.toFixed(2)+" t")],
+          [san("Autonomia a "+G.Q.toFixed(0)+" t/h"),san(G.autonMin.toFixed(1)+" min")],
+          [san("Descarga por gravidade (Beverloo)"),san(G.Qbev.toFixed(0)+" t/h  ("+G.folgaQ.toFixed(1)+"x)")]
         ]});
-      doc.setFontSize(6.6); doc.setTextColor(120,140,160);
-      doc.text(san("Croqui esquematico de pre-dimensionamento — nao substitui desenho de fabricacao. "+
-        "Cotas em mm, cargas em kN. Confirmar parametros de fluxo em ensaio Jenike Shear."),14,doc.lastAutoTable.finalY+4);
+      doc.autoTable({startY:doc.lastAutoTable.finalY+4,theme:"grid",margin:{left:14,right:14},
+        styles:{fontSize:8,cellPadding:1.6},
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:8.4},
+        columnStyles:{0:{cellWidth:88},1:{cellWidth:94,halign:"right",fontStyle:"bold"}},
+        head:[["Acoes e pressoes","Valor"]],
+        body:[
+          [san("Pressao horizontal de projeto (ph + patch)"),san(G.phTot.toFixed(1))+" kPa"],
+          [san("Pressao vertical na transicao pv"),san(G.pvD.toFixed(1))+" kPa"],
+          [san("Pressao normal na tremonha pnf"),san(G.pnDes.toFixed(1))+" kPa"],
+          [san("PRESSAO DE SWITCH"),san(G.pSwitch.toFixed(1))+" kPa em "+san(String(Math.round(G.hSwitch*1000)))+" mm"],
+          [san("Tracao meridional"),san(G.nMer.toFixed(1))+" kN/m"],
+          [san("Vento — Vk"),san(G.Vk.toFixed(1))+" m/s"],
+          [san("ACAO LATERAL GOVERNANTE"),san(G.Flat.toFixed(0))+" kN — "+san(G.latGov)],
+          [san("Peso proprio (vazia)"),san(fmt(Math.round(G.mVazio)))+" kg"],
+          [san("Peso do granel"),san(G.Wmat.toFixed(0))+" kN ("+san(fmt(kgf(G.Wmat)))+" kg)"],
+          [san("REACAO VERTICAL TOTAL"),san((G.Wperm+G.Wmat).toFixed(0))+" kN"],
+          [san("Carga por montante"),san(G.Pcol.toFixed(0))+" kN ("+san(fmt(kgf(G.Pcol)))+" kg)"],
+          [san(G.movel?"Impacto da descarga":"Equipamento movel"),san(G.movel?(G.Fimp.toFixed(0)+" kN"):"nao aplicavel")],
+          [san(G.movel?"Choque na defensa":"—"),san(G.movel?(G.Fdef.toFixed(0)+" kN"):"—")]
+        ]});
+      doc.autoTable({startY:doc.lastAutoTable.finalY+4,theme:"grid",margin:{left:14,right:14},
+        styles:{fontSize:8,cellPadding:1.6},
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:8.4},
+        columnStyles:{0:{cellWidth:88},1:{cellWidth:94,halign:"right",fontStyle:"bold"}},
+        head:[["Estrutura","Perfil / dimensao"]],
+        body:[
+          [san("Chapa da moega (com sobrespessura)"),san(G.tcom.toFixed(1))+" mm"],
+          [san("Chapa do colarinho"),san(G.tcolar.toFixed(1))+" mm"],
+          [san("Espacamento de enrijecedores"),san(G.sst.toFixed(1))+" m"],
+          [san("Enrijecedor"),san(G.perfEnr)],
+          [san("Cinta de borda"),san(G.perfCinta)],
+          [san("Anel de transicao"),san(G.perfAnel)],
+          [san("Vigas de apoio"),san(G.perfViga)],
+          [san("Montantes ("+G.Ncol.toFixed(0)+" pecas)"),san(G.perfCol)],
+          [san("Placa de base"),san(G.ladoBP.toFixed(0)+" x "+G.ladoBP.toFixed(0)+" x "+G.tBP.toFixed(1)+" mm")],
+          [san("Chumbadores por montante"),san(G.nCh.toFixed(0)+" x D"+G.diaCh.toFixed(0)+" mm")],
+          [san("Grelha de protecao"),san(G.grOn?(G.grMalha.toFixed(0)+" mm · vao "+G.grVao.toFixed(2)+" m · "+G.perfGr):"nao prevista")]
+        ]});
+      doc.setFontSize(7); doc.setTextColor(120,140,160);
+      doc.text(doc.splitTextToSize(san("Croqui esquematico de pre-dimensionamento — nao substitui desenho de fabricacao. "+
+        "Cotas em mm, cargas em kN. Confirmar os parametros de fluxo (phi_i, phi_w, delta, sigma_c) em ensaio Jenike Shear "+
+        "com amostra real na umidade de operacao."),182),14,Math.min(doc.lastAutoTable.finalY+5,280));
     } else if(G.tipo==="calha"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       // silo + moega
