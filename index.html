@@ -278,10 +278,10 @@ const FEED_MAT={
   briq_bricao:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
 };
 function acPreset(){
-  var p=FEED_MAT[$("#acMat").value]; if(!p){ runCalc("alimentador_correia"); return; }
+  var p=FEED_MAT[$("#acMat").value]; if(!p){ runCalc((CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"alimentador_correia"); return; }
   $("#acRho").value=p.rho; $("#acTheta").value=p.theta; $("#acFm").value=p.fm;
   $("#acFsm").value=p.fsm; $("#acFmax").value=p.d; $("#acAbras").value=p.abr;
-  runCalc("alimentador_correia");
+  runCalc((CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"alimentador_correia");
 }
 
 /* ---------- Tabela de referência SEW (motores DRN 4 polos + redutores série R) ---------- */
