@@ -5881,102 +5881,103 @@ function gerarRelatorio(){
         var xc=fx(x); doc.line(xc,y1,xc,y2); doc.line(xc-1.4,y1,xc+1.4,y1); doc.line(xc-1.4,y2,xc+1.4,y2);
         nt(xc+1.5,(y1+y2)/2,t,30,120,150,6.2); }
 
-      /* ---------- ESCALA ÚNICA ----------
-         Duas vistas lado a lado, cada uma com 70 mm de campo de desenho e 18 mm de
-         corredor de cotas. Altura disponível para a elevação: 96 mm. */
+      /* ---------- LAYOUT VERTICAL (sem sobreposição) ----------
+           y = 28  título          y = 37  rótulo da vista
+           y = 46  cota A / B      y = 52  topo do casco
+         Cada faixa tem altura própria, de modo que nenhum texto invade a vizinha.      */
       var Lg=Math.min(G.Hleg,Math.max(G.Htot*1.2,2.0));   // altura de perna desenhada
-      var escX=64/Math.max(G.A,G.B);
-      var escY=90/Math.max(G.Htot+Lg,0.1);
-      var esc=Math.min(escX,escY);
-      var cxA=62, cxB=146, yTop=44;
+      var esc=Math.min(62/Math.max(G.A,G.B), 80/Math.max(G.Htot+Lg,0.1));
+      var cxA=62, cxB=146, yTop=52;
       var hCol=G.Hc*esc, hTr=G.H*esc, hLg=Lg*esc;
       var yMid=yTop+hCol, yBot=yMid+hTr, yLeg=yBot+hLg;
 
+      /* título e rótulos das vistas — faixas próprias, acima das cotas */
+      ntc(105,28,(G.cunha?"MOEGA EM CUNHA (fenda)":"MOEGA PIRAMIDAL")+"  ·  escoamento "+
+        (G.regPlano?"PLANO (rasgo)":"AXISSIMETRICO")+"  ·  "+(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL"),
+        G.fluxoMassa?40:190,G.fluxoMassa?120:90,G.fluxoMassa?80:60,7.4);
+      ntc(cxA,37,"VISTA A-A",85,105,130,7.0);
+      ntc(cxB,37,"VISTA B-B",85,105,130,7.0);
+
       function vista(cx,dimTopo,dimBoca,rotulo,ang,angLab,verticalEnd){
         var wT=dimTopo*esc/2, wB=dimBoca*esc/2;
-        /* granel */
+        /* granel: preenche o trapézio real da tremonha (dois triângulos) */
         doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
-        if(hCol>1) doc.rect(cx-wT,yTop+1.5,2*wT,hCol-1.5,"F");
-        doc.triangle(cx-wT,yMid,cx+wT,yMid,cx,yMid+hTr*0.9,"F");
-        doc.setFillColor(228,206,158);
-        doc.triangle(cx-wT*0.5,yTop+1.5,cx+wT*0.5,yTop+1.5,cx,yTop-5,"F");
+        if(hCol>1) doc.rect(cx-wT,yTop+1.2,2*wT,hCol-1.2,"F");
+        doc.triangle(cx-wT,yMid,cx+wT,yMid,cx+wB,yBot,"F");
+        doc.triangle(cx-wT,yMid,cx+wB,yBot,cx-wB,yBot,"F");
         /* casco */
         doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
         if(hCol>1){ doc.line(cx-wT,yTop,cx-wT,yMid); doc.line(cx+wT,yTop,cx+wT,yMid);
                     doc.line(cx-wT,yTop,cx+wT,yTop); }
         doc.line(cx-wT,yMid,cx-wB,yBot); doc.line(cx+wT,yMid,cx+wB,yBot);
         doc.line(cx-wB,yBot,cx+wB,yBot);
-        doc.setLineWidth(0.35); doc.setDrawColor(150,168,186);
-        doc.line(cx-wT-2,yMid,cx+wT+2,yMid);
-        /* montantes — nas arestas do topo, largura proporcional */
-        var wCol=Math.max(1.8,esc*0.16);
+        if(hCol>1){ doc.setLineWidth(0.35); doc.setDrawColor(150,168,186);
+                    doc.line(cx-wT-2,yMid,cx+wT+2,yMid); }
+        /* MONTANTES — do nível de apoio (transição) até o solo, numa peça só */
+        var wCol=Math.max(2.0,esc*0.14);
         doc.setFillColor(70,92,122); doc.setDrawColor(45,62,86); doc.setLineWidth(0.4);
-        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-wCol/2,yMid,wCol,hLg,"FD"); });
-        /* viga de apoio sob a transição */
-        doc.setFillColor(90,112,142);
-        doc.rect(cx-wT-wCol/2,yMid-1.4,2*wT+wCol,2.8,"F");
-        /* contraventamento */
-        doc.setDrawColor(70,92,122); doc.setLineWidth(0.45);
-        doc.line(cx-wT,yMid+hLg*0.15,cx+wT,yMid+hLg*0.85);
-        doc.line(cx+wT,yMid+hLg*0.15,cx-wT,yMid+hLg*0.85);
-        /* placa de base */
+        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-wCol/2,yMid,wCol,yLeg-yMid,"FD"); });
+        /* viga de apoio, no nível da transição */
+        doc.setFillColor(96,118,148);
+        doc.rect(cx-wT-wCol/2,yMid-1.3,2*wT+wCol,2.6,"F");
+        /* contraventamento — SÓ abaixo da tremonha, entre a boca e o solo */
+        if(yLeg-yBot>6){
+          doc.setDrawColor(96,118,148); doc.setLineWidth(0.45);
+          doc.line(cx-wT,yBot+1,cx+wT,yLeg-1); doc.line(cx+wT,yBot+1,cx-wT,yLeg-1);
+        }
+        /* placa de base e terreno */
         doc.setFillColor(45,62,86);
-        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-3.2,yLeg,6.4,1.5,"F"); });
+        [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT-3.4,yLeg,6.8,1.6,"F"); });
         doc.setDrawColor(120,140,160); doc.setLineWidth(0.5);
-        doc.line(cx-wT-8,yLeg+1.5,cx+wT+8,yLeg+1.5);
-        for(var hx=0;hx<9;hx++){ var xh=cx-wT-8+(2*wT+16)*hx/8;
-          doc.line(xh,yLeg+1.5,xh-2,yLeg+4); }
-        /* cotas */
-        cotaH(cx-wT,cx+wT,yTop-10,rotulo[0]);
-        cotaH(cx-wB,cx+wB,yBot+8,rotulo[1]);
-        /* ângulo */
+        doc.line(cx-wT-9,yLeg+1.6,cx+wT+9,yLeg+1.6);
+        for(var hx=0;hx<10;hx++){ var xh=cx-wT-9+(2*wT+18)*hx/9;
+          doc.line(xh,yLeg+1.6,xh-2,yLeg+4); }
+        /* cotas horizontais */
+        cotaH(cx-wT,cx+wT,46,rotulo[0]);
+        cotaH(cx-wB,cx+wB,yBot+7,rotulo[1]);
+        /* ângulo — a meia altura da parede, dentro do casco */
+        var yAng=yMid+hTr*0.45;
         doc.setDrawColor(160,178,196); doc.setLineWidth(0.22);
-        doc.line(cx-wT,yMid,cx-wT+12,yMid);
-        nt(cx-wT+2,yMid+4.6,angLab+" = "+(verticalEnd?"90,0":ang.toFixed(1))+"°",95,115,140,6.2);
-        ntc(cx,yTop-16,rotulo[2],85,105,130,7.2);
+        doc.line(cx-wT,yMid,cx-wT+10,yMid);
+        nt(cx-wT+wCol+1.5,yAng,angLab+" = "+(verticalEnd?"90,0":ang.toFixed(1))+"°",95,115,140,6.2);
         return {wT:wT,wB:wB,wCol:wCol};
       }
 
-      var vA=vista(cxA,G.A,G.C,["A = "+Math.round(G.A*1000)+" mm","C = "+Math.round(G.C*1000)+" mm","VISTA A-A"],G.alfaA,"aA",G.cunha);
-      var vB=vista(cxB,G.B,G.D,["B = "+Math.round(G.B*1000)+" mm","D = "+Math.round(G.D*1000)+" mm","VISTA B-B"],G.alfaB,"aB",false);
+      var vA=vista(cxA,G.A,G.C,["A = "+Math.round(G.A*1000)+" mm","C = "+Math.round(G.C*1000)+" mm"],G.alfaA,"aA",G.cunha);
+      var vB=vista(cxB,G.B,G.D,["B = "+Math.round(G.B*1000)+" mm","D = "+Math.round(G.D*1000)+" mm"],G.alfaB,"aB",false);
 
-      /* tipo de moega */
-      ntc(105,32,(G.cunha?"MOEGA EM CUNHA (fenda)":"MOEGA PIRAMIDAL")+" · escoamento "+(G.regPlano?"PLANO (rasgo)":"AXISSIMETRICO")+
-        "   ·   "+(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL"),
-        G.fluxoMassa?40:190,G.fluxoMassa?120:90,G.fluxoMassa?80:60,7.6);
-
-      /* grelha, no topo da vista A */
-      if(G.grOn){ doc.setDrawColor(40,90,140); doc.setLineWidth(0.7);
-        for(var gi=0;gi<=6;gi++){ var gx=cxA-vA.wT+2*vA.wT*gi/6; doc.line(gx,yTop-2,gx,yTop+0.5); }
-        doc.line(cxA-vA.wT,yTop-2,cxA+vA.wT,yTop-2);
-        nt(cxA-vA.wT,yTop-4.2,"grelha "+G.grMalha.toFixed(0)+" mm · "+san(G.perfGr),40,90,140,6.0); }
+      /* grelha — desenhada sobre o topo da vista A, rótulo à esquerda sem invadir a cota */
+      if(G.grOn){ doc.setDrawColor(40,90,140); doc.setLineWidth(0.8);
+        for(var gi=0;gi<=6;gi++){ var gx=cxA-vA.wT+2*vA.wT*gi/6; doc.line(gx,yTop-1.8,gx,yTop+0.6); }
+        doc.line(cxA-vA.wT,yTop-1.8,cxA+vA.wT,yTop-1.8);
+        nt(cxA-vA.wT,yTop+5.2,"grelha "+G.grMalha.toFixed(0)+" mm · "+san(G.perfGr),40,90,140,6.0); }
 
       /* faixa de switch, na vista B */
       doc.setDrawColor(190,70,60); doc.setLineWidth(0.6);
       var hsw=Math.min(G.hSwitch*esc,hTr*0.45);
       var wsw=vB.wT-(vB.wT-vB.wB)*hsw/Math.max(hTr,0.01);
       doc.line(cxB-wsw,yMid+hsw,cxB+wsw,yMid+hsw);
-      nt(cxB+wsw+1.5,yMid+hsw+1.4,"switch "+G.pSwitch.toFixed(0)+" kPa",190,70,60,6.0);
+      nt(cxB+wsw+1.5,yMid+hsw-1.2,"switch "+G.pSwitch.toFixed(0)+" kPa",190,70,60,6.0);
 
-      /* cotas verticais — corredor à direita de cada vista */
+      /* cotas verticais — corredores próprios, à direita de cada vista */
       if(hCol>1) cotaV(cxA+vA.wT+7,yTop,yMid,"Hc="+Math.round(G.Hc*1000));
       cotaV(cxA+vA.wT+7,yMid,yBot,"H = "+Math.round(G.H*1000)+" mm");
-      cotaV(cxB+vB.wT+7,yMid,yLeg,"livre "+G.Hleg.toFixed(2)+" m");
+      cotaV(cxB+vB.wT+7,yBot,yLeg,"livre "+G.Hleg.toFixed(2)+" m");
 
-      /* cargas nos apoios — abaixo da linha de terra, centralizadas */
-      var yC=yLeg+8;
+      /* cargas nos apoios — faixa abaixo do terreno */
+      var yC=yLeg+9;
       doc.setDrawColor(190,70,60); doc.setLineWidth(0.6);
       [-1,1].forEach(function(sg){ var xm=cxA+sg*vA.wT;
-        doc.line(xm,yC-4,xm,yC+1); doc.line(xm-1.2,yC-1.2,xm,yC+1); doc.line(xm+1.2,yC-1.2,xm,yC+1); });
-      ntc(cxA,yC+5,"V = "+G.Pcol.toFixed(0)+" kN ("+fmt(Math.round(G.Pcol*1000/9.80665))+" kg) por montante",190,70,60,6.4);
+        doc.line(xm,yC-5,xm,yC); doc.line(xm-1.2,yC-2.2,xm,yC); doc.line(xm+1.2,yC-2.2,xm,yC); });
+      ntc(cxA,yC+5,"V = "+G.Pcol.toFixed(0)+" kN ("+fmt(Math.round(G.Pcol*1000/9.80665))+" kg) por montante",190,70,60,6.2);
       doc.setDrawColor(40,140,90); doc.setLineWidth(0.6);
-      doc.line(cxB-vB.wT-10,yC-2,cxB-vB.wT-2,yC-2);
-      doc.line(cxB-vB.wT-4.6,yC-3.4,cxB-vB.wT-2,yC-2);
-      doc.line(cxB-vB.wT-4.6,yC-0.6,cxB-vB.wT-2,yC-2);
-      ntc(cxB,yC+5,"acao lateral "+G.Flat.toFixed(0)+" kN — "+G.latGov,40,140,90,6.4);
+      doc.line(cxB-vB.wT-11,yC-2.5,cxB-vB.wT-2,yC-2.5);
+      doc.line(cxB-vB.wT-4.6,yC-3.9,cxB-vB.wT-2,yC-2.5);
+      doc.line(cxB-vB.wT-4.6,yC-1.1,cxB-vB.wT-2,yC-2.5);
+      ntc(cxB,yC+5,"acao lateral "+G.Flat.toFixed(0)+" kN — "+G.latGov,40,140,90,6.2);
 
       /* ---------- PLANTA ---------- */
-      var yP0=yC+14;
+      var yP0=yC+13;
       var pEsc=Math.min(58/Math.max(G.A,G.B),(258-yP0-8)/Math.max(G.B,0.1));
       var px=105, py=yP0+G.B*pEsc/2+4;
       var pa=G.A*pEsc/2, pb=G.B*pEsc/2, pc=G.C*pEsc/2, pd=G.D*pEsc/2;
