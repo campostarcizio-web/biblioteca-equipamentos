@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.56.0",
+    "versao": "1.57.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -20,6 +20,12 @@
         "subgrupos": [
           "Silo Circular",
           "Silo Retangular"
+        ]
+      },
+      {
+        "grupo": "Moegas",
+        "subgrupos": [
+          "Moega de Alimentação"
         ]
       },
       {
@@ -231,6 +237,17 @@
       "calculadora": "silo_retangular",
       "descricao": "Pré-dimensionamento EXECUTIVO de silo prismático (seção retangular) com tremonha piramidal ou em cunha. FLUXO: ábaco de Jenike para o ângulo de tremonha (cônico e plano) com verificação do ângulo de vale, abertura anti-arco, diâmetro de rathole quando o fluxo de massa não é atingível, e vazão de descarga por Beverloo comparada à produção. AÇÕES: classes de esbeltez e de avaliação da EN 1991-4, três casos de carga com limites superior e inferior de K e μ, carga localizada (patch load), ações térmicas, pressões de tremonha por Walker/Enstad e pressão de switch na transição. VENTO E SISMO: NBR 6123 com força global de arrasto e momento de tombamento, e NBR 15421 com cortante sísmico de base — a ação lateral governante é identificada. ESTRUTURA (NBR 8800): chapa por ELU e ELS (flecha), escalonada por faixa de altura, verificação de flambagem local da parede sob a compressão de atrito, cintas e enrijecedores com o vão real entre montantes, ANEL DE TRANSIÇÃO dimensionado à flexão e tração, montantes em combinação ELU com vento/sismo e curva de flambagem, tração de arrancamento, placa de base, chumbadores e comprimento de ancoragem, verificação de fadiga e frequência natural. Entrega ainda: revestimento interno com efeito no atrito de parede, dispositivos anti-arco, reações por montante para o projeto de fundação, interface com o alimentador (σv e Fv na boca), pesos discriminados e croqui executivo com elevação, planta e seis tabelas de dados construtivos.",
       "referencia": "A. W. Jenike (Bulletin 123) — Flow Function, ábaco de fluxo de massa (θ × δ × φw) para tremonha cônica e plana, abertura anti-arco e diâmetro de rathole; correlação de Beverloo para a vazão de descarga por gravidade. EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez, limites superior e inferior de K e μ com os três casos de carga, carga localizada, pressões de tremonha por Walker/Enstad no enchimento e na descarga, pressão de switch na transição e ações térmicas. ABNT NBR 6123 (vento: S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). ABNT NBR 15421 (sismo). ABNT NBR 8800 (estrutura: combinações de ELU e ELS, chapa a flexão e flecha, enrijecedores, cintas, anel de transição, montantes com curva de flambagem, flambagem local da parede, placa de base, chumbadores e fadiga pelo Anexo K / EN 1993-1-9)"
+    },
+    {
+      "id": "moega-alimentacao",
+      "grupo": "Moegas",
+      "subgrupo": "Moega de Alimentação",
+      "subtipo": "Moega de alimentação em tronco de pirâmide sobre estrutura metálica",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Moega de Alimentação",
+      "calculadora": "moega_alimentacao",
+      "descricao": "Dimensionamento executivo de MOEGA DE ALIMENTAÇÃO em tronco de pirâmide, a partir de cinco cotas: A e B no topo, altura H e boca de descarga C × D, com colarinho reto opcional e apoio sobre montantes metálicos. O roteiro abre pela geometria e pelo ÂNGULO DE VALE — a aresta de encontro de duas faces é sempre mais rasa que qualquer face isolada (cot²αv = cot²αA + cot²αB), e é ela, e não o ângulo que se lê no desenho de uma face, que decide se há fluxo de massa. Segue com volume geométrico e útil, massa armazenada, autonomia para a vazão de projeto e ciclos de abastecimento; regime de fluxo pelo ábaco de Jenike com margem de 3°, abertura mínima anti-arco, diâmetro de tubulação (rathole) quando o regime é de funil e arco mecânico por granulometria; vazão de descarga por gravidade pela correlação de Beverloo para fenda, comparada com a vazão de projeto para verificar se a boca estrangula. As ações seguem a EN 1991-4 e a NBR 11700: classes de esbeltez e de avaliação da ação, três casos de carga com os limites superior e inferior de K e μ, sobrecarga do montículo, carga localizada (patch load) e, na tremonha, o atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)) com o fator de enchimento Ff e o expoente n, do que resultam as pressões normal e de atrito ao longo da parede e a pressão de switch na transição. A verificação estrutural pela NBR 8800 cobre chapa a flexão e a tração meridional, enrijecedores com espaçamento otimizado por massa, cinta de borda, anel de transição, vigas de apoio, montantes com curva de flambagem, placa de base, chumbadores e reações na fundação, com vento pela NBR 6123 e sismo pela NBR 15421. Acrescenta o que é próprio da moega de recepção: grelha de proteção dimensionada por carga concentrada de bloco com amplificação dinâmica, impacto da descarga de concha ou caçamba, carga por roda, sobrecarga de tráfego e força de choque em batentes e defensas. Fecha com fadiga na transição, recomendação de revestimento e dispositivos de ativação, e os dados de interface para a calculadora do alimentador de correia. Presets de material incluindo briquete BAR e briquete Bricão.",
+      "referencia": "GEOMETRIA: tronco de pirâmide com ângulo de vale por cot²αv = cot²αA + cot²αB. FLUXO: A. W. Jenike (Bulletin 123) — ábaco de fluxo de massa (θ × δ × φw) para tremonha piramidal e em cunha, margem de projeto de 3°, abertura anti-arco B = H(θ)·σc/γ e diâmetro de tubulação Df = G(δ)·σc/γ; vazão de descarga por gravidade pela correlação de Beverloo para fenda. AÇÕES: EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez e de avaliação da ação, limites superior e inferior de K e μ (a_K = a_μ = 1,15) com os três casos de carga, carga localizada (patch load), e tremonha pelo atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)), fator de enchimento Ff = 1 − b/(1 + tanβ/μ_heff) com b = 0,2, expoente n = S·(Ff·μ_heff·cotβ + Ff) − 2 e pv(x) medido a partir do vértice virtual, com pnf = Ff·pv e ptf = μ_heff·Ff·pv; pressão de switch pela amplificação clássica de Jenike (2×) na transição. VENTO: ABNT NBR 6123. SISMO: ABNT NBR 15421. EQUIPAMENTO MÓVEL: grelha com carga concentrada e amplificação dinâmica, impacto de descarga, carga de roda, sobrecarga de tráfego e choque em defensas. ESTRUTURA: ABNT NBR 8800 — ELU e ELS, chapa, enrijecedores, cinta, anel de transição, vigas, montantes com curva de flambagem, placa de base, chumbadores e fadiga (Anexo K / EN 1993-1-9)."
     },
     {
       "id": "cone-vibratorio-circular",

@@ -227,7 +227,7 @@ function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
 function conePreset(){var w=CRUSHER_MAT[$("#bcMat").value]; if(w==null)return; $("#bcWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_conico");}
-function icon(e){if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")===0)return ICON_FEEDER;if(e&&e.calculadora&&e.calculadora.indexOf("alimentador_correia")===0)return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function icon(e){if(e&&e.calculadora==="moega_alimentacao")return ICON_SILO;if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")===0)return ICON_FEEDER;if(e&&e.calculadora&&e.calculadora.indexOf("alimentador_correia")===0)return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -252,6 +252,12 @@ const SILO_MAT={
   briq_bar:{rho:1.7,phi:40,delta:28,c:0.5,d50:57},
   briq_bricao:{rho:1.3,phi:42,delta:26,c:0.4,d50:120}
 };
+function moegaPreset(){
+  var p=SILO_MAT[$("#mgMat").value]; if(!p){ runCalc("moega_alimentacao"); return; }
+  $("#mgRho").value=p.rho; $("#mgPhi").value=p.phi; $("#mgPhw").value=p.delta;
+  $("#mgCoes").value=p.c; $("#mgD50").value=p.d50;
+  runCalc("moega_alimentacao");
+}
 function siloPreset(){
   var p=SILO_MAT[$("#siMat").value]; if(!p) return;
   $("#siRho").value=p.rho; $("#siPhi").value=p.phi; $("#siDelta").value=p.delta; $("#siCoes").value=p.c; $("#siD50").value=p.d50;
@@ -1126,7 +1132,618 @@ function alimCorreiaCalc(){
       return OUT;
 }
 
+/* ===================== MOEGA DE ALIMENTAÇÃO — dimensionamento executivo =====================
+   Entradas principais: A e B (dimensional superior), H (altura), C e D (boca de descarga).
+   A moega é um tronco de pirâmide, opcionalmente com um colarinho reto no topo (Hc), apoiado
+   sobre montantes metálicos. O roteiro segue a mesma família de normas do silo retangular:
+   fluxo por Jenike, ações por EN 1991-4 / NBR 11700, vento NBR 6123, sismo NBR 15421 e
+   verificação estrutural por NBR 8800, acrescido das cargas de equipamento móvel (grelha,
+   impacto de descarga, tráfego e defensas) próprias da moega de recepção.                   */
+function moegaCalc(){
+  /* ---------- ENTRADAS ---------- */
+  var A=num("mgA")/1000, B=num("mgB")/1000, H=num("mgH")/1000;
+  var C=num("mgC")/1000, D=num("mgD")/1000, Hc=num("mgHc")/1000;
+  if(!isFinite(A)||A<=0)A=4.0; if(!isFinite(B)||B<=0)B=3.5;
+  if(!isFinite(H)||H<=0)H=2.5; if(!isFinite(C)||C<=0)C=1.2;
+  if(!isFinite(D)||D<=0)D=0.8; if(!isFinite(Hc)||Hc<0)Hc=0.5;
+  if(C>A*0.98)C=A*0.98; if(D>B*0.98)D=B*0.98;
+  var Q=num("mgQ"); if(!isFinite(Q)||Q<=0)Q=300;
+  var rho=num("mgRho"); if(!isFinite(rho)||rho<=0)rho=1.7;
+  var g=9.80665, gamma=rho*g;                       // kN/m³
+  var phi=num("mgPhi"); if(!isFinite(phi)||phi<=0)phi=40;      // atrito interno φi
+  var phw=num("mgPhw"); if(!isFinite(phw)||phw<=0)phw=25;      // atrito com a parede φw
+  var deffIn=num("mgDeff"); var deff=(isFinite(deffIn)&&deffIn>0)?deffIn:phi;   // δ efetivo
+  var coes=num("mgCoes"); if(!isFinite(coes)||coes<0)coes=0;
+  var d50=num("mgD50"); if(!isFinite(d50)||d50<=0)d50=50;
+  var rep=num("mgRep"); if(!isFinite(rep)||rep<=0||rep>=60)rep=35;
+  var Hsob=num("mgHsob"); if(!isFinite(Hsob)||Hsob<0)Hsob=0.5;
+  var eta=num("mgEta"); if(!isFinite(eta)||eta<=0||eta>1)eta=0.85;
+  var abast=selv("mgAbast","pa");
+  var abastTxt=(abast==="pa")?"pá-carregadeira":(abast==="cam"?"caminhão basculante":"chute / correia");
+  var movel=(abast!=="chu");
+  var Vcarga=num("mgVcarga"); if(!isFinite(Vcarga)||Vcarga<0)Vcarga=0;
+  var Peq=num("mgPeq"); if(!isFinite(Peq)||Peq<=0)Peq=25;      // massa operacional do equipamento (t)
+  var Hq=num("mgHq"); if(!isFinite(Hq)||Hq<0)Hq=1.5;           // altura de queda da descarga
+  var fy=selvN("mgFy",345), abr=num("mgAbr"); if(!isFinite(abr)||abr<0)abr=3;
+  var gf=selvN("mgGf",1.4), limFl=selvN("mgFlecha",150);
+  var Hleg=num("mgHleg"); if(!isFinite(Hleg)||Hleg<=0)Hleg=4.0;
+  var fself=num("mgSelf"); if(!isFinite(fself)||fself<1)fself=1.15;
+
+  /* ---------- ETAPA 1 — GEOMETRIA ---------- */
+  var A1=A*B, A2=C*D;                                // áreas superior e da boca
+  var tA=(A-C)/2, tB=(B-D)/2;                        // recuos horizontais das faces
+  function angFace(t){ return (t<=0.0005)?90:Math.atan(H/t)*180/Math.PI; }
+  var alfaA=angFace(tA), alfaB=angFace(tB);
+  /* ÂNGULO DE VALE — a aresta de encontro entre duas faces inclinadas é SEMPRE mais rasa
+     que qualquer uma delas: cot²αv = cot²αA + cot²αB. É o vale que governa o escoamento. */
+  var alfaVale=(H>0)?Math.atan(H/Math.sqrt(tA*tA+tB*tB))*180/Math.PI:0;
+  var aVrad=alfaVale*Math.PI/180, betaHop=90-alfaVale;
+  var Vtronco=(H/3)*(A1+A2+Math.sqrt(A1*A2));
+  var Vcol=A1*Hc;
+  var hCone=(Math.min(A,B)/2)*Math.tan(rep*Math.PI/180);
+  var Vcone=A1*hCone/3;
+  var Vgeo=Vtronco+Vcol, VgeoC=Vgeo+Vcone;
+  var Vutil=Vgeo*eta, Mutil=Vutil*rho;
+  var autonMin=(Q>0)?(Mutil/Q*60):0;
+  var nCargas=(Vcarga>0)?(Vutil/Vcarga):0;
+  /* superfícies e perímetros */
+  var slA=Math.sqrt(H*H+tA*tA), slB=Math.sqrt(H*H+tB*tB);      // comprimento inclinado das faces
+  var ArA=2*((A+C)/2)*slB, ArB=2*((B+D)/2)*slA;                 // área das 4 faces (trapézios)
+  var Achapa=ArA+ArB+2*(A+B)*Hc;
+  var perim=2*(A+B), perimB=2*(C+D);
+
+  /* ---------- ETAPA 2 — FLUXO (JENIKE) ---------- */
+  var pr=phi*Math.PI/180;
+  var sc=(coes>0)?(2*coes*Math.cos(pr)/(1-Math.sin(pr))):0;     // resistência inconfinada σc
+  var JEN_D=[30,40,50,60,70], JEN_W=[0,10,20,30,40];
+  var JEN_CON=[[33,24,13, 0, 0],[35,28,19, 7, 0],[36,30,23,13, 0],[37,32,26,18, 7],[38,33,28,22,13]];
+  var JEN_PLA=[[49,41,31,17, 0],[50,44,36,25, 8],[51,46,39,31,18],[52,47,42,35,25],[52,48,44,38,30]];
+  function bilm(TB,xs,ys,x,y){
+    function idx(v,arr){ if(v<=arr[0])return [0,0,0]; if(v>=arr[arr.length-1])return [arr.length-1,arr.length-1,0];
+      for(var i=1;i<arr.length;i++){ if(v<=arr[i]) return [i-1,i,(v-arr[i-1])/(arr[i]-arr[i-1])]; } return [arr.length-1,arr.length-1,0]; }
+    var ix=idx(x,xs), iy=idx(y,ys);
+    var v00=TB[ix[0]][iy[0]],v01=TB[ix[0]][iy[1]],v10=TB[ix[1]][iy[0]],v11=TB[ix[1]][iy[1]];
+    var v0=v00+(v01-v00)*iy[2], v1=v10+(v11-v10)*iy[2];
+    return v0+(v1-v0)*ix[2];
+  }
+  /* A moega piramidal converge nas duas direções → ábaco AXISSIMÉTRICO (cônico).
+     O limite plano é mostrado como referência: é o que valeria numa tremonha em cunha. */
+  var thLimCon=bilm(JEN_CON,JEN_D,JEN_W,deff,phw);
+  var thLimPla=bilm(JEN_PLA,JEN_D,JEN_W,deff,phw);
+  var margJ=3.0;
+  var thDes=Math.max(3,thLimCon-margJ);
+  var alfaExig=90-thDes;                              // ângulo de FACE exigido para fluxo de massa
+  var alfaExigPla=90-Math.max(3,thLimPla-margJ);
+  var valeOK=(alfaVale>=alfaExig-0.5);
+  var faceOK=(Math.min(alfaA,alfaB)>=alfaExig-0.5);
+  var fluxoMassa=valeOK;
+  var regime=fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL";
+  /* rathole (fluxo de funil) e arco (ambos os regimes) */
+  var GT_X=[30,40,50,60], GT_Y=[2.0,3.3,5.0,7.5];
+  function interpG(x){ if(x<=GT_X[0])return GT_Y[0]; if(x>=GT_X[3])return GT_Y[3];
+    for(var i=1;i<4;i++){ if(x<=GT_X[i]) return GT_Y[i-1]+(GT_Y[i]-GT_Y[i-1])*(x-GT_X[i-1])/(GT_X[i]-GT_X[i-1]); } return GT_Y[3]; }
+  var Gfun=interpG(deff);
+  var Hfat=2.0+thDes/60;
+  var Barco=(sc>0.001)?Hfat*sc/gamma:0;
+  var Drat=(sc>0.001)?Gfun*sc/gamma:0;
+  var Bmec=8*d50/1000;                                 // arco mecânico (entupimento por blocos)
+  var Bmin=Math.max(Barco,Bmec,0.5);
+  if(!fluxoMassa) Bmin=Math.max(Bmin,Drat);
+  var Bboca=Math.min(C,D);
+  var bocaOK=(Bboca>=Bmin-0.001);
+  var ffc=(sc>0.001)?(gamma*Math.min(C,D)/sc):999;
+
+  /* ---------- ETAPA 3 — VAZÃO DE DESCARGA (BEVERLOO) ---------- */
+  var rhoB=rho*1000, kBev=1.5, dm=d50/1000;
+  var Lslot=Math.max(C,D), Wslot=Math.min(C,D);
+  var Wbev=1.03*rhoB*Math.sqrt(g)*Lslot*Math.pow(Math.max(Wslot-kBev*dm,0.001),1.5);  // kg/s
+  var Qbev=Wbev*3.6;                                   // t/h
+  var folgaQ=(Q>0)?(Qbev/Q):0;
+
+  /* ---------- ETAPA 4 — PRESSÕES (EN 1991-4) ---------- */
+  var Rh=A1/(2*(A+B)), dcar=4*Rh;
+  var hcDc=Hc/dcar;
+  var clsEsb=(hcDc>=2)?"esbelto":(hcDc>1)?"intermediário":(hcDc>0.4)?"baixo (squat)":"de retenção (moega)";
+  var Ch=(hcDc>=2)?1.15:(hcDc>1?1.10:1.00), Cw=(hcDc>=2)?1.10:(hcDc>1?1.08:1.00);
+  var aK=1.15, aMu=1.15;
+  var Km=1.1*(1-Math.sin(pr)), MUm=Math.tan(phw*Math.PI/180);
+  var Ku=aK*Km, Kl=Km/aK, MUu=aMu*MUm, MUl=MUm/aMu;
+  var q0=gamma*Hsob;                                   // sobrecarga do montículo sobre a boca
+  function jans(K,MU,zz){
+    var pvA=gamma*Rh/(MU*K);
+    var ex=Math.exp(-MU*K*zz/Rh);
+    var pvz=pvA*(1-ex)+q0*ex;
+    return {pv:pvz,ph:K*pvz,pw:MU*K*pvz,pvA:pvA};
+  }
+  var LC1=jans(Ku,MUl,Hc), LC2=jans(Ku,MUu,Hc), LC3=jans(Kl,MUl,Hc);
+  var ph=LC1.ph, pwat=LC2.pw, pv=LC3.pv;
+  var phD=Ch*ph, pwD=Cw*pwat, pvD=Ch*pv;
+  /* patch load — carga localizada */
+  var ecc=num("mgEcc"); if(!isFinite(ecc)||ecc<0)ecc=0;
+  var AAC=selv("mgAAC","2");
+  var Cop=(AAC==="1")?0:(0.42+1.0*ecc/dcar);
+  var pPatch=Cop*phD, phTot=phD+pPatch;
+  /* ---- TREMONHA — EN 1991-4 §6.3 (caso de enchimento) ----
+     β é o meio-ângulo da parede medido da VERTICAL. Em tremonha rasa o atrito de parede
+     NÃO se mobiliza por completo, e o valor efetivo é o menor entre o atrito disponível e
+     o que o equilíbrio permite mobilizar:
+         μ_heff = min( tan φw , (1 − K)/(2·tan β) )          (6.26)
+         b = 0,2   ·   Ff = 1 − b/(1 + tan β/μ_heff)         (6.27)
+         n = S·(Ff·μ_heff·cot β + Ff) − 2                    (6.8)   S = 2 piramidal · 1 cunha
+         pv(x) = (γ·hh/(n−1))·[(x/hh) − (x/hh)^n] + pvft·(x/hh)^n
+         pnf(x) = Ff·pv(x)      ptf(x) = μ_heff·Ff·pv(x)     (6.29) (6.30)
+     x é medido a partir do VÉRTICE VIRTUAL da pirâmide, que fica abaixo da boca. */
+  var muW=Math.tan(phw*Math.PI/180);
+  function hopperEN(t,dimTopo){
+    var bRl=Math.atan(t/H);                                  // β da face, da vertical
+    var muHe=Math.min(muW,(1-Km)/(2*Math.max(Math.tan(bRl),0.01)));
+    var Ffl=1-0.2/(1+Math.tan(bRl)/Math.max(muHe,0.01));
+    var nl=2*(Ffl*muHe/Math.max(Math.tan(bRl),0.01)+Ffl)-2;
+    var hh=(t>0.001)?(H*(dimTopo/2)/t):(H*50);               // vértice → transição
+    var x0=Math.max(hh-H,0.001);                             // vértice → boca
+    var pvMax=0,pvT=0;
+    for(var q=0;q<=20;q++){
+      var x=x0+(hh-x0)*q/20, r=x/hh, pvx;
+      if(Math.abs(nl-1)<0.02){ pvx=gamma*hh*r*Math.log(1/Math.max(r,1e-6))+pvD*r; }
+      else { pvx=(gamma*hh/(nl-1))*(r-Math.pow(r,nl))+pvD*Math.pow(r,nl); }
+      if(pvx>pvMax)pvMax=pvx;
+      if(q===20)pvT=pvx;
+    }
+    return {beta:bRl*180/Math.PI,muHe:muHe,Ff:Ffl,n:nl,hh:hh,x0:x0,
+            pvMax:pvMax,pvT:pvT,pn:Ffl*pvMax,pt:muHe*Ffl*pvMax};
+  }
+  var hopA=hopperEN(tA,A), hopB=hopperEN(tB,B);
+  var hopGov=(hopA.pn>=hopB.pn)?hopA:hopB;
+  var hopGovNome=(hopA.pn>=hopB.pn)?"faces perpendiculares a A":"faces perpendiculares a B";
+  var Ff=hopGov.Ff, muH=hopGov.muHe, nEN=hopGov.n;
+  var pnF=hopGov.pn, ptF=hopGov.pt;
+  /* PRESSÃO DE SWITCH: no início da descarga o estado de tensões passa de ativo para
+     passivo e uma frente de pressão percorre a transição. Adota-se a amplificação clássica
+     de Jenike, ps = 2·pn,enchimento, aplicada numa faixa de 0,2·dc abaixo da transição —
+     é ela que dimensiona a chapa e o anel de transição. */
+  var pSwitch=2*pnF, hSwitch=0.2*dcar;
+  var pnDes=pnF;
+
+  /* ---------- ETAPA 5 — CHAPA ---------- */
+  var sadm=0.90*fy, nu=0.3, Eaco_MPa=200000, RHOACO=7850;
+  var COM=[6.3,8.0,9.5,12.5,16.0,19.0,22.4,25.0,31.5], tmin=6.0;
+  function chapaPara(pkPa,vao){
+    var Md=(pkPa*gf*1000)*vao*vao/10;
+    var tR=Math.sqrt(6*Md/(sadm*1e6))*1000;
+    var pS=pkPa*1000;
+    var Dreq=pS*Math.pow(vao,4)*limFl/(384*vao);
+    var tFl=Math.pow(12*(1-nu*nu)*Dreq/(Eaco_MPa*1e6),1/3)*1000;
+    var req=Math.max(tR+abr,tFl+abr,tmin), com=COM[COM.length-1];
+    for(var i=0;i<COM.length;i++){ if(COM[i]>=req){ com=COM[i]; break; } }
+    return {tcalc:tR,tfl:tFl,tcom:com,govMin:(Math.max(tR,tFl)+abr<tmin),govFl:(tFl>tR)};
+  }
+  /* espaçamento de enrijecedores: otimizado por massa (chapa + enrijecedor) */
+  var sIn=num("mgS"); var sUser=(isFinite(sIn)&&sIn>0)?sIn:0;
+  function custoS(sv){
+    var ch=chapaPara(Math.max(pSwitch,phTot),sv);
+    var mCh=ch.tcom/1000*RHOACO;
+    var w=Math.max(pSwitch,phTot)*gf*sv, Mm=w*Math.min(sv,Math.max(A,B)/2)*Math.min(sv,Math.max(A,B)/2)/10;
+    var Wr=Mm/(sadm*1000)*1e6, Ae=Math.max(8,Math.pow(Wr,0.75));
+    var mEn=(Ae*1e-4*RHOACO)/sv;
+    return {s:sv,ch:ch,custo:mCh+mEn+12/sv,Wreq:Wr};
+  }
+  var sOpt=null;
+  for(var sv=0.5;sv<=2.01;sv+=0.1){ var rr=custoS(Math.round(sv*10)/10); if(!sOpt||rr.custo<sOpt.custo)sOpt=rr; }
+  var CS=(sUser>0)?custoS(sUser):sOpt;
+  var sst=CS.s;
+  var chColar=chapaPara(phTot,Math.min(sst,Math.min(A,B)));
+  var chFace=chapaPara(pnDes,Math.min(sst,Math.min(slA,slB)));
+  var chSwitch=chapaPara(pSwitch,Math.min(sst,Math.max(A,B)/2));
+  /* tração meridional na face inclinada */
+  var Fvert=pvD*A1+Vtronco*gamma;                      // kN — carga vertical total sobre a tremonha
+  var senAV=Math.sin(aVrad);
+  var nMer=(senAV>0)?Fvert/((perim+perimB)/2*senAV):0; // kN/m
+  var tTrac=nMer*gf/sadm;                              // mm
+  var treq=Math.max(tTrac+abr,chFace.tcom,chSwitch.tcom,tmin);
+  var tcom=COM[COM.length-1]; for(var ti=0;ti<COM.length;ti++){ if(COM[ti]>=treq){ tcom=COM[ti]; break; } }
+
+  /* ---------- ETAPA 6 — GRELHA DE PROTEÇÃO ---------- */
+  var grOn=(selv("mgGrelha","sim")==="sim");
+  var grMalha=num("mgGrMalha"); if(!isFinite(grMalha)||grMalha<=0)grMalha=400;
+  var grVaoIn=num("mgGrVao"); var grVao=(isFinite(grVaoIn)&&grVaoIn>0)?grVaoIn/1000:Math.min(A,B);
+  var grP=num("mgGrP"); if(!isFinite(grP)||grP<=0)grP=30;      // carga concentrada de bloco (kN)
+  var nBarras=Math.max(2,Math.round(Math.max(A,B)/(grMalha/1000)));
+  var phiImp=2.0;                                              // amplificação dinâmica na queda
+  var Pgd=grP*phiImp*gf;                                       // kN — carga de projeto por barra
+  var Mgr=Pgd*grVao/4;                                         // kN·m
+  var Wgr=Mgr/(sadm*1000)*1e6;                                 // cm³
+  var selGr=selPerfil({W:Wgr},"");
+  var flechaGr=grVao*1000/limFl;                               // mm admissível
+
+  /* ---------- ETAPA 7 — CARGAS DE EQUIPAMENTO MÓVEL ---------- */
+  var mCarga=(Vcarga>0)?(Vcarga*rho*1000):0;                   // kg por ciclo
+  var vImp=Math.sqrt(2*g*Hq);
+  var Eimp=mCarga*g*Hq/1000;                                   // kJ
+  var Fimp=(mCarga>0)?(mCarga*vImp*vImp/(2*0.15)/1000):0;      // kN — parada em 150 mm (leito)
+  var Proda=Peq*g*0.35;                                        // kN — carga por roda (eixo dianteiro carregado / 2)
+  var Fdef=0.10*Peq*g;                                         // kN — choque na defensa (10% do peso operacional)
+  var Mdef=Fdef*1.0;                                           // kN·m — a 1,0 m do apoio
+  var qTraf=Math.max(20,Proda/2);                              // kPa — sobrecarga na plataforma
+
+  /* ---------- ETAPA 8 — VENTO E SISMO ---------- */
+  var Htot=Hc+H, Ztopo=Htot+Hleg;
+  var V0=num("mgV0"); if(!isFinite(V0)||V0<=0)V0=35;
+  var S1w=selvN("mgS1",1.0), S3w=selvN("mgS3",1.0);
+  var CATP={I:{A:[1.10,0.06],B:[1.11,0.065],C:[1.12,0.07]},
+            II:{A:[1.00,0.085],B:[1.00,0.09],C:[0.98,0.10]},
+            III:{A:[0.94,0.10],B:[0.94,0.105],C:[0.93,0.115]},
+            IV:{A:[0.86,0.12],B:[0.85,0.125],C:[0.84,0.135]},
+            V:{A:[0.74,0.15],B:[0.73,0.16],C:[0.71,0.175]}};
+  var FR={A:1.00,B:0.98,C:0.95};
+  var catW=selv("mgCat","II"), clsW=selv("mgCls","B");
+  var pw2=(CATP[catW]||CATP.II)[clsW]||CATP.II.B;
+  var S2w=pw2[0]*FR[clsW]*Math.pow(Math.max(Ztopo,5)/10,pw2[1]);
+  var Vk=V0*S1w*S2w*S3w, qvento=0.613*Vk*Vk/1000;
+  var Ca=num("mgCa"); if(!isFinite(Ca)||Ca<=0)Ca=1.4;
+  var Aproj=Math.max(A,B)*(Htot+Hleg*0.35);
+  var Fw=qvento*Ca*Aproj, zCg=Hleg+Htot/2, Mw=Fw*zCg;
+  var AGZ={"0":0.025,"1":0.05,"2":0.10,"3":0.15,"4":0.15};
+  var SOLO={B:[1.00,1.00],C:[1.20,1.70],D:[1.60,2.40],E:[2.50,3.50]};
+  var zona=selv("mgZona","0"), solo=selv("mgSolo","C");
+  var ag=AGZ[zona]||0.025, CaS=(SOLO[solo]||SOLO.C)[0];
+  var Rsis=selvN("mgRsis",3);
+  var Sds=2.5*ag*CaS, Cs=Math.min(Sds/Rsis,0.20);
+
+  /* ---------- ETAPA 9 — PESOS ---------- */
+  var mChapa=Achapa*(tcom/1000)*RHOACO;
+  var mEnr=CS.Wreq>0?(Math.max(8,Math.pow(CS.Wreq,0.75))*1e-4*RHOACO*(ArA+ArB)/sst):0;
+  var mGr=grOn?(selGr.best.kg*nBarras*grVao):0;
+  var mAcess=0.12*(mChapa+mEnr);
+  var mVazio=(mChapa+mEnr+mGr+mAcess)*fself;
+  var Wperm=mVazio/1000*g;                              // kN
+  var Wmat=Vgeo*rho*g;                                  // kN — granel (moega cheia até a borda)
+  var Vsis=Cs*(Wperm+0.8*Wmat);
+  var Flat=Math.max(Fw,Vsis);
+  var latGov=(Vsis>Fw)?"sismo (NBR 15421)":"vento (NBR 6123)";
+  var Mlat=(Flat===Fw)?Mw:(Vsis*zCg);
+
+  /* ---------- ETAPA 10 — MONTANTES E VIGAS ---------- */
+  var Ncol=selvN("mgNcol",4);
+  var Kbuc=({contrav:1.0,engast:2.0,birrot:1.0})[selv("mgTrav","contrav")]||1.0;
+  var fy_kNcm2=fy/10, lamMax=(Kbuc>=2)?150:120;
+  function chiNBR(lam){ var l0=(lam/Math.PI)*Math.sqrt(fy/200000);
+    return (l0<=1.5)?Math.pow(0.658,l0*l0):(0.877/(l0*l0)); }
+  var Qmov=movel?(Fimp+qTraf*0.5*A1/10):0;              // kN — parcela variável do equipamento móvel
+  var Nd=(1.25*Wperm+gf*Wmat+1.4*Qmov)/Ncol;
+  var braco=Math.max(A,B)/2;
+  var dNlat=1.4*Mlat/(braco*Math.max(2,Ncol/2));
+  var Pcol=Nd+dNlat;
+  var Nup=1.4*Mlat/(braco*Math.max(2,Ncol/2))-0.9*Wperm/Ncol;
+  var Acol=Math.max(20,Pcol/(0.6*0.90*fy_kNcm2)), chiU=0.6, lamC=0, imn=0;
+  for(var it=0;it<8;it++){ imn=0.4*Math.sqrt(Acol); lamC=Kbuc*(Hleg*100)/Math.max(imn,0.1);
+    chiU=chiNBR(lamC); Acol=Math.max(20,Pcol/(chiU*0.90*fy_kNcm2)); }
+  var iReq=Kbuc*(Hleg*100)/lamMax;
+  /* vigas de apoio: 2 vigas paralelas ao lado maior, vão entre montantes */
+  var vaoViga=Math.max(A,B);
+  var qViga=(1.25*Wperm+gf*Wmat+1.4*Qmov)/2/vaoViga;    // kN/m por viga
+  var Mviga=qViga*vaoViga*vaoViga/8;
+  var Wviga=Mviga/(sadm*1000)*1e6;
+  /* cinta superior (borda) e anel de transição */
+  var vaoCinta=perim/Ncol;
+  var Wcinta=(phTot*gf*Math.max(sst,Hc))*vaoCinta*vaoCinta/10/(sadm*1000)*1e6;
+  var qhAnel=nMer*Math.cos(aVrad)*gf;
+  var Manel=qhAnel*(perimB/Math.max(Ncol,2))*(perimB/Math.max(Ncol,2))/10;
+  var Nanel=qhAnel*Math.max(C,D)/2;
+  var WanelReq=Manel/(sadm*1000)*1e6, AanelReq=Nanel/(0.90*fy_kNcm2);
+  var famC=selv("mgFamC",""), famM=selv("mgFamM","");
+  var selCinta=selPerfil({W:Math.max(Wcinta,1)},famC);
+  var selEnr=selPerfil({W:Math.max(CS.Wreq*0.35,1)},famC);
+  var selAnel=selPerfil({W:Math.max(WanelReq,1),A:Math.max(AanelReq,1)},famC);
+  var selViga=selPerfil({W:Math.max(Wviga,1)},famM);
+  var selMont=selPerfil({A:Acol,i:iReq},famM);
+
+  /* ---------- ETAPA 11 — PLACA DE BASE, CHUMBADORES ---------- */
+  var fck=num("mgFck"); if(!isFinite(fck)||fck<=0)fck=30;
+  var fub=selvN("mgFub",400), nCh=selvN("mgNch",4);
+  var fcd=0.85*fck/1.4;
+  var Abp=Pcol*1000/(fcd*1e6)*1e4;
+  var ladoBP=Math.ceil(Math.sqrt(Math.max(Abp,100))*1.15/5)*5*10;
+  var fpBP=Pcol*1000/(ladoBP*ladoBP);
+  var tBP=0.25*ladoBP*Math.sqrt(2*fpBP/(0.90*fy));
+  if(!isFinite(tBP)||tBP<16)tBP=16;
+  var tBPcom=[16,19,22.4,25,31.5,38,50,63,75].find(function(x){return x>=tBP;})||75;
+  var Ntrac=Math.max(0,Nup);
+  var AsCh=(Ntrac>0)?(Ntrac*1000/nCh)/(0.75*fub/1.35)/100:0;
+  var DIACH=[16,20,22,25,32,38,45,50];
+  var AsEf=function(d){ return Math.PI*Math.pow(0.78*d,2)/4/100; };
+  var diaCh=DIACH[DIACH.length-1];
+  for(var d2=0;d2<DIACH.length;d2++){ if(AsEf(DIACH[d2])>=Math.max(AsCh,1.0)){ diaCh=DIACH[d2]; break; } }
+  var LancCh=Math.max(300,Math.ceil(12*diaCh/50)*50);
+
+  /* ---------- ETAPA 12 — FADIGA E REVESTIMENTO ---------- */
+  var ciclos=(Q>0&&Vcarga>0)?(Q*1000/(Vcarga*rho*1000)*24*300):0;   // ciclos de carga por ano
+  var dSc=selvN("mgDsc",71);
+  var dSD=dSc*Math.pow(0.4,1/3), dSL=dSD*Math.pow(0.05,0.2);
+  var dSigma=(pSwitch-pnF)*gf*Math.max(sst,0.5)/(tcom/1000)/1000;    // MPa — variação na parede
+  var fadOK=(dSigma<=dSL);
+  var revUHMW=(alfaExig-alfaVale)>0.5;
+
+  /* ================= RESULTADOS ================= */
+  var OUT=[
+    {sec:"Etapa 0 — Classificação normativa e material"},
+    {k:"Tipo de equipamento",v:"MOEGA DE ALIMENTAÇÃO em tronco de pirâmide "+(Hc>0.01?("com colarinho reto de "+(Hc*1000).toFixed(0)+" mm no topo"):"sem colarinho reto")+", apoiada sobre "+Ncol.toFixed(0)+" montantes metálicos, abastecida por "+abastTxt+".",hi:true},
+    {k:"Classe de avaliação da ação (EN 1991-4)",v:"AAC "+AAC+"   ·   massa armazenada "+Mutil.toFixed(1).replace(".",",")+" t   —  Classe 1 até 100 t · Classe 2 de 100 a 10.000 t · Classe 3 acima de 10.000 t"},
+    {k:"Classe de esbeltez  hc/dc",v:hcDc.toFixed(2).replace(".",",")+"   →   "+clsEsb+"   (Ch = "+Ch.toFixed(2).replace(".",",")+" · Cw = "+Cw.toFixed(2).replace(".",",")+")"},
+    {k:"Material",v:"γ = "+rho.toFixed(2).replace(".",",")+" t/m³   ·   φi = "+phi.toFixed(0)+"°   ·   φw = "+phw.toFixed(0)+"°   ·   δ = "+deff.toFixed(0)+"°   ·   c = "+coes.toFixed(2).replace(".",",")+" kPa   ·   d50 = "+d50.toFixed(0)+" mm"},
+    {k:"Resistência inconfinada  σc = 2c·cosφi/(1−senφi)",v:sc.toFixed(2).replace(".",",")+" kPa"+(sc<0.01?"   —  material não coesivo":"")},
+
+    {sec:"Etapa 1 — Geometria e volumes"},
+    {k:"Dimensional superior  A × B",v:(A*1000).toFixed(0)+" × "+(B*1000).toFixed(0)+" mm   (área "+A1.toFixed(2).replace(".",",")+" m²)",hi:true},
+    {k:"Altura da moega  H   ·   colarinho reto  Hc",v:(H*1000).toFixed(0)+" mm   ·   "+(Hc*1000).toFixed(0)+" mm   →   altura total "+(Htot*1000).toFixed(0)+" mm"},
+    {k:"Boca de descarga  C × D",v:(C*1000).toFixed(0)+" × "+(D*1000).toFixed(0)+" mm   (área "+A2.toFixed(3).replace(".",",")+" m²)",hi:true},
+    {k:"Recuos horizontais  (A−C)/2  ·  (B−D)/2",v:(tA*1000).toFixed(0)+" mm   ·   "+(tB*1000).toFixed(0)+" mm"},
+    {k:"ÂNGULO DAS FACES  αA / αB  (da horizontal)",v:alfaA.toFixed(1).replace(".",",")+"°  /  "+alfaB.toFixed(1).replace(".",",")+"°",hi:true},
+    {k:"ÂNGULO DE VALE  αv   (cot²αv = cot²αA + cot²αB)",v:alfaVale.toFixed(1).replace(".",",")+"°   —  a aresta de encontro das faces é SEMPRE mais rasa que qualquer face isolada; é ela que governa o escoamento, e não o ângulo que se lê no desenho de uma face",hi:true},
+    {k:"Comprimento inclinado das faces",v:slB.toFixed(2).replace(".",",")+" m (faces A)   ·   "+slA.toFixed(2).replace(".",",")+" m (faces B)   ·   aresta de vale "+Math.sqrt(H*H+tA*tA+tB*tB).toFixed(2).replace(".",",")+" m"},
+    {k:"VOLUME GEOMÉTRICO  V = (H/3)·(A1 + A2 + √(A1·A2)) + A1·Hc",v:Vgeo.toFixed(2).replace(".",",")+" m³   (tronco "+Vtronco.toFixed(2).replace(".",",")+" + colarinho "+Vcol.toFixed(2).replace(".",",")+")",hi:true},
+    {k:"Montículo sobre a boca  (ângulo de repouso "+rep.toFixed(0)+"°)",v:"h = "+hCone.toFixed(2).replace(".",",")+" m   ·   V = "+Vcone.toFixed(2).replace(".",",")+" m³   —  volume adicional que a moega recebe, mas que não deve ser considerado útil"},
+    {k:"Área de chapa (4 faces + colarinho)",v:Achapa.toFixed(2).replace(".",",")+" m²"},
+
+    {sec:"Etapa 2 — Capacidade e autonomia"},
+    {k:"Fator de enchimento  η",v:eta.toFixed(2).replace(".",",")+"   —  folga de borda, ângulo de repouso e volume não retomável"},
+    {k:"VOLUME ÚTIL  V · η",v:Vutil.toFixed(2).replace(".",",")+" m³",hi:true},
+    {k:"MASSA ÚTIL ARMAZENADA",v:Mutil.toFixed(2).replace(".",",")+" t   =   "+fmt(Math.round(Mutil*1000))+" kg",hi:true},
+    {k:"AUTONOMIA para a vazão de projeto",v:autonMin.toFixed(1).replace(".",",")+" min   a "+Q.toFixed(0)+" t/h"+(autonMin<3?"   ⚠ abaixo de 3 min — a alimentação fica intermitente e a planta a jusante sofre variação de vazão":"   ✓"),hi:true},
+    {k:"Ciclos de abastecimento para encher",v:(nCargas>0? nCargas.toFixed(1).replace(".",",")+" cargas de "+Vcarga.toFixed(1).replace(".",",")+" m³   (intervalo médio de "+(autonMin/Math.max(nCargas,1)).toFixed(1).replace(".",",")+" min entre cargas)" : "abastecimento contínuo — não se aplica")},
+    {k:"Peso do granel na moega cheia",v:kNkg(Wmat)},
+
+    {sec:"Etapa 3 — Regime de fluxo (ábaco de Jenike)"},
+    {k:"Ângulo limite do ábaco  (δ = "+deff.toFixed(0)+"° · φw = "+phw.toFixed(0)+"°)",v:"tremonha piramidal (axissimétrica): θ ≤ "+thLimCon.toFixed(1).replace(".",",")+"° da vertical   ·   em cunha (fenda): θ ≤ "+thLimPla.toFixed(1).replace(".",",")+"°"},
+    {k:"Margem de projeto adotada",v:"3°   —  prática consagrada: projetar 3° mais íngreme que o limite do ábaco, para cobrir a dispersão do ensaio e a variação de umidade"},
+    {k:"ÂNGULO DE FACE EXIGIDO para fluxo de massa",v:alfaExig.toFixed(1).replace(".",",")+"°   (numa tremonha em cunha bastariam "+alfaExigPla.toFixed(1).replace(".",",")+"°)",hi:true},
+    {k:"Verificação das faces  (αA, αB ≥ exigido)",v:Math.min(alfaA,alfaB).toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(faceOK?"   ✓ as faces atendem":"   ⚠ as faces já não atendem")},
+    {k:"VERIFICAÇÃO DO VALE  (αv ≥ exigido) — esta é a que decide",v:alfaVale.toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(valeOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — diferença de "+(alfaExig-alfaVale).toFixed(1).replace(".",",")+"°"),hi:true},
+    {k:"REGIME DE FLUXO RESULTANTE",v:regime+(fluxoMassa?"   —  todo o material se move junto; sem zonas mortas, sem segregação, desgaste distribuído":"   —  o material escoa por um canal central; forma-se zona morta nos cantos, com segregação, degradação do material parado e risco de tubulação (rathole)"),hi:true},
+    {k:"Diâmetro de tubulação (rathole)  Df = G(δ)·σc/γ",v:(Drat>0.001?(Math.round(Drat*1000)+" mm   (G = "+Gfun.toFixed(1).replace(".",",")+")"+(fluxoMassa?"   —  não se aplica em fluxo de massa":"   —  em fluxo de funil a boca precisa superar este valor, e não apenas o arco")):"≈ 0 — material sem coesão relevante")},
+    {k:"Abertura mínima anti-arco  B = H(θ)·σc/γ",v:(Barco>0.001?(Math.round(Barco*1000)+" mm"):"≈ 0 — sem coesão relevante")+"   ·   arco mecânico 8·d50 = "+Math.round(Bmec*1000)+" mm"},
+    {k:"ABERTURA MÍNIMA GOVERNANTE",v:Math.round(Bmin*1000)+" mm   vs   menor dimensão da boca "+Math.round(Bboca*1000)+" mm"+(bocaOK?"   ✓ ATENDE":"   ⚠ INSUFICIENTE — risco de arco ou entupimento"),hi:true},
+    {k:"Índice de escoamento  ffc = γ·B/σc",v:(ffc>900?"não coesivo":(ffc.toFixed(1).replace(".",",")+"   —  ffc < 4 indica material coesivo; confirmar σc e σ1 em ensaio Jenike Shear antes de fechar o projeto"))},
+    {k:"Recomendação de fluxo",v:(fluxoMassa? "Geometria adequada ao fluxo de massa. Manter o acabamento da chapa (jateada e pintada, ou revestida) — o valor de φw adotado só é válido com superfície lisa e sem corrosão."
+      : "Para converter em fluxo de massa há três caminhos, em ordem de custo: (a) revestir as faces com UHMW ou aço inox 304 2B, o que reduz φw em 8 a 15° e afrouxa o ângulo exigido; (b) adotar tremonha em CUNHA (fenda), que exige apenas "+alfaExigPla.toFixed(1).replace(".",",")+"° em vez de "+alfaExig.toFixed(1).replace(".",",")+"° — quase sempre a solução mais econômica; (c) aumentar H para "+(Math.sqrt(tA*tA+tB*tB)*Math.tan(alfaExig*Math.PI/180)).toFixed(2).replace(".",",")+" m, mantendo A, B, C e D. Alternativamente, aceitar o fluxo de funil e garantir boca maior que o rathole, com ativação (cone vibratório ou canhões de ar).")},
+
+    {sec:"Etapa 4 — Vazão de descarga por gravidade (Beverloo)"},
+    {k:"Correlação de fenda  W = 1,03·ρb·√g·L·(B − k·d)^1,5",v:Qbev.toFixed(0)+" t/h   (L = "+Lslot.toFixed(2).replace(".",",")+" m · B = "+Wslot.toFixed(2).replace(".",",")+" m · k = 1,5)",hi:true},
+    {k:"Folga sobre a vazão de projeto",v:(folgaQ>=1.5? folgaQ.toFixed(1).replace(".",",")+" ×   ✓ a boca não estrangula — quem dosa é o alimentador, como deve ser"
+      : (folgaQ>=1? folgaQ.toFixed(1).replace(".",",")+" ×   ⚠ folga pequena — a boca começa a limitar; o alimentador perde autoridade sobre a vazão"
+      : folgaQ.toFixed(2).replace(".",",")+" ×   ⚠ A BOCA ESTRANGULA a vazão de projeto — aumentar C ou D")),hi:(folgaQ<1.5)},
+
+    {sec:"Etapas 5-6 — Pressões (EN 1991-4 / NBR 11700)"},
+    {k:"Raio hidráulico  Rh = A·B/(2·(A+B))   ·   dc = 4·Rh",v:Rh.toFixed(3).replace(".",",")+" m   ·   "+dcar.toFixed(2).replace(".",",")+" m"},
+    {k:"Sobrecarga do montículo sobre a boca  q0 = γ·Hsob",v:q0.toFixed(1).replace(".",",")+" kPa   (Hsob = "+Hsob.toFixed(2).replace(".",",")+" m)"},
+    {k:"K e μ com os fatores de conversão  (a_K = a_μ = 1,15)",v:"K médio "+Km.toFixed(3).replace(".",",")+" (sup "+Ku.toFixed(3).replace(".",",")+" · inf "+Kl.toFixed(3).replace(".",",")+")   ·   μ médio "+MUm.toFixed(3).replace(".",",")+" (sup "+MUu.toFixed(3).replace(".",",")+" · inf "+MUl.toFixed(3).replace(".",",")+")"},
+    {k:"Caso 1 — pressão máxima na parede  (K sup, μ inf)",v:"ph = "+ph.toFixed(1).replace(".",",")+" kPa   →   projeto "+phD.toFixed(1).replace(".",",")+" kPa"},
+    {k:"Caso 2 — atrito máximo  (K sup, μ sup)",v:"pw = "+pwat.toFixed(1).replace(".",",")+" kPa   →   projeto "+pwD.toFixed(1).replace(".",",")+" kPa"},
+    {k:"Caso 3 — pressão vertical máxima na transição  (K inf, μ inf)",v:"pv = "+pv.toFixed(1).replace(".",",")+" kPa   →   projeto "+pvD.toFixed(1).replace(".",",")+" kPa",hi:true},
+    {k:"Carga localizada (patch load)  Cop = 0,42 + e/dc",v:(AAC==="1"?"dispensada na Classe 1":(Cop.toFixed(2).replace(".",",")+"   →   "+pPatch.toFixed(1).replace(".",",")+" kPa"))},
+    {k:"PRESSÃO HORIZONTAL DE PROJETO  ph + patch",v:phTot.toFixed(1).replace(".",",")+" kPa",hi:true},
+    {k:"Tremonha — atrito mobilizado  μ_heff = min(tanφw ; (1−K)/(2·tanβ))",v:hopA.muHe.toFixed(3).replace(".",",")+" (faces A, β = "+hopA.beta.toFixed(1).replace(".",",")+"°)   ·   "+hopB.muHe.toFixed(3).replace(".",",")+" (faces B, β = "+hopB.beta.toFixed(1).replace(".",",")+"°)"+((hopA.muHe<muW-0.005||hopB.muHe<muW-0.005)?"   —  o atrito NÃO se mobiliza por completo (parede rasa): o valor de equilíbrio é menor que tanφw = "+muW.toFixed(3).replace(".",",")+", e usar tanφw direto seria contra a segurança":"   —  atrito plenamente mobilizado")},
+    {k:"Fator de enchimento  Ff = 1 − b/(1 + tanβ/μ_heff)   ·   expoente n",v:"faces A: Ff = "+hopA.Ff.toFixed(3).replace(".",",")+" · n = "+hopA.n.toFixed(3).replace(".",",")+"   ·   faces B: Ff = "+hopB.Ff.toFixed(3).replace(".",",")+" · n = "+hopB.n.toFixed(3).replace(".",",")+"   (b = 0,2 · S = 2)"},
+    {k:"Distância ao vértice virtual  (transição → boca)",v:"faces A: "+hopA.hh.toFixed(2).replace(".",",")+" → "+hopA.x0.toFixed(2).replace(".",",")+" m   ·   faces B: "+hopB.hh.toFixed(2).replace(".",",")+" → "+hopB.x0.toFixed(2).replace(".",",")+" m   —  o vértice da pirâmide fica abaixo da boca; x é medido a partir dele"},
+    {k:"PRESSÃO NORMAL NA PAREDE DA TREMONHA  pnf = Ff·pv(x)",v:pnF.toFixed(1).replace(".",",")+" kPa   ·   atrito ptf = "+ptF.toFixed(1).replace(".",",")+" kPa   —  governa: "+hopGovNome,hi:true},
+    {k:"PRESSÃO DE SWITCH na transição  ps = 2·pnf",v:pSwitch.toFixed(1).replace(".",",")+" kPa   aplicada numa faixa de "+(hSwitch*1000).toFixed(0)+" mm abaixo da transição — no início da descarga o estado de tensões passa de ativo para passivo e uma frente de pressão percorre a transição. Adota-se a amplificação clássica de Jenike (2×), que é o pico transitório e é ele que dimensiona a chapa e o anel de transição.",hi:true},
+
+    {sec:"Etapa 7 — Chapa das paredes e enrijecedores"},
+    {k:"Aço e critérios",v:"fy = "+fy.toFixed(0)+" MPa   ·   σadm = "+sadm.toFixed(0)+" MPa   ·   γf = "+gf.toFixed(2).replace(".",",")+"   ·   flecha ≤ L/"+limFl.toFixed(0)+"   ·   sobrespessura de desgaste "+abr.toFixed(1).replace(".",",")+" mm"},
+    {k:"ESPAÇAMENTO ÓTIMO DE ENRIJECEDORES",v:sst.toFixed(1).replace(".",",")+" m"+(sUser>0?"   (imposto pelo usuário)":"   (otimizado por massa: chapa + enrijecedor + fabricação)"),hi:true},
+    {k:"Chapa do colarinho  (ph = "+phTot.toFixed(1).replace(".",",")+" kPa)",v:"calculada "+chColar.tcalc.toFixed(1).replace(".",",")+" mm  ·  flecha "+chColar.tfl.toFixed(1).replace(".",",")+" mm   →   comercial "+chColar.tcom.toFixed(1).replace(".",",")+" mm"+(chColar.govFl?"   (governa a flecha)":"")},
+    {k:"Chapa das faces inclinadas  (pn = "+pnDes.toFixed(1).replace(".",",")+" kPa)",v:"calculada "+chFace.tcalc.toFixed(1).replace(".",",")+" mm   →   comercial "+chFace.tcom.toFixed(1).replace(".",",")+" mm"},
+    {k:"Chapa na faixa de switch  (ps = "+pSwitch.toFixed(1).replace(".",",")+" kPa)",v:"calculada "+chSwitch.tcalc.toFixed(1).replace(".",",")+" mm   →   comercial "+chSwitch.tcom.toFixed(1).replace(".",",")+" mm"},
+    {k:"Tração meridional na face  n = Fv/(U·senαv)",v:nMer.toFixed(1).replace(".",",")+" kN/m   →   espessura por tração "+tTrac.toFixed(2).replace(".",",")+" mm   (Fv = "+kNkg(Fvert,0)+")"},
+    {k:"ESPESSURA ADOTADA PARA A MOEGA",v:tcom.toFixed(1).replace(".",",")+" mm   (inclui "+abr.toFixed(1).replace(".",",")+" mm de sobrespessura de desgaste)",hi:true},
+    {k:"Enrijecedores das faces",v:"módulo requerido "+CS.Wreq.toFixed(0)+" cm³   →   "+txtPerfil(selEnr.best)},
+    {k:"Alternativas de enrijecedor",v:txtAlts(selEnr,3)},
+
+    {sec:"Etapa 8 — Cinta de borda, anel de transição e vigas"},
+    {k:"Cinta superior (borda)  — vão entre montantes "+vaoCinta.toFixed(2).replace(".",",")+" m",v:"módulo requerido "+Wcinta.toFixed(0)+" cm³   →   "+txtPerfil(selCinta.best),hi:true},
+    {k:"Alternativas de cinta",v:txtAlts(selCinta,3)},
+    {k:"Anel de transição — esforços",v:"q_h = "+qhAnel.toFixed(1).replace(".",",")+" kN/m   ·   M = "+Manel.toFixed(2).replace(".",",")+" kN·m   ·   N = "+kNkg(Nanel,1)},
+    {k:"Anel de transição — perfil",v:"W "+WanelReq.toFixed(0)+" cm³  ·  A "+AanelReq.toFixed(1).replace(".",",")+" cm²   →   "+txtPerfil(selAnel.best),hi:true},
+    {k:"Vigas de apoio (2 vigas, vão "+vaoViga.toFixed(2).replace(".",",")+" m)",v:"q = "+qViga.toFixed(1).replace(".",",")+" kN/m   ·   M = "+Mviga.toFixed(1).replace(".",",")+" kN·m   ·   W "+Wviga.toFixed(0)+" cm³   →   "+txtPerfil(selViga.best),hi:true},
+    {k:"Alternativas de viga",v:txtAlts(selViga,3)},
+
+    ...(grOn?[
+    {sec:"Etapa 9 — Grelha de proteção"},
+    {k:"Função",v:"Barra a entrada de blocos acima da granulometria aceita pelo circuito e de sucata (dentes de concha, cabos, chapas), e serve de proteção de pessoas contra queda na moega. Em moega abastecida por equipamento móvel ela é item de segurança, não acessório.",hi:true},
+    {k:"Abertura da malha",v:grMalha.toFixed(0)+" × "+grMalha.toFixed(0)+" mm"+(grMalha<3*d50?"   ⚠ menor que 3 × d50 ("+(3*d50).toFixed(0)+" mm) — vai reter material de produção e exigir limpeza constante":"   ✓ acima de 3 × d50")},
+    {k:"Vão livre das barras  ·  número de barras",v:grVao.toFixed(2).replace(".",",")+" m   ·   "+nBarras.toFixed(0)+" barras"},
+    {k:"Carga concentrada de bloco  ·  amplificação dinâmica",v:grP.toFixed(0)+" kN   ·   φ = "+phiImp.toFixed(1).replace(".",",")+"   →   carga de projeto "+Pgd.toFixed(1).replace(".",",")+" kN (ELU)"},
+    {k:"Momento e módulo requeridos  M = P·L/4",v:Mgr.toFixed(1).replace(".",",")+" kN·m   ·   W "+Wgr.toFixed(0)+" cm³"},
+    {k:"PERFIL DA BARRA DA GRELHA",v:txtPerfil(selGr.best),hi:true},
+    {k:"Alternativas de barra",v:txtAlts(selGr,3)},
+    {k:"Flecha admissível",v:flechaGr.toFixed(1).replace(".",",")+" mm   (L/"+limFl.toFixed(0)+")"},
+    {k:"Detalhes construtivos",v:"Barras posicionadas com a maior inércia na vertical e inclinadas 5 a 10° para o centro, de modo que o bloco retido escorregue para a borda e possa ser removido. Prever apoios removíveis (grelha em módulos içáveis) para manutenção, e travamento contra levantamento pela concha."}
+    ]:[]),
+
+    ...(movel?[
+    {sec:"Etapa 10 — Cargas de equipamento móvel"},
+    {k:"Equipamento considerado",v:abastTxt+" de "+Peq.toFixed(0)+" t de massa operacional"+(Vcarga>0?", concha/caçamba de "+Vcarga.toFixed(1).replace(".",",")+" m³ ("+(mCarga/1000).toFixed(1).replace(".",",")+" t por ciclo)":""),hi:true},
+    {k:"Impacto da descarga  (queda de "+Hq.toFixed(1).replace(".",",")+" m)",v:"v = "+vImp.toFixed(1).replace(".",",")+" m/s   ·   E = "+Eimp.toFixed(1).replace(".",",")+" kJ   ·   F ≈ "+kNkg(Fimp,0)+"   (parada em 150 mm sobre leito de material)",hi:true},
+    {k:"Regra de operação decorrente",v:"Nunca descarregar sobre a moega vazia: com o fundo de aço nu a distância de parada cai para poucos milímetros e a força de impacto sobe uma ordem de grandeza. Manter leito residual permanente e revestir a zona de impacto com borracha ou UHMW."},
+    {k:"Carga por roda do equipamento carregado",v:kNkg(Proda,0)+"   —  verificar a plataforma de descarga e o pavimento de aproximação para esta carga concentrada"},
+    {k:"Sobrecarga de tráfego na plataforma",v:qTraf.toFixed(0)+" kPa   —  adotar no mínimo este valor no dimensionamento do piso e das vigas de borda"},
+    {k:"Batentes e defensas — força de choque",v:kNkg(Fdef,0)+"   (10 % da massa operacional)   ·   momento a 1,0 m: "+Mdef.toFixed(1).replace(".",",")+" kN·m",hi:true},
+    {k:"Disposição das defensas",v:"Batente contínuo na borda de descarga, com altura mínima de 0,75 m (bloqueia a roda antes do eixo) e ancoragem independente da estrutura da moega, para que o choque não seja transmitido à chapa. Sinalização e delimitação do raio de manobra."}
+    ]:[]),
+
+    {sec:"Etapa 11 — Vento (NBR 6123) e sismo (NBR 15421)"},
+    {k:"Velocidade característica  Vk = V0·S1·S2·S3",v:Vk.toFixed(1).replace(".",",")+" m/s   (V0 = "+V0.toFixed(0)+" · S1 = "+S1w.toFixed(2).replace(".",",")+" · S2 = "+S2w.toFixed(3).replace(".",",")+" cat. "+catW+" cl. "+clsW+" · S3 = "+S3w.toFixed(2).replace(".",",")+")"},
+    {k:"Pressão dinâmica  q = 0,613·Vk²",v:qvento.toFixed(2).replace(".",",")+" kPa   ·   cota do topo z = "+Ztopo.toFixed(1).replace(".",",")+" m"},
+    {k:"Força global de arrasto  Fw = q·Ca·A",v:kNkg(Fw)+"   (Ca = "+Ca.toFixed(2).replace(".",",")+" · A = "+Aproj.toFixed(1).replace(".",",")+" m²)   ·   M = "+Mw.toFixed(1).replace(".",",")+" kN·m"},
+    {k:"Sismo  Sds = 2,5·ag·Ca   ·   Cs = Sds/R",v:"zona "+zona+" · solo "+solo+"   →   ag = "+ag.toFixed(3).replace(".",",")+"g · Sds = "+Sds.toFixed(3).replace(".",",")+" · Cs = "+Cs.toFixed(3).replace(".",",")},
+    {k:"Cortante sísmico de base  V = Cs·(G + 0,8·Q)",v:kNkg(Vsis)},
+    {k:"AÇÃO LATERAL GOVERNANTE",v:kNkg(Flat)+"   —   "+latGov,hi:true},
+
+    {sec:"Etapa 12 — Montantes, placa de base e fundação"},
+    {k:"Peso próprio estimado da moega (vazia)",v:fmt(Math.round(mVazio))+" kg   =   "+kNkg(Wperm)+"   (chapa "+fmt(Math.round(mChapa))+" kg · enrijecedores "+fmt(Math.round(mEnr))+" kg"+(grOn?" · grelha "+fmt(Math.round(mGr))+" kg":"")+" · acessórios e fator "+fself.toFixed(2).replace(".",",")+")",hi:true},
+    {k:"PESO TOTAL EM OPERAÇÃO  (vazia + granel)",v:kNkg(Wperm+Wmat)+"   =   "+fmt(Math.round(mVazio+Vgeo*rho*1000))+" kg",hi:true},
+    {k:"Combinação ELU  1,25·G + "+gf.toFixed(2).replace(".",",")+"·Q + 1,4·lateral",v:"por montante: N = "+kNkg(Nd,1)+"   ·   parcela do momento lateral ± "+kNkg(dNlat,1)},
+    {k:"CARGA NO MONTANTE MAIS SOLICITADO",v:kNkg(Pcol),hi:true},
+    {k:"Flambagem  (K = "+Kbuc.toFixed(1).replace(".",",")+" · Lfl = "+Hleg.toFixed(2).replace(".",",")+" m)",v:"λ = "+lamC.toFixed(0)+"   ·   χ = "+chiU.toFixed(3).replace(".",",")+"   ·   A requerida "+Acol.toFixed(1).replace(".",",")+" cm²   ·   i_min "+iReq.toFixed(2).replace(".",",")+" cm"+(lamC>lamMax?"   ⚠ esbeltez acima de "+lamMax:"")},
+    {k:"PERFIL DO MONTANTE  ("+Ncol.toFixed(0)+" peças de "+Hleg.toFixed(2).replace(".",",")+" m)",v:txtPerfil(selMont.best),hi:true},
+    {k:"Alternativas de montante",v:txtAlts(selMont,3)},
+    {k:"Arrancamento (moega vazia + lateral)",v:(Ntrac>0? kNkg(Ntrac,1)+"   ⚠ há tração — os chumbadores são dimensionados por ela" : "sem tração — os chumbadores são construtivos")},
+    {k:"Placa de base  (fck = "+fck.toFixed(0)+" MPa · fcd = "+fcd.toFixed(1).replace(".",",")+" MPa)",v:ladoBP.toFixed(0)+" × "+ladoBP.toFixed(0)+" mm   ·   espessura calculada "+tBP.toFixed(1).replace(".",",")+" mm   →   comercial "+tBPcom.toFixed(1).replace(".",",")+" mm",hi:true},
+    {k:"Chumbadores",v:nCh.toFixed(0)+" × Ø"+diaCh.toFixed(0)+" mm (classe "+fub.toFixed(0)+" MPa)   ·   ancoragem mínima "+LancCh.toFixed(0)+" mm"+(Ntrac<=0?"   (mínimo construtivo)":"")},
+    {k:"REAÇÕES NA FUNDAÇÃO (por montante)",v:"vertical "+kNkg(Pcol)+"   ·   horizontal "+kNkg(Flat/Ncol,1)+(Ntrac>0?("   ·   arrancamento "+kNkg(Ntrac,1)):""),hi:true},
+    {k:"Reação total na base",v:"vertical "+kNkg(1.25*Wperm+gf*Wmat)+"   ·   horizontal "+kNkg(Flat)+"   ·   momento de tombamento "+Mlat.toFixed(1).replace(".",",")+" kN·m"},
+
+    {sec:"Etapa 13 — Fadiga, revestimento e dispositivos"},
+    {k:"Ciclos de carga estimados",v:(ciclos>0? fmt(Math.round(ciclos))+" ciclos/ano   (enchimento e esvaziamento completos)" : "informar o volume da carga de abastecimento para estimar")},
+    {k:"Variação de tensão na parede  (switch − enchimento)",v:dSigma.toFixed(1).replace(".",",")+" MPa   vs   limite de truncamento ΔσL = "+dSL.toFixed(1).replace(".",",")+" MPa   (categoria ΔσC = "+dSc.toFixed(0)+" MPa)"+(fadOK?"   ✓ abaixo do limite — vida infinita à fadiga":"   ⚠ acima do limite — verificar as soldas da transição pelo Anexo K da NBR 8800 / EN 1993-1-9"),hi:!fadOK},
+    {k:"Revestimento das faces",v:(revUHMW? "RECOMENDADO — o ângulo de vale está "+(alfaExig-alfaVale).toFixed(1).replace(".",",")+"° abaixo do exigido. UHMW-PE de 10 a 12 mm reduz φw para 10 a 15° e afrouxa o ângulo exigido; aço inox 304 2B é alternativa quando há temperatura ou risco de corte por blocos."
+      : "Não é necessário para o fluxo. Avaliar apenas por desgaste: para material abrasivo, chapa antidesgaste (Hardox 400/450) na zona de impacto e no terço inferior das faces.")},
+    {k:"Dispositivos de ativação",v:(fluxoMassa? "Não necessários. Prever apenas conexão flangeada na boca para instalação futura de vibrador, caso o material se altere."
+      : "Em fluxo de funil, prever ativação: cone vibratório na boca (converte o padrão de descarga e elimina a zona morta imediata) ou canhões de ar nas faces. Dimensionar a estrutura já para a carga dinâmica do ativador.")},
+    {k:"Interface com o alimentador",v:"A boca "+(C*1000).toFixed(0)+" × "+(D*1000).toFixed(0)+" mm deve coincidir com a abertura da moega sobre a correia (L2) e com a largura entre guias do alimentador. A pressão vertical de projeto na boca é "+pvD.toFixed(1).replace(".",",")+" kPa — usar este valor como dado de entrada na calculadora do alimentador de correia."},
+    {k:"Instrumentação mínima",v:"Sensor de nível alto (intertravado com o equipamento de abastecimento ou com o alarme de operação), sensor de nível baixo (garante o leito amortecedor e evita descarga sobre o fundo nu) e, se houver ativador, chave de fluxo na descarga."},
+
+    {sec:"Verificação global"},
+    {k:"Fluxo",v:(fluxoMassa?"✓ fluxo de massa atendido pelo ângulo de vale":"⚠ fluxo de funil — ver Etapa 3")+"   ·   abertura "+(bocaOK?"✓ acima do mínimo":"⚠ abaixo do mínimo"),hi:!(fluxoMassa&&bocaOK)},
+    {k:"Capacidade",v:(autonMin>=3?"✓":"⚠")+" autonomia de "+autonMin.toFixed(1).replace(".",",")+" min   ·   "+(folgaQ>=1.5?"✓":"⚠")+" descarga por gravidade "+folgaQ.toFixed(1).replace(".",",")+" × a vazão de projeto"},
+    {k:"Estrutura",v:(lamC<=lamMax?"✓":"⚠")+" esbeltez dos montantes λ = "+lamC.toFixed(0)+"   ·   "+(fadOK?"✓":"⚠")+" fadiga na transição   ·   espessura da moega "+tcom.toFixed(1).replace(".",",")+" mm"},
+    {k:"Observação de projeto",v:"⚠ PRÉ-DIMENSIONAMENTO. Os parâmetros de fluxo (φi, φw, δ, σc) devem ser confirmados em ensaio Jenike Shear com amostra real na umidade de operação — é o único caminho para fechar o projeto de uma moega com segurança. A verificação estrutural definitiva exige modelo com as combinações completas da NBR 8800, incluindo a moega parcialmente cheia e o carregamento excêntrico."}
+  ];
+  OUT.geo={tipo:"moega",A:A,B:B,H:H,C:C,D:D,Hc:Hc,Htot:Htot,Hleg:Hleg,
+    alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaExig:alfaExig,fluxoMassa:fluxoMassa,
+    Vgeo:Vgeo,Vutil:Vutil,Mutil:Mutil,autonMin:autonMin,Q:Q,rho:rho,
+    Bmin:Bmin,bocaOK:bocaOK,Qbev:Qbev,folgaQ:folgaQ,
+    phTot:phTot,pvD:pvD,pSwitch:pSwitch,hSwitch:hSwitch,pnDes:pnDes,
+    tcom:tcom,tcolar:chColar.tcom,sst:sst,nMer:nMer,
+    perfCinta:selCinta.best.n,perfEnr:selEnr.best.n,perfAnel:selAnel.best.n,
+    perfViga:selViga.best.n,perfCol:selMont.best.n,Ncol:Ncol,
+    grOn:grOn,grMalha:grMalha,grVao:grVao,perfGr:grOn?selGr.best.n:"",
+    mVazio:mVazio,Wperm:Wperm,Wmat:Wmat,Pcol:Pcol,Flat:Flat,latGov:latGov,
+    ladoBP:ladoBP,tBP:tBPcom,diaCh:diaCh,nCh:nCh,Ntrac:Ntrac,
+    movel:movel,Fimp:Fimp,Fdef:Fdef,Peq:Peq,abastTxt:abastTxt,Vk:Vk,fy:fy};
+  return OUT;
+}
+
 const CALCS={
+  moega_alimentacao:{
+    titulo:"Moega de Alimentação — dimensionamento executivo",
+    referencia:"GEOMETRIA: tronco de pirâmide A×B no topo, C×D na descarga, altura H, com colarinho reto opcional; ângulo de vale por cot²αv = cot²αA + cot²αB — é a aresta, e não a face, que governa o escoamento. FLUXO: A. W. Jenike (Bulletin 123) — ábaco de fluxo de massa (θ × δ × φw) para tremonha piramidal e em cunha, margem de projeto de 3°, abertura anti-arco B = H(θ)·σc/γ, diâmetro de tubulação Df = G(δ)·σc/γ em fluxo de funil; vazão de descarga por gravidade pela correlação de Beverloo para fenda. AÇÕES: EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez e de avaliação da ação, limites superior e inferior de K e μ (a_K = a_μ = 1,15) com os três casos de carga, sobrecarga do montículo, carga localizada (patch load), pressões de tremonha por Walker no enchimento e Enstad na descarga, e pressão de switch ps = 2·pn,e na transição. VENTO: ABNT NBR 6123 (S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). SISMO: ABNT NBR 15421. EQUIPAMENTO MÓVEL: grelha de proteção com carga concentrada de bloco e amplificação dinâmica, impacto da descarga de concha/caçamba, carga de roda, sobrecarga de tráfego e força de choque em batentes e defensas. ESTRUTURA: ABNT NBR 8800 — combinações de ELU e ELS, chapa a flexão e a tração meridional, enrijecedores, cinta de borda, anel de transição, vigas de apoio, montantes com curva de flambagem, placa de base, chumbadores, reações na fundação e fadiga (Anexo K / EN 1993-1-9)",
+    campos:[
+      {id:"mgTag",label:"TAG (identificação do equipamento)",tipo:"text",placeholder:"ex.: MG-101 / MOE-201"},
+      {tipo:"head",label:"Processo"},
+      {id:"mgQ",label:"Vazão de projeto  Q",unidade:"t/h",tipo:"number",valor:300},
+      {id:"mgMat",label:"Material (preset — preenche γ, φi, φw, δ, c e d50)",tipo:"select",valor:"briq_bar",onchange:"moegaPreset()",opcoes:[
+        {v:"fe_gran",t:"Minério de ferro granulado"},{v:"fe_fino",t:"Minério de ferro fino (sinter feed)"},
+        {v:"pelota",t:"Pelota"},{v:"sinter",t:"Sínter"},{v:"carvao",t:"Carvão úmido"},
+        {v:"carvao_seco",t:"Carvão seco"},{v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
+        {v:"briq_bar",t:"Briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³)"}]},
+      {id:"mgRho",label:"Densidade aparente  γ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.01"},
+      {id:"mgPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
+      {id:"mgPhw",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
+      {id:"mgDeff",label:"Ângulo efetivo de atrito interno  δ  (0 = usar φi)",unidade:"°",tipo:"number",valor:0,step:"1"},
+      {id:"mgCoes",label:"Coesão  c  (0 = material não coesivo)",unidade:"kPa",tipo:"number",valor:0.5,step:"0.1"},
+      {id:"mgD50",label:"Maior dimensão característica do material  d50",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"mgRep",label:"Ângulo de repouso (montículo no topo)",unidade:"°",tipo:"number",valor:35,step:"1"},
+      {tipo:"head",label:"Geometria da moega"},
+      {id:"mgA",label:"A — dimensional superior",unidade:"mm",tipo:"number",valor:4000,step:"50"},
+      {id:"mgB",label:"B — dimensional superior (perpendicular a A)",unidade:"mm",tipo:"number",valor:3500,step:"50"},
+      {id:"mgH",label:"H — altura do tronco de pirâmide",unidade:"mm",tipo:"number",valor:2500,step:"50"},
+      {id:"mgC",label:"C — boca de descarga (direção de A)",unidade:"mm",tipo:"number",valor:1200,step:"50"},
+      {id:"mgD",label:"D — boca de descarga (direção de B)",unidade:"mm",tipo:"number",valor:800,step:"50"},
+      {id:"mgHc",label:"Hc — colarinho reto no topo (0 = sem colarinho)",unidade:"mm",tipo:"number",valor:500,step:"50"},
+      {id:"mgHleg",label:"Altura livre sob a moega (montantes)",unidade:"m",tipo:"number",valor:4.0,step:"0.5"},
+      {id:"mgHsob",label:"Altura de material acima da boca superior (sobrecarga)",unidade:"m",tipo:"number",valor:0.5,step:"0.1"},
+      {id:"mgEta",label:"Fator de enchimento  η  (volume útil / geométrico)",tipo:"number",valor:0.85,step:"0.01"},
+      {tipo:"head",label:"Abastecimento e equipamento móvel"},
+      {id:"mgAbast",label:"Forma de abastecimento",tipo:"select",valor:"pa",opcoes:[
+        {v:"pa",t:"Pá-carregadeira"},{v:"cam",t:"Caminhão basculante"},{v:"chu",t:"Chute ou correia (sem equipamento móvel)"}]},
+      {id:"mgVcarga",label:"Volume da concha / caçamba (0 = contínuo)",unidade:"m³",tipo:"number",valor:3.0,step:"0.5"},
+      {id:"mgPeq",label:"Massa operacional do equipamento móvel",unidade:"t",tipo:"number",valor:25,step:"1"},
+      {id:"mgHq",label:"Altura de queda na descarga sobre a moega",unidade:"m",tipo:"number",valor:1.5,step:"0.1"},
+      {tipo:"head",label:"Grelha de proteção"},
+      {id:"mgGrelha",label:"Grelha de proteção na boca superior",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"Sim — dimensionar"},{v:"nao",t:"Não"}]},
+      {id:"mgGrMalha",label:"Abertura da malha da grelha",unidade:"mm",tipo:"number",valor:400,step:"50"},
+      {id:"mgGrVao",label:"Vão livre das barras (0 = menor lado da moega)",unidade:"mm",tipo:"number",valor:0,step:"100"},
+      {id:"mgGrP",label:"Carga concentrada de bloco sobre a grelha",unidade:"kN",tipo:"number",valor:30,step:"5"},
+      {tipo:"head",label:"Materiais e critérios estruturais"},
+      {id:"mgFy",label:"Aço estrutural",tipo:"select",valor:"345",opcoes:[
+        {v:"250",t:"ASTM A36 / NBR 7007 MR250  (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr.50 / AR350  (fy 345 MPa)"},
+        {v:"415",t:"ASTM A572 Gr.60  (fy 415 MPa)"}]},
+      {id:"mgAbr",label:"Sobrespessura de desgaste",unidade:"mm",tipo:"number",valor:3,step:"0.5"},
+      {id:"mgS",label:"Espaçamento de enrijecedores (0 = otimizar)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"mgNcol",label:"Número de montantes",tipo:"select",valor:"4",opcoes:[
+        {v:"4",t:"4 montantes"},{v:"6",t:"6 montantes"},{v:"8",t:"8 montantes"}]},
+      {id:"mgTrav",label:"Vinculação dos montantes",tipo:"select",valor:"contrav",opcoes:[
+        {v:"contrav",t:"Contraventado (K = 1,0)"},
+        {v:"birrot",t:"Birrotulado (K = 1,0)"},
+        {v:"engast",t:"Engastado-livre, sem contraventamento (K = 2,0)"}]},
+      {id:"mgFamC",label:"Família de perfis — cintas, enrijecedores e anel",tipo:"select",valor:"",opcoes:[
+        {v:"",t:"Qualquer (menor massa)"},{v:"U",t:"Perfil U"},{v:"W",t:"Perfil W (I/H)"},
+        {v:"LI",t:"Cantoneira de abas iguais"},{v:"LD",t:"Cantoneira de abas desiguais"},
+        {v:"TUB",t:"Tubo estrutural"},{v:"BC",t:"Barra chata"}]},
+      {id:"mgFamM",label:"Família de perfis — montantes e vigas",tipo:"select",valor:"",opcoes:[
+        {v:"",t:"Qualquer (menor massa)"},{v:"W",t:"Perfil W (I/H)"},{v:"U",t:"Perfil U"},
+        {v:"TUB",t:"Tubo estrutural"}]},
+      {id:"mgGf",label:"Coeficiente de majoração do granel  γf",tipo:"select",valor:"1.4",opcoes:[
+        {v:"1.4",t:"1,4 — normal (NBR 8800)"},{v:"1.5",t:"1,5 — conservador"},{v:"1.3",t:"1,3 — carga bem controlada"}]},
+      {id:"mgFlecha",label:"Limite de flecha da chapa",tipo:"select",valor:"150",opcoes:[
+        {v:"150",t:"L/150 — usual"},{v:"200",t:"L/200 — rigoroso"},{v:"100",t:"L/100 — tolerante"}]},
+      {id:"mgSelf",label:"Fator de peso próprio (acessórios e ligações)",tipo:"number",valor:1.15,step:"0.05"},
+      {id:"mgDsc",label:"Categoria de detalhe à fadiga  ΔσC",unidade:"MPa",tipo:"select",valor:"71",opcoes:[
+        {v:"90",t:"90 — solda de topo com penetração total, esmerilhada"},
+        {v:"71",t:"71 — solda de topo com penetração total"},
+        {v:"56",t:"56 — solda de filete contínua"},
+        {v:"40",t:"40 — solda de filete com detalhe desfavorável"}]},
+      {tipo:"head",label:"Ações — vento (NBR 6123)"},
+      {id:"mgV0",label:"Velocidade básica do vento  V0",unidade:"m/s",tipo:"number",valor:35,step:"1"},
+      {id:"mgS1",label:"S1 — fator topográfico",tipo:"select",valor:"1.0",opcoes:[
+        {v:"1.0",t:"1,00 — terreno plano ou fracamente acidentado"},
+        {v:"1.1",t:"1,10 — talude / morro (crista)"},
+        {v:"0.9",t:"0,90 — vale protegido"}]},
+      {id:"mgCat",label:"Categoria de rugosidade",tipo:"select",valor:"II",opcoes:[
+        {v:"I",t:"I — mar, lagos, superfícies lisas"},
+        {v:"II",t:"II — campo aberto, poucos obstáculos"},
+        {v:"III",t:"III — terreno plano com obstáculos, fazendas"},
+        {v:"IV",t:"IV — zona industrial ou urbanizada"},
+        {v:"V",t:"V — obstáculos altos e numerosos"}]},
+      {id:"mgCls",label:"Classe da edificação",tipo:"select",valor:"B",opcoes:[
+        {v:"A",t:"A — maior dimensão até 20 m"},
+        {v:"B",t:"B — maior dimensão de 20 a 50 m"},
+        {v:"C",t:"C — maior dimensão acima de 50 m"}]},
+      {id:"mgS3",label:"S3 — fator estatístico",tipo:"select",valor:"1.0",opcoes:[
+        {v:"1.0",t:"1,00 — grupo 2 (edificações industriais)"},
+        {v:"1.1",t:"1,10 — grupo 1 (alta segurança)"},
+        {v:"0.95",t:"0,95 — grupo 3"}]},
+      {id:"mgCa",label:"Coeficiente de arrasto  Ca",tipo:"number",valor:1.4,step:"0.1"},
+      {tipo:"head",label:"Ações — sismo (NBR 15421)"},
+      {id:"mgZona",label:"Zona sísmica",tipo:"select",valor:"0",opcoes:[
+        {v:"0",t:"Zona 0 — ag = 0,025g"},{v:"1",t:"Zona 1 — ag = 0,05g"},
+        {v:"2",t:"Zona 2 — ag = 0,10g"},{v:"3",t:"Zona 3 — ag = 0,15g"},{v:"4",t:"Zona 4 — ag = 0,15g"}]},
+      {id:"mgSolo",label:"Classe do terreno",tipo:"select",valor:"C",opcoes:[
+        {v:"B",t:"B — rocha"},{v:"C",t:"C — rocha alterada / solo muito rígido"},
+        {v:"D",t:"D — solo rígido"},{v:"E",t:"E — solo mole"}]},
+      {id:"mgRsis",label:"Coeficiente de modificação de resposta  R",tipo:"select",valor:"3",opcoes:[
+        {v:"3",t:"3 — pórtico comum de aço"},{v:"4",t:"4 — pórtico contraventado"},
+        {v:"2",t:"2 — estrutura não detalhada para sismo"}]},
+      {tipo:"head",label:"Fundação e ligações"},
+      {id:"mgFck",label:"Resistência do concreto  fck",unidade:"MPa",tipo:"number",valor:30,step:"5"},
+      {id:"mgFub",label:"Classe do chumbador",tipo:"select",valor:"400",opcoes:[
+        {v:"400",t:"ASTM A307 / fub 400 MPa"},{v:"825",t:"ASTM A325 / fub 825 MPa"},
+        {v:"1035",t:"ASTM A490 / fub 1035 MPa"}]},
+      {id:"mgNch",label:"Chumbadores por montante",tipo:"select",valor:"4",opcoes:[
+        {v:"4",t:"4 chumbadores"},{v:"6",t:"6 chumbadores"},{v:"8",t:"8 chumbadores"}]},
+      {tipo:"head",label:"Ações — carga localizada"},
+      {id:"mgEcc",label:"Excentricidade da descarga  e",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"mgAAC",label:"Classe de avaliação da ação (EN 1991-4)",tipo:"select",valor:"2",opcoes:[
+        {v:"1",t:"Classe 1 — até 100 t (patch dispensado)"},
+        {v:"2",t:"Classe 2 — de 100 a 10.000 t"},
+        {v:"3",t:"Classe 3 — acima de 10.000 t"}]}
+    ],
+    calcular:function(){ return moegaCalc(); }
+  },
+
   screw_conveyor:{
     titulo:"Transportador Helicoidal — pré-dimensionamento",
     referencia:"CEMA / KWS Screw Conveyor Engineering Guide · DIN 15262 / ISO 7119",
@@ -5139,6 +5756,178 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:104},1:{cellWidth:78,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) conforme a figura da pág. 1-21 do Manual de Britagem — alimentador de correia sob moega de alimentação."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="moega"){
+      /* ============ CROQUI EXECUTIVO DA MOEGA DE ALIMENTAÇÃO ============ */
+      function nt(x,y,t,r,g2,b2,fs){ doc.setTextColor(r,g2,b2); doc.setFontSize(fs||6.6); doc.text(san(t),x,y); }
+      function cotaH(x1,x2,y,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        doc.setTextColor(30,120,150); doc.setFontSize(6.6);
+        doc.text(san(t),(x1+x2)/2,y-1.4,{align:"center"}); }
+      function cotaV(x,y1,y2,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x,y1,x,y2); doc.line(x-1.5,y1,x+1.5,y1); doc.line(x-1.5,y2,x+1.5,y2);
+        doc.setTextColor(30,120,150); doc.setFontSize(6.6);
+        doc.text(san(t),x+1.6,(y1+y2)/2); }
+
+      /* ---------- VISTA FRONTAL (direção A) ---------- */
+      var esc=Math.min(78/Math.max(G.A,G.B), 46/Math.max(G.Htot,0.1));
+      var cx=62, yTop=40;
+      var wT=G.A*esc/2, wB=G.C*esc/2, hCol=G.Hc*esc, hTr=G.H*esc;
+      var yMid=yTop+hCol, yBot=yMid+hTr, yLeg=yBot+G.Hleg*esc*0.55;
+
+      /* granel */
+      doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
+      doc.triangle(cx-wT,yMid,cx+wT,yMid,cx,yMid+hTr*0.92,"F");
+      if(hCol>1) doc.rect(cx-wT,yTop+2,2*wT,hCol-2,"F");
+      doc.setFillColor(228,206,158);
+      doc.triangle(cx-wT*0.55,yTop+2,cx+wT*0.55,yTop+2,cx,yTop-6,"F");
+      nt(cx+wT*0.6,yTop-3,"monticulo (angulo de repouso)",150,120,60,6);
+
+      /* casco */
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+      if(hCol>1){ doc.line(cx-wT,yTop,cx-wT,yMid); doc.line(cx+wT,yTop,cx+wT,yMid);
+                  doc.line(cx-wT,yTop,cx+wT,yTop); }
+      doc.line(cx-wT,yMid,cx-wB,yBot); doc.line(cx+wT,yMid,cx+wB,yBot);
+      doc.line(cx-wB,yBot,cx+wB,yBot);
+      doc.setLineWidth(0.4); doc.setDrawColor(120,140,160);
+      doc.line(cx-wT,yMid,cx+wT,yMid);
+      nt(cx-wT-1,yMid-1.2,"transicao",120,140,160,6);
+
+      /* grelha */
+      if(G.grOn){ doc.setDrawColor(40,90,140); doc.setLineWidth(0.8);
+        for(var gi=0;gi<=6;gi++){ var gx=cx-wT+2*wT*gi/6; doc.line(gx,yTop-1.5,gx,yTop+1.5); }
+        doc.line(cx-wT,yTop-1.5,cx+wT,yTop-1.5);
+        nt(cx-wT-26,yTop-4,"grelha "+G.grMalha.toFixed(0)+" mm",40,90,140,6.2);
+        nt(cx-wT-26,yTop-1,san(G.perfGr),40,90,140,6.2); }
+
+      /* faixa de switch */
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.7);
+      var hsw=Math.min(G.hSwitch*esc,hTr*0.5);
+      doc.line(cx-wT+ (wT-wB)*hsw/hTr, yMid+hsw, cx+wT-(wT-wB)*hsw/hTr, yMid+hsw);
+      nt(cx+wT+2,yMid+hsw+2,"switch "+G.pSwitch.toFixed(0)+" kPa",190,70,60,6.2);
+
+      /* montantes */
+      doc.setDrawColor(60,80,110); doc.setLineWidth(1.4);
+      [-1,1].forEach(function(sg){ var xm=cx+sg*wT*0.82;
+        doc.line(xm,yMid,xm,yLeg); doc.line(xm-3,yLeg,xm+3,yLeg); });
+      doc.setLineWidth(0.5); doc.setDrawColor(60,80,110);
+      doc.line(cx-wT*0.82,(yMid+yLeg)/2,cx+wT*0.82,(yMid+yLeg)/2);
+      nt(cx-wT*0.82-30,(yMid+yLeg)/2+8,G.Ncol.toFixed(0)+" montantes",60,80,110,6.4);
+      nt(cx-wT*0.82-30,(yMid+yLeg)/2+11,san(G.perfCol),60,80,110,6.4);
+
+      /* placa de base e reacoes */
+      doc.setFillColor(60,80,110);
+      [-1,1].forEach(function(sg){ doc.rect(cx+sg*wT*0.82-3.5,yLeg,7,1.6,"F"); });
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.7);
+      [-1,1].forEach(function(sg){ var xm=cx+sg*wT*0.82;
+        doc.line(xm,yLeg+3,xm,yLeg+10); doc.line(xm-1.4,yLeg+7.6,xm,yLeg+10); doc.line(xm+1.4,yLeg+7.6,xm,yLeg+10); });
+      nt(cx-wT*0.82-32,yLeg+13,"V = "+G.Pcol.toFixed(0)+" kN ("+Math.round(G.Pcol*1000/9.80665)+" kg)",190,70,60,6.4);
+      nt(cx-wT*0.82-32,yLeg+16,"por montante",190,70,60,6.2);
+      /* acao lateral */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      doc.line(cx-wT-14,yMid+hTr*0.3,cx-wT-3,yMid+hTr*0.3);
+      doc.line(cx-wT-6,yMid+hTr*0.3-1.4,cx-wT-3,yMid+hTr*0.3);
+      doc.line(cx-wT-6,yMid+hTr*0.3+1.4,cx-wT-3,yMid+hTr*0.3);
+      nt(cx-wT-34,yMid+hTr*0.3-2,G.latGov.split(" ")[0]+" "+G.Flat.toFixed(0)+" kN",40,140,90,6.2);
+
+      /* cotas da vista frontal */
+      cotaH(cx-wT,cx+wT,yTop-9,"A = "+Math.round(G.A*1000)+" mm");
+      cotaH(cx-wB,cx+wB,yBot+9,"C = "+Math.round(G.C*1000)+" mm");
+      if(hCol>1) cotaV(cx+wT+16,yTop,yMid,"Hc = "+Math.round(G.Hc*1000));
+      cotaV(cx+wT+16,yMid,yBot,"H = "+Math.round(G.H*1000)+" mm");
+      cotaV(cx+wT+30,yBot,yLeg,"livre "+G.Hleg.toFixed(2)+" m");
+      /* angulo da face */
+      doc.setDrawColor(150,170,190); doc.setLineWidth(0.25);
+      doc.line(cx-wT,yMid,cx-wT+16,yMid);
+      nt(cx-wT+3,yMid+5,"aA = "+G.alfaA.toFixed(1)+"°",100,120,145,6.4);
+
+      /* ---------- VISTA LATERAL (direção B) ---------- */
+      var cx2=150, wT2=G.B*esc/2, wB2=G.D*esc/2;
+      doc.setFillColor(242,228,196); doc.setDrawColor(242,228,196);
+      doc.triangle(cx2-wT2,yMid,cx2+wT2,yMid,cx2,yMid+hTr*0.92,"F");
+      if(hCol>1) doc.rect(cx2-wT2,yTop+2,2*wT2,hCol-2,"F");
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+      if(hCol>1){ doc.line(cx2-wT2,yTop,cx2-wT2,yMid); doc.line(cx2+wT2,yTop,cx2+wT2,yMid);
+                  doc.line(cx2-wT2,yTop,cx2+wT2,yTop); }
+      doc.line(cx2-wT2,yMid,cx2-wB2,yBot); doc.line(cx2+wT2,yMid,cx2+wB2,yBot);
+      doc.line(cx2-wB2,yBot,cx2+wB2,yBot);
+      doc.setDrawColor(60,80,110); doc.setLineWidth(1.4);
+      [-1,1].forEach(function(sg){ var xm=cx2+sg*wT2*0.82;
+        doc.line(xm,yMid,xm,yLeg); doc.line(xm-3,yLeg,xm+3,yLeg); });
+      cotaH(cx2-wT2,cx2+wT2,yTop-9,"B = "+Math.round(G.B*1000)+" mm");
+      cotaH(cx2-wB2,cx2+wB2,yBot+9,"D = "+Math.round(G.D*1000)+" mm");
+      doc.setDrawColor(150,170,190); doc.setLineWidth(0.25);
+      doc.line(cx2-wT2,yMid,cx2-wT2+16,yMid);
+      nt(cx2-wT2+3,yMid+5,"aB = "+G.alfaB.toFixed(1)+"°",100,120,145,6.4);
+      nt(cx2-14,yTop-14,"VISTA B-B",90,110,135,7.4);
+      nt(cx-14,yTop-14,"VISTA A-A",90,110,135,7.4);
+
+      /* ---------- PLANTA ---------- */
+      var pEsc=Math.min(60/Math.max(G.A,G.B),1000);
+      var px=cx, py=yLeg+34, pa=G.A*pEsc/2, pb=G.B*pEsc/2, pc=G.C*pEsc/2, pd=G.D*pEsc/2;
+      doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
+      doc.rect(px-pa,py-pb,2*pa,2*pb);
+      doc.setLineWidth(0.7); doc.setDrawColor(190,70,60);
+      doc.rect(px-pc,py-pd,2*pc,2*pd);
+      doc.setDrawColor(140,160,180); doc.setLineWidth(0.3);
+      doc.line(px-pa,py-pb,px-pc,py-pd); doc.line(px+pa,py-pb,px+pc,py-pd);
+      doc.line(px-pa,py+pb,px-pc,py+pd); doc.line(px+pa,py+pb,px+pc,py+pd);
+      nt(px-pa,py-pb-3,"PLANTA",90,110,135,7.4);
+      nt(px+pc+1.5,py,"boca C x D",190,70,60,6.2);
+      /* aresta de vale */
+      doc.setDrawColor(200,120,40); doc.setLineWidth(0.6);
+      doc.line(px-pa,py-pb,px-pc,py-pd);
+      nt(px-pa-2,py-pb-6,"aresta de vale  av = "+G.alfaVale.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)",200,120,40,6.4);
+      /* montantes na planta */
+      doc.setFillColor(60,80,110);
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(s){
+        doc.rect(px+s[0]*pa*0.82-1.6,py+s[1]*pb*0.82-1.6,3.2,3.2,"F"); });
+      cotaH(px-pa,px+pa,py+pb+7,"A = "+Math.round(G.A*1000)+" mm");
+      cotaV(px+pa+7,py-pb,py+pb,"B = "+Math.round(G.B*1000));
+
+      /* ---------- TABELA DE DADOS ---------- */
+      doc.autoTable({startY:py+pb+14,theme:"grid",margin:{left:14,right:14},
+        styles:{fontSize:7,cellPadding:1.2},
+        headStyles:{fillColor:[20,40,60],textColor:255,fontSize:7.2},
+        columnStyles:{0:{cellWidth:62},1:{cellWidth:56},2:{cellWidth:64}},
+        head:[["Geometria e fluxo","Acoes e pressoes","Estrutura"]],
+        body:[
+          [san("A x B = "+Math.round(G.A*1000)+" x "+Math.round(G.B*1000)+" mm"),
+           san("ph de projeto = "+G.phTot.toFixed(1)+" kPa"),
+           san("Chapa da moega = "+G.tcom.toFixed(1)+" mm")],
+          [san("H = "+Math.round(G.H*1000)+" mm  ·  Hc = "+Math.round(G.Hc*1000)+" mm"),
+           san("pv na transicao = "+G.pvD.toFixed(1)+" kPa"),
+           san("Chapa do colarinho = "+G.tcolar.toFixed(1)+" mm")],
+          [san("Boca C x D = "+Math.round(G.C*1000)+" x "+Math.round(G.D*1000)+" mm"),
+           san("pn na tremonha = "+G.pnDes.toFixed(1)+" kPa"),
+           san("Enrijecedores a cada "+G.sst.toFixed(1)+" m: "+G.perfEnr)],
+          [san("Angulos aA / aB = "+G.alfaA.toFixed(1)+"° / "+G.alfaB.toFixed(1)+"°"),
+           san("Switch = "+G.pSwitch.toFixed(1)+" kPa em "+Math.round(G.hSwitch*1000)+" mm"),
+           san("Cinta de borda: "+G.perfCinta)],
+          [san("ANGULO DE VALE = "+G.alfaVale.toFixed(1)+"°  (exigido "+G.alfaExig.toFixed(1)+"°)"),
+           san("Tracao meridional = "+G.nMer.toFixed(1)+" kN/m"),
+           san("Anel de transicao: "+G.perfAnel)],
+          [san("Regime: "+(G.fluxoMassa?"FLUXO DE MASSA":"FLUXO DE FUNIL")),
+           san("Vento Vk = "+G.Vk.toFixed(1)+" m/s"),
+           san("Vigas de apoio: "+G.perfViga)],
+          [san("Abertura minima = "+Math.round(G.Bmin*1000)+" mm "+(G.bocaOK?"(atende)":"(INSUFICIENTE)")),
+           san("Acao lateral = "+G.Flat.toFixed(0)+" kN ("+G.latGov+")"),
+           san(G.Ncol.toFixed(0)+" montantes: "+G.perfCol)],
+          [san("Volume util = "+G.Vutil.toFixed(2)+" m3  ·  "+G.Mutil.toFixed(1)+" t"),
+           san(G.movel?("Impacto da descarga = "+G.Fimp.toFixed(0)+" kN"):"Sem equipamento movel"),
+           san("Placa de base "+G.ladoBP.toFixed(0)+" x "+G.ladoBP.toFixed(0)+" x "+G.tBP.toFixed(1)+" mm")],
+          [san("Autonomia = "+G.autonMin.toFixed(1)+" min a "+G.Q.toFixed(0)+" t/h"),
+           san(G.movel?("Choque na defensa = "+G.Fdef.toFixed(0)+" kN"):"—"),
+           san(G.nCh.toFixed(0)+" chumbadores Ø"+G.diaCh.toFixed(0)+" mm")],
+          [san("Descarga por gravidade = "+G.Qbev.toFixed(0)+" t/h ("+G.folgaQ.toFixed(1)+"x)"),
+           san("Peso do granel = "+G.Wmat.toFixed(0)+" kN"),
+           san("Peso vazia = "+Math.round(G.mVazio)+" kg")],
+          [san(G.grOn?("Grelha "+G.grMalha.toFixed(0)+" mm  ·  vao "+G.grVao.toFixed(2)+" m"):"Sem grelha"),
+           san("Reacao vertical total = "+(G.Wperm+G.Wmat).toFixed(0)+" kN"),
+           san(G.grOn?("Barra da grelha: "+G.perfGr):"—")]
+        ]});
+      doc.setFontSize(6.6); doc.setTextColor(120,140,160);
+      doc.text(san("Croqui esquematico de pre-dimensionamento — nao substitui desenho de fabricacao. "+
+        "Cotas em mm, cargas em kN. Confirmar parametros de fluxo em ensaio Jenike Shear."),14,doc.lastAutoTable.finalY+4);
     } else if(G.tipo==="calha"){
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
       // silo + moega
