@@ -918,12 +918,14 @@ function alimCorreiaCalc(RET){
         Hpil=num("acHpil"); if(!isFinite(Hpil)||Hpil<0)Hpil=0;
         nAlim=selvN("acNal",1);
         Lpil=num("acLpil"); if(!isFinite(Lpil)||Lpil<=0)Lpil=Bl*nAlim;
-        var Kp=1.1*(1-Math.sin(phi*Math.PI/180)), mup=Math.tan(dw*Math.PI/180);
-        var Rhp=(Bw*Bl)/(2*(Bw+Bl));
-        pvSat=rho*g*Rhp/(Kp*mup);
+        /* Janssen na moega: K = Ka (razão de pressões do próprio método) e μ = fsm
+           (atrito do material com o aço). γ em kgf/m³ → pressão em kgf/m², convertida a kPa. */
+        var Kp=Ka, mup=Math.max(fsm,0.05);
+        var Rhp=(B*L2)/(2*(B+L2));
+        pvSat=gama*Rhp/(Kp*mup)*9.80665/1000;
         pvPil=pvSat*(1-Math.exp(-Kp*mup*Math.max(Hpil,0.01)/Rhp));
         qPil=Q/Math.max(nAlim,1);
-        cobre=Lpil>0?(Bl*nAlim/Lpil*100):0;
+        cobre=Lpil>0?(L2*nAlim/Lpil*100):0;
         cobreOK=(cobre>=25);
       }
       var OUT=[
