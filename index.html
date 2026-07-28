@@ -1322,7 +1322,7 @@ function moegaCalc(){
   }
   var hopA=cunha?null:hopperEN(tA,A), hopB=hopperEN(tB,B);
   var hopGov=(hopA&&hopA.pn>=hopB.pn)?hopA:hopB;
-  var hopGovNome=cunha?"faces inclinadas (convergência só na direção B)":((hopA.pn>=hopB.pn)?"faces perpendiculares a A":"faces perpendiculares a B");
+  var hopGovNome=(!hopA)?"faces inclinadas (convergência só na direção B)":((hopA.pn>=hopB.pn)?"faces perpendiculares a A":"faces perpendiculares a B");
   var Ff=hopGov.Ff, muH=hopGov.muHe, nEN=hopGov.n;
   var pnF=hopGov.pn, ptF=hopGov.pt;
   /* PRESSÃO DE SWITCH: no início da descarga o estado de tensões passa de ativo para
@@ -1552,9 +1552,9 @@ function moegaCalc(){
     {k:"Caso 3 — pressão vertical máxima na transição  (K inf, μ inf)",v:"pv = "+pv.toFixed(1).replace(".",",")+" kPa   →   projeto "+pvD.toFixed(1).replace(".",",")+" kPa",hi:true},
     {k:"Carga localizada (patch load)  Cop = 0,42 + e/dc",v:(AAC==="1"?"dispensada na Classe 1":(Cop.toFixed(2).replace(".",",")+"   →   "+pPatch.toFixed(1).replace(".",",")+" kPa"))},
     {k:"PRESSÃO HORIZONTAL DE PROJETO  ph + patch",v:phTot.toFixed(1).replace(".",",")+" kPa",hi:true},
-    {k:"Tremonha — atrito mobilizado  μ_heff = min(tanφw ; (1−K)/(2·tanβ))",v:hopA.muHe.toFixed(3).replace(".",",")+" (faces A, β = "+hopA.beta.toFixed(1).replace(".",",")+"°)   ·   "+hopB.muHe.toFixed(3).replace(".",",")+" (faces B, β = "+hopB.beta.toFixed(1).replace(".",",")+"°)"+((hopA.muHe<muW-0.005||hopB.muHe<muW-0.005)?"   —  o atrito NÃO se mobiliza por completo (parede rasa): o valor de equilíbrio é menor que tanφw = "+muW.toFixed(3).replace(".",",")+", e usar tanφw direto seria contra a segurança":"   —  atrito plenamente mobilizado")},
-    {k:"Fator de enchimento  Ff = 1 − b/(1 + tanβ/μ_heff)   ·   expoente n",v:"faces A: Ff = "+hopA.Ff.toFixed(3).replace(".",",")+" · n = "+hopA.n.toFixed(3).replace(".",",")+"   ·   faces B: Ff = "+hopB.Ff.toFixed(3).replace(".",",")+" · n = "+hopB.n.toFixed(3).replace(".",",")+"   (b = 0,2 · S = 2)"},
-    {k:"Distância ao vértice virtual  (transição → boca)",v:"faces A: "+hopA.hh.toFixed(2).replace(".",",")+" → "+hopA.x0.toFixed(2).replace(".",",")+" m   ·   faces B: "+hopB.hh.toFixed(2).replace(".",",")+" → "+hopB.x0.toFixed(2).replace(".",",")+" m   —  o vértice da pirâmide fica abaixo da boca; x é medido a partir dele"},
+    {k:"Tremonha — atrito mobilizado  μ_heff = min(tanφw ; (1−K)/(2·tanβ))",v:(hopA?(hopA.muHe.toFixed(3).replace(".",",")+" (faces A, β = "+hopA.beta.toFixed(1).replace(".",",")+"°)   ·   "):"")+hopB.muHe.toFixed(3).replace(".",",")+" (faces "+(cunha?"inclinadas":"B")+", β = "+hopB.beta.toFixed(1).replace(".",",")+"°)"+(((hopA&&hopA.muHe<muW-0.005)||hopB.muHe<muW-0.005)?"   —  o atrito NÃO se mobiliza por completo (parede rasa): o valor de equilíbrio é menor que tanφw = "+muW.toFixed(3).replace(".",",")+", e usar tanφw direto seria contra a segurança":"   —  atrito plenamente mobilizado")},
+    {k:"Fator de enchimento  Ff = 1 − b/(1 + tanβ/μ_heff)   ·   expoente n",v:(hopA?("faces A: Ff = "+hopA.Ff.toFixed(3).replace(".",",")+" · n = "+hopA.n.toFixed(3).replace(".",",")+"   ·   faces B: "):"faces inclinadas: ")+"Ff = "+hopB.Ff.toFixed(3).replace(".",",")+" · n = "+hopB.n.toFixed(3).replace(".",",")+"   (b = 0,2 · S = "+(cunha?1:2)+")"},
+    {k:"Distância ao vértice virtual  (transição → boca)",v:(hopA?("faces A: "+hopA.hh.toFixed(2).replace(".",",")+" → "+hopA.x0.toFixed(2).replace(".",",")+" m   ·   faces B: "):"faces inclinadas: ")+hopB.hh.toFixed(2).replace(".",",")+" → "+hopB.x0.toFixed(2).replace(".",",")+" m   —  o vértice da pirâmide fica abaixo da boca; x é medido a partir dele"},
     {k:"PRESSÃO NORMAL NA PAREDE DA TREMONHA  pnf = Ff·pv(x)",v:pnF.toFixed(1).replace(".",",")+" kPa   ·   atrito ptf = "+ptF.toFixed(1).replace(".",",")+" kPa   —  governa: "+hopGovNome,hi:true},
     {k:"PRESSÃO DE SWITCH na transição  ps = 2·pnf",v:pSwitch.toFixed(1).replace(".",",")+" kPa   aplicada numa faixa de "+(hSwitch*1000).toFixed(0)+" mm abaixo da transição — no início da descarga o estado de tensões passa de ativo para passivo e uma frente de pressão percorre a transição. Adota-se a amplificação clássica de Jenike (2×), que é o pico transitório e é ele que dimensiona a chapa e o anel de transição.",hi:true},
 
