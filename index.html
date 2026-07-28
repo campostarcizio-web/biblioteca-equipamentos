@@ -838,7 +838,8 @@ function coneVibCalc(CVCIRC){
   return OUT;
 }
 
-function alimCorreiaCalc(RET){
+function alimCorreiaCalc(){
+      var RET=true;
       var Q=num("acQ"),rhoT=num("acRho"),theta=num("acTheta"),fm=num("acFm"),fsm=num("acFsm");
       var Fmax=num("acFmax"),V=num("acV"),Din=num("acD")/1000,Bin=num("acB")/1000;
       var L2=num("acL2"),L1=num("acL1"),L3=num("acL3"),L=num("acL"),H=num("acH");
@@ -915,8 +916,10 @@ function alimCorreiaCalc(RET){
          coluna de estoque acima: a carga sobre o alimentador vem só do material contido
          na moega, e o atrito das paredes ainda alivia parte dela (Janssen, saturando em
          γ·Rh/(K·μ)). Volume, massa contida e autonomia entre ciclos da pá também saem daqui. */
-      var Vmo=0,mMo=0,autonMo=0,pvMo=0,pvSatMo=0,pvHid=0,alivio=0,alfaMa=0,alfaMb=0,
+      var abast="pa",abastTxt="",Vmo=0,mMo=0,autonMo=0,pvMo=0,pvSatMo=0,pvHid=0,alivio=0,alfaMa=0,alfaMb=0,
           nConcha=0,Amo1=0,Amo2=0,Fboca=0,cOK=true,dOK=true,angOK=true,Ma=0,Mb=0,Mh=0,Mc=0,Md=0;
+      abast=selv("acAbast","pa");
+      abastTxt=(abast==="pa")?"pá-carregadeira":(abast==="cam"?"caminhão basculante":"chute / silo (abastecimento contínuo)");
       if(RET){
         Ma=num("acMa")/1000; Mb=num("acMb")/1000; Mh=num("acMh")/1000;
         Mc=num("acMc")/1000; Md=num("acMd")/1000;
@@ -927,8 +930,8 @@ function alimCorreiaCalc(RET){
         Vmo=(Mh/3)*(Amo1+Amo2+Math.sqrt(Amo1*Amo2));
         mMo=Vmo*rhoT;                                    // t de material contido
         autonMo=(Q>0)?(mMo/Q*60):0;                      // minutos de autonomia
-        var vConcha=num("acConcha"); if(!isFinite(vConcha)||vConcha<=0)vConcha=3.0;
-        nConcha=Vmo/vConcha;
+        var vConcha=num("acConcha"); if(!isFinite(vConcha))vConcha=0;
+        nConcha=(vConcha>0)?(Vmo/vConcha):0;
         /* ângulos das paredes convergentes da moega */
         alfaMa=Math.atan(Mh/Math.max((Ma-Mc)/2,1e-4))*180/Math.PI;
         alfaMb=Math.atan(Mh/Math.max((Mb-Md)/2,1e-4))*180/Math.PI;
@@ -974,13 +977,7 @@ function alimCorreiaCalc(RET){
         kfc=num("acBrKfc"); if(!isFinite(kfc)||kfc<1)kfc=2.5;
         FSbrq=num("acBrFS"); if(!isFinite(FSbrq)||FSbrq<1)FSbrq=2.0;
         /* pressão vertical governante sobre a boca */
-        if(RET){ pvGov=pvMo; hGov=Mh; }
-        else{
-          hGov=num("acHcol"); if(!isFinite(hGov)||hGov<=0)hGov=3.0;
-          var Ab0=B*L2, Rh0=Ab0/(2*(B+L2)), mu0=Math.max(fsm,0.05);
-          var ps0=gama*Rh0/(Ka*mu0)*9.80665/1000;
-          pvGov=ps0*(1-Math.exp(-Ka*mu0*hGov/Rh0));
-        }
+        pvGov=pvMo; hGov=Mh;
         Abrq=cBr*lBr;                       // m² — maior face (apoio deitado)
         Vbrq=cBr*lBr*eBr;                   // m³
         rhoBrq=(gama/1000)/phis;            // t/m³ do corpo do briquete
@@ -1008,8 +1005,8 @@ function alimCorreiaCalc(RET){
       })();
       var OUT=[
         ...(RET?[
-        {sec:"Etapa 0 — MOEGA DE CARREGAMENTO (volume e carga)"},
-        {k:"Aplicação",v:"Alimentador de correia sob MOEGA DE CARREGAMENTO abastecida por pá-carregadeira. A carga sobre o alimentador vem exclusivamente do material contido na moega — não há coluna de estoque acima. O método de cálculo do alimentador é o do Manual de Britagem, págs. 1-20 a 1-23.",hi:true},
+        {sec:"Etapa 0 — MOEGA DE ALIMENTAÇÃO (volume e carga)"},
+        {k:"Aplicação",v:"Alimentador de correia sob MOEGA DE ALIMENTAÇÃO abastecida por "+abastTxt+". A carga sobre o alimentador vem do material contido na moega, definido pelos dimensionais lançados abaixo. Método de cálculo do alimentador: Manual de Britagem, págs. 1-20 a 1-23.",hi:true},
         {k:"Dimensional superior  a × b",v:(Ma*1000).toFixed(0)+" × "+(Mb*1000).toFixed(0)+" mm   (área "+Amo1.toFixed(2).replace(".",",")+" m²)",hi:true},
         {k:"Altura da moega  h",v:(Mh*1000).toFixed(0)+" mm"},
         {k:"Abertura de descarga  c × d",v:(Mc*1000).toFixed(0)+" × "+(Md*1000).toFixed(0)+" mm   (área "+Amo2.toFixed(3).replace(".",",")+" m²)",hi:true},
@@ -1017,7 +1014,7 @@ function alimCorreiaCalc(RET){
         {k:"MASSA DE MATERIAL CONTIDA  V · ρ",v:mMo.toFixed(2).replace(".",",")+" t   =   "+fmt(Math.round(mMo*1000))+" kg",hi:true},
         {k:"Peso do material na moega",v:kNkg(mMo*9.80665)},
         {k:"Autonomia da moega cheia  (V·ρ / Q)",v:autonMo.toFixed(1).replace(".",",")+" min   a "+Q.toFixed(0)+" t/h",hi:true},
-        {k:"Ciclos da pá-carregadeira para encher",v:nConcha.toFixed(1).replace(".",",")+" conchas   (concha de "+num("acConcha").toFixed(1).replace(".",",")+" m³)"},
+        {k:(abast==="cam"?"Caçambas para encher a moega":"Ciclos da pá-carregadeira para encher"),v:(nConcha>0? nConcha.toFixed(1).replace(".",",")+" cargas   (volume unitário de "+num("acConcha").toFixed(1).replace(".",",")+" m³)" : "abastecimento contínuo — não se aplica")},
         {k:"Ângulo das paredes convergentes  (direção a / direção b)",v:alfaMa.toFixed(1).replace(".",",")+"° / "+alfaMb.toFixed(1).replace(".",",")+"°"+(angOK?"   ✓ acima de 45°":"   ⚠ parede rasa — material tende a acumular; a extração fica a cargo do alimentador, com maior desgaste da correia"),hi:!angOK},
         {sec:"Etapa 0 — Carga do material sobre o alimentador"},
         {k:"Pressão hidrostática teórica  γ · h  (sem apoio de parede)",v:pvHid.toFixed(1).replace(".",",")+" kPa"},
@@ -1026,7 +1023,7 @@ function alimCorreiaCalc(RET){
         {k:"Pressão de saturação  γ·Rh/(K·μ)",v:pvSatMo.toFixed(1).replace(".",",")+" kPa   —  aumentar a altura da moega acima de cerca de 4 × Rh não aumenta mais a carga no alimentador"},
         {k:"CARGA VERTICAL SOBRE A ABERTURA  pv · (c × d)",v:kNkg(Fboca),hi:true},
         {k:"Coerência com a geometria do alimentador",v:"c = "+(Mc*1000).toFixed(0)+" mm vs L2 = "+(L2*1000).toFixed(0)+" mm"+(cOK?" ✓":" ⚠ divergente")+"   ·   d = "+(Md*1000).toFixed(0)+" mm vs B (guia) = "+(B*1000).toFixed(0)+" mm"+(dOK?" ✓":" ⚠ divergente")+"   —  a abertura da moega deve coincidir com a abertura sobre a correia e com a largura entre guias",hi:!(cOK&&dOK)},
-        {k:"Cuidados de operação",v:"Moega abastecida por pá-carregadeira: prever grelha de proteção na boca superior contra blocos e sucata, batentes e defensas para o equipamento móvel, e revestimento antidesgaste na zona de impacto da descarga da concha. Dimensionar a autonomia para cobrir o intervalo entre ciclos da pá — abaixo de cerca de 3 minutos o alimentador opera de forma intermitente e a planta a jusante sofre variação de vazão."}
+        {k:"Cuidados de operação",v:(abast==="cont"? "Moega alimentada de forma contínua por chute ou silo: verificar se a vazão de entrada não supera a de extração, sob pena de transbordo; prever sensor de nível alto intertravado com o equipamento a montante e chute de impacto revestido." : "Moega abastecida por "+abastTxt+": prever grelha de proteção na boca superior contra blocos e sucata, batentes e defensas para o equipamento móvel, e revestimento antidesgaste na zona de impacto da descarga. Dimensionar a autonomia para cobrir o intervalo entre ciclos — abaixo de cerca de 3 minutos o alimentador opera de forma intermitente e a planta a jusante sofre variação de vazão.")}
         ]:[]),
         {sec:"Aplicação"},
         {k:"Tipo de equipamento",v:"Alimentador de correia sob MOEGA DE ALIMENTAÇÃO — retomada de materiais finos e úmidos, onde o alimentador vibratório não é recomendado. Permite dosagem contínua e precisa com variador de velocidade.",hi:true},
@@ -1091,7 +1088,7 @@ function alimCorreiaCalc(RET){
         {k:"Área da maior face  (apoio deitado)",v:(Abrq*1e4).toFixed(0)+" cm²"},
         {k:"Massa e massa específica do briquete",v:(mBrq*1000).toFixed(0)+" g   ·   "+rhoBrq.toFixed(2).replace(".",",")+" t/m³   (ρ = γ_aparente / φs)"},
         {sec:"1) Esmagamento estático na boca da moega"},
-        {k:"Tensão vertical aparente do leito  σv",v:pvGov.toFixed(1).replace(".",",")+" kPa"+(RET?"   (Janssen na moega, h = "+hGov.toFixed(2).replace(".",",")+" m)":"   (Janssen, coluna de "+hGov.toFixed(2).replace(".",",")+" m sobre a boca)")},
+        {k:"Tensão vertical aparente do leito  σv",v:pvGov.toFixed(1).replace(".",",")+" kPa"+"   (Janssen na moega, h = "+hGov.toFixed(2).replace(".",",")+" m)"},
         {k:"Fração de sólidos do leito  φs",v:phis.toFixed(2).replace(".",",")+"   —  só a fração sólida transmite carga; a tensão real no corpo do briquete é σv/φs"},
         {k:"Tensão média no esqueleto sólido  σv/φs",v:sigSol.toFixed(1).replace(".",",")+" kPa"},
         {k:"Carga média por briquete  σ_sólido · A_face",v:kNkg(Fmed,2)},
@@ -1105,7 +1102,7 @@ function alimCorreiaCalc(RET){
         {k:"Energia de impacto por briquete  m·g·H",v:Eimp.toFixed(1).replace(".",",")+" J"},
         {k:"Força de impacto sobre LEITO de briquetes  (parada em 20 mm)",v:kNkg(FimpLeito,2)},
         {k:"Força de impacto sobre O FUNDO DE AÇO VAZIO  (parada em 2 mm)",v:kNkg(FimpChapa,2)+"   =   "+relImp.toFixed(0)+" × a carga estática de pico",hi:true},
-        {k:"Conclusão do impacto",v:"É o impacto, e não a coluna de material, que governa a quebra do briquete. Nunca descarregar a concha sobre a moega vazia: manter um leito residual de material como colchão, limitar a altura de queda "+(Hq>2?"(a altura adotada de "+Hq.toFixed(1).replace(".",",")+" m é elevada — reduzir se possível) ":"")+"e revestir o fundo com material resiliente (borracha ou UHMW sobre chapa), não com aço nu. O briquete deve ser qualificado por ensaio de queda (drop shatter, ASTM D440) executado na altura real de operação, e não apenas por compressão.",hi:true},
+        {k:"Conclusão do impacto",v:"É o impacto, e não a coluna de material, que governa a quebra do briquete. Nunca descarregar sobre a moega vazia: manter um leito residual de material como colchão, limitar a altura de queda "+(Hq>2?"(a altura adotada de "+Hq.toFixed(1).replace(".",",")+" m é elevada — reduzir se possível) ":"")+"e revestir o fundo com material resiliente (borracha ou UHMW sobre chapa), não com aço nu. O briquete deve ser qualificado por ensaio de queda (drop shatter, ASTM D440) executado na altura real de operação, e não apenas por compressão.",hi:true},
         {sec:"3) Cisalhamento e abrasão na extração"},
         {k:"Cisalhamento no plano de extração  τ = fm · σv",v:tauB.toFixed(1).replace(".",",")+" kPa   →   "+kNkg(FcisB,2)+" por briquete"},
         {k:"Resistência ao cisalhamento requerida",v:"Como referência, a resistência ao cisalhamento de um briquete é da ordem de 10 a 20 % da sua resistência à compressão. Com "+FreqKgf.toFixed(0)+" kgf de compressão requerida, a parcela de cisalhamento ("+(FcisB*1000/9.80665).toFixed(0)+" kgf) fica "+(FcisB*1000/9.80665 <= 0.10*FreqKgf ? "confortavelmente dentro dessa faixa ✓" : "próxima do limite ⚠ — avaliar em ensaio")},
@@ -3583,90 +3580,7 @@ const CALCS={
   },
   alimentador_correia:{
     titulo:"Alimentador de Correia (moega de alimentação) — pré-dimensionamento",
-    referencia:"Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H. Altura de camada D = Q/(γ·V·B·3600), limitada a D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); tabelas de coeficiente de atrito interno (fm) e de atrito com o aço (fsm) da pág. 1-22; velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s); tabela de peso da correia Wb (Plylon / HDRN) da pág. 1-23. Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; acionamento SEW-EURODRIVE (série R e industriais M/X)",
-    campos:[
-      {tipo:"head",label:"Processo"},
-      {id:"acQ",label:"Capacidade  Q",unidade:"t/h",tipo:"number",valor:400},
-      {id:"acMat",label:"Material (preset — preenche γ, θ, fm e fsm)",tipo:"select",valor:"minerio_grosso",onchange:"acPreset()",opcoes:[
-        {v:"custom",t:"Personalizado"},
-        {v:"areia",t:"Areia  (fm 0,65 · fsm 0,33)"},
-        {v:"carvao_bet",t:"Carvão betuminoso  (fm 0,65 · fsm 0,32)"},
-        {v:"carvao_ant",t:"Carvão antracitoso  (fm 0,65 · fsm 0,29)"},
-        {v:"coque",t:"Coque  (fm 0,65 · fsm 0,47)"},
-        {v:"cascalho",t:"Cascalho  (fm 0,65 · fsm 0,50)"},
-        {v:"minerio_fino",t:"Minério (finos)  (fm 0,65 · fsm 0,55)"},
-        {v:"minerio_grosso",t:"Minério (grossos)  (fm 0,80 · fsm 0,75)"},
-        {v:"escoria",t:"Escória  (fm 0,60)"},
-        {v:"rocha_brit",t:"Rocha britada  (fsm 0,54)"},
-        {v:"rocha_fosf",t:"Rocha fosfática  (fsm 0,54)"},
-        {v:"briq_bar",t:"Briquete BAR — 57×57×37,5 mm · 1,7 t/m³  (estimado)"},
-        {v:"briq_bricao",t:"Briquete Bricão — 120×108×87 mm · 1,3 t/m³  (estimado)"}]},
-      {id:"acRho",label:"Densidade aparente  γ",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
-      {id:"acTheta",label:"Ângulo de repouso do material  θ",unidade:"°",tipo:"number",valor:35,step:"1"},
-      {id:"acFm",label:"Coeficiente de atrito interno  fm  (pág. 1-22)",unidade:"-",tipo:"number",valor:0.80,step:"0.01"},
-      {id:"acFsm",label:"Coeficiente de atrito com o aço  fsm  (pág. 1-22)",unidade:"-",tipo:"number",valor:0.75,step:"0.01"},
-      {id:"acFmax",label:"Maior bloco do material",unidade:"mm",tipo:"number",valor:150},
-      {tipo:"head",label:"Velocidade e camada"},
-      {id:"acAbras",label:"Abrasividade (velocidade máxima recomendada)",tipo:"select",valor:"abr",opcoes:[
-        {v:"abr",t:"Abrasivo — V máx. 0,3 m/s"},
-        {v:"nabr",t:"Não abrasivo — V máx. 0,5 m/s"}]},
-      {id:"acV",label:"Velocidade da correia  V",unidade:"m/s",tipo:"number",valor:0.3,step:"0.01"},
-      {id:"acD",label:"Altura da camada  D  (0 = calcular pela vazão)",unidade:"mm",tipo:"number",valor:0,step:"10"},
-      {tipo:"head",label:"Geometria do alimentador (figura da pág. 1-21)"},
-      {id:"acBsel",label:"Largura da correia (catálogo)",tipo:"select",valor:"auto",opcoes:[
-        {v:"auto",t:"Automático (pela abertura das guias e granulometria)"},
-        {v:"16",t:"16\" (400 mm)"},{v:"20",t:"20\" (500 mm)"},{v:"24",t:"24\" (600 mm)"},
-        {v:"30",t:"30\" (750 mm)"},{v:"36",t:"36\" (900 mm)"},{v:"42",t:"42\" (1050 mm)"},
-        {v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},{v:"60",t:"60\" (1500 mm)"},
-        {v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
-      {id:"acB",label:"Abertura da guia de material  B  (0 = 0,65 × largura da correia)",unidade:"mm",tipo:"number",valor:0,step:"25"},
-      {id:"acL2",label:"L2 — abertura da moega (tremonha) sobre a correia",unidade:"m",tipo:"number",valor:2.0,step:"0.1"},
-      {id:"acL1",label:"L1 — comprimento de atrito (trecho carregado sob a moega)",unidade:"m",tipo:"number",valor:1.5,step:"0.1"},
-      {id:"acL3",label:"L3 — guias laterais além da moega",unidade:"m",tipo:"number",valor:1.0,step:"0.1"},
-      {id:"acL",label:"L — distância entre centros dos tambores",unidade:"m",tipo:"number",valor:4.5,step:"0.5"},
-      {id:"acH",label:"H — altura de elevação do material (0 = horizontal)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
-      {id:"acHcol",label:"Altura da coluna de material sobre a boca do alimentador",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
-      {tipo:"head",label:"Resistência mecânica do briquete"},
-      {id:"acBrq",label:"Verificar resistência do briquete",tipo:"select",valor:"auto",opcoes:[
-        {v:"auto",t:"Automático (quando o material é briquete)"},{v:"sim",t:"Sim — sempre verificar"},{v:"nao",t:"Não verificar"}]},
-      {id:"acBrC",label:"Comprimento do briquete  c",unidade:"mm",tipo:"number",valor:57,step:"1"},
-      {id:"acBrL",label:"Largura do briquete  l",unidade:"mm",tipo:"number",valor:57,step:"1"},
-      {id:"acBrE",label:"Espessura do briquete  e",unidade:"mm",tipo:"number",valor:37.5,step:"0.5"},
-      {id:"acBrFi",label:"Fração de sólidos do leito  φs  (γ_aparente / ρ_briquete)",tipo:"number",valor:0.60,step:"0.01"},
-      {id:"acBrKfc",label:"Fator de concentração de cadeia de forças  kfc",tipo:"number",valor:2.5,step:"0.1"},
-      {id:"acBrFS",label:"Fator de segurança sobre a carga de pico",tipo:"number",valor:2.0,step:"0.1"},
-      {id:"acBrHq",label:"Altura de queda livre na descarga sobre a moega",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
-      {id:"acBrRes",label:"Resistência à compressão MEDIDA em ensaio (0 = não informada)",unidade:"kgf/briquete",tipo:"number",valor:0,step:"5"},
-      {tipo:"head",label:"Correia e roletes"},
-      {id:"acTipo",label:"Tipo de correia (peso Wb — tabela pág. 1-23)",tipo:"select",valor:"HDRN",opcoes:[
-        {v:"Plylon",t:"Plylon"},{v:"HDRN",t:"HDRN (serviço pesado)"}]},
-      {id:"acWb",label:"Peso da correia  Wb  (0 = tabela pág. 1-23)",unidade:"kgf/m",tipo:"number",valor:0,step:"0.1"},
-      {id:"acKy",label:"Ky — resistência à flexão (tipo de rolete)",tipo:"select",valor:"0.05",opcoes:[
-        {v:"0.05",t:"Roletes inclinados (côncavos) — Ky = 0,05"},
-        {v:"0.04",t:"Roletes planos — Ky = 0,04"}]},
-      {id:"acKxM",label:"Kx — resistência dos roletes",tipo:"select",valor:"geral",opcoes:[
-        {v:"geral",t:"Caso geral — Kx = 4,46 kgf/m"},
-        {v:"det",t:"Detalhado — Kx = 0,0068·(Wm + Wb) + x/a"}]},
-      {id:"acXrot",label:"x — peso das partes rotativas do rolete (modo detalhado)",unidade:"kgf",tipo:"number",valor:12,step:"0.5"},
-      {id:"acAesp",label:"a — espaçamento dos roletes (modo detalhado)",unidade:"m",tipo:"number",valor:0.6,step:"0.05"},
-      {tipo:"head",label:"Acionamento e tambores"},
-      {id:"acDt",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:630},
-      {id:"acEta",label:"Rendimento mecânico do acionamento  η",unidade:"-",tipo:"number",valor:0.85,step:"0.01"},
-      {id:"acK",label:"Fator de abraçamento K (Tab. 1-28)",tipo:"select",valor:"0.38",opcoes:[
-        {v:"0.38",t:"Simples · tambor revestido · gravidade · 210° (K = 0,38)"},
-        {v:"0.30",t:"Simples · tambor revestido · gravidade · 240° (K = 0,30)"},
-        {v:"0.84",t:"Simples · tambor de aço · gravidade · 180° (K = 0,84)"},
-        {v:"0.70",t:"Simples · tambor revestido · parafuso · 210° (K = 0,70)"}]},
-      {id:"acFS",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
-        {v:"10",t:"10 (correia têxtil / EP — padrão)"},
-        {v:"12",t:"12 (serviço severo — alimentador sob moega)"},
-        {v:"8",t:"8 (serviço leve)"}]}
-    ],
-    calcular:function(){ return alimCorreiaCalc(false); }
-  },
-  alimentador_correia_retomada:{
-    titulo:"Alimentador de Correia (moega de CARREGAMENTO por pá-carregadeira) — pré-dimensionamento",
-    referencia:"Aplicação sob MOEGA DE CARREGAMENTO abastecida por pá-carregadeira: a moega é modelada como tronco de pirâmide (a×b no topo, c×d na descarga, altura h), do qual saem o volume útil V = (h/3)·(A1 + A2 + √(A1·A2)), a massa de material contida V·ρ, a autonomia entre ciclos da pá e a carga vertical sobre a abertura pela expressão de Janssen aplicada à própria moega (saturação em γ·Rh/(K·μ)) — não há coluna de estoque acima do alimentador. Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H. Altura de camada D = Q/(γ·V·B·3600), limitada a D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); tabelas de coeficiente de atrito interno (fm) e de atrito com o aço (fsm) da pág. 1-22; velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s); tabela de peso da correia Wb (Plylon / HDRN) da pág. 1-23. Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; acionamento SEW-EURODRIVE (série R e industriais M/X)",
+    referencia:"Aplicação sob MOEGA DE ALIMENTAÇÃO (pá-carregadeira, caminhão basculante ou chute/silo contínuo): a moega é modelada como tronco de pirâmide (a×b no topo, c×d na descarga, altura h), do qual saem o volume útil V = (h/3)·(A1 + A2 + √(A1·A2)), a massa de material contida V·ρ, a autonomia entre ciclos de abastecimento e a carga vertical sobre a abertura pela expressão de Janssen aplicada à própria moega, com saturação em γ·Rh/(K·μ). Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H. Altura de camada D = Q/(γ·V·B·3600), limitada a D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); tabelas de coeficiente de atrito interno (fm) e de atrito com o aço (fsm) da pág. 1-22; velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s); tabela de peso da correia Wb (Plylon / HDRN) da pág. 1-23. Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; acionamento SEW-EURODRIVE (série R e industriais M/X)",
     campos:[
       {tipo:"head",label:"Processo"},
       {id:"acQ",label:"Capacidade  Q",unidade:"t/h",tipo:"number",valor:300},
@@ -3703,11 +3617,31 @@ const CALCS={
         {v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},{v:"60",t:"60\" (1500 mm)"},
         {v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
       {id:"acB",label:"Abertura da guia de material  B  (0 = 0,65 × largura da correia)",unidade:"mm",tipo:"number",valor:0,step:"25"},
-      {id:"acL2",label:"L2 — abertura da moega sobre a correia (deve coincidir com c)",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
+      {id:"acL2",label:"L2 — abertura da moega (tremonha) sobre a correia",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
       {id:"acL1",label:"L1 — comprimento de atrito (trecho carregado sob a moega)",unidade:"m",tipo:"number",valor:2.4,step:"0.1"},
       {id:"acL3",label:"L3 — guias laterais além da moega",unidade:"m",tipo:"number",valor:1.0,step:"0.1"},
       {id:"acL",label:"L — distância entre centros dos tambores",unidade:"m",tipo:"number",valor:6.0,step:"0.5"},
       {id:"acH",label:"H — altura de elevação do material (0 = horizontal)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {tipo:"head",label:"Moega de alimentação sobre o alimentador"},
+      {id:"acAbast",label:"Forma de abastecimento da moega",tipo:"select",valor:"pa",opcoes:[
+        {v:"pa",t:"Pá-carregadeira"},{v:"cam",t:"Caminhão basculante"},{v:"cont",t:"Chute / silo — abastecimento contínuo"}]},
+      {id:"acMa",label:"a — dimensional superior da moega",unidade:"mm",tipo:"number",valor:3500,step:"50"},
+      {id:"acMb",label:"b — dimensional superior da moega (perpendicular a a)",unidade:"mm",tipo:"number",valor:3000,step:"50"},
+      {id:"acMh",label:"h — altura da moega",unidade:"mm",tipo:"number",valor:2500,step:"50"},
+      {id:"acMc",label:"c — abertura de descarga sobre o alimentador (direção da correia)",unidade:"mm",tipo:"number",valor:3000,step:"50"},
+      {id:"acMd",label:"d — abertura de descarga sobre o alimentador (transversal)",unidade:"mm",tipo:"number",valor:700,step:"50"},
+      {id:"acConcha",label:"Volume da concha / caçamba de abastecimento (0 = contínuo)",unidade:"m³",tipo:"number",valor:3.0,step:"0.5"},
+      {tipo:"head",label:"Resistência mecânica do briquete"},
+      {id:"acBrq",label:"Verificar resistência do briquete",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (quando o material é briquete)"},{v:"sim",t:"Sim — sempre verificar"},{v:"nao",t:"Não verificar"}]},
+      {id:"acBrC",label:"Comprimento do briquete  c",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrL",label:"Largura do briquete  l",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrE",label:"Espessura do briquete  e",unidade:"mm",tipo:"number",valor:37.5,step:"0.5"},
+      {id:"acBrFi",label:"Fração de sólidos do leito  φs  (γ_aparente / ρ_briquete)",tipo:"number",valor:0.60,step:"0.01"},
+      {id:"acBrKfc",label:"Fator de concentração de cadeia de forças  kfc",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"acBrFS",label:"Fator de segurança sobre a carga de pico",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"acBrHq",label:"Altura de queda livre na descarga sobre a moega",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
+      {id:"acBrRes",label:"Resistência à compressão MEDIDA em ensaio (0 = não informada)",unidade:"kgf/briquete",tipo:"number",valor:0,step:"5"},
       {tipo:"head",label:"Correia e roletes"},
       {id:"acTipo",label:"Tipo de correia (peso Wb — tabela pág. 1-23)",tipo:"select",valor:"HDRN",opcoes:[
         {v:"Plylon",t:"Plylon"},{v:"HDRN",t:"HDRN (serviço pesado)"}]},
@@ -3731,27 +3665,9 @@ const CALCS={
       {id:"acFS",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
         {v:"10",t:"10 (correia têxtil / EP — padrão)"},
         {v:"12",t:"12 (serviço severo — alimentador sob moega)"},
-        {v:"8",t:"8 (serviço leve)"}]},
-      {tipo:"head",label:"Moega de carregamento sobre o alimentador"},
-      {id:"acMa",label:"a — dimensional superior da moega",unidade:"mm",tipo:"number",valor:3500,step:"50"},
-      {id:"acMb",label:"b — dimensional superior da moega (perpendicular a a)",unidade:"mm",tipo:"number",valor:3000,step:"50"},
-      {id:"acMh",label:"h — altura da moega",unidade:"mm",tipo:"number",valor:2500,step:"50"},
-      {id:"acMc",label:"c — abertura de descarga sobre o alimentador (direção da correia)",unidade:"mm",tipo:"number",valor:3000,step:"50"},
-      {id:"acMd",label:"d — abertura de descarga sobre o alimentador (transversal)",unidade:"mm",tipo:"number",valor:700,step:"50"},
-      {id:"acConcha",label:"Volume da concha da pá carregadeira",unidade:"m³",tipo:"number",valor:3.0,step:"0.5"},
-      {tipo:"head",label:"Resistência mecânica do briquete"},
-      {id:"acBrq",label:"Verificar resistência do briquete",tipo:"select",valor:"auto",opcoes:[
-        {v:"auto",t:"Automático (quando o material é briquete)"},{v:"sim",t:"Sim — sempre verificar"},{v:"nao",t:"Não verificar"}]},
-      {id:"acBrC",label:"Comprimento do briquete  c",unidade:"mm",tipo:"number",valor:57,step:"1"},
-      {id:"acBrL",label:"Largura do briquete  l",unidade:"mm",tipo:"number",valor:57,step:"1"},
-      {id:"acBrE",label:"Espessura do briquete  e",unidade:"mm",tipo:"number",valor:37.5,step:"0.5"},
-      {id:"acBrFi",label:"Fração de sólidos do leito  φs  (γ_aparente / ρ_briquete)",tipo:"number",valor:0.60,step:"0.01"},
-      {id:"acBrKfc",label:"Fator de concentração de cadeia de forças  kfc",tipo:"number",valor:2.5,step:"0.1"},
-      {id:"acBrFS",label:"Fator de segurança sobre a carga de pico",tipo:"number",valor:2.0,step:"0.1"},
-      {id:"acBrHq",label:"Altura de queda livre na descarga sobre a moega",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
-      {id:"acBrRes",label:"Resistência à compressão MEDIDA em ensaio (0 = não informada)",unidade:"kgf/briquete",tipo:"number",valor:0,step:"5"}
+        {v:"8",t:"8 (serviço leve)"}]}
     ],
-    calcular:function(){ return alimCorreiaCalc(true); }
+    calcular:function(){ return alimCorreiaCalc(); }
   },
   britador_conico:{
     titulo:"Britador Cônico — pré-dimensionamento",
