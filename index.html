@@ -237,6 +237,52 @@ function nextStd(mm){for(const d of DIAM_STD){if(d>=mm)return d;}return DIAM_STD
 function num(id){var e=$("#"+id); return e?parseFloat(e.value):NaN;}
 function selv(id,pad){var e=$("#"+id); return (e&&e.value!=="")?e.value:pad;}
 function selvN(id,pad){var v=parseFloat(selv(id,String(pad))); return isFinite(v)?v:pad;}
+/* ============ REGIME DE ESCOAMENTO — ÁBACO DE JENIKE (Bulletin 123) ============
+   θ = meio-ângulo da tremonha medido da VERTICAL, no limite do fluxo de massa, em função
+   do atrito de parede φw e do ângulo efetivo de atrito interno δ.
+
+   O ábaco aplicável é decidido pela GEOMETRIA DA BOCA, e não pelo rótulo escolhido no
+   formulário. Uma tremonha piramidal com boca alongada e paredes de topo íngremes escoa
+   em regime PLANO — cobrar dela o ângulo do ábaco cônico reprova geometrias que funcionam.
+   Na direção oposta, aplicar o ábaco plano a uma boca quase quadrada é contra a segurança.
+
+   Critério, ambas as condições necessárias:
+     1) a boca é um rasgo:  maior/menor ≥ 3
+     2) a parede que fecha o comprimento do rasgo é mais íngreme que o exigido pelo ábaco
+        cônico — só assim ela não forma vale ativo (zona morta na aresta).
+   No regime plano quem governa é a FACE CONVERGENTE; no axissimétrico, a ARESTA DE VALE,
+   que é sempre mais rasa que qualquer face (cot²αv = cot²αA + cot²αB).                 */
+const JEN_D=[30,40,50,60,70], JEN_W=[0,10,20,30,40];
+const JEN_CON=[[33,24,13, 0, 0],[35,28,19, 7, 0],[36,30,23,13, 0],[37,32,26,18, 7],[38,33,28,22,13]];
+const JEN_PLA=[[49,41,31,17, 0],[50,44,36,25, 8],[51,46,39,31,18],[52,47,42,35,25],[52,48,44,38,30]];
+function jenBil(TB,x,y){
+  function idx(v,arr){ if(v<=arr[0])return [0,0,0]; if(v>=arr[arr.length-1])return [arr.length-1,arr.length-1,0];
+    for(var i=1;i<arr.length;i++){ if(v<=arr[i]) return [i-1,i,(v-arr[i-1])/(arr[i]-arr[i-1])]; } return [arr.length-1,arr.length-1,0]; }
+  var ix=idx(x,JEN_D), iy=idx(y,JEN_W);
+  var v0=TB[ix[0]][iy[0]]+(TB[ix[0]][iy[1]]-TB[ix[0]][iy[0]])*iy[2];
+  var v1=TB[ix[1]][iy[0]]+(TB[ix[1]][iy[1]]-TB[ix[1]][iy[0]])*iy[2];
+  return v0+(v1-v0)*ix[2];
+}
+/* o = {deff, phw, C, D, alfaA, alfaB, alfaVale, forcaPlano, margem, bonus, piso} */
+function regimeFluxo(o){
+  var marg=(o.margem===undefined)?3:o.margem, bonus=o.bonus||0, piso=o.piso||0;
+  var thCon=jenBil(JEN_CON,o.deff,o.phw), thPla=jenBil(JEN_PLA,o.deff,o.phw);
+  var exigCon=Math.max(piso,(90-Math.max(3,thCon-marg))-bonus);
+  var exigPla=Math.max(piso,(90-Math.max(3,thPla-marg))-bonus);
+  var C=Math.max(o.C||0,1e-6), D=Math.max(o.D||0,1e-6);
+  var slotAlongA=(C>=D);
+  var endAng=slotAlongA?o.alfaA:o.alfaB;      // parede que fecha o comprimento do rasgo
+  var faceAng=slotAlongA?o.alfaB:o.alfaA;     // face convergente
+  var raz=Math.max(C,D)/Math.min(C,D);
+  var slotOK=(raz>=3), endOK=(endAng>=exigCon-0.5);
+  var plano=(!!o.forcaPlano)||(slotOK&&endOK);
+  var exig=plano?exigPla:exigCon;
+  var gov=plano?faceAng:o.alfaVale;
+  return {plano:plano,thCon:thCon,thPla:thPla,exigCon:exigCon,exigPla:exigPla,exig:exig,
+          gov:gov,govNome:plano?"face convergente":"aresta de vale",raz:raz,slotOK:slotOK,
+          endAng:endAng,endOK:endOK,faceAng:faceAng,ok:(gov>=exig-0.5),theta:90-exig,
+          Hf:(plano?1.0:2.0)+(90-exig)/60, kMec:(plano?6:8), Bfloor:(plano?0.4:0.6)};
+}
 /* Pré-seleção de materiais típicos de mineração (valores representativos de literatura — confirmar em ensaio Jenike Shear) */
 const SILO_MAT={
   fe_gran:{rho:2.5,phi:35,delta:25,c:0.3,d50:12},
@@ -599,28 +645,23 @@ function coneVibCalc(CVCIRC){
       var geratriz=Math.sqrt(H*H+proj*proj);
       /* ---- ÂNGULO EXIGIDO (Jenike com bônus de vibração) ----
          A vibração reduz o atrito efetivo de parede: o ativador admite paredes ~10 a 15°
-         mais rasas que a tremonha estática equivalente. */
-      var JEN_D=[30,40,50,60,70], JEN_W=[0,10,20,30,40];
-      var JEN_CON=[[33,24,13,0,0],[35,28,19,7,0],[36,30,23,13,0],[37,32,26,18,7],[38,33,28,22,13]];
-      function bil(T,xs,ys,x,y){
-        function idx(v,arr){ if(v<=arr[0])return [0,0,0]; if(v>=arr[arr.length-1])return [arr.length-1,arr.length-1,0];
-          for(var i=1;i<arr.length;i++){ if(v<=arr[i]) return [i-1,i,(v-arr[i-1])/(arr[i]-arr[i-1])]; } return [arr.length-1,arr.length-1,0]; }
-        var ix=idx(x,xs), iy=idx(y,ys);
-        var v0=T[ix[0]][iy[0]]+(T[ix[0]][iy[1]]-T[ix[0]][iy[0]])*iy[2];
-        var v1=T[ix[1]][iy[0]]+(T[ix[1]][iy[1]]-T[ix[1]][iy[0]])*iy[2];
-        return v0+(v1-v0)*ix[2];
-      }
-      var thLim=bil(JEN_CON,JEN_D,JEN_W,phi,phw);
+         mais rasas que a tremonha estática equivalente. O ábaco aplicável (axissimétrico
+         ou plano) sai do helper regimeFluxo(), que decide pela geometria da boca — no cone
+         CIRCULAR a boca é sempre axissimétrica; no RETANGULAR uma boca em rasgo com
+         paredes de topo íngremes escoa em regime plano e não deve ser cobrada pelo cônico. */
       var bonusVib=13;                                          // graus ganhos pela vibração
-      var alfaExig=Math.max(25,(90-Math.max(3,thLim-3))-bonusVib);
-      var anguloOK=(alfaVale>=alfaExig-0.5);
+      var RG=regimeFluxo({deff:phi,phw:phw,C:(circ?C:C),D:(circ?C:D),
+        alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,bonus:bonusVib,piso:25});
+      var thLim=RG.plano?RG.thPla:RG.thCon;
+      var alfaExig=RG.exig;
+      var anguloOK=RG.ok;
       /* ---- ABERTURA ANTI-ARCO ---- */
       var pr=phi*Math.PI/180, gamma=rho*g;
       var sc=2*coes*Math.cos(pr)/(1-Math.sin(pr)); if(!isFinite(sc)||sc<0)sc=0;
-      var Hf=2.0+(90-alfaExig)/60;
+      var Hf=RG.Hf;
       var Barco=(sc>0.001)?(Hf*sc/gamma):0;
       var BarcoVib=Barco*0.6;                                   // a vibração reduz o arco ~40%
-      var Bmec=8*d50/1000;
+      var Bmec=RG.kMec*d50/1000;
       var Bmin=Math.max(BarcoVib,Bmec,0.25);
       var Bdesc=Math.min(C,D);
       var bocaOK=(Bdesc>=Bmin-0.001);
@@ -760,7 +801,9 @@ function coneVibCalc(CVCIRC){
         {sec:"Etapa 2 — Verificação de fluxo"},
         {k:"Ângulo das paredes  (direção A / direção B)",v:alfaA.toFixed(1).replace(".",",")+"° / "+alfaB.toFixed(1).replace(".",",")+"°"},
         {k:"Ângulo governante  (vale, no retangular)",v:alfaVale.toFixed(1).replace(".",",")+"°",hi:true},
-        {k:"Ângulo exigido  (Jenike − "+bonusVib+"° de bônus da vibração)",v:alfaExig.toFixed(1).replace(".",",")+"°"+(anguloOK?"   ✓ atende":"   ⚠ parede mais rasa que o exigido — aumentar H ou reduzir a boca de entrada"),hi:true},
+        {k:"REGIME DE ESCOAMENTO — decidido pela geometria da boca",v:(RG.plano?"PLANO (rasgo)":"AXISSIMÉTRICO")+(circ?"   —  boca circular: sempre axissimétrico":"   —  boca "+Math.round(Math.max(C,D)*1000)+" × "+Math.round(Math.min(C,D)*1000)+" mm dá "+RG.raz.toFixed(1).replace(".",",")+":1 "+(RG.slotOK?"✓ ≥ 3:1":"✗ < 3:1")+"   ·   parede de topo "+RG.endAng.toFixed(1).replace(".",",")+"° "+(RG.endOK?"✓":"✗")+" vs "+RG.exigCon.toFixed(1).replace(".",",")+"°"),hi:true},
+        {k:"Ângulo exigido  (Jenike − "+bonusVib+"° de bônus da vibração)",v:alfaExig.toFixed(1).replace(".",",")+"°   (ábaco "+(RG.plano?"plano":"axissimétrico")+(RG.plano?"; o cônico exigiria "+RG.exigCon.toFixed(1).replace(".",",")+"°":"; num rasgo bastariam "+RG.exigPla.toFixed(1).replace(".",",")+"°")+")",hi:true},
+        {k:"VERIFICAÇÃO GOVERNANTE — "+RG.govNome,v:RG.gov.toFixed(1).replace(".",",")+"° vs "+alfaExig.toFixed(1).replace(".",",")+"°"+(anguloOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — aumentar H ou reduzir a boca de entrada"),hi:true},
         {k:"Abertura anti-arco estática  B = H(θ)·σc/γ",v:(Barco*1000).toFixed(0)+" mm"},
         {k:"Abertura anti-arco COM vibração  (≈ 0,6 × estática)",v:(BarcoVib*1000).toFixed(0)+" mm"},
         {k:"Abertura por bloqueio mecânico  (8 × d50)",v:(Bmec*1000).toFixed(0)+" mm"},
@@ -832,7 +875,7 @@ function coneVibCalc(CVCIRC){
         {k:"Cuidados de operação",v:"Nunca operar o vibrador com o silo parado e o material consolidado por longo período (compacta em vez de soltar). Acionar o vibrador SOMENTE com o alimentador a jusante em operação, e de forma intermitente. Vibração contínua compacta o material e reduz a vida da manga e das molas."},
         {k:"Observação de projeto",v:"⚠ Pré-dimensionamento. A força centrífuga e a amplitude devem ser confirmadas com o fabricante do motovibrador para a massa vibrante real, e as molas selecionadas em catálogo pela rigidez e pela carga estática. Verificar ainda a partida (o vibrador passa pela frequência de ressonância ao acelerar e ao parar)."}
       ];
-      OUT.geo={tipo:"conevib",A:A,B:B,H:H,C:C,D:D,circ:circ,A1:A1,A2:A2,Vtronco:Vtronco,
+      OUT.geo={tipo:"conevib",regPlano:RG.plano,alfaGov:RG.gov,govNome:RG.govNome,razBoca:RG.raz,alfaExig:alfaExig,A:A,B:B,H:H,C:C,D:D,circ:circ,A1:A1,A2:A2,Vtronco:Vtronco,
         temDefl:temDefl,Db:Db,Dh:Dh,Vdefl:Vdefl,Vutil:Vutil,mMat:mMat,
         alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaExig:alfaExig,anguloOK:anguloOK,geratriz:geratriz,
         Barco:Barco,BarcoVib:BarcoVib,Bmec:Bmec,Bmin:Bmin,Bdesc:Bdesc,bocaOK:bocaOK,Qbev:Qbev,
@@ -2549,7 +2592,7 @@ const CALCS={
       var alfaCapLim=70;
       var alfaCap=(alfaJen>alfaCapLim);
       var alfaFlow=alfaCap?alfaCapLim:alfaJen;
-      var semFluxoMassa=(thetaLim<=0.5)||alfaCap;
+      /* semFluxoMassa é definido após a geometria, na re-avaliação do regime */
       /* Diâmetro de rathole (fluxo de funil): Df = G(φt)·σc/γ  — Jenike */
       var GT_X=[30,40,50,60], GT_Y=[2.0,3.3,5.0,7.5];
       function interpG(x){ if(x<=GT_X[0])return GT_Y[0]; if(x>=GT_X[3])return GT_Y[3];
@@ -2573,7 +2616,12 @@ const CALCS={
       var bocaUser=(hasBw||hasBl);
       var bocaCurta=(Bw<Brec-0.001);
       var bocaNota=bocaCurta?("  ⚠ abaixo do mínimo exigido ("+Math.round(Brec*1000)+" mm) — risco de arco/entupimento"):"";
-      var ta=(a-Bw)/2, tb=(b-Bw)/2;
+      /* A boca é retangular Bw × Bl também na tremonha piramidal: Bl acompanha o lado
+         MAIOR do silo e Bw o menor. Antes os recuos usavam Bw nas duas direções, o que
+         tratava a boca como quadrada e produzia um ângulo de vale mais raso que o real. */
+      var aLong=(a>=b);
+      var ta=aLong?((a-Bl)/2):((a-Bw)/2), tb=aLong?((b-Bw)/2):((b-Bl)/2);
+      if(ta<0)ta=0; if(tb<0)tb=0;
       var hc;
       if(hasH2){ hc=H2in; }
       else if(cunha){ hc=(Lmin-Bw)/2*Math.tan(alfaFlow*Math.PI/180); }
@@ -2584,11 +2632,32 @@ const CALCS={
       if(cunha){ alfaA=90; alfaB=angFace((Lmin-Bw)/2); alfaVale=alfaB; }
       else { alfaA=angFace(ta); alfaB=angFace(tb);
              alfaVale=(hc>0)?Math.atan(hc/Math.sqrt(ta*ta+tb*tb))*180/Math.PI:0; }
-      var flowShallow=(alfaVale<alfaFlow-0.5);
-      var valeGap=alfaFlow-alfaVale;
+      /* ===== RE-AVALIAÇÃO DO REGIME PELA GEOMETRIA REAL =====
+         O bloco acima usou o ábaco do tipo DECLARADO no formulário apenas para gerar a
+         altura da tremonha quando ela é automática. Agora que αA, αB e a boca estão
+         definidos, o regime é decidido pela geometria: boca em rasgo (≥ 3:1) com parede de
+         topo íngreme escoa em regime plano, e quem governa passa a ser a face convergente
+         em vez da aresta de vale. Como o dimensionamento anterior usou o critério mais
+         severo, o resultado só pode ficar igual ou mais favorável — nunca contra a segurança. */
+      var RG=regimeFluxo({deff:deff,phw:delta,C:Bl,D:Bw,alfaA:alfaA,alfaB:alfaB,
+                          alfaVale:alfaVale,forcaPlano:cunha});
+      thetaLim=RG.plano?RG.thPla:RG.thCon;
+      thetaDes=90-RG.exig;
+      alfaJen=RG.exig;
+      alfaCap=(RG.exig>alfaCapLim);
+      alfaFlow=RG.exig;
+      Hf=RG.Hf; Bmec=RG.kMec*d50/1000; Bfloor=RG.Bfloor;
+      Barco=(sc>0.001)?Hf*sc/gamma:0;
+      Brec=Math.max(Barco,Bmec,Bfloor);
+      var semFluxoMassa=!RG.ok;
+      if(semFluxoMassa) Brec=Math.max(Brec,Drat);
+      bocaCurta=(Bw<Brec-0.001);
+      bocaNota=bocaCurta?("  ⚠ abaixo do mínimo exigido ("+Math.round(Brec*1000)+" mm) — risco de arco/entupimento"):"";
+      var flowShallow=!RG.ok;
+      var valeGap=RG.exig-RG.gov;
       var alfa=alfaVale, arad=alfa*Math.PI/180;
       var betaHop=90-alfa;                               // meio-ângulo da tremonha (da vertical)
-      var A1=a*b, A2=cunha?(Bw*Bl):(Bw*Bw);
+      var A1=a*b, A2=Bw*Bl;
       var Vpir=cunha?(hc/2)*(Lmin+Bw)*Lmax:(hc/3)*(A1+A2+Math.sqrt(A1*A2));
       /* Cone de empilhamento no topo (ângulo de repouso) — volume adicional armazenável */
       var rep=num("rRep"); if(isNaN(rep)||rep<=0||rep>=60)rep=35;
@@ -2930,13 +2999,14 @@ const CALCS={
         {k:"Classificação de fluidez",v:classe,hi:true},
         {sec:"Etapa 4 — Fluxo de massa pelo ÁBACO DE JENIKE"},
         {k:"Tipo de tremonha",v:cunha?"Em cunha — fluxo plano (ábaco de tremonha plana)":"Piramidal — fluxo cônico (ábaco axissimétrico)",hi:true},
-        {k:"θ limite do ábaco  (δ = "+deff.toFixed(0)+"° · φw = "+delta.toFixed(0)+"°)",v:thetaLim.toFixed(1).replace(".",",")+"°  medido da vertical"+(semFluxoMassa?"   ⚠ o ábaco NÃO admite fluxo de massa nesta combinação — reduzir φw (revestimento) ou aceitar fluxo de funil":""),hi:true},
+        {k:"REGIME DE ESCOAMENTO — decidido pela GEOMETRIA da boca",v:(RG.plano?"PLANO (rasgo)":"AXISSIMÉTRICO")+"   —   boca "+Math.round(Math.max(Bl,Bw)*1000)+" × "+Math.round(Math.min(Bl,Bw)*1000)+" mm dá relação "+RG.raz.toFixed(1).replace(".",",")+":1 "+(RG.slotOK?"✓ ≥ 3:1 (é rasgo)":"✗ < 3:1 (não é rasgo)")+"   ·   parede de topo "+RG.endAng.toFixed(1).replace(".",",")+"° "+(RG.endOK?"✓ ≥ "+RG.exigCon.toFixed(1).replace(".",",")+"° (não forma vale ativo)":"✗ < "+RG.exigCon.toFixed(1).replace(".",",")+"° (forma vale ativo)")+(cunha?"   ·   tipo declarado: cunha":"")+".  Uma tremonha piramidal com boca alongada e paredes de topo íngremes é, para efeito de escoamento, uma cunha — e não deve ser cobrada pelo ábaco cônico.",hi:true},
+        {k:"θ limite do ábaco  (δ = "+deff.toFixed(0)+"° · φw = "+delta.toFixed(0)+"°)",v:"axissimétrico "+RG.thCon.toFixed(1).replace(".",",")+"°   ·   plano "+RG.thPla.toFixed(1).replace(".",",")+"°   (medidos da vertical; aplicável: "+(RG.plano?"plano":"axissimétrico")+" → θ = "+thetaLim.toFixed(1).replace(".",",")+"°)"+(semFluxoMassa?"   ⚠ o ábaco NÃO admite fluxo de massa com esta geometria — reduzir φw (revestimento), alongar a boca em rasgo ou aceitar fluxo de funil":""),hi:true},
         {k:"θ de projeto  (margem de "+margJ.toFixed(0)+"° sobre o limite)",v:thetaDes.toFixed(1).replace(".",",")+"°",hi:true},
         {k:"Ângulo de FACE exigido pelo ábaco  α = 90 − θ",v:alfaJen.toFixed(1).replace(".",",")+"°  com a horizontal"+(alfaCap?("   ⚠ acima do limite construtivo de "+alfaCapLim+"°"):""),hi:true},
         {k:"REGIME DE FLUXO RESULTANTE",v:semFluxoMassa?
             ("FLUXO DE FUNIL — o fluxo de massa não é atingível: o ábaco exige face de "+alfaJen.toFixed(1).replace(".",",")+"°, acima do limite prático de "+alfaCapLim+"°. Alternativas: (1) tremonha EM CUNHA (fluxo plano admite face ~10 a 15° mais rasa), (2) revestimento de baixo atrito — UHMW-PE reduz φw em ~10°, (3) aceitar fluxo de funil com a boca maior que o rathole."):
             "FLUXO DE MASSA — o ângulo exigido é construtivamente viável",hi:true},
-        {k:"Ângulo de face adotado no dimensionamento",v:alfaFlow.toFixed(1).replace(".",",")+"°"+(alfaCap?"  (limitado)":""),hi:true},
+        {k:"ÂNGULO EXIGIDO para fluxo de massa",v:alfaFlow.toFixed(1).replace(".",",")+"°"+(alfaCap?"  (limitado a "+alfaCapLim+"°)":"")+"   "+(RG.plano?"(pelo ábaco plano; se a boca não fosse rasgo, o cônico exigiria "+RG.exigCon.toFixed(1).replace(".",",")+"°)":"(pelo ábaco cônico; num rasgo bastariam "+RG.exigPla.toFixed(1).replace(".",",")+"°)"),hi:true},
         {k:"Abertura anti-arco  B = H(θ)·σc/γ",v:(Barco*1000).toFixed(0)+" mm   (H(θ) = "+Hf.toFixed(2).replace(".",",")+")"},
         {k:"Abertura por bloqueio mecânico  ("+(cunha?"6":"8")+" × d50)",v:(Bmec*1000).toFixed(0)+" mm"},
         {k:"Diâmetro de RATHOLE  Df = G(δ)·σc/γ  (fluxo de funil)",v:(Drat*1000).toFixed(0)+" mm   (G = "+Gfun.toFixed(1).replace(".",",")+")"+(semFluxoMassa?"   ← GOVERNA neste regime":"   (não governa — há fluxo de massa)"),hi:semFluxoMassa},
@@ -2958,7 +3028,7 @@ const CALCS={
         {k:"Boca de descarga — largura × comprimento",v:(Bw*1000).toFixed(0)+" × "+(Bl*1000).toFixed(0)+" mm"+(bocaUser?"  (informada)":"  (calculada)")+bocaNota,hi:true},
         {k:"Área da boca de descarga",v:Aboca.toFixed(3).replace(".",",")+" m²"},
         {k:"Ângulo das faces  (lado a / lado b)",v:alfaA.toFixed(1).replace(".",",")+"° / "+alfaB.toFixed(1).replace(".",",")+"°"},
-        {k:"ÂNGULO DE VALE  αv  (governa o fluxo)",v:alfaVale.toFixed(1).replace(".",",")+"°"+(flowShallow?("  ⚠ "+valeGap.toFixed(1).replace(".",",")+"° mais raso que o exigido ("+alfaFlow.toFixed(1).replace(".",",")+"°) — fluxo de funil no canto"):"  ✓ atende ao ângulo exigido"),hi:true},
+        {k:"VERIFICAÇÃO GOVERNANTE — "+RG.govNome,v:RG.gov.toFixed(1).replace(".",",")+"° vs "+alfaFlow.toFixed(1).replace(".",",")+"°"+(flowShallow?("   ⚠ NÃO ATENDE — "+valeGap.toFixed(1).replace(".",",")+"° mais raso que o exigido"):"   ✓ ATENDE")+"   —  "+(RG.plano?"em regime de rasgo o escoamento é plano: quem governa é a face convergente. O vale geométrico ("+alfaVale.toFixed(1).replace(".",",")+"°) existe no desenho, mas as paredes de topo são íngremes demais para formar zona morta ativa.":"a aresta de vale é mais rasa que qualquer face e forma zona morta: é ela o critério"),hi:true},
         {sec:"Etapas 5-6 — Pressões de Janssen · TRÊS CASOS DE CARGA (EN 1991-4)"},
         {k:"Raio hidráulico  Rh = A/U",v:Rh.toFixed(3).replace(".",",")+" m"},
         {k:"Coeficiente de pressão  K = 1,1·(1−senφi)",v:"médio "+Km.toFixed(3).replace(".",",")+"   ·   superior "+Ku.toFixed(3).replace(".",",")+"   ·   inferior "+Kl.toFixed(3).replace(".",",")+"   (a_K = "+aK.toFixed(2).replace(".",",")+")"},
@@ -3096,6 +3166,7 @@ const CALCS={
       ];
       OUT.geo={tipo:"ret",D:a,b:b,Hcil:Hcil,hc:hc,Htot:Htot,Brec:Bw,Bl:Bl,cunha:cunha,alfa:alfa,
         alfaA:alfaA,alfaB:alfaB,alfaVale:alfaVale,alfaFlow:alfaFlow,flowShallow:flowShallow,
+        regPlano:RG.plano,alfaGov:RG.gov,govNome:RG.govNome,razBoca:RG.raz,
         tcom:tcom,tA:chapaA.tcom,tB:chapaB.tcom,thopcom:thopcom,fy:fy,Vutil:V,Vsilo:Vutil,Mutil:Mutil,Vgeo:Vgeo,VgeoC:VgeoC,
         sst:sst,otimS:otimS,nCintas:nCintas,nEnrV:nEnrV,Wreq:Wreq,Ireq:Ireq_cm4,Ncol:Ncol,otimN:otimN,
         Bw:Bw,bocaUser:bocaUser,bocaCurta:bocaCurta,vaoCinta:vaoCinta,
@@ -6363,7 +6434,7 @@ function gerarRelatorio(){
       cot(cx-bwPix,yBoca+7,cx+bwPix,yBoca+7,"B = "+Math.round(G.Bw*1000)+" mm");
       /* ângulo de vale */
       doc.setTextColor(CAZ[0],CAZ[1],CAZ[2]); doc.setFontSize(6);
-      doc.text(san("αv = "+G.alfaVale.toFixed(1)+"°  (exig. "+G.alfaFlow.toFixed(1)+"°)"),cx-wH+3,yTrans+(yBoca-yTrans)*0.55);
+      doc.text(san((G.regPlano?"face = ":"αv = ")+G.alfaGov.toFixed(1)+"°  (exig. "+G.alfaFlow.toFixed(1)+"°)"),cx-wH+3,yTrans+(yBoca-yTrans)*0.55);
       /* ---------- VISTA 2: PLANTA ---------- */
       var pL=132, pT=44, pW=54, pH=pW*(G.b/G.D);
       doc.setFontSize(8); doc.setTextColor(C1[0],C1[1],C1[2]);
@@ -6415,7 +6486,7 @@ function gerarRelatorio(){
         [san("Boca de descarga  Bw × Bl"),san(String(Math.round(G.Bw*1000)))+" × "+san(String(Math.round(G.Bl*1000)))+" mm"+(G.bocaCurta?san(" — abaixo do minimo"):"")],
         [san("Tipo de tremonha"),G.cunha?san("em cunha (fluxo plano)"):san("piramidal (fluxo cônico)")],
         [san("Ábaco de Jenike — θ limite / θ projeto"),san(G.thetaLim.toFixed(1))+"° / "+san(G.thetaDes.toFixed(1))+"°"],
-        [san("Ângulo de face exigido / ângulo de vale"),san(G.alfaFlow.toFixed(1))+"° / "+san(G.alfaVale.toFixed(1))+"°"+(G.flowShallow?san(" — raso"):"")],
+        [san("Angulo exigido / governante ("+G.govNome+")"),san(G.alfaFlow.toFixed(1))+"° / "+san(G.alfaGov.toFixed(1))+"°"+(G.flowShallow?san(" — raso"):"")],
         [san("Ângulos das faces  (lado a / lado b)"),san(G.alfaA.toFixed(1))+"° / "+san(G.alfaB.toFixed(1))+"°"],
         [san("Abertura anti-arco / bloqueio mecânico"),san(String(Math.round(G.Barco*1000)))+" / "+san(String(Math.round(G.Bmec*1000)))+" mm"],
         [san("Vazão de descarga (Beverloo)"),san(G.Qbev.toFixed(0))+" t/h"+(G.gravOK?"":san(" — insuficiente p/ gravidade"))],
@@ -6525,7 +6596,7 @@ function gerarRelatorio(){
       // cotas extras do retangular: angulos de face, vale, chapas, cintas e montantes
       doc.text("face "+san(G.alfaB.toFixed(0))+"°",cx+oH+4,botY-3);
       doc.setTextColor(G.flowShallow?200:30,G.flowShallow?60:120,G.flowShallow?60:150);
-      doc.text((G.cunha?"aresta ":"VALE ")+san(G.alfaVale.toFixed(0))+"° (exig. "+san(G.alfaFlow.toFixed(0))+"°)",cx-oH-4,botY-3,{align:"right"});
+      doc.text((G.regPlano?"FACE ":"VALE ")+san(G.alfaGov.toFixed(0))+"° (exig. "+san(G.alfaFlow.toFixed(0))+"°)",cx-oH-4,botY-3,{align:"right"});
       doc.setTextColor(30,120,150);
       // CINTAS horizontais (traço cheio, ultrapassando a parede) — a cada s
       doc.setDrawColor(200,120,40); doc.setLineWidth(0.7);
@@ -6564,7 +6635,7 @@ function gerarRelatorio(){
       legBody.push([san("Tipo de tremonha"),G.cunha?"Cunha (fenda) — fluxo plano":"Piramidal — fluxo cônico"]);
       legBody.push([san("Boca de descarga"),G.cunha?(san(String(Math.round(G.Brec*1000)))+" × "+san(String(Math.round(G.Bl*1000)))+" mm"):(san(String(Math.round(G.Brec*1000)))+" mm")]);
       legBody.push([san("Ângulo de face (a / b)"),san(G.alfaA.toFixed(0))+"° / "+san(G.alfaB.toFixed(0))+"°"]);
-      legBody.push([san(G.cunha?"Ângulo da aresta":"ÂNGULO DE VALE (governa o fluxo)"),san(G.alfaVale.toFixed(0))+"°  (exigido "+san(G.alfaFlow.toFixed(0))+"°)"+(G.flowShallow?"  (!) RASO":"  OK")]);
+      legBody.push([san("GOVERNA O FLUXO — "+G.govNome+(G.regPlano?" (regime plano)":" (axissimetrico)")),san(G.alfaGov.toFixed(0))+"°  (exigido "+san(G.alfaFlow.toFixed(0))+"°)"+(G.flowShallow?"  (!) RASO":"  OK")]);
       legBody.push([san("Volume útil requerido / da geometria"),san(G.Vutil.toFixed(1))+" / "+san(G.Vgeo.toFixed(1))+" m³"]);
       legBody.push([san("Pressão horizontal de projeto  ph,d"),san(G.phD.toFixed(1))+" kPa"]);
       legBody.push([san("Chapa da parede (lado a / lado b)"),san(G.tA.toFixed(1))+" / "+san(G.tB.toFixed(1))+" mm"]);
