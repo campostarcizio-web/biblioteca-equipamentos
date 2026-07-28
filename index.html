@@ -274,13 +274,15 @@ const FEED_MAT={
   escoria:      {rho:1.60,theta:35,fm:0.60,fsm:0.54,abr:"abr", d:80, fonte:"fm da pág. 1-22 · fsm estimado (rocha britada)"},
   rocha_brit:   {rho:1.60,theta:37,fm:0.65,fsm:0.54,abr:"abr", d:100,fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
   rocha_fosf:   {rho:1.30,theta:35,fm:0.65,fsm:0.54,abr:"abr", d:60, fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
-  briq_bar:     {rho:1.70,theta:35,fm:0.75,fsm:0.60,abr:"abr", d:57, fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"},
-  briq_bricao:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
+  briq_bar:     {rho:1.70,theta:35,fm:0.75,fsm:0.60,abr:"abr", d:57, br:[57,57,37.5], fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"},
+  briq_bricao:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,br:[120,108,87],fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
 };
 function acPreset(){
   var p=FEED_MAT[$("#acMat").value]; if(!p){ runCalc((CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"alimentador_correia"); return; }
   $("#acRho").value=p.rho; $("#acTheta").value=p.theta; $("#acFm").value=p.fm;
   $("#acFsm").value=p.fsm; $("#acFmax").value=p.d; $("#acAbras").value=p.abr;
+  if(p.br){ var c1=$("#acBrC"),c2=$("#acBrL"),c3=$("#acBrE");
+    if(c1)c1.value=p.br[0]; if(c2)c2.value=p.br[1]; if(c3)c3.value=p.br[2]; }
   runCalc((CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"alimentador_correia");
 }
 
@@ -944,6 +946,66 @@ function alimCorreiaCalc(RET){
         cOK=(Math.abs(Mc-L2)<=Math.max(0.15,0.10*L2));
         dOK=(Math.abs(Md-B)<=Math.max(0.10,0.15*B));
       }
+
+      /* ============ RESISTÊNCIA MECÂNICA REQUERIDA DO BRIQUETE ============
+         O briquete é um corpo conformado: diferente de rocha britada, ele tem resistência
+         limitada e definida em ensaio (carga de ruptura à compressão, por briquete). Aqui
+         determina-se a resistência MÍNIMA que o briquete precisa ter para atravessar o
+         circuito de alimentação sem se degradar, em três solicitações:
+           1) esmagamento estático sob a coluna de material na boca da moega;
+           2) impacto da descarga (queda livre da concha ou do chute);
+           3) cisalhamento/abrasão na extração pelo alimentador.
+         A tensão de contato entre briquetes é maior que a tensão aparente do leito: só a
+         fração sólida transmite carga (σ_sólido = σv/φs) e a rede de cadeias de força
+         concentra a carga em alguns contatos (fator kfc). */
+      var eBrq=false,Abrq=0,Vbrq=0,mBrq=0,rhoBrq=0,phis=0.6,kfc=2.5,FSbrq=2.0,
+          sigSol=0,Fmed=0,Fpico=0,Freq=0,FreqKgf=0,sigNom=0,pvGov=0,hGov=0,
+          Hq=0,vImp=0,Eimp=0,FimpLeito=0,FimpChapa=0,tauB=0,FcisB=0,sigGuia=0,
+          Rmed=0,FSef=0,brqOK=true,relImp=0,cBr=0,lBr=0,eBr=0;
+      (function(){
+        var mo=$("#acMat"); var mv=mo?mo.value:"";
+        var modo=selv("acBrq","auto");
+        eBrq = (modo==="sim") || (modo==="auto" && mv.indexOf("briq")===0);
+        if(!eBrq) return;
+        cBr=num("acBrC")/1000; lBr=num("acBrL")/1000; eBr=num("acBrE")/1000;
+        if(!isFinite(cBr)||cBr<=0)cBr=Fmax/1000; if(!isFinite(lBr)||lBr<=0)lBr=cBr;
+        if(!isFinite(eBr)||eBr<=0)eBr=0.6*cBr;
+        phis=num("acBrFi"); if(!isFinite(phis)||phis<=0.2||phis>0.95)phis=0.60;
+        kfc=num("acBrKfc"); if(!isFinite(kfc)||kfc<1)kfc=2.5;
+        FSbrq=num("acBrFS"); if(!isFinite(FSbrq)||FSbrq<1)FSbrq=2.0;
+        /* pressão vertical governante sobre a boca */
+        if(RET){ pvGov=pvMo; hGov=Mh; }
+        else{
+          hGov=num("acHcol"); if(!isFinite(hGov)||hGov<=0)hGov=3.0;
+          var Ab0=B*L2, Rh0=Ab0/(2*(B+L2)), mu0=Math.max(fsm,0.05);
+          var ps0=gama*Rh0/(Ka*mu0)*9.80665/1000;
+          pvGov=ps0*(1-Math.exp(-Ka*mu0*hGov/Rh0));
+        }
+        Abrq=cBr*lBr;                       // m² — maior face (apoio deitado)
+        Vbrq=cBr*lBr*eBr;                   // m³
+        rhoBrq=(gama/1000)/phis;            // t/m³ do corpo do briquete
+        mBrq=Vbrq*rhoBrq*1000;              // kg por briquete
+        sigSol=pvGov/phis;                  // kPa — tensão média no esqueleto sólido
+        Fmed=sigSol*Abrq;                   // kN — carga média por briquete
+        Fpico=kfc*Fmed;                     // kN — briquete na cadeia de força
+        Freq=FSbrq*Fpico;                   // kN — resistência mínima requerida
+        FreqKgf=Freq*1000/9.80665;
+        sigNom=Freq/Abrq/1000;              // MPa — tensão nominal equivalente
+        /* impacto na descarga */
+        Hq=num("acBrHq"); if(!isFinite(Hq)||Hq<0)Hq=3.0;
+        vImp=Math.sqrt(2*9.80665*Hq);
+        Eimp=mBrq*9.80665*Hq;               // J
+        FimpLeito=mBrq*vImp*vImp/(2*0.020)/1000;   // kN — parada em 20 mm (leito de briquetes)
+        FimpChapa=mBrq*vImp*vImp/(2*0.002)/1000;   // kN — parada em 2 mm (fundo de aço vazio)
+        relImp=(Fpico>0)?FimpChapa/Fpico:0;
+        /* cisalhamento na extração e compressão sob as guias */
+        tauB=fm*pvGov;                      // kPa — cisalhamento interno no plano de extração
+        FcisB=tauB*Abrq;                    // kN por briquete
+        sigGuia=gama*D*9.80665/1000;        // kPa — coluna da camada sobre a correia
+        Rmed=num("acBrRes");                // kgf/briquete medido em ensaio
+        if(isFinite(Rmed)&&Rmed>0){ FSef=Rmed*9.80665/1000/Fpico; brqOK=(Rmed>=FreqKgf); }
+        else { Rmed=0; }
+      })();
       var OUT=[
         ...(RET?[
         {sec:"Etapa 0 — MOEGA DE CARREGAMENTO (volume e carga)"},
@@ -1022,6 +1084,37 @@ function alimCorreiaCalc(RET){
         {k:"CARCAÇA REQUERIDA  (× FS "+FS.toFixed(0)+")",v:carcReq.toFixed(0)+" N/mm  →  EP "+EPsel+" N/mm",hi:true},
         {k:"Diâmetro mínimo do tambor de acionamento",v:Dmin_acion+" mm"+(Dtok?"  ✓ o tambor adotado atende":"  ⚠ tambor adotado ("+Dt.toFixed(0)+" mm) abaixo do mínimo para a carcaça EP "+EPsel)},
         {k:"Observação da correia",v:"O alimentador trabalha permanentemente carregado e sob a pressão da moega: prever cobertura resistente à abrasão, roletes de impacto de passo curto sob a moega, raspador de retorno e tambor de acionamento revestido. O peso Wb da tabela é primeira aproximação — recalcular após definir a correia (pág. 1-23)."},
+        ...(eBrq?[
+        {sec:"Etapa 7 — RESISTÊNCIA MECÂNICA REQUERIDA DO BRIQUETE"},
+        {k:"Por que verificar",v:"O briquete é um corpo conformado, com resistência limitada e mensurável em ensaio (carga de ruptura à compressão, por briquete). Se a carga que ele recebe na alimentação superar essa resistência, ele se rompe e gera finos — perde-se produto, a vazão do alimentador cai e o pó compromete o circuito a jusante. Verificam-se três solicitações: esmagamento estático na boca, impacto da descarga e cisalhamento na extração.",hi:true},
+        {k:"Dimensões do briquete  (c × l × e)",v:(cBr*1000).toFixed(0)+" × "+(lBr*1000).toFixed(0)+" × "+(eBr*1000).toFixed(1).replace(".",",")+" mm"},
+        {k:"Área da maior face  (apoio deitado)",v:(Abrq*1e4).toFixed(0)+" cm²"},
+        {k:"Massa e massa específica do briquete",v:(mBrq*1000).toFixed(0)+" g   ·   "+rhoBrq.toFixed(2).replace(".",",")+" t/m³   (ρ = γ_aparente / φs)"},
+        {sec:"1) Esmagamento estático na boca da moega"},
+        {k:"Tensão vertical aparente do leito  σv",v:pvGov.toFixed(1).replace(".",",")+" kPa"+(RET?"   (Janssen na moega, h = "+hGov.toFixed(2).replace(".",",")+" m)":"   (Janssen, coluna de "+hGov.toFixed(2).replace(".",",")+" m sobre a boca)")},
+        {k:"Fração de sólidos do leito  φs",v:phis.toFixed(2).replace(".",",")+"   —  só a fração sólida transmite carga; a tensão real no corpo do briquete é σv/φs"},
+        {k:"Tensão média no esqueleto sólido  σv/φs",v:sigSol.toFixed(1).replace(".",",")+" kPa"},
+        {k:"Carga média por briquete  σ_sólido · A_face",v:kNkg(Fmed,2)},
+        {k:"Fator de cadeia de forças  kfc",v:kfc.toFixed(1).replace(".",",")+"   —  a carga não se reparte por igual: a rede de contatos forma cadeias que concentram 2 a 3 vezes a média nos contatos mais solicitados"},
+        {k:"CARGA DE PICO NO BRIQUETE MAIS SOLICITADO",v:kNkg(Fpico,2),hi:true},
+        {k:"Fator de segurança adotado",v:FSbrq.toFixed(1).replace(".",",")+"   —  cobre a dispersão de resistência entre briquetes do mesmo lote, a perda por umidade e o carregamento repetido"},
+        {k:"RESISTÊNCIA À COMPRESSÃO MÍNIMA REQUERIDA",v:FreqKgf.toFixed(0)+" kgf/briquete   =   "+(Freq*1000).toFixed(0)+" N   =   "+(Freq*100).toFixed(0)+" daN",hi:true},
+        {k:"Tensão nominal equivalente  (F_req / A_face)",v:sigNom.toFixed(2).replace(".",",")+" MPa   —  valor de referência para comparar com ensaios reportados em tensão"},
+        {sec:"2) Impacto da descarga sobre a moega"},
+        {k:"Altura de queda livre considerada",v:Hq.toFixed(1).replace(".",",")+" m   ·   velocidade de impacto "+vImp.toFixed(1).replace(".",",")+" m/s"},
+        {k:"Energia de impacto por briquete  m·g·H",v:Eimp.toFixed(1).replace(".",",")+" J"},
+        {k:"Força de impacto sobre LEITO de briquetes  (parada em 20 mm)",v:kNkg(FimpLeito,2)},
+        {k:"Força de impacto sobre O FUNDO DE AÇO VAZIO  (parada em 2 mm)",v:kNkg(FimpChapa,2)+"   =   "+relImp.toFixed(0)+" × a carga estática de pico",hi:true},
+        {k:"Conclusão do impacto",v:"É o impacto, e não a coluna de material, que governa a quebra do briquete. Nunca descarregar a concha sobre a moega vazia: manter um leito residual de material como colchão, limitar a altura de queda "+(Hq>2?"(a altura adotada de "+Hq.toFixed(1).replace(".",",")+" m é elevada — reduzir se possível) ":"")+"e revestir o fundo com material resiliente (borracha ou UHMW sobre chapa), não com aço nu. O briquete deve ser qualificado por ensaio de queda (drop shatter, ASTM D440) executado na altura real de operação, e não apenas por compressão.",hi:true},
+        {sec:"3) Cisalhamento e abrasão na extração"},
+        {k:"Cisalhamento no plano de extração  τ = fm · σv",v:tauB.toFixed(1).replace(".",",")+" kPa   →   "+kNkg(FcisB,2)+" por briquete"},
+        {k:"Resistência ao cisalhamento requerida",v:"Como referência, a resistência ao cisalhamento de um briquete é da ordem de 10 a 20 % da sua resistência à compressão. Com "+FreqKgf.toFixed(0)+" kgf de compressão requerida, a parcela de cisalhamento ("+(FcisB*1000/9.80665).toFixed(0)+" kgf) fica "+(FcisB*1000/9.80665 <= 0.10*FreqKgf ? "confortavelmente dentro dessa faixa ✓" : "próxima do limite ⚠ — avaliar em ensaio")},
+        {k:"Compressão sob as guias, sobre a correia",v:sigGuia.toFixed(1).replace(".",",")+" kPa   —  camada de "+(D*1000).toFixed(0)+" mm; não governa, mas a abrasão contra a chapa das guias ao longo de L1 = "+L1.toFixed(1).replace(".",",")+" m sim: qualificar por ensaio de tamboramento (tumbler, ASTM D441) e revestir as guias com UHMW"},
+        {sec:"Verificação contra o ensaio"},
+        {k:"Resistência medida em ensaio",v:(Rmed>0? Rmed.toFixed(0)+" kgf/briquete   ·   FS efetivo sobre a carga de pico = "+FSef.toFixed(1).replace(".",",")+(brqOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — requerido "+FreqKgf.toFixed(0)+" kgf/briquete") : "não informado — preencher com o resultado do ensaio de compressão do fornecedor para que a verificação seja conclusiva"),hi:true},
+        {k:"Referências de ensaio e de mercado",v:"Compressão por briquete: ISO 4700 (método de referência para pelotas/aglomerados; pelotas de alto-forno de boa qualidade atingem 250 daN, e abaixo de 120 daN são consideradas frágeis, com alta probabilidade de quebra em operação). Queda: ASTM D440 (drop shatter). Tamboramento/abrasão: ASTM D441. Estes valores de pelota servem apenas como ordem de grandeza — a aceitação do briquete deve ser feita contra o requisito calculado acima, sobre o ensaio do lote real."},
+        {k:"Se o briquete não atender",v:"Alternativas, na ordem de eficácia: (a) manter leito amortecedor permanente e reduzir a altura de queda; (b) revestir o fundo da moega e as guias com borracha ou UHMW; (c) reduzir a altura h da moega, o que baixa σv até a saturação; (d) alargar a abertura c × d, o que reduz a tensão por aumentar o raio hidráulico; (e) por último, aumentar a resistência do briquete (mais aglomerante, maior pressão de prensagem ou cura mais longa) — o que encarece o produto e normalmente é a via menos econômica."}
+        ]:[]),
         {sec:"Observações"},
         {k:"Faixa de aplicação",v:"Alimentadores de correia são empregados principalmente na retomada de materiais FINOS E ÚMIDOS sob moegas, silos ou pilhas, onde o uso de alimentadores vibratórios não é recomendado."},
         {k:"Tamanhos disponíveis",v:"Os tamanhos são os mesmos das correias transportadoras, com as mesmas larguras padrão; os comprimentos são variáveis conforme o projeto."},
@@ -3532,6 +3625,18 @@ const CALCS={
       {id:"acL3",label:"L3 — guias laterais além da moega",unidade:"m",tipo:"number",valor:1.0,step:"0.1"},
       {id:"acL",label:"L — distância entre centros dos tambores",unidade:"m",tipo:"number",valor:4.5,step:"0.5"},
       {id:"acH",label:"H — altura de elevação do material (0 = horizontal)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"acHcol",label:"Altura da coluna de material sobre a boca do alimentador",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
+      {tipo:"head",label:"Resistência mecânica do briquete"},
+      {id:"acBrq",label:"Verificar resistência do briquete",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (quando o material é briquete)"},{v:"sim",t:"Sim — sempre verificar"},{v:"nao",t:"Não verificar"}]},
+      {id:"acBrC",label:"Comprimento do briquete  c",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrL",label:"Largura do briquete  l",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrE",label:"Espessura do briquete  e",unidade:"mm",tipo:"number",valor:37.5,step:"0.5"},
+      {id:"acBrFi",label:"Fração de sólidos do leito  φs  (γ_aparente / ρ_briquete)",tipo:"number",valor:0.60,step:"0.01"},
+      {id:"acBrKfc",label:"Fator de concentração de cadeia de forças  kfc",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"acBrFS",label:"Fator de segurança sobre a carga de pico",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"acBrHq",label:"Altura de queda livre na descarga sobre a moega",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
+      {id:"acBrRes",label:"Resistência à compressão MEDIDA em ensaio (0 = não informada)",unidade:"kgf/briquete",tipo:"number",valor:0,step:"5"},
       {tipo:"head",label:"Correia e roletes"},
       {id:"acTipo",label:"Tipo de correia (peso Wb — tabela pág. 1-23)",tipo:"select",valor:"HDRN",opcoes:[
         {v:"Plylon",t:"Plylon"},{v:"HDRN",t:"HDRN (serviço pesado)"}]},
@@ -3633,7 +3738,18 @@ const CALCS={
       {id:"acMh",label:"h — altura da moega",unidade:"mm",tipo:"number",valor:2500,step:"50"},
       {id:"acMc",label:"c — abertura de descarga sobre o alimentador (direção da correia)",unidade:"mm",tipo:"number",valor:3000,step:"50"},
       {id:"acMd",label:"d — abertura de descarga sobre o alimentador (transversal)",unidade:"mm",tipo:"number",valor:700,step:"50"},
-      {id:"acConcha",label:"Volume da concha da pá carregadeira",unidade:"m³",tipo:"number",valor:3.0,step:"0.5"}
+      {id:"acConcha",label:"Volume da concha da pá carregadeira",unidade:"m³",tipo:"number",valor:3.0,step:"0.5"},
+      {tipo:"head",label:"Resistência mecânica do briquete"},
+      {id:"acBrq",label:"Verificar resistência do briquete",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático (quando o material é briquete)"},{v:"sim",t:"Sim — sempre verificar"},{v:"nao",t:"Não verificar"}]},
+      {id:"acBrC",label:"Comprimento do briquete  c",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrL",label:"Largura do briquete  l",unidade:"mm",tipo:"number",valor:57,step:"1"},
+      {id:"acBrE",label:"Espessura do briquete  e",unidade:"mm",tipo:"number",valor:37.5,step:"0.5"},
+      {id:"acBrFi",label:"Fração de sólidos do leito  φs  (γ_aparente / ρ_briquete)",tipo:"number",valor:0.60,step:"0.01"},
+      {id:"acBrKfc",label:"Fator de concentração de cadeia de forças  kfc",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"acBrFS",label:"Fator de segurança sobre a carga de pico",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"acBrHq",label:"Altura de queda livre na descarga sobre a moega",unidade:"m",tipo:"number",valor:3.0,step:"0.1"},
+      {id:"acBrRes",label:"Resistência à compressão MEDIDA em ensaio (0 = não informada)",unidade:"kgf/briquete",tipo:"number",valor:0,step:"5"}
     ],
     calcular:function(){ return alimCorreiaCalc(true); }
   },
