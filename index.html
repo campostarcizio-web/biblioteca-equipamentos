@@ -15,6 +15,14 @@
   body{margin:0;font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
   a{color:var(--teal-d)}
   header{position:sticky;top:0;z-index:40;background:#0e1b2e;border-bottom:3px solid var(--gold);padding:7px 18px;display:flex;align-items:center;gap:18px}
+  .hsearch{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--navy2);border:1px solid var(--navy3);border-radius:8px;padding:0 11px;height:36px;min-width:230px;transition:.15s}
+  .hsearch:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px rgba(30,155,196,.18)}
+  .hsearch svg{width:15px;height:15px;color:#6f8aa3;flex:none}
+  .hsearch input{background:none;border:none;outline:none;color:#eaf1f7;font-size:.82rem;width:100%;font-family:inherit}
+  .hsearch input::placeholder{color:#6f8aa3}
+  .hver{text-align:right;line-height:1.3;flex:none;padding-left:4px}
+  .hver .k{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#7f9bb3}
+  .hver .v{font-size:.8rem;color:var(--gold);font-weight:500}
   .emblem{height:58px;display:block;flex:none}
   .wm .l1{font-size:1.32rem;font-weight:800;line-height:1.08;letter-spacing:.2px}
   .wm .l1 .p{color:#f4f7fa}.wm .l1 .a{color:#1E9BC4}.wm .l1 .e{color:#D9A94A}
@@ -25,17 +33,20 @@
   .brand .t1{font-size:1.25rem;font-weight:800}
   .brand .t1 .p{color:#f4f7fa}.brand .t1 .a{color:var(--teal)}
   .brand .t2{font-size:.62rem;letter-spacing:.26em;color:var(--gold);font-weight:600}
-  .htag{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#9fb2c4;font-size:.72rem;text-align:right}
+  .htag{display:none}
   .layout{display:flex;align-items:flex-start;max-width:1400px;margin:0 auto}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:30}
   .overlay.open{display:block}
   aside{width:264px;flex:none;background:#fff;border-right:1px solid var(--line);min-height:calc(100vh - 65px);padding:14px 0}
-  aside h2{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 16px 8px}
-  .navitem{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:8px 16px;cursor:pointer;font-size:.9rem;border-left:3px solid transparent}
-  .navitem.all{font-weight:700}
+  aside h2{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:#8794a2;margin:0 16px 10px;font-weight:500}
+  .navitem{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;color:var(--ink);padding:8px 16px;cursor:pointer;font-size:.88rem;border-left:3px solid transparent;font-family:inherit;transition:.12s}
+  .navitem .n{font-size:.68rem;color:#98a4b1;font-weight:500;flex:none}
+  .navitem.active .n{color:var(--teal-d);background:#dbeef5;border-radius:20px;padding:1px 7px}
+  .navitem.all{font-weight:500}
   .navitem:hover{background:#f1f5f8;color:var(--teal-d)}
-  .navitem.active{background:#eaf4f8;color:var(--teal-d);border-left-color:var(--gold);font-weight:600}
-  .grphead{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;color:var(--ink);padding:10px 16px;cursor:pointer;font-size:.92rem;font-weight:700;border-left:3px solid transparent}
+  .navitem.active{background:#eff6fa;color:var(--teal-d);border-left-color:var(--gold);font-weight:500}
+  .grphead{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:none;border:none;color:var(--ink);padding:10px 16px;cursor:pointer;font-size:.89rem;font-weight:500;border-left:3px solid transparent;font-family:inherit;transition:.12s}
+  .grphead .n{font-size:.68rem;color:#98a4b1;font-weight:500;margin-left:auto}
   .grphead:hover{background:#f1f5f8}
   .grp.active>.grphead{border-left-color:var(--gold);color:var(--teal-d)}
   .grp.open .arrow{transform:rotate(90deg)}
@@ -45,16 +56,27 @@
   .subs .navitem.active{color:var(--teal-d)}
   main{flex:1;min-width:0;padding:0 20px 60px}
   .crumb{padding:14px 2px 6px;color:var(--muted);font-size:.82rem}
-  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 2px 16px;border-bottom:1px solid var(--line);margin-bottom:18px}
-  .toolbar h1{font-size:1.25rem;margin:0;flex:1;min-width:200px}
+  .toolbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:6px 2px 13px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .toolbar h1{font-size:1.22rem;margin:0;font-weight:500;letter-spacing:-.01em}
+  .toolbar .tsub{font-size:.76rem;color:var(--muted);margin-top:2px}
+  .toolbar .tt{flex:1;min-width:200px}
   .count{color:var(--muted);font-size:.84rem}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;transition:.15s;display:flex;gap:12px;align-items:flex-start;height:100%}
-  .card:hover{border-color:var(--teal);box-shadow:0 4px 14px rgba(14,27,46,.08);transform:translateY(-2px)}
-  .card .icon{width:46px;height:46px;flex:none;color:var(--navy);background:#eef4f8;border:1px solid var(--line);border-radius:8px;padding:7px}
-  .card .cat{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-d);font-weight:700;min-height:2.1em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .card h3{margin:2px 0 4px;font-size:1.02rem;min-height:2.5em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .card .desc{color:var(--muted);font-size:.82rem;line-height:1.45;min-height:5.8em;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+  .empty{color:var(--muted);font-size:.88rem;padding:30px 4px}
+  .card{background:var(--card);border:1px solid #dfe4ea;border-top:3px solid var(--teal);border-radius:12px;padding:15px 16px 12px;cursor:pointer;transition:.16s;display:flex;flex-direction:column;height:100%}
+  .card .top{display:flex;gap:11px;align-items:flex-start;margin-bottom:10px}
+  .card:hover{border-color:#c3d3de;border-top-color:var(--teal-d);box-shadow:0 6px 18px rgba(14,27,46,.10);transform:translateY(-2px)}
+  .card:hover .go{color:var(--navy)}
+  .card:hover .go .arw{transform:translateX(3px)}
+  .card .icon{width:42px;height:42px;flex:none;color:var(--navy);background:#eef4f8;border:1px solid #dbe6ee;border-radius:9px;padding:7px}
+  .card .cat{font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;color:var(--teal-d);font-weight:500;min-height:2em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+  .card h3{margin:2px 0 0;font-size:.98rem;font-weight:500;letter-spacing:-.005em;min-height:2.4em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
+  .card .desc{color:var(--muted);font-size:.79rem;line-height:1.55;min-height:4.9em;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .card .norms{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 0;min-height:1.5em}
+  .card .norms span{font-size:.62rem;color:#5f6b78;background:#f1f4f7;border:1px solid #e3e8ed;border-radius:5px;padding:2px 6px;white-space:nowrap}
+  .card .go{margin-top:auto;padding-top:10px;border-top:1px solid #eef1f4;display:flex;align-items:center;justify-content:space-between;color:var(--teal-d);font-size:.76rem;font-weight:500;transition:.16s}
+  .card .go .arw{transition:transform .16s;font-size:.95rem;line-height:1}
+  .card .go.soon{color:#8a6d1f}
   .card .calcflag{display:inline-block;margin-top:7px;font-size:.68rem;font-weight:700;color:var(--teal-d);background:#e8f5fa;border:1px solid #bfe3f0;border-radius:20px;padding:2px 8px}
   .card .calcflag.soon{color:#8a6d1f;background:#fbf3df;border-color:#ecd9a6}
 
@@ -104,6 +126,11 @@
       <div class="l1"><span class="p">Project</span><span class="a">ARK</span> <span class="e">Engenharia</span></div>
     </div>
   </div>
+  <div class="hsearch">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16 16"/></svg>
+    <input id="busca" type="search" placeholder="Buscar equipamento, grupo ou norma" autocomplete="off" />
+  </div>
+  <div class="hver"><div class="k">Versão</div><div class="v" id="hver">—</div></div>
   <div class="htag" id="htag"></div>
 </header>
 
@@ -115,7 +142,7 @@
     <div id="menu"></div>
   </aside>
   <main>
-    <div class="toolbar"><h1 id="title">Dimensionamento de Equipamentos</h1><span class="count" id="count"></span></div>
+    <div class="toolbar"><div class="tt"><h1 id="title">Dimensionamento de Equipamentos</h1><div class="tsub" id="subtitle">Rotinas de pré-dimensionamento conforme normas ABNT, EN e API</div></div><span class="count" id="count"></span></div>
     <div class="grid" id="grid"></div>
   </main>
 </div>
@@ -5400,9 +5427,11 @@ document.addEventListener("focusin",function(ev){
 /* ---------- Menu ---------- */
 function buildMenu(){
   const menu=DB.meta.menu||[];
+  const nG=x=>DB.equipamentos.filter(e=>e.grupo===x).length;
+  const nS=(x,y)=>DB.equipamentos.filter(e=>e.grupo===x&&e.subgrupo===y).length;
   $("#menu").innerHTML=menu.map(g=>{
-    const subs=(g.subgrupos||[]).map(s=>`<button class="navitem" data-grupo="${g.grupo}" data-sub="${s}">${s}</button>`).join("");
-    return `<div class="grp open" data-grp="${g.grupo}"><button class="grphead" data-grupo="${g.grupo}"><span>${g.grupo}</span><span class="arrow">›</span></button><div class="subs">${subs}</div></div>`;
+    const subs=(g.subgrupos||[]).map(s=>`<button class="navitem" data-grupo="${g.grupo}" data-sub="${s}"><span>${s}</span><span class="n">${nS(g.grupo,s)}</span></button>`).join("");
+    return `<div class="grp open" data-grp="${g.grupo}"><button class="grphead" data-grupo="${g.grupo}"><span>${g.grupo}</span><span class="n">${nG(g.grupo)}</span><span class="arrow">›</span></button><div class="subs">${subs}</div></div>`;
   }).join("");
   document.querySelectorAll(".grphead").forEach(b=>b.addEventListener("click",()=>{b.closest(".grp").classList.toggle("open");selectFilter(b.dataset.grupo,"");}));
   document.querySelectorAll(".subs .navitem").forEach(b=>b.addEventListener("click",()=>{selectFilter(b.dataset.grupo,b.dataset.sub);closeDrawer();}));
@@ -5419,19 +5448,33 @@ function selectFilter(g,s){
 function openDrawer(){$("#drawer").classList.add("open");$("#overlay").classList.add("open");}
 function closeDrawer(){$("#drawer").classList.remove("open");$("#overlay").classList.remove("open");}
 
+var curBusca="";
 function render(){
-  const list=DB.equipamentos.filter(e=>(!curGrupo||e.grupo===curGrupo)&&(!curSub||e.subgrupo===curSub));
+  const q=curBusca.trim().toLowerCase();
+  const list=DB.equipamentos.filter(e=>{
+    if(curGrupo&&e.grupo!==curGrupo) return false;
+    if(curSub&&e.subgrupo!==curSub) return false;
+    if(!q) return true;
+    const alvo=[e.modelo,e.grupo,e.subgrupo,e.subtipo,e.resumo,(e.normas||[]).join(" ")].join(" ").toLowerCase();
+    return q.split(/\s+/).every(t=>alvo.indexOf(t)>=0);
+  });
   $("#count").textContent=list.length+" equipamento"+(list.length!==1?"s":"");
-  $("#title").textContent=curSub||curGrupo||"Dimensionamento de Equipamentos";
+  $("#title").textContent=q?("Busca: "+curBusca):(curSub||curGrupo||"Dimensionamento de Equipamentos");
+  $("#subtitle").textContent=q?(list.length+" resultado"+(list.length!==1?"s":"")+" para o termo buscado")
+    :"Rotinas de pré-dimensionamento conforme normas ABNT, EN e API";
   $("#grid").innerHTML=list.map(e=>{
     const idx=DB.equipamentos.indexOf(e);
+    const nrm=(e.normas||[]).map(n=>`<span>${n}</span>`).join("");
     return `<div class="card" onclick="openItem(${idx})">
-      <div class="icon">${icon(e)}</div>
-      <div><div class="cat">${e.grupo} · ${e.subgrupo}</div>
-      <h3>${e.modelo}</h3><div class="desc">${e.resumo||e.subtipo}</div>
-      ${e.calculadora?'<span class="calcflag">▸ Abrir cálculo de pré-dimensionamento</span>':'<span class="calcflag soon">⋯ Calculadora em desenvolvimento</span>'}</div>
+      <div class="top"><div class="icon">${icon(e)}</div>
+        <div style="min-width:0"><div class="cat">${e.grupo} · ${e.subgrupo}</div><h3>${e.modelo}</h3></div></div>
+      <div class="desc">${e.resumo||e.subtipo}</div>
+      <div class="norms">${nrm}</div>
+      ${e.calculadora
+        ?'<div class="go"><span>Abrir cálculo</span><span class="arw">→</span></div>'
+        :'<div class="go soon"><span>Calculadora em desenvolvimento</span><span class="arw">⋯</span></div>'}
     </div>`;
-  }).join("")||'<p style="color:var(--muted)">Nenhum equipamento neste grupo ainda.</p>';
+  }).join("")||'<div class="empty">Nenhum equipamento encontrado'+(q?' para "'+curBusca+'".':' neste grupo ainda.')+'</div>';
 }
 
 const ANIM={
@@ -7485,6 +7528,12 @@ function gerarRelatorio(){
   doc.save("ProjectARK-"+CUR_EQ.calculadora+".pdf");
 }
 function closeModal(){$("#modal").classList.remove("open");}
+var _bt=null;
+$("#busca").addEventListener("input",function(){
+  clearTimeout(_bt); var v=this.value;
+  _bt=setTimeout(function(){ curBusca=v; if(v.trim()){curGrupo="";curSub="";
+    document.querySelectorAll(".navitem,.grp").forEach(n=>n.classList.remove("active"));} render(); },120);
+});
 $("#burger").addEventListener("click",openDrawer);
 $("#overlay").addEventListener("click",closeDrawer);
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
@@ -7492,7 +7541,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeD
 
 fetch("equipamentos.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{
   DB=d;
-  $("#htag").innerHTML="Versão "+d.meta.versao+"<br>"+d.equipamentos.length+" equipamento(s)";
+  $("#hver").textContent=d.meta.versao;
   $("#foot").textContent="ProjectARK · Pré-dimensionamento de Equipamentos · v"+d.meta.versao;
   buildMenu();render();
 }).catch(()=>{$("#grid").innerHTML='<p style="color:#b33">Erro ao carregar equipamentos.json — abra via servidor (GitHub Pages).</p>';});
