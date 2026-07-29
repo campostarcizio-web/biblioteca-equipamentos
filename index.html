@@ -49,12 +49,12 @@
   .toolbar h1{font-size:1.25rem;margin:0;flex:1;min-width:200px}
   .count{color:var(--muted);font-size:.84rem}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;transition:.15s;display:flex;gap:12px;align-items:flex-start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;cursor:pointer;transition:.15s;display:flex;gap:12px;align-items:flex-start;height:100%}
   .card:hover{border-color:var(--teal);box-shadow:0 4px 14px rgba(14,27,46,.08);transform:translateY(-2px)}
   .card .icon{width:46px;height:46px;flex:none;color:var(--navy);background:#eef4f8;border:1px solid var(--line);border-radius:8px;padding:7px}
-  .card .cat{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-d);font-weight:700}
-  .card h3{margin:2px 0 4px;font-size:1.02rem}
-  .card .desc{color:var(--muted);font-size:.82rem}
+  .card .cat{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-d);font-weight:700;min-height:2.1em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card h3{margin:2px 0 4px;font-size:1.02rem;min-height:2.5em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .desc{color:var(--muted);font-size:.82rem;line-height:1.45;min-height:5.8em;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
   .card .calcflag{display:inline-block;margin-top:7px;font-size:.68rem;font-weight:700;color:var(--teal-d);background:#e8f5fa;border:1px solid #bfe3f0;border-radius:20px;padding:2px 8px}
   .card .calcflag.soon{color:#8a6d1f;background:#fbf3df;border-color:#ecd9a6}
 
@@ -5428,7 +5428,7 @@ function render(){
     return `<div class="card" onclick="openItem(${idx})">
       <div class="icon">${icon(e)}</div>
       <div><div class="cat">${e.grupo} · ${e.subgrupo}</div>
-      <h3>${e.modelo}</h3><div class="desc">${e.descricao||e.subtipo}</div>
+      <h3>${e.modelo}</h3><div class="desc">${e.resumo||e.subtipo}</div>
       ${e.calculadora?'<span class="calcflag">▸ Abrir cálculo de pré-dimensionamento</span>':'<span class="calcflag soon">⋯ Calculadora em desenvolvimento</span>'}</div>
     </div>`;
   }).join("")||'<p style="color:var(--muted)">Nenhum equipamento neste grupo ainda.</p>';
