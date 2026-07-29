@@ -93,12 +93,15 @@
   @property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
   @keyframes pa-spin{to{--ang:360deg}}
   @keyframes pa-sweep{0%{transform:translateX(-120%)}100%{transform:translateX(560%)}}
-  @keyframes wm-shine{0%{background-position:190% 0}100%{background-position:-90% 0}}
+  /* O gradiente TEM de cobrir o texto em todo o ciclo: com no-repeat e deslocamento
+     além da caixa, as letras ficariam sem pintura e sumiriam. Por isso o padrão é
+     repetido e o deslocamento é de exatamente um ladrilho, o que fecha o laço sem emenda. */
+  @keyframes wm-shine{from{background-position:0 0}to{background-position:200% 0}}
   /* brilho percorrendo o texto do logotipo — as cores originais são preservadas:
      o gradiente usa currentColor nas pontas, e só a faixa central é a luz. */
   .wm .l1 span{
-    background-image:linear-gradient(104deg,currentColor 0 41%,var(--sh) 50%,currentColor 59% 100%);
-    background-size:260% 100%;background-repeat:no-repeat;
+    background-image:linear-gradient(104deg,currentColor 0 42%,var(--sh) 50%,currentColor 58% 100%);
+    background-size:200% 100%;background-repeat:repeat;
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     animation:wm-shine 6.5s linear infinite}
   .wm .l1 .p{--sh:#8fd8f2;animation-delay:-.7s}
