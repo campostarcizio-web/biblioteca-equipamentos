@@ -134,6 +134,7 @@ const ICON_SCREW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" str
 const ICON_BELT='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="13" cy="28" r="6"/><circle cx="35" cy="28" r="6"/><path d="M13 22 H35 M13 34 H35"/><path d="M18 18 l4 4 4-4" /></svg>';
 const ICON_FLEX='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="35" r="5"/><circle cx="37" cy="13" r="5"/><path d="M12 30 L37 8 M12 40 L37 18"/><path d="M22 31 l3 4 4-3"/></svg>';
 const ICON_SILO='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 16 v20 M34 16 v20"/><path d="M14 16 a10 5 0 0 1 20 0"/><path d="M14 36 l10 8 10 -8"/><path d="M19 16 v20 M24 16 v22 M29 16 v20"/></svg>';
+const ICON_FLARE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M24 4 c3.6 5 5.6 7.6 5.6 10.6 a5.6 5.6 0 0 1 -11.2 0 c0 -3 2 -5.6 5.6 -10.6 z"/><path d="M24 12.4 c1.7 2.4 2.6 3.6 2.6 4.9 a2.6 2.6 0 0 1 -5.2 0 c0 -1.3 0.9 -2.5 2.6 -4.9 z" fill="currentColor" stroke="none"/><path d="M20.4 21.4 h7.2"/><path d="M18.4 44 L21.3 21.4 M29.6 44 L26.7 21.4"/><path d="M19.5 36.8 H28.5 M20.2 29.6 H27.8"/><path d="M19.5 36.8 L27.8 29.6 M28.5 36.8 L20.2 29.6"/></svg>';
 const ICON_TUBE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="32" width="14" height="9" rx="4.5"/><rect x="28" y="9" width="14" height="9" rx="4.5" transform="rotate(32 35 13.5)"/><path d="M16 34 L30 18"/><circle cx="11" cy="36.5" r="1.6" fill="currentColor"/><circle cx="20" cy="29" r="1.6" fill="currentColor"/><circle cx="28" cy="20" r="1.6" fill="currentColor"/></svg>';
 const ICON_BUCKET='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 8 v32 M32 8 v32"/><path d="M16 14 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M16 26 h7 a4 4 0 0 1 4 4 v3 h-11 z"/><path d="M32 18 h6 a4 4 0 0 1 4 4 v3 h-10 z"/></svg>';
 const ICON_JAW='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 10 L18 30 L18 38"/><path d="M38 10 L26 30 L26 38"/><path d="M10 10 L38 10"/><circle cx="14" cy="20" r="1.6" fill="currentColor"/><circle cx="24" cy="16" r="1.6" fill="currentColor"/><circle cx="34" cy="20" r="1.6" fill="currentColor"/></svg>';
@@ -227,7 +228,7 @@ function crusherPreset(){var w=CRUSHER_MAT[$("#bjMat").value]; if(w==null)return
 function impactPreset(){var w=CRUSHER_MAT[$("#biMat").value]; if(w==null)return; $("#biWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_impacto");}
 function hammerPreset(){var w=CRUSHER_MAT[$("#bhMat").value]; if(w==null)return; $("#bhWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_martelo");}
 function conePreset(){var w=CRUSHER_MAT[$("#bcMat").value]; if(w==null)return; $("#bcWi").value=w; runCalc(CUR_EQ&&CUR_EQ.calculadora?CUR_EQ.calculadora:"britador_conico");}
-function icon(e){if(e&&e.calculadora==="flare")return ICON_TUBE;if(e&&e.calculadora==="moega_alimentacao")return ICON_SILO;if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")===0)return ICON_FEEDER;if(e&&e.calculadora&&e.calculadora.indexOf("alimentador_correia")===0)return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
+function icon(e){if(e&&e.calculadora==="flare")return ICON_FLARE;if(e&&e.calculadora==="moega_alimentacao")return ICON_SILO;if(e&&e.calculadora&&e.calculadora.indexOf("cone_vibratorio")===0)return ICON_FEEDER;if(e&&e.calculadora&&e.calculadora.indexOf("alimentador_correia")===0)return ICON_BELT;if(e&&e.calculadora==="calha_vibratoria")return ICON_FEEDER;if(e&&e.calculadora==="britador_conico")return ICON_CONE;if(e&&e.calculadora==="peneira_banana")return ICON_SCREEN_B;if(e&&e.calculadora==="peneira_inclinada")return ICON_SCREEN_I;if(e&&e.calculadora==="peneira_horizontal")return ICON_SCREEN_H;if(e&&e.calculadora==="britador_martelo")return ICON_HAMMER;if(e&&e.calculadora==="britador_impacto")return ICON_IMPACT;if(e&&e.calculadora==="britador_mandibulas")return ICON_JAW;if(e&&e.calculadora==="elevador_canecas")return ICON_BUCKET;if(e&&e.calculadora==="arraste_tubular")return ICON_TUBE;if(e&&e.grupo==="Silos")return ICON_SILO;if(e&&e.calculadora==="belt_conveyor")return ICON_BELT;if(e&&e.calculadora==="flexowell")return ICON_FLEX;return ICON_SCREW;}
 
 /* ---------- Registro de calculadoras ---------- */
 const DIAM_STD=[100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
@@ -1719,12 +1720,27 @@ const FLARE_GAS={
   propileno:    {MW:42.08,k:1.15, LHV:45800, F:0.38, LII:2.0,  vap:0.50, nome:"Propileno"},
   hidrogenio:   {MW:2.016,k:1.41, LHV:120000,F:0.15, LII:4.0,  vap:0.05, nome:"Hidrogênio"},
   gas_acido:    {MW:34.08,k:1.32, LHV:15200, F:0.20, LII:4.0,  vap:0.15, nome:"Gás ácido (H2S)"},
-  gas_processo: {MW:25.0, k:1.20, LHV:40000, F:0.25, LII:3.0,  vap:0.25, nome:"Gás de processo (genérico)"}
+  gas_processo: {MW:25.0, k:1.20, LHV:40000, F:0.25, LII:3.0,  vap:0.25, nome:"Gás de processo (genérico)"},
+  /* --- Gases de processo de planta de gusa e siderurgia --- Propriedades calculadas a
+     partir da composição típica, com PCI dos componentes: CO 12,64 · H2 10,80 ·
+     CH4 35,88 · C2H2 56,0 MJ/Nm³. São gases de BAIXO PODER CALORÍFICO: a estabilidade
+     de chama, e não a radiação, é o critério que governa o projeto da ponta.          */
+  bfg_vegetal:  {MW:29.20,k:1.38, LHV:2951,  F:0.10, LII:35.0, vap:0.05, CO:27,
+                 nome:"Alto-forno a carvão vegetal — gás de topo (guseira)"},
+  bfg_coque:    {MW:30.74,k:1.38, LHV:2264,  F:0.10, LII:38.0, vap:0.05, CO:22,
+                 nome:"Alto-forno a coque — BFG"},
+  ldg:          {MW:29.92,k:1.38, LHV:6317,  F:0.12, LII:16.0, vap:0.05, CO:65,
+                 nome:"Aciaria LD / conversor — LDG"},
+  cog:          {MW:10.47,k:1.36, LHV:36941, F:0.18, LII:4.5,  vap:0.15, CO:7,
+                 nome:"Coqueria — COG"},
+  gaseif:       {MW:25.94,k:1.35, LHV:4204,  F:0.12, LII:18.0, vap:0.05, CO:20,
+                 nome:"Gaseificação de biomassa"}
 };
 function flarePreset(){
   var p=FLARE_GAS[$("#flGas").value]; if(!p){ runCalc("flare"); return; }
   $("#flMW").value=p.MW; $("#flK").value=p.k; $("#flLHV").value=p.LHV;
   $("#flFrad").value=p.F; $("#flLII").value=p.LII; $("#flRvap").value=p.vap;
+  if($("#flCO")) $("#flCO").value=(p.CO!==undefined?p.CO:0);
   runCalc("flare");
 }
 function flareCalc(){
@@ -1745,6 +1761,11 @@ function flareCalc(){
   var Dhead=num("flDhead");if(!isFinite(Dhead)||Dhead<0)Dhead=0;    // mm (0 = dimensionar)
   var tipoFl=selv("flTipo","auto");
   var assist=selv("flAssist","vapor");
+  var servico=selv("flServico","emerg");
+  var contInuo=(servico==="cont");
+  var Pdisp=num("flPdisp"); if(!isFinite(Pdisp)||Pdisp<=0)Pdisp=20;   // kPa man. disponíveis na fonte
+  var teorCO=num("flCO"); if(!isFinite(teorCO)||teorCO<0)teorCO=0;    // % mol
+  var poeira=num("flPo"); if(!isFinite(poeira)||poeira<0)poeira=0;    // mg/Nm³
 
   /* ---------- ETAPA 1 — PROPRIEDADES E ENERGIA ---------- */
   var Patm=101.325;                                   // kPa abs
@@ -1754,6 +1775,26 @@ function flareCalc(){
   var Qv=Gs/rho;                                      // m³/s na ponta
   var Qcal=Gs*LHV;                                    // kW — liberação de calor
   var rhoAr=1.225;
+  var acido=(selv("flGas","gas_natural")==="gas_acido")||(num("flH2S")>0);
+  /* ---------- ESTABILIDADE DE CHAMA — PCI VOLUMÉTRICO ----------
+     A API 537 fixa em 11,82 MJ/Nm³ (300 Btu/scf) o patamar a partir do qual o número de
+     pilotos segue a tabela padrão. Abaixo disso — e em serviço tóxico — a norma exige que
+     comprador e fabricante ACORDEM o número de pilotos, porque a chama deixa de se sustentar
+     sozinha. Gás de topo de alto-forno fica a menos de um terço desse patamar.            */
+  var rhoN=MW/22.414;                                  // kg/Nm³
+  var LHVvol=LHV*rhoN/1000;                            // MJ/Nm³
+  var LHVlim=11.82;
+  /* Ressalva: o critério VOLUMÉTRICO foi construído para misturas de hidrocarboneto com
+     inertes. Gás rico em hidrogênio tem PCI volumétrico baixo por ser leve, e não por
+     queimar mal — o H2 tem a maior velocidade de chama entre os combustíveis usuais e é
+     extremamente estável. Por isso a verificação é dispensada quando MW < 8 kg/kmol. */
+  var ricoH2=(MW<8);
+  var estavel=(LHVvol>=LHVlim)||ricoH2;
+  var baixoPCI=(LHVvol<LHVlim)&&!ricoH2;
+  var LHVsup=36.0;                                     // MJ/Nm³ — gás natural de enriquecimento
+  var razEnr=baixoPCI?((LHVlim-LHVvol)/(LHVsup-LHVlim)):0;   // Nm³ de apoio por Nm³ de gás
+  var QNm=Gs/rhoN*3600;                                // Nm³/h de gás de processo
+  var Qenr=razEnr*QNm;                                 // Nm³/h de gás de apoio
 
   /* ---------- ETAPA 2 — DIÂMETRO DA PONTA (Mach, API 521) ---------- */
   var Vadm=maAdm*son;
@@ -1793,7 +1834,11 @@ function flareCalc(){
   var Pback=Patm+dPtip+dPhead;                         // kPa abs no bocal da PSV
   var PbackMan=Pback-Patm;                             // kPa man.
   var limPSV=({conv:0.10,balanc:0.50,pilot:0.80})[tipoPSV]||0.50;
-  var PbackAdm=limPSV*Pset;
+  /* Em queima CONTÍNUA de gás de processo não há PSV: o gás vem do próprio processo ou de
+     um soprador, quase à pressão atmosférica. O critério passa a ser a pressão DISPONÍVEL
+     na fonte, e a folga costuma ser de poucos kPa — é aqui que projetos de flare de guseira
+     costumam falhar, ao adotar uma ponta com perda de carga incompatível com o gás de topo. */
+  var PbackAdm=contInuo?Pdisp:(limPSV*Pset);
   var backOK=(PbackMan<=PbackAdm);
   var headOK=(MaH<=MaHead+0.005);
 
@@ -1864,7 +1909,6 @@ function flareCalc(){
   var xLII=5.0*dtip*Math.sqrt(rho/rhoAr)/Cl;            // m — extensão vertical do envelope inflamável
   var folgaPlat=num("flPlat"); if(!isFinite(folgaPlat)||folgaPlat<0)folgaPlat=0;  // m acima da ponta
   var dispOK=(folgaPlat<=0)||(folgaPlat>=xLII);
-  var acido=(selv("flGas","gas_natural")==="gas_acido")||(num("flH2S")>0);
 
   /* ---------- ETAPA 7 — VASO SEPARADOR (KNOCKOUT) ---------- */
   var dgota=num("flDgota"); if(!isFinite(dgota)||dgota<=0)dgota=400;   // µm
@@ -1922,7 +1966,10 @@ function flareCalc(){
   var Psopr=(assist==="ar")?((Qar/3600)*dPsopr*1000/0.65/1000):0;          // kW
 
   /* ---------- ETAPA 10 — PILOTOS (API 537) ---------- */
-  var npil=(dpol<=8)?1:((dpol<=24)?2:((dpol<=42)?3:4));
+  var npilTab=(dpol<=8)?1:((dpol<=24)?2:((dpol<=42)?3:4));
+  var toxico=(teorCO>=1)||acido;
+  var _t=toxico;
+  var npil=(baixoPCI||toxico)?Math.max(npilTab+1,2):npilTab;
   var Qpil=npil*4.0;                                    // Nm³/h — consumo típico por piloto
 
   /* ---------- ETAPA 11 — ESTRUTURA: VENTO (NBR 6123) ---------- */
@@ -2009,6 +2056,28 @@ function flareCalc(){
     {k:"Vazão volumétrica na ponta",v:Qv.toFixed(2).replace(".",",")+" m³/s   =   "+fmt(Math.round(Qv*3600))+" m³/h"},
     {k:"LIBERAÇÃO DE CALOR  Q = W · PCI",v:(Qcal/1000).toFixed(1).replace(".",",")+" MW   =   "+fmt(Math.round(Qbtu/1e6))+" MMBtu/h",hi:true},
 
+    {sec:"Etapa 0b — ESTABILIDADE DE CHAMA (o critério que governa em gás de baixo PCI)"},
+    {k:"Serviço",v:(contInuo?"QUEIMA CONTÍNUA de gás de processo — a tocha opera permanentemente, e não como dispositivo de emergência. Isso muda três coisas: o Mach admissível cai para 0,2, a pressão disponível na fonte substitui o critério de contrapressão da PSV, e a manutenção da ponta passa a ser rotina programada.":"ALÍVIO DE EMERGÊNCIA — operação rara e de curta duração"),hi:true},
+    {k:"Massa específica normal e PCI VOLUMÉTRICO",v:rhoN.toFixed(3).replace(".",",")+" kg/Nm³   →   "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³   =   "+(LHVvol*26.84).toFixed(0)+" Btu/scf",hi:true},
+    {k:"Vazão volumétrica normal",v:fmt(Math.round(QNm))+" Nm³/h"},
+    {k:"LIMITE DA API 537  (11,82 MJ/Nm³ = 300 Btu/scf)",v:(ricoH2?
+      "✓ NÃO SE APLICA — gás rico em hidrogênio (MW = "+MW.toFixed(1).replace(".",",")+" kg/kmol). O PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ é baixo porque o gás é leve, não porque queime mal: o hidrogênio tem a maior velocidade de chama entre os combustíveis usuais e é extremamente estável. O critério volumétrico foi construído para misturas de hidrocarboneto com inertes. A atenção aqui é outra — chama pouco luminosa, quase invisível à luz do dia, o que exige detecção de chama por termopar ou UV/IR e sinalização, nunca inspeção visual.":
+      (estavel?"✓ ATENDE — o gás sustenta chama e o número de pilotos segue a tabela padrão da norma":
+      "⚠ NÃO ATENDE — está a "+(LHVvol/LHVlim*100).toFixed(0)+" % do limite. Abaixo de 11,82 MJ/Nm³ a API 537 determina que o número de pilotos seja ACORDADO entre comprador e fabricante, porque a chama não se sustenta sozinha. Este é o caso de gás de topo de alto-forno, de aciaria e de gaseificação.")),hi:!estavel},
+    ...(baixoPCI?[
+    {k:"Enriquecimento necessário para atingir o limite",v:razEnr.toFixed(2).replace(".",",")+" Nm³ de gás natural por Nm³ de gás de processo   =   "+(razEnr*100).toFixed(0)+" %   →   "+fmt(Math.round(Qenr))+" Nm³/h de gás de apoio",hi:true},
+    {k:"⚠ Enriquecer a corrente inteira NÃO é o caminho",v:"Com "+(razEnr*100).toFixed(0)+" % de gás natural o custo de combustível de apoio inviabiliza a operação — e queimar gás nobre para descartar gás pobre é um contrassenso energético. O caminho correto em gás de baixo PCI é outro: (a) PONTA ESPECÍFICA PARA BAIXO PCI, com anéis de retenção de chama e cones de estabilização, que sustenta combustão com PCI bem abaixo do patamar da norma; (b) PILOTOS PERMANENTES alimentados por gás de apoio (GLP ou gás natural), em número acordado com o fabricante e com detecção individual de chama; (c) velocidade de saída REDUZIDA, tipicamente 20 a 60 m/s em vez das centenas de m/s de uma tocha de refinaria, para não soprar a chama. O consumo de apoio fica restrito aos pilotos, não à corrente principal.",hi:true},
+    {k:"Consequência sobre a radiação",v:"O baixo PCI tem um lado favorável: a fração irradiada é pequena (F ≈ 0,10 contra 0,20 do gás natural) e a liberação de calor por unidade de vazão é baixa. A torre resultante é bem mais baixa que a de uma tocha de hidrocarboneto de mesma vazão mássica — a radiação deixa de ser o critério dominante, e a estabilidade assume."}
+    ]:[]),
+    ...((teorCO>=1)?[
+    {k:"⚠ TEOR DE MONÓXIDO DE CARBONO",v:teorCO.toFixed(0)+" % mol   —  serviço TÓXICO. O CO é inodoro e letal, e a falha de chama libera a corrente inteira sem queima. Requisitos que decorrem disso: pilotos redundantes com detecção individual de chama e intertravamento, sistema de ignição automático com religamento, monitoramento de chama enviado à sala de controle, e verificação da concentração de CO ao nível do solo com a tocha apagada por modelo de dispersão — este último NÃO é dispensável e não é coberto pela estimativa de jato desta planilha.",hi:true},
+    {k:"Eficiência de destruição",v:"Exigir do fabricante a eficiência de destruição garantida do CO na faixa de operação, incluindo a vazão mínima. Em tocha de baixo PCI mal dimensionada a eficiência despenca em turndown, justamente quando a chama está mais frágil."}
+    ]:[]),
+    ...((poeira>0)?[
+    {k:"⚠ PARTICULADO NA CORRENTE",v:fmt(Math.round(poeira))+" mg/Nm³"+(poeira>50?"   —  ACIMA de 50 mg/Nm³: o vaso separador NÃO resolve. Gás de topo de alto-forno sai do forno com vários g/Nm³ e exige limpeza a montante — ciclone seguido de lavador venturi ou precipitador — antes de chegar à tocha. Sem isso a ponta e os bicos de piloto entopem, a chama fica instável e a manutenção vira semanal.":"   —  abaixo de 50 mg/Nm³, aceitável para a ponta"),hi:(poeira>50)},
+    {k:"Selagem hídrica",v:"Em planta de gusa o selo hídrico (selo líquido) costuma ser preferível ao selo molecular: além de barrar o ar, ele lava o particulado residual e dá controle de contrapressão. Prever purga e reposição de água, e proteção contra congelamento se aplicável."}
+    ]:[]),
+
     {sec:"Etapa 1 — Diâmetro da ponta (API 521)"},
     {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
     {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
@@ -2022,7 +2091,7 @@ function flareCalc(){
     {k:"Header — critério de Mach ≤ 0,20 (API 521)",v:"diâmetro requerido "+dHeadCalc.toFixed(0)+" mm   →   adotado DN "+dHead+"   ·   velocidade "+Vh.toFixed(0)+" m/s   ·   Ma = "+MaH.toFixed(3).replace(".",",")+(headOK?"   ✓":"   ⚠ acima de 0,20 — aumentar o diâmetro do header"),hi:!headOK},
     {k:"Perda de carga no header  (Darcy, f = 0,015)",v:dPhead.toFixed(2).replace(".",",")+" kPa   em "+Lhead.toFixed(0)+" m equivalentes"},
     {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
-    {k:"Limite do tipo de válvula adotado",v:({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — aumentar a ponta ou o header, ou trocar o tipo de válvula"),hi:!backOK},
+    {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
 
     {sec:"Etapa 3 — Chama: comprimento e inclinação pelo vento"},
     {k:"Comprimento de chama  L = 0,0059·Q^0,478",v:Lf.toFixed(1).replace(".",",")+" m   (ajuste de Beychok sobre a Figura 8 da API 521, com Q em Btu/h)",hi:true},
@@ -2077,7 +2146,7 @@ function flareCalc(){
     {k:"Ar e potência do soprador",v:(assist==="ar"?(fmt(Math.round(Qar))+" m³/h   ·   potência estimada "+Psopr.toFixed(0)+" kW (ΔP 3 kPa · η 0,65)"):"não se aplica"),hi:(assist==="ar")},
 
     {sec:"Etapa 9 — Pilotos e ignição (API 537)"},
-    {k:"NÚMERO DE PILOTOS",v:npil+"   —  1 até 8\" · 2 de 8\" a 24\" · 3 de 24\" a 42\" · 4 acima de 42\"",hi:true},
+    {k:"NÚMERO DE PILOTOS",v:npil+((baixoPCI||toxico)?("   —  tabela da API 537 daria "+npilTab+" pelo diâmetro, mas em "+(baixoPCI&&toxico?"baixo PCI e serviço tóxico":(baixoPCI?"baixo PCI":"serviço tóxico"))+" a norma remete o número a ACORDO entre comprador e fabricante; adotou-se um piloto adicional como mínimo, a confirmar em proposta"):("   —  tabela da API 537: 1 até 8\" · 2 de 8\" a 24\" · 3 de 24\" a 42\" · 4 acima de 42\"")),hi:true},
     {k:"Consumo de gás dos pilotos",v:Qpil.toFixed(0)+" Nm³/h   (≈ 4 Nm³/h por piloto, contínuo)"},
     {k:"Requisitos do sistema",v:"Ignição por gerador de frente de chama ou por ignitor eletrônico de alta energia, com detecção de chama por termopar em cada piloto e sinalização em sala de controle. Os pilotos devem manter chama sob vento e chuva de projeto — é item de segurança, não de conveniência."},
 
@@ -2110,12 +2179,13 @@ function flareCalc(){
     {k:"Acesso e manutenção",v:"A ponta é consumível e precisa ser removível: prever davit no topo, torre basculante ou acesso por guindaste, e definir isso ANTES de fechar o arranjo — é decisão de layout, não detalhe."},
 
     {sec:"Verificação global"},
+    {k:"Estabilidade de chama",v:(estavel?"✓ PCI de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ acima do limite da API 537":"⚠ PCI de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ — abaixo do limite de 11,82: EXIGE ponta específica para baixo PCI e pilotos acordados com o fabricante")+(toxico?"   ·   ⚠ serviço tóxico":""),hi:(!estavel||toxico)},
     {k:"Processo",v:(machOK?"✓":"⚠")+" Mach na ponta "+Ma.toFixed(3).replace(".",",")+"   ·   "+(backOK?"✓":"⚠")+" contrapressão "+(PbackMan/Pset*100).toFixed(0)+" % do ajuste   ·   "+(headOK?"✓":"⚠")+" Mach no header "+MaH.toFixed(2).replace(".",","),hi:!(machOK&&backOK&&headOK)},
     {k:"Segurança",v:(radOK?"✓":"⚠")+" radiação com altura de "+Hst.toFixed(0)+" m   ·   "+(baseOK?"✓":"⚠")+" base "+Kbase.toFixed(1).replace(".",",")+" kW/m²   ·   "+(dispOK?"✓":"⚠")+" dispersão com tocha apagada",hi:!(radOK&&baseOK&&dispOK)},
     {k:"Estrutura",v:(strakes?"⚠ requer supressor de vórtices":"✓ sem VIV crítica")+"   ·   casco "+tcom.toFixed(1).replace(".",",")+" mm   ·   ação lateral por "+latGov},
     {k:"Observação de projeto",v:"⚠ PRÉ-DIMENSIONAMENTO conforme API 521 e API 537. O caso de projeto (contingência governante) deve sair de estudo de alívio formal, e a curva de perda de carga da ponta, o consumo de vapor e o ruído devem vir do fabricante. A dispersão com tocha apagada, se governar, exige modelo atmosférico dedicado — a estimativa de jato aqui é de triagem."}
   ];
-  OUT.geo={tipo:"flare",W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
+  OUT.geo={tipo:"flare",contInuo:contInuo,LHVvol:LHVvol,estavel:estavel,baixoPCI:baixoPCI,razEnr:razEnr,QNm:QNm,teorCO:teorCO,toxico:toxico,poeira:poeira,npilTab:npilTab,W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
     dHead:dHead,MaH:MaH,PbackMan:PbackMan,PbackAdm:PbackAdm,backOK:backOK,Pset:Pset,
     Lf:Lf,tetaG:tetaG,tetaCalcG:tetaCalcG,dxF:dxF,dyF:dyF,uw:uw,Hrad:Hrad,Hbase:Hbase,Hmin:Hmin,govH:govH,Frad:Frad,Kadm:Kadm,Ksol:Ksol,Drad:Drad,
     Hreq:Hreq,Hst:Hst,Rpes:Rpes,Kbase:Kbase,Kpes:Kpes,Rlim:Rlim,isop:isop,radOK:radOK,
@@ -2133,7 +2203,10 @@ const CALCS={
     titulo:"Flare (tocha de queima) — dimensionamento executivo",
     referencia:"API STD 521 — Pressure-relieving and Depressuring Systems: contingências de alívio, velocidade de saída na ponta (Mach 0,2 contínuo · 0,5 em emergência), Mach ≤ 0,2 no header coletor, contrapressão admissível por tipo de válvula de segurança, comprimento de chama (Figura 8, ajuste de Beychok L = 0,0059·Q^0,478 com Q em Btu/h), inclinação da chama pelo vento, radiação térmica D = √(τ·F·Q/(4π·K)) com os níveis admissíveis de 1,58 kW/m² (exposição contínua), 4,73 kW/m² (ação emergencial de 2 a 3 min), 6,31 kW/m² (até 30 s) e 9,46 kW/m² (sem pessoal), acrescida da parcela solar de 0,79 a 1,04 kW/m², e vaso separador com remoção de gotas de 300 a 600 µm com 20 a 30 min de retenção. API STD 537 — Flare Details: número de pilotos por diâmetro de ponta, sistemas de ignição e detecção de chama, selos de velocidade e molecular. VENTO: ABNT NBR 6123 (S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). VÓRTICES: velocidade crítica pelo número de Strouhal (St = 0,20) e número de Scruton para decisão de supressores helicoidais. SISMO: ABNT NBR 15421. ESTRUTURA: ABNT NBR 8800 — casco a flexão, placa de base e chumbadores",
     campos:[
-      {tipo:"head",label:"Caso de projeto — contingência governante"},
+      {tipo:"head",label:"Serviço e caso de projeto"},
+      {id:"flServico",label:"Tipo de serviço da tocha",tipo:"select",valor:"emerg",opcoes:[
+        {v:"emerg",t:"Alívio de emergência (refinaria, petroquímica)"},
+        {v:"cont",t:"Queima CONTÍNUA de gás de processo (guseira, siderurgia, gaseificação)"}]},
       {id:"flCont",label:"Cenário de alívio adotado",tipo:"select",valor:"fogo",opcoes:[
         {v:"fogo",t:"Incêndio na área (fire case)"},
         {v:"bloq",t:"Bloqueio de saída"},
@@ -2147,6 +2220,11 @@ const CALCS={
       {id:"flGas",label:"Gás (preset — preenche MW, k, PCI, F e LII)",tipo:"select",valor:"gas_natural",onchange:"flarePreset()",opcoes:[
         {v:"gas_natural",t:"Gás natural"},{v:"metano",t:"Metano"},
         {v:"gas_refinaria",t:"Gás de refinaria"},{v:"gas_processo",t:"Gás de processo (genérico)"},
+        {v:"bfg_vegetal",t:"Alto-forno a carvão vegetal — gás de topo (GUSEIRA)"},
+        {v:"bfg_coque",t:"Alto-forno a coque — BFG"},
+        {v:"ldg",t:"Aciaria LD / conversor — LDG"},
+        {v:"cog",t:"Coqueria — COG"},
+        {v:"gaseif",t:"Gaseificação de biomassa"},
         {v:"propano",t:"Propano"},{v:"butano",t:"Butano"},
         {v:"etileno",t:"Etileno"},{v:"propileno",t:"Propileno"},
         {v:"hidrogenio",t:"Hidrogênio"},{v:"gas_acido",t:"Gás ácido (H2S)"}]},
@@ -2156,7 +2234,9 @@ const CALCS={
       {id:"flT",label:"Temperatura do gás na ponta",unidade:"°C",tipo:"number",valor:60,step:"5"},
       {id:"flZ",label:"Fator de compressibilidade  Z",tipo:"number",valor:1.0,step:"0.01"},
       {id:"flLII",label:"Limite inferior de inflamabilidade  LII",unidade:"% vol.",tipo:"number",valor:4.4,step:"0.1"},
+      {id:"flCO",label:"Teor de CO (serviço tóxico acima de 1 %)",unidade:"% mol",tipo:"number",valor:0,step:"1"},
       {id:"flH2S",label:"Teor de H2S (0 = sem gás ácido)",unidade:"% mol",tipo:"number",valor:0,step:"0.1"},
+      {id:"flPo",label:"Particulado na corrente (0 = gás limpo)",unidade:"mg/Nm³",tipo:"number",valor:0,step:"10"},
       {id:"flPlat",label:"Estrutura elevada mais próxima, acima da ponta (0 = nenhuma)",unidade:"m",tipo:"number",valor:0,step:"5"},
       {tipo:"head",label:"Ponta e sistema de alívio"},
       {id:"flMach",label:"Velocidade de saída admissível (API 521)",tipo:"select",valor:"0.5",opcoes:[
@@ -2166,7 +2246,8 @@ const CALCS={
       {id:"flDtip",label:"Diâmetro da ponta (0 = calcular)",unidade:"pol",tipo:"number",valor:0,step:"2"},
       {id:"flKtip",label:"Coeficiente de perda de carga da ponta  K",tipo:"number",valor:1.5,step:"0.1"},
       {id:"flPset",label:"Pressão de ajuste da PSV mais crítica",unidade:"kPa man.",tipo:"number",valor:1000,step:"50"},
-      {id:"flPSV",label:"Tipo de válvula de segurança",tipo:"select",valor:"balanc",opcoes:[
+      {id:"flPdisp",label:"Pressão disponível na fonte (só em serviço contínuo)",unidade:"kPa man.",tipo:"number",valor:20,step:"1"},
+      {id:"flPSV",label:"Tipo de válvula de segurança (só em alívio de emergência)",tipo:"select",valor:"balanc",opcoes:[
         {v:"conv",t:"Convencional — contrapressão até 10 % do ajuste"},
         {v:"balanc",t:"Balanceada com fole — até 50 %"},
         {v:"pilot",t:"Operada por piloto — até 80 %"}]},
