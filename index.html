@@ -6534,75 +6534,87 @@ function gerarRelatorio(){
       doc.text(san("Croqui esquemático (fora de escala) — cone vibratório / ativador de silo. Acionar o vibrador somente com o alimentador a jusante em operação."),14,y4+6);
       doc.text(san("Tirantes do defletor dimensionados por resistência estática (NBR 8800) e por fadiga (Anexo K / EN 1993-1-9) — em barra rosqueada a fadiga costuma governar."),14,y4+10);
     } else if(G.tipo==="alimcor"){
-      /* ---------- Croqui do alimentador de correia (figura da pag. 1-21) ---------- */
+      /* ---------- Croqui do alimentador de correia (figura da pág. 1-21) ----------
+         Área útil: x de 15 a 195 mm. A elevação ocupa a faixa 24–148 e a vista da seção
+         a faixa 158–188, de modo que uma nunca invade a outra. Todo rótulo passa por
+         fxL()/ntc(), que o mantêm dentro das margens.                                  */
+      var AXL=15, AXR=195;
+      function afxL(x,w){ return Math.max(AXL,Math.min(AXR-w,x)); }
+      function afxC(x,w){ var h=w/2; return Math.max(AXL+h,Math.min(AXR-h,x)); }
+      function atx(x,y,t,fs,al){ var f=fs||7; doc.setFontSize(f);
+        var w=doc.getTextWidth(san(t));
+        if(al==="center"){ doc.text(san(t),afxC(x,w),y,{align:"center"}); }
+        else if(al==="right"){ doc.text(san(t),Math.max(AXL+w,Math.min(AXR,x)),y,{align:"right"}); }
+        else { doc.text(san(t),afxL(x,w),y); } }
+
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
-      var x0=32, xf=182, esc=(xf-x0)/Math.max(G.L,0.5);          // mm de desenho por metro
-      var bY=96;                                                  // linha do topo da correia
+      var x0=24, xf=148, esc=(xf-x0)/Math.max(G.L,0.5);          // mm de desenho por metro
+      var bY=98;                                                  // linha do topo da correia
       var rD=7.5, rT=6;
       var xT0=x0+rT, xT1=xf-rD;                                   // centros dos tambores
-      // ---- correia (ramo de carga e de retorno) + tambores
+      /* ---- correia (ramo de carga e de retorno) + tambores ---- */
       doc.setLineWidth(1.2);
       doc.line(xT0,bY,xT1,bY);
       doc.line(xT0,bY+2*rD,xT1,bY+2*rD);
       doc.circle(xT0,bY+rD,rT); doc.circle(xT1,bY+rD,rD);
       doc.setLineWidth(0.4);
       doc.line(xT1-rD,bY+rD,xT1+rD,bY+rD); doc.line(xT1,bY,xT1,bY+2*rD);
-      doc.setTextColor(30,155,196); doc.setFontSize(7);
-      doc.text(san("acionamento"),xT1,bY+2*rD+8,{align:"center"});
-      // ---- moega (tremonha) sobre a correia — abertura L2
+      doc.setTextColor(30,155,196); atx(xT1,bY+2*rD+8,"acionamento",7,"center");
+      /* ---- moega (tremonha) sobre a correia — abertura L2 ---- */
+      var hD=Math.max(4,Math.min(16,G.D*esc*3));
       var xm0=xT0+8, xm2=xm0+G.L2*esc; if(xm2>xT1-6){ xm2=xT1-6; }
-      var mTop=44, mBot=bY-Math.max(6,Math.min(16,G.D*esc*3))-3;
+      var mTop=48, mBot=bY-hD-3;
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.9);
-      doc.line(xm0-16,mTop,xm2+16,mTop);
-      doc.line(xm0-16,mTop,xm0,mBot); doc.line(xm2+16,mTop,xm2,mBot);
+      doc.line(xm0-14,mTop,xm2+14,mTop);
+      doc.line(xm0-14,mTop,xm0,mBot); doc.line(xm2+14,mTop,xm2,mBot);
       doc.line(xm0,mBot,xm0,bY); doc.line(xm2,mBot,xm2,bY);
-      doc.setTextColor(110,130,150); doc.setFontSize(7.5);
-      doc.text(san("moega de alimentação"),(xm0+xm2)/2,mTop-3,{align:"center"});
-      // ---- guias laterais alem da moega (L3)
+      doc.setTextColor(110,130,150); atx((xm0+xm2)/2,mTop-3,"moega de alimentação",7.5,"center");
+      /* ---- guias laterais além da moega (L3) ---- */
       var xm3=Math.min(xm2+G.L3*esc,xT1-4);
       doc.setDrawColor(150,170,190); doc.setLineWidth(0.6); doc.setLineDashPattern([1.2,1.2],0);
       doc.line(xm2,mBot+4,xm3,mBot+4); doc.line(xm3,mBot+4,xm3,bY);
       doc.setLineDashPattern([],0);
-      // ---- leito de material sobre a correia (altura D)
-      var hD=Math.max(4,Math.min(16,G.D*esc*3));
+      /* ---- leito de material sobre a correia (altura D) ---- */
       doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.4);
       doc.rect(xm0,bY-hD,Math.max(6,xT1-rD*0.4-xm0),hD,"FD");
-      // ---- material dentro da moega
+      /* ---- material dentro da moega ---- */
       doc.setFillColor(235,205,150); doc.setDrawColor(200,170,110); doc.setLineWidth(0.3);
-      doc.triangle(xm0-13,mTop+3,xm2+13,mTop+3,(xm0+xm2)/2,mBot-2,"FD");
-      // ---- roletes de impacto sob a moega
+      doc.triangle(xm0-11,mTop+3,xm2+11,mTop+3,(xm0+xm2)/2,mBot-2,"FD");
+      /* ---- roletes de impacto sob a moega ---- */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.4);
       var nr=Math.max(3,Math.round((xm2-xm0)/12));
       for(var ri=0;ri<=nr;ri++){ doc.circle(xm0+ri*(xm2-xm0)/nr,bY+3.4,2.2); }
-      // ---- COTAS
-      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(7.5);
+      /* ---- COTAS ---- */
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150);
       function cota(xa,xb,y,txt,acima){
         doc.line(xa,y,xb,y); doc.line(xa,y-1.5,xa,y+1.5); doc.line(xb,y-1.5,xb,y+1.5);
-        doc.text(san(txt),(xa+xb)/2,acima?(y-1.8):(y+3.6),{align:"center"});
+        doc.setTextColor(30,120,150); atx((xa+xb)/2,acima?(y-1.8):(y+3.6),txt,7,"center");
       }
       var xL1f=Math.min(xm0+G.L1*esc,xm2);
-      cota(xm0,xL1f,mBot-14,"L1 = "+san(G.L1.toFixed(2))+" m  (compr. de atrito)",true);
-      cota(xm0,xm2,mBot-6,"L2 = "+san(G.L2.toFixed(2))+" m  (abertura da moega)",true);
+      cota(xm0,xL1f,mBot-14,"L1 = "+san(G.L1.toFixed(2))+" m  (atrito)",true);
+      cota(xm0,xm2,mBot-6,"L2 = "+san(G.L2.toFixed(2))+" m  (abertura)",true);
       cota(xm2,xm3,mBot+10,"L3 = "+san(G.L3.toFixed(2))+" m",false);
       cota(xT0,xT1,bY+2*rD+18,"L = "+san(G.L.toFixed(2))+" m  (entre centros)",true);
-      // cota D (altura da camada)
-      doc.line(xT1-rD-14,bY-hD,xT1-rD-14,bY);
-      doc.line(xT1-rD-16,bY-hD,xT1-rD-12,bY-hD); doc.line(xT1-rD-16,bY,xT1-rD-12,bY);
-      doc.text("D = "+san(String(Math.round(G.D*1000)))+" mm",xT1-rD-17,bY-hD/2,{align:"right"});
-      // cota H (elevacao) quando houver
-      if(G.H>0){ doc.setTextColor(30,120,150); doc.text("H = "+san(G.H.toFixed(2))+" m (elevação)",xT1,bY-hD-6,{align:"right"}); }
-      // ---- vista da secao transversal (canto direito)
-      var sx=196, sTop=bY-24, sB=26, sD=Math.max(4,Math.min(12,G.D/G.B*sB));
+      /* cota D (altura da camada) — dentro do campo da elevação */
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.3);
+      var xdc=xT1-rD-13;
+      doc.line(xdc,bY-hD,xdc,bY);
+      doc.line(xdc-2,bY-hD,xdc+2,bY-hD); doc.line(xdc-2,bY,xdc+2,bY);
+      doc.setTextColor(30,120,150); atx(xdc-3,bY-hD/2,"D = "+san(String(Math.round(G.D*1000)))+" mm",6.6,"right");
+      if(G.H>0){ doc.setTextColor(30,120,150); atx(xT1,bY-hD-7,"H = "+san(G.H.toFixed(2))+" m (elevação)",6.6,"right"); }
+
+      /* ---------- VISTA DA SEÇÃO TRANSVERSAL — faixa própria, 158 a 188 ---------- */
+      var sB=26, sx=161, sTop=bY-26, sD=Math.max(4,Math.min(12,G.D/Math.max(G.B,0.01)*sB));
       doc.setDrawColor(20,40,60); doc.setLineWidth(0.8);
       doc.line(sx,sTop,sx,sTop+22); doc.line(sx+sB,sTop,sx+sB,sTop+22);      // guias
       doc.setLineWidth(1.1); doc.line(sx-4,sTop+22,sx+sB+4,sTop+22);          // correia
       doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
       doc.rect(sx,sTop+22-sD,sB,sD,"FD");
-      doc.setDrawColor(30,155,196); doc.setLineWidth(0.25); doc.setTextColor(30,120,150); doc.setFontSize(7);
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.25); doc.setTextColor(30,120,150);
       doc.line(sx,sTop-4,sx+sB,sTop-4); doc.line(sx,sTop-5.5,sx,sTop-2.5); doc.line(sx+sB,sTop-5.5,sx+sB,sTop-2.5);
-      doc.text("B = "+san(String(Math.round(G.B*1000)))+" mm",sx+sB/2,sTop-6,{align:"center"});
-      doc.text("D",sx+sB+6,sTop+22-sD/2);
-      doc.setTextColor(110,130,150); doc.text(san("seção"),sx+sB/2,sTop+28,{align:"center"});
+      atx(sx+sB/2,sTop-6,"B = "+san(String(Math.round(G.B*1000)))+" mm",6.6,"center");
+      atx(sx+sB/2,sTop+22-sD/2-1,"D",6.6,"center");
+      doc.setTextColor(110,130,150); atx(sx+sB/2,sTop+28,"seção transversal",6.6,"center");
       var abody=[
         [san("Capacidade Q / resultante"),san(String(Math.round(G.Q)))+" / "+san(String(Math.round(G.Qreal)))+" t/h"],
         [san("Densidade aparente  γ"),san(G.rhoT.toFixed(2))+" t/m³ ("+san(String(Math.round(G.gama)))+" kgf/m³)"],
@@ -6629,7 +6641,7 @@ function gerarRelatorio(){
         [san("Tambor de acionamento / mínimo"),san(String(Math.round(G.Dt)))+" / "+san(String(G.Dmin))+" mm"+(G.Dtok?"":san(" — abaixo do minimo"))],
         [san("Maior bloco do material"),san(String(Math.round(G.Fmax)))+" mm"+(G.lumpOK?"":san(" — largura insuficiente"))]
       ];
-      doc.autoTable({startY:bY+2*rD+26,theme:"grid",margin:{left:14,right:14},
+      doc.autoTable({startY:bY+2*rD+28,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],body:abody,
         headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},bodyStyles:{fontSize:8},
         alternateRowStyles:{fillColor:[244,247,250]},
