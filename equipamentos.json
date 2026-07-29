@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.64.1",
+    "versao": "1.65.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -65,7 +65,41 @@
           "Flare (tocha de queima)"
         ]
       }
-    ]
+    ],
+    "i18n": {
+      "grupos": {
+        "Transportadores": "Conveyors",
+        "Silos": "Silos",
+        "Moegas": "Hoppers",
+        "Britadores": "Crushers",
+        "Peneiras": "Screens",
+        "Alimentadores": "Feeders",
+        "Ativadores de Silo": "Bin Activators",
+        "Utilidades e Segurança": "Utilities & Safety"
+      },
+      "subgrupos": {
+        "Correia Transportadora Convencional": "Conventional Belt Conveyor",
+        "Flexowell": "Flexowell",
+        "Arraste Tubular": "Tubular Drag",
+        "Elevador de Canecas": "Bucket Elevator",
+        "Helicoidal": "Screw",
+        "Silo Circular": "Circular Silo",
+        "Silo Retangular": "Rectangular Silo",
+        "Moega de Alimentação": "Feed Hopper",
+        "Britador de Mandíbulas": "Jaw Crusher",
+        "Britador Cônico": "Cone Crusher",
+        "Britador de Impacto": "Impact Crusher",
+        "Britador de Martelos": "Hammer Crusher",
+        "Peneira Vibratória Horizontal": "Horizontal Screen",
+        "Peneira Vibratória Inclinada": "Inclined Screen",
+        "Peneira Vibratória Banana (CBS)": "Banana Screen (CBS)",
+        "Calha Vibratória (saída de silo)": "Vibrating Trough (silo outlet)",
+        "Alimentador de Correia (moega de alimentação)": "Belt Feeder (feed hopper)",
+        "Cone Vibratório Circular": "Circular Bin Activator",
+        "Cone Vibratório Retangular": "Rectangular Bin Activator",
+        "Flare (tocha de queima)": "Flare Stack"
+      }
+    }
   },
   "equipamentos": [
     {
@@ -83,7 +117,11 @@
         "ISO 5048",
         "CEMA",
         "SEW"
-      ]
+      ],
+      "modelo_en": "Flexowell Conveyor",
+      "resumo_en": "Corrugated sidewall belt for steep and vertical lifts: capacity, sidewall, cleat and carcass selection from catalogue, power and drive.",
+      "grupo_en": "Conveyors",
+      "subgrupo_en": "Flexowell"
     },
     {
       "id": "transportador-correia",
@@ -100,7 +138,11 @@
         "NBR 6172",
         "CEMA",
         "ISO 5048"
-      ]
+      ],
+      "modelo_en": "Belt Conveyor",
+      "resumo_en": "Conventional belt conveyor: capacity and width with lump-size check, speed, power, tensions, belt class and drive selection.",
+      "grupo_en": "Conveyors",
+      "subgrupo_en": "Conventional Belt Conveyor"
     },
     {
       "id": "transportador-helicoidal",
@@ -117,7 +159,11 @@
         "CEMA",
         "DIN 15262",
         "ISO 7119"
-      ]
+      ],
+      "modelo_en": "Screw Conveyor",
+      "resumo_en": "Screw conveyor: from design throughput to recommended screw diameter, with speed, trough loading, actual capacity and drive power.",
+      "grupo_en": "Conveyors",
+      "subgrupo_en": "Screw"
     },
     {
       "id": "transportador-arraste-tubular",
@@ -134,7 +180,11 @@
         "ASME B36.10",
         "NBR 8800",
         "SEW"
-      ]
+      ],
+      "modelo_en": "Tubular Drag Conveyor",
+      "resumo_en": "Tubular chain-and-disc drag: pipe diameter, fill rate, chain selection, power, total weight and point loads at the supports.",
+      "grupo_en": "Conveyors",
+      "subgrupo_en": "Tubular Drag"
     },
     {
       "id": "transportador-canecas",
@@ -151,7 +201,11 @@
         "CEMA",
         "NBR 6172",
         "SEW"
-      ]
+      ],
+      "modelo_en": "Bucket Elevator",
+      "resumo_en": "Bucket elevator: bucket selection from catalogue, speed and discharge type, power including digging resistance, tension and traction selection.",
+      "grupo_en": "Conveyors",
+      "subgrupo_en": "Bucket Elevator"
     },
     {
       "id": "britador-mandibulas",
@@ -168,7 +222,11 @@
         "Bond",
         "Taggart",
         "Metso"
-      ]
+      ],
+      "modelo_en": "Jaw Crusher",
+      "resumo_en": "Primary jaw crusher: feed opening from catalogue, reduction ratio, capacity cross-checked by Taggart and power by Bond's law.",
+      "grupo_en": "Crushers",
+      "subgrupo_en": "Jaw Crusher"
     },
     {
       "id": "britador-conico",
@@ -185,7 +243,11 @@
         "Bond",
         "Metso",
         "Taggart"
-      ]
+      ],
+      "modelo_en": "Cone Crusher",
+      "resumo_en": "Secondary and tertiary cone crusher: model selection from catalogue, reduction ratio, product size, capacity and power by Bond's law.",
+      "grupo_en": "Crushers",
+      "subgrupo_en": "Cone Crusher"
     },
     {
       "id": "britador-impacto",
@@ -201,7 +263,11 @@
       "normas": [
         "Bond",
         "Metso"
-      ]
+      ],
+      "modelo_en": "Impact Crusher",
+      "resumo_en": "Impact crusher: model selection from catalogue, reduction ratio, product size, capacity and power, with rotor duty check.",
+      "grupo_en": "Crushers",
+      "subgrupo_en": "Impact Crusher"
     },
     {
       "id": "britador-martelo",
@@ -217,7 +283,11 @@
       "normas": [
         "Bond",
         "Metso"
-      ]
+      ],
+      "modelo_en": "Hammer Crusher",
+      "resumo_en": "Hammer crusher: model selection, reduction ratio, capacity and power, with energy per hammer and rotor tip speed checks.",
+      "grupo_en": "Crushers",
+      "subgrupo_en": "Hammer Crusher"
     },
     {
       "id": "peneira-horizontal",
@@ -233,7 +303,11 @@
       "normas": [
         "Metso",
         "VSMA"
-      ]
+      ],
+      "modelo_en": "Horizontal Vibrating Screen",
+      "resumo_en": "Horizontal vibrating screen: required area from correction factors, model selection from catalogue, deck count, power and bed depth.",
+      "grupo_en": "Screens",
+      "subgrupo_en": "Horizontal Screen"
     },
     {
       "id": "peneira-inclinada",
@@ -250,7 +324,11 @@
         "Simplex SXPI",
         "VSMA",
         "Metso"
-      ]
+      ],
+      "modelo_en": "Inclined Vibrating Screen",
+      "resumo_en": "Inclined vibrating screen: required area from correction factors, selection from the Simplex SXPI range, decks, power and bed depth.",
+      "grupo_en": "Screens",
+      "subgrupo_en": "Inclined Screen"
     },
     {
       "id": "peneira-banana",
@@ -267,7 +345,11 @@
         "CBS",
         "VSMA",
         "Metso"
-      ]
+      ],
+      "modelo_en": "Banana Screen (CBS)",
+      "resumo_en": "Banana vibrating screen (CBS): required area, model selection, decks and power, with the entry and exit angles of the multi-slope deck.",
+      "grupo_en": "Screens",
+      "subgrupo_en": "Banana Screen (CBS)"
     },
     {
       "id": "calha-vibratoria",
@@ -283,7 +365,11 @@
       "normas": [
         "OLI",
         "NBR 8800"
-      ]
+      ],
+      "modelo_en": "Vibrating Feeder Trough",
+      "resumo_en": "Vibrating trough under silo: throughput and bed depth, model selection, amplitude and centrifugal force, springs, power and total weight.",
+      "grupo_en": "Feeders",
+      "subgrupo_en": "Vibrating Trough (silo outlet)"
     },
     {
       "id": "alimentador-correia",
@@ -300,7 +386,11 @@
         "Manual FAÇO",
         "EN 1991-4",
         "NBR 8800"
-      ]
+      ],
+      "modelo_en": "Belt Feeder",
+      "resumo_en": "Belt feeder under hopper, by the Metso crushing manual: effective tension, width, belt, drive and required briquette strength.",
+      "grupo_en": "Feeders",
+      "subgrupo_en": "Belt Feeder (feed hopper)"
     },
     {
       "id": "silo-circular",
@@ -317,7 +407,11 @@
         "Jenike",
         "EN 1991-4",
         "NBR 8800"
-      ]
+      ],
+      "modelo_en": "Circular Silo",
+      "resumo_en": "Circular silo: capacity and live time, Jenike flow regime, anti-arching outlet, Janssen pressures, plate, rings, columns and conical hopper.",
+      "grupo_en": "Silos",
+      "subgrupo_en": "Circular Silo"
     },
     {
       "id": "silo-retangular",
@@ -334,7 +428,11 @@
         "EN 1991-4",
         "NBR 8800",
         "NBR 6123"
-      ]
+      ],
+      "modelo_en": "Rectangular Silo",
+      "resumo_en": "Rectangular silo: Jenike flow, Beverloo discharge, EN 1991-4 load cases, plate, ring beams, columns, wind, seismic, base and fatigue.",
+      "grupo_en": "Silos",
+      "subgrupo_en": "Rectangular Silo"
     },
     {
       "id": "moega-alimentacao",
@@ -351,7 +449,11 @@
         "EN 1991-4",
         "NBR 8800",
         "NBR 6123"
-      ]
+      ],
+      "modelo_en": "Feed Hopper",
+      "resumo_en": "Pyramidal or wedge hopper from A, B, H, C and D: valley angle, flow regime, EN 1991-4 pressures, plate, structure, grizzly and mobile loads.",
+      "grupo_en": "Hoppers",
+      "subgrupo_en": "Feed Hopper"
     },
     {
       "id": "cone-vibratorio-circular",
@@ -368,7 +470,11 @@
         "Jenike",
         "OLI",
         "NBR 8800"
-      ]
+      ],
+      "modelo_en": "Circular Bin Activator",
+      "resumo_en": "Circular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
+      "grupo_en": "Bin Activators",
+      "subgrupo_en": "Circular Bin Activator"
     },
     {
       "id": "cone-vibratorio-retangular",
@@ -385,7 +491,11 @@
         "Jenike",
         "OLI",
         "NBR 8800"
-      ]
+      ],
+      "modelo_en": "Rectangular Bin Activator",
+      "resumo_en": "Rectangular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
+      "grupo_en": "Bin Activators",
+      "subgrupo_en": "Rectangular Bin Activator"
     },
     {
       "id": "flare",
@@ -402,7 +512,11 @@
         "API 521",
         "API 537",
         "NBR 6123"
-      ]
+      ],
+      "modelo_en": "Flare Stack",
+      "resumo_en": "Emergency or continuous process-gas flare: tip by Mach and back pressure, height by radiation, flame stability and structure.",
+      "grupo_en": "Utilities & Safety",
+      "subgrupo_en": "Flare Stack"
     }
   ]
 }

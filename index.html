@@ -20,6 +20,15 @@
   .hsearch svg{width:15px;height:15px;color:#6f8aa3;flex:none}
   .hsearch input{background:none;border:none;outline:none;color:#eaf1f7;font-size:.82rem;width:100%;font-family:inherit}
   .hsearch input::placeholder{color:#6f8aa3}
+  .lang{display:flex;align-items:center;gap:2px;padding-left:8px;margin-left:2px;border-left:1px solid var(--navy3);flex:none}
+  .lang button{background:none;border:none;padding:3px 2px 5px;cursor:pointer;position:relative;opacity:.42;filter:saturate(.25);transition:.18s;line-height:0}
+  .lang button:hover{opacity:.85;filter:saturate(.85)}
+  .lang button.on{opacity:1;filter:none}
+  .lang button.on::after{content:"";position:absolute;left:2px;right:2px;bottom:0;height:2px;border-radius:2px;background:var(--teal)}
+  .lang svg{width:26px;height:18px;border-radius:3px;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.22)}
+  .langnote{margin:0 0 14px;padding:9px 12px;border-radius:8px;background:#eef4f8;border:1px solid #d7e6ef;
+    color:#16789a;font-size:.78rem;display:none}
+  body.en .langnote{display:block}
   .hver{text-align:right;line-height:1.3;flex:none;padding-left:4px}
   .hver .k{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#7f9bb3}
   .hver .v{font-size:.8rem;color:var(--gold);font-weight:500}
@@ -165,6 +174,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20 L16 16"/></svg>
     <input id="busca" type="search" placeholder="Buscar equipamento, grupo ou norma" autocomplete="off" />
   </div>
+  <div class="lang">
+    <button id="lang-pt" class="on" title="Português do Brasil" aria-label="Português do Brasil"><svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="20" fill="#009B3A"/><path d="M14 2.4 25.4 10 14 17.6 2.6 10Z" fill="#FEDF00"/><circle cx="14" cy="10" r="4.5" fill="#002776"/><clipPath id="bzc"><circle cx="14" cy="10" r="4.5"/></clipPath><path d="M9 12.6Q14 9.1 19.2 12.9" stroke="#fff" stroke-width="1.5" fill="none" clip-path="url(#bzc)"/></svg></button>
+    <button id="lang-en" title="English (United States)" aria-label="English (United States)"><svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="20" fill="#fff"/><rect width="28" height="1.54" fill="#B22234"/><rect y="3.08" width="28" height="1.54" fill="#B22234"/><rect y="6.15" width="28" height="1.54" fill="#B22234"/><rect y="9.23" width="28" height="1.54" fill="#B22234"/><rect y="12.31" width="28" height="1.54" fill="#B22234"/><rect y="15.38" width="28" height="1.54" fill="#B22234"/><rect y="18.46" width="28" height="1.54" fill="#B22234"/><rect width="11.5" height="10.77" fill="#3C3B6E"/><g fill="#fff"><circle cx="2.2" cy="2" r=".62"/><circle cx="5.7" cy="2" r=".62"/><circle cx="9.2" cy="2" r=".62"/><circle cx="3.9" cy="4.1" r=".62"/><circle cx="7.4" cy="4.1" r=".62"/><circle cx="2.2" cy="6.2" r=".62"/><circle cx="5.7" cy="6.2" r=".62"/><circle cx="9.2" cy="6.2" r=".62"/><circle cx="3.9" cy="8.3" r=".62"/><circle cx="7.4" cy="8.3" r=".62"/></g></svg></button>
+  </div>
   <div class="hver"><div class="k">Versão</div><div class="v" id="hver">—</div></div>
   <div class="htag" id="htag"></div>
   <div class="goldbar"></div>
@@ -174,11 +187,12 @@
 <div class="layout">
   <aside id="drawer">
     <h2>Equipamentos</h2>
-    <button class="navitem all active" data-all="1">Todos</button>
+    <button class="navitem all active" data-all="1"><span>Todos</span></button>
     <div id="menu"></div>
   </aside>
   <main>
     <div class="toolbar"><div class="tt"><h1 id="title">Dimensionamento de Equipamentos</h1><div class="tsub" id="subtitle">Rotinas de pré-dimensionamento conforme normas ABNT, EN e API</div></div><span class="count" id="count"></span></div>
+    <div class="langnote" id="langnote"></div>
     <div class="grid" id="grid"></div>
   </main>
 </div>
@@ -5469,13 +5483,55 @@ const GRUPO_COR={
   "Ativadores de Silo":"#C2557A", "Utilidades e Segurança":"#C0483F"
 };
 function corGrupo(g){ return GRUPO_COR[g]||"#1E9BC4"; }
+/* ================= IDIOMA — Etapa 1: interface, nomes e resumos =================
+   As chaves internas (grupo, subgrupo) continuam em português: elas identificam o
+   equipamento e alimentam os filtros. A tradução é só de EXIBIÇÃO — assim nada quebra
+   quando o idioma muda. As folhas de cálculo seguem em português por enquanto. */
+var LANG="pt";
+try{ LANG=localStorage.getItem("pa_lang")||"pt"; }catch(e){}
+const T={
+  pt:{equip:"Equipamentos",todos:"Todos",titulo:"Dimensionamento de Equipamentos",
+      sub:"Rotinas de pré-dimensionamento conforme normas ABNT, EN e API",
+      busca:"Buscar equipamento, grupo ou norma",versao:"Versão",
+      abrir:"Abrir cálculo",soon:"Calculadora em desenvolvimento",
+      un:"equipamento",up:"equipamentos",
+      buscaT:"Busca: ",res1:"resultado para o termo buscado",resN:"resultados para o termo buscado",
+      vazioQ:'Nenhum equipamento encontrado para "',vazioG:"Nenhum equipamento neste grupo ainda.",
+      nota:""},
+  en:{equip:"Equipment",todos:"All",titulo:"Equipment Sizing",
+      sub:"Preliminary sizing routines to ABNT, EN and API standards",
+      busca:"Search equipment, group or standard",versao:"Version",
+      abrir:"Open calculation",soon:"Calculator under development",
+      un:"item",up:"items",
+      buscaT:"Search: ",res1:"result for this term",resN:"results for this term",
+      vazioQ:'No equipment found for "',vazioG:"No equipment in this group yet.",
+      nota:"Calculation sheets are currently available in Portuguese only. Equipment names, summaries and navigation are translated."}
+};
+function t(k){ return (T[LANG]||T.pt)[k]; }
+function nomeGrupo(g){ var m=(DB.meta.i18n&&DB.meta.i18n.grupos)||{}; return LANG==="en"?(m[g]||g):g; }
+function nomeSub(x){ var m=(DB.meta.i18n&&DB.meta.i18n.subgrupos)||{}; return LANG==="en"?(m[x]||x):x; }
+function nomeModelo(e){ return (LANG==="en"&&e.modelo_en)?e.modelo_en:e.modelo; }
+function resumoDe(e){ return (LANG==="en"&&e.resumo_en)?e.resumo_en:(e.resumo||e.subtipo); }
+function setLang(l){
+  LANG=l; try{ localStorage.setItem("pa_lang",l); }catch(e){}
+  document.body.classList.toggle("en",l==="en");
+  document.documentElement.lang=(l==="en")?"en":"pt-BR";
+  $("#lang-pt").classList.toggle("on",l==="pt");
+  $("#lang-en").classList.toggle("on",l==="en");
+  $("#busca").placeholder=t("busca");
+  $("#langnote").textContent=t("nota");
+  var h=document.querySelector(".hver .k"); if(h)h.textContent=t("versao");
+  var a=document.querySelector("aside h2"); if(a)a.textContent=t("equip").toUpperCase();
+  var td=document.querySelector(".navitem.all>span"); if(td)td.textContent=t("todos");
+  buildMenu(); selectFilter(curGrupo,curSub);
+}
 function buildMenu(){
   const menu=DB.meta.menu||[];
   const nG=x=>DB.equipamentos.filter(e=>e.grupo===x).length;
   const nS=(x,y)=>DB.equipamentos.filter(e=>e.grupo===x&&e.subgrupo===y).length;
   $("#menu").innerHTML=menu.map(g=>{
-    const subs=(g.subgrupos||[]).map(s=>`<button class="navitem" data-grupo="${g.grupo}" data-sub="${s}"><span>${s}</span><span class="n">${nS(g.grupo,s)}</span></button>`).join("");
-    return `<div class="grp open" data-grp="${g.grupo}"><button class="grphead" data-grupo="${g.grupo}"><span class="navdot" style="--gc:${corGrupo(g.grupo)}"></span><span>${g.grupo}</span><span class="n">${nG(g.grupo)}</span><span class="arrow">›</span></button><div class="subs">${subs}</div></div>`;
+    const subs=(g.subgrupos||[]).map(s=>`<button class="navitem" data-grupo="${g.grupo}" data-sub="${s}"><span>${nomeSub(s)}</span><span class="n">${nS(g.grupo,s)}</span></button>`).join("");
+    return `<div class="grp open" data-grp="${g.grupo}"><button class="grphead" data-grupo="${g.grupo}"><span class="navdot" style="--gc:${corGrupo(g.grupo)}"></span><span>${nomeGrupo(g.grupo)}</span><span class="n">${nG(g.grupo)}</span><span class="arrow">›</span></button><div class="subs">${subs}</div></div>`;
   }).join("");
   document.querySelectorAll(".grphead").forEach(b=>b.addEventListener("click",()=>{b.closest(".grp").classList.toggle("open");selectFilter(b.dataset.grupo,"");}));
   document.querySelectorAll(".subs .navitem").forEach(b=>b.addEventListener("click",()=>{selectFilter(b.dataset.grupo,b.dataset.sub);closeDrawer();}));
@@ -5499,26 +5555,25 @@ function render(){
     if(curGrupo&&e.grupo!==curGrupo) return false;
     if(curSub&&e.subgrupo!==curSub) return false;
     if(!q) return true;
-    const alvo=[e.modelo,e.grupo,e.subgrupo,e.subtipo,e.resumo,(e.normas||[]).join(" ")].join(" ").toLowerCase();
+    const alvo=[e.modelo,e.modelo_en,e.grupo,nomeGrupo(e.grupo),e.subgrupo,nomeSub(e.subgrupo),e.subtipo,e.resumo,e.resumo_en,(e.normas||[]).join(" ")].join(" ").toLowerCase();
     return q.split(/\s+/).every(t=>alvo.indexOf(t)>=0);
   });
-  $("#count").textContent=list.length+" equipamento"+(list.length!==1?"s":"");
-  $("#title").textContent=q?("Busca: "+curBusca):(curSub||curGrupo||"Dimensionamento de Equipamentos");
-  $("#subtitle").textContent=q?(list.length+" resultado"+(list.length!==1?"s":"")+" para o termo buscado")
-    :"Rotinas de pré-dimensionamento conforme normas ABNT, EN e API";
+  $("#count").textContent=list.length+" "+(list.length!==1?t("up"):t("un"));
+  $("#title").textContent=q?(t("buscaT")+curBusca):(curSub?nomeSub(curSub):(curGrupo?nomeGrupo(curGrupo):t("titulo")));
+  $("#subtitle").textContent=q?(list.length+" "+(list.length!==1?t("resN"):t("res1"))):t("sub");
   $("#grid").innerHTML=list.map(e=>{
     const idx=DB.equipamentos.indexOf(e);
     const nrm=(e.normas||[]).map(n=>`<span>${n}</span>`).join("");
     return `<div class="card" style="--acc:${corGrupo(e.grupo)};animation-delay:${(-idx*0.37).toFixed(2)}s" onclick="openItem(${idx})">
       <div class="top"><div class="icon">${icon(e)}</div>
-        <div style="min-width:0"><div class="cat">${e.grupo} · ${e.subgrupo}</div><h3>${e.modelo}</h3></div></div>
-      <div class="desc">${e.resumo||e.subtipo}</div>
+        <div style="min-width:0"><div class="cat">${nomeGrupo(e.grupo)} · ${nomeSub(e.subgrupo)}</div><h3>${nomeModelo(e)}</h3></div></div>
+      <div class="desc">${resumoDe(e)}</div>
       <div class="norms">${nrm}</div>
       ${e.calculadora
-        ?'<div class="go"><span>Abrir cálculo</span><span class="arw">→</span></div>'
-        :'<div class="go soon"><span>Calculadora em desenvolvimento</span><span class="arw">⋯</span></div>'}
+        ?'<div class="go"><span>'+t("abrir")+'</span><span class="arw">→</span></div>'
+        :'<div class="go soon"><span>'+t("soon")+'</span><span class="arw">⋯</span></div>'}
     </div>`;
-  }).join("")||'<div class="empty">Nenhum equipamento encontrado'+(q?' para "'+curBusca+'".':' neste grupo ainda.')+'</div>';
+  }).join("")||'<div class="empty">'+(q?(t("vazioQ")+curBusca+'".'):t("vazioG"))+'</div>';
 }
 
 const ANIM={
@@ -7578,6 +7633,8 @@ $("#busca").addEventListener("input",function(){
   _bt=setTimeout(function(){ curBusca=v; if(v.trim()){curGrupo="";curSub="";
     document.querySelectorAll(".navitem,.grp").forEach(n=>n.classList.remove("active"));} render(); },120);
 });
+$("#lang-pt").addEventListener("click",function(){setLang("pt");});
+$("#lang-en").addEventListener("click",function(){setLang("en");});
 $("#burger").addEventListener("click",openDrawer);
 $("#overlay").addEventListener("click",closeDrawer);
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal();});
@@ -7586,6 +7643,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeD
 fetch("equipamentos.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{
   DB=d;
   $("#hver").textContent=d.meta.versao;
+  setLang(LANG);
   $("#foot").textContent="ProjectARK · Pré-dimensionamento de Equipamentos · v"+d.meta.versao;
   buildMenu();render();
 }).catch(()=>{$("#grid").innerHTML='<p style="color:#b33">Erro ao carregar equipamentos.json — abra via servidor (GitHub Pages).</p>';});
