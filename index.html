@@ -7009,10 +7009,13 @@ function gerarRelatorio(){
       ft(xD-4,yL+18,"cabeça  "+G.Pcab.toFixed(0)+" kN",190,70,60,6.3,"right");
       /* horizontais */
       doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
-      doc.line(xD+4,yL+24,xD+18,yL+24); doc.line(xD+15,yL+22.6,xD+18,yL+24); doc.line(xD+15,yL+25.4,xD+18,yL+24);
-      doc.line(xA-18,yL+24,xA-4,yL+24); doc.line(xA-15,yL+22.6,xA-18,yL+24); doc.line(xA-15,yL+25.4,xA-18,yL+24);
-      ft(xA-18,yL+29,"H esticador "+G.Hestic.toFixed(0)+" kN",40,140,90,6.3);
-      ft(xD+18,yL+29,"H acionamento "+G.Hacion.toFixed(0)+" kN",40,140,90,6.3,"right");
+      /* as setas também respeitam as margens: só o texto ser limitado não basta */
+      var xhD1=Math.min(FXR-1,xD+18), xhD0=xhD1-14;
+      doc.line(xhD0,yL+24,xhD1,yL+24); doc.line(xhD1-3,yL+22.6,xhD1,yL+24); doc.line(xhD1-3,yL+25.4,xhD1,yL+24);
+      var xhA0=Math.max(FXL+1,xA-18), xhA1=xhA0+14;
+      doc.line(xhA0,yL+24,xhA1,yL+24); doc.line(xhA0+3,yL+22.6,xhA0,yL+24); doc.line(xhA0+3,yL+25.4,xhA0,yL+24);
+      ft(xhA0,yL+29,"H esticador "+G.Hestic.toFixed(0)+" kN",40,140,90,6.3);
+      ft(xhD1,yL+29,"H acionamento "+G.Hacion.toFixed(0)+" kN",40,140,90,6.3,"right");
       ft(105,yL+34,"ancoragem longitudinal a considerar: "+G.Hancor.toFixed(0)+" kN",40,140,90,6.6,"center");
 
       /* ---------- SEÇÃO DO BOLSÃO ---------- */
