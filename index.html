@@ -7306,6 +7306,12 @@ function gerarRelatorio(){
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) — "+(isBan?"peneira banana CBS (inclinação variável, deck côncavo)":(inc>0?"peneira inclinada de movimento circular":"peneira horizontal de movimento linear"))+"; medidas resultantes do pré-dimensionamento."),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="ret"&&G.AAC){
+      /* Limitador de margem: mede a largura real do texto e o mantém entre 15 e 195 mm.
+         Sem ele, rótulos longos de perfil escapam pela esquerda e cotas laterais pela direita. */
+      function rtx(t,x,y,al){ var w=doc.getTextWidth(san(t)); var xx=x;
+        if(al==="right"){ xx=Math.max(15+w,Math.min(195,x)); doc.text(san(t),xx,y,{align:"right"}); }
+        else if(al==="center"){ xx=Math.max(15+w/2,Math.min(195-w/2,x)); doc.text(san(t),xx,y,{align:"center"}); }
+        else { xx=Math.max(15,Math.min(195-w,x)); doc.text(san(t),xx,y); } }
       /* =========== CROQUI EXECUTIVO — SILO RETANGULAR =========== */
       var C1=[20,40,60], CAZ=[30,120,150], CLA=[150,170,190], CMA=[245,228,190], COR=[200,120,40];
       function cot(x1,y1,x2,y2,txt,al){
@@ -7355,14 +7361,14 @@ function gerarRelatorio(){
       for(var i=1;i<=nc;i++){ var yy=yTopo+i*passo; doc.line(cx-wH-2,yy,cx+wH+2,yy); }
       doc.setTextColor(COR[0],COR[1],COR[2]); doc.setFontSize(6);
       doc.text(san(G.nCintas+" cintas @ "+G.sst.toFixed(2)+" m"),cx+wH+4,yTopo+passo+1);
-      doc.text(san(G.perfilCinta),cx+wH+4,yTopo+passo+4);
+      rtx(G.perfilCinta,cx+wH+4,yTopo+passo+4);
       /* enrijecedores verticais */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.4); doc.setLineDashPattern([1.2,1.2],0);
       for(var j=1;j<=3;j++){ var xx=cx-wH+j*(2*wH)/4; doc.line(xx,yTopo,xx,yTrans); }
       doc.setLineDashPattern([],0);
       doc.setTextColor(120,140,160);
-      doc.text(san("enrijecedores  "+G.perfilEnr),cx-wH-3,yTopo+(yTrans-yTopo)*0.55,{align:"right"});
-      doc.text(san(G.nEnrV+" un"),cx-wH-3,yTopo+(yTrans-yTopo)*0.55+3,{align:"right"});
+      rtx("enrijecedores  "+G.perfilEnr,cx-wH-3,yTopo+(yTrans-yTopo)*0.55,"right");
+      rtx(G.nEnrV+" un",cx-wH-3,yTopo+(yTrans-yTopo)*0.55+3,"right");
       /* montantes + base */
       doc.setDrawColor(C1[0],C1[1],C1[2]); doc.setLineWidth(1.4);
       doc.line(cx-wH+3,yTrans,cx-wH+3,yBase); doc.line(cx+wH-3,yTrans,cx+wH-3,yBase);
@@ -7416,9 +7422,9 @@ function gerarRelatorio(){
       cot(pL-9,pT,pL-9,pT+pH,"b = "+G.b.toFixed(2)+" m");
       cot(pL+(pW-bwP)/2,pT+pH+7,pL+(pW+bwP)/2,pT+pH+7,"Bw "+Math.round(G.Bw*1000));
       doc.setTextColor(CAZ[0],CAZ[1],CAZ[2]); doc.setFontSize(6);
-      doc.text(san("Bl "+Math.round(G.Bl*1000)+" mm"),pL+pW+3,pT+pH/2);
-      doc.text(san("vão da cinta "+G.vaoCinta.toFixed(2)+" m"),pL,pT+pH+13);
-      doc.text(san("chapa "+G.tcom.toFixed(1)+" mm · tremonha "+G.thopcom.toFixed(1)+" mm"),pL,pT+pH+17);
+      rtx("Bl "+Math.round(G.Bl*1000)+" mm",pL+pW+3,pT+pH/2);
+      rtx("vão da cinta "+G.vaoCinta.toFixed(2)+" m",pL,pT+pH+13);
+      rtx("chapa "+G.tcom.toFixed(1)+" mm · tremonha "+G.thopcom.toFixed(1)+" mm",pL,pT+pH+17);
       /* ---------- TABELAS DO PROJETO EXECUTIVO ---------- */
       function tab(titulo,body,startY){
         doc.autoTable({startY:startY,theme:"grid",margin:{left:14,right:14},
