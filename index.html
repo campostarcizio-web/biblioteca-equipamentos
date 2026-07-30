@@ -2275,6 +2275,312 @@ function flareCalc(){
   return OUT;
 }
 
+/* ===================== FLEXOWELL — presets de material ===================== */
+const FLEX_MAT={
+  minerio_fe:   {rho:2.50,lump:100,phi:0.80,abr:"alta",  nome:"Minério de ferro granulado"},
+  sinter_feed:  {rho:2.20,lump:10, phi:0.85,abr:"alta",  nome:"Sinter feed / pellet feed"},
+  pelota:       {rho:2.10,lump:16, phi:0.85,abr:"média", nome:"Pelota"},
+  sinter:       {rho:1.70,lump:50, phi:0.80,abr:"alta",  nome:"Sínter"},
+  calcario:     {rho:1.50,lump:80, phi:0.80,abr:"média", nome:"Calcário britado"},
+  brita:        {rho:1.60,lump:100,phi:0.75,abr:"alta",  nome:"Brita / rocha britada"},
+  areia:        {rho:1.50,lump:5,  phi:0.90,abr:"média", nome:"Areia"},
+  carvao:       {rho:0.90,lump:50, phi:0.85,abr:"baixa", nome:"Carvão mineral"},
+  coque:        {rho:0.50,lump:75, phi:0.80,abr:"média", nome:"Coque"},
+  carvao_veg:   {rho:0.25,lump:60, phi:0.85,abr:"baixa", nome:"Carvão vegetal"},
+  clinquer:     {rho:1.40,lump:40, phi:0.80,abr:"alta",  nome:"Clínquer"},
+  briq_bar:     {rho:1.70,lump:57, phi:0.75,abr:"alta",  nome:"Briquete BAR (57 × 57 × 37,5 mm)"},
+  briq_bricao:  {rho:1.30,lump:120,phi:0.70,abr:"alta",  nome:"Briquete Bricão (120 × 108 × 87 mm)"}
+};
+function flexPreset(){
+  var p=FLEX_MAT[$("#fxMat").value]; if(!p){ runCalc("flexowell"); return; }
+  $("#rhof").value=p.rho; $("#lumpf").value=p.lump; $("#phif").value=p.phi;
+  runCalc("flexowell");
+}
+function flexowellCalc(){
+  var g=9.80665;
+  /* ---------- ENTRADAS ---------- */
+  var Q=num("Qf"), rho=num("rhof"), Lh1=num("Lh1f"), Li=num("Lif"), theta=num("thetaf"),
+      Lh2=num("Lh2f"), v=num("vf"), lump=num("lumpf"), Dt=num("Dtf");
+  if(!isFinite(Q)||Q<=0)Q=300; if(!isFinite(rho)||rho<=0)rho=1.6;
+  if(!isFinite(Lh1)||Lh1<0)Lh1=8; if(!isFinite(Li)||Li<=0)Li=30;
+  if(!isFinite(theta)||theta<0||theta>90)theta=55; if(!isFinite(Lh2)||Lh2<0)Lh2=5;
+  if(!isFinite(v)||v<=0)v=1.5; if(!isFinite(lump)||lump<=0)lump=80;
+  if(!isFinite(Dt)||Dt<=0)Dt=0;
+  var B=selvN("Bf",1000), phi=num("phif"); if(!isFinite(phi)||phi<=0||phi>1)phi=0.80;
+  var K=selvN("Kf",0.38), FS=selvN("fsf",10);
+  var fISO=selvN("fxF",0.022), eta=selvN("fxEta",0.85);
+  var passoIn=num("fxPasso"); var qBin=num("fxQb");
+  var tr=theta*Math.PI/180;
+
+  /* ---------- ETAPA 1 — GEOMETRIA ---------- */
+  var H=Li*Math.sin(tr);
+  var Lproj=Lh1+Lh2+Li*Math.cos(tr);            // projeção horizontal
+  var Ltot=Lh1+Li+Lh2;                          // comprimento desenvolvido
+  var cosd=Lproj/Math.max(Ltot,0.01);           // cos δ médio ponderado
+  var Qv=Q/rho;
+
+  /* ---------- ETAPA 2 — VELOCIDADE ADMISSÍVEL POR ÂNGULO ----------
+     Em alto ângulo a velocidade é limitada: acima do limite o material rola de volta
+     dentro do bolsão e a capacidade real cai, com desgaste de travessa. */
+  var vmax;
+  if(theta<=30) vmax=4.0;
+  else if(theta<=60) vmax=4.0-(theta-30)*(4.0-2.5)/30;
+  else vmax=2.5-(theta-60)*(2.5-1.6)/30;
+  if(lump>100) vmax*=0.85;                      // bloco grande reduz o limite
+  var vmin=0.5;
+  var vOK=(v<=vmax+0.02)&&(v>=vmin);
+
+  /* ---------- ETAPA 3 — PAREDE ONDULADA E CAPACIDADE ----------
+     mw = massa das DUAS paredes por metro. Valores de ordem de grandeza do catálogo. */
+  var SW=[{tp:"L",h:40,bw:30,dv:35,mw:4.0},
+          {tp:"N",h:60,bw:50,dv:42,mw:6.6},{tp:"N",h:80,bw:50,dv:42,mw:8.8},
+          {tp:"N",h:100,bw:50,dv:42,mw:11.0},{tp:"N",h:120,bw:50,dv:42,mw:13.2},
+          {tp:"S",h:120,bw:70,dv:60,mw:15.6},{tp:"S",h:160,bw:70,dv:60,mw:20.8},
+          {tp:"S",h:200,bw:70,dv:60,mw:26.0},{tp:"S",h:240,bw:70,dv:60,mw:31.2},
+          {tp:"S",h:280,bw:70,dv:60,mw:36.4},
+          {tp:"ES",h:300,bw:95,dv:80,mw:45.0},{tp:"ES",h:400,bw:95,dv:80,mw:60.0},
+          {tp:"ES",h:500,bw:95,dv:80,mw:75.0},{tp:"ES",h:630,bw:95,dv:80,mw:94.5}];
+  /* redução prática de enchimento por faixa de ângulo (estimativa conservadora) */
+  var kTeta=(theta<=45)?1.00:((theta<=70)?0.95:0.90);
+  var phiEf=phi*kTeta;
+  var swSel=selv("swf","auto"), sw=null, selCap=0, bu=0, insuf=false;
+  function capDe(s){ var b=B-2*s.bw; return (b>0)?(3.6*b*s.h/1000*v*phiEf):0; }
+  if(swSel!=="auto"){
+    var pp=swSel.split(":"), stp=pp[0], sh=parseFloat(pp[1]);
+    for(var i=0;i<SW.length;i++){ if(SW[i].tp===stp&&SW[i].h===sh){ sw=SW[i]; break; } }
+    if(sw){ bu=B-2*sw.bw; selCap=capDe(sw); insuf=(selCap<Qv); }
+  }
+  if(!sw){
+    for(var i2=0;i2<SW.length;i2++){ var b2=B-2*SW[i2].bw; if(b2<=0)continue;
+      if(capDe(SW[i2])>=Qv){ sw=SW[i2]; bu=b2; selCap=capDe(sw); break; } }
+    if(!sw){ sw=SW[SW.length-1]; bu=B-2*sw.bw; selCap=capDe(sw); insuf=true; }
+  }
+  var folgaCap=(Qv>0)?selCap/Qv:0;
+
+  /* ---------- ETAPA 4 — TRAVESSAS ---------- */
+  var CL=[20,35,40,55,60,75,90,100,110,120,140,160,180,200,220,240,280,300,400,500,600];
+  var cleat=CL[CL.length-1]; for(var c=0;c<CL.length;c++){ if(CL[c]>=sw.h){ cleat=CL[c]; break; } }
+  var PASSOS=[100,125,150,200,250,300,400,500,630];
+  var passoMin=Math.max(1.5*lump,0.9*sw.h);
+  var passo;
+  if(isFinite(passoIn)&&passoIn>0){ passo=passoIn; }
+  else { passo=PASSOS[PASSOS.length-1]; for(var pz=0;pz<PASSOS.length;pz++){ if(PASSOS[pz]>=passoMin){ passo=PASSOS[pz]; break; } } }
+  var passoOK=(passo>=passoMin-1);
+  var lumpOK=(lump<=400)&&(lump<=bu*0.9)&&(lump<=sw.h*0.9);
+
+  /* ---------- ETAPA 5 — MASSA DA CORREIA POR COMPOSIÇÃO ----------
+     Três parcelas: carcaça com coberturas, as duas paredes onduladas e as travessas.
+     A carcaça depende da tração requerida, que por sua vez depende da massa — resolve-se
+     por iteração curta. */
+  var tCl=Math.max(15,Math.min(30,0.10*cleat));   // espessura da travessa (mm)
+  var mCleat=1150*(cleat/1000)*(tCl/1000)*(bu/1000)*(1000/passo);   // kg/m
+  var qRO=Math.max(8,Math.round(0.018*B)), qRU=Math.round(qRO*0.5);
+  var qG=Q/(3.6*v);
+  var carcReq=0, carcass="", EPsel=0, STsel=0, textil=true, qB=0, mCarc=0;
+  var Fp=0,Fst=0,Fac=0,Fgu=0,Flim=0,Fsec=0,Fu=0,Peff=0,Te=0,T1=0,T2=0,trN=0,Cf=1;
+  for(var it=0;it<10;it++){
+    mCarc=(B/1000)*(10+0.012*Math.max(carcReq,200));
+    qB=(isFinite(qBin)&&qBin>0)?qBin:(mCarc+sw.mw+mCleat);
+    /* ISO 5048 / DIN 22101 */
+    Cf=(Ltot<40)?1.45:((Ltot<80)?1.30:((Ltot<150)?1.17:1.09));
+    Fp=fISO*Ltot*g*(qRO+qRU+(2*qB+qG)*cosd);
+    Fst=qG*g*H;
+    Fac=qG*v*v/1;                                  // aceleração do material no carregamento
+    var Lgu=Math.max(1,Math.min(Lh1,3));           // comprimento de guia no carregamento
+    Fgu=160*Lgu;                                   // atrito do material contra as guias
+    Flim=1500*(B/1000)*2;                          // dois limpadores
+    Fsec=Fac+Fgu+Flim;
+    Fu=Cf*Fp+Fsec+Fst;
+    Peff=Fu*v/eta/1000;
+    Te=Fu;
+    T1=Te*(1+K); T2=T1-Te;
+    trN=T1/B;
+    var novo=trN*FS;
+    if(Math.abs(novo-carcReq)<1) { carcReq=novo; break; }
+    carcReq=novo;
+  }
+  if(carcReq<=1000){ var EP=[200,250,315,400,500,630,800,1000];
+    EPsel=EP.find(function(x){return x>=carcReq;})||1000; textil=true;
+    carcass="Têxtil EP "+EPsel+" N/mm"; }
+  else{ var ST=[1000,1250,1600,2000,2500,3150,4000,5000,6300,8600];
+    STsel=ST.find(function(x){return x>=carcReq;})||8600; textil=false;
+    carcass="Cabo de aço ST "+STsel+" N/mm"; }
+  var Pmaj=Peff*1.20;
+
+  /* ---------- ETAPA 6 — TAMBOR MÍNIMO ----------
+     Dois critérios simultâneos: a carcaça (como em correia lisa) e a ALTURA DA PAREDE
+     ONDULADA, que é o critério próprio do Flexowell e quase sempre o governante. */
+  var DminCarc=textil?Math.max(400,Math.ceil(EPsel*0.9/50)*50):Math.max(630,Math.ceil(STsel*0.4/50)*50);
+  /* A parede ondulada acordeona ao contornar o tambor — é justamente a função da onda.
+     Por isso o mínimo cresce de forma modesta com a altura, e não proporcionalmente a ela:
+     regra prática de 2,5 × h, que reproduz a ordem de grandeza das tabelas de catálogo
+     (N100 → carcaça governa · S200 → 500 mm · ES630 → 1600 mm). */
+  var DminPar=Math.max(400,Math.ceil(2.5*sw.h/50)*50);
+  var Dmin=Math.max(DminCarc,DminPar);
+  var govD=(DminPar>=DminCarc)?"altura da parede ondulada (2,5 × h)":"classe da carcaça";
+  var DtUso=(Dt>0)?Dt:Dmin;
+  var DtOK=(DtUso>=Dmin-1);
+
+  /* ---------- ETAPA 7 — CONTRA-RECUO (BACKSTOP) ----------
+     Se a componente gravitacional do material superar o atrito, o transportador desce
+     carregado ao perder o acionamento. É item de SEGURANÇA, não opcional. */
+  var Fatr=Cf*Fp;
+  var precisaBS=(Fst>Fatr);
+  var Fbs=Math.max(Fst-Fatr,0);
+  var kBS=1.30;
+  var Tbs=kBS*Fbs*(DtUso/2000);                    // N·m no eixo do tambor
+  var npul=v*60000/(Math.PI*DtUso);
+  var sew=selSEW(Pmaj,npul);
+
+  /* ---------- ETAPA 8 — FLECHA E ESPAÇAMENTO DE ROLETES ---------- */
+  var sagRel=selvN("fxSag",0.015);
+  var aMax=Math.sqrt(8*Math.max(T2,1)*sagRel/(g*(qB+qG)));
+  var aAdot=Math.min(Math.floor(aMax*10)/10,1.5);
+  var T2min=g*(qB+qG)*Math.pow(aAdot,2)/(8*sagRel);
+  var sagOK=(T2>=T2min-1);
+
+  /* ---------- ETAPA 9 — RAIOS MÍNIMOS DE CURVA ----------
+     Côncava (vale): a correia tende a levantar — R ≥ T/(qB·g).
+     Convexa (crista): a parede ondulada comprime — regra prática de 30 × h. */
+  var Rlift=Math.max(T1,1)/(qB*g);                 // raio para a correia NAO levantar, sem retencao
+  var RconcPar=Math.ceil(20*sw.h/1000*10)/10;      // limite da parede ondulada
+  var Rconv=Math.ceil(30*sw.h/1000*10)/10;
+  var RconcAd=Math.max(RconcPar,6);                // raio praticavel no arranjo
+  var precisaRet=(RconcAd<Rlift);                  // exige roletes de retencao
+  var Fret=precisaRet?Math.max((T1-qB*g*RconcAd)*tr,0)/1000:0;   // kN no arco da curva
+  var nRet=precisaRet?Math.max(3,Math.ceil(RconcAd*tr/0.6)):0;
+  var Fret1=nRet>0?Fret/nRet:0;
+
+  /* ---------- ETAPA 10 — PESOS E CARGAS ---------- */
+  var mCorreia=qB*2*Ltot;                          // ida e volta
+  var mMatOp=qG*Ltot;
+  var nRol=Math.max(4,Math.ceil(Ltot/Math.max(aAdot,0.5)));
+  var mRoletes=nRol*(qRO*0.6);
+  var mEstrut=Ltot*(28+0.030*B);                   // treliça, chapas, guias
+  var mAcion=sew.mot.kw*9+240;                     // motor + redutor + base
+  var mTambores=2*(0.55*Math.PI*(DtUso/1000)*(B/1000)*7850*0.012+45);
+  var mVazio=mCorreia+mRoletes+mEstrut+mTambores+mAcion;
+  var mOper=mVazio+mMatOp;
+  /* distribuídas por metro, por trecho */
+  var qVazioD=(mVazio-mAcion)/Ltot*g/1000;         // kN/m
+  var qOperD=qVazioD+qG*g/1000;
+  /* pontuais nas extremidades */
+  var Pcab=(mAcion+mTambores/2)*g/1000+ (T1+T2)/1000*0.5;   // cabeça (acionamento)
+  var Pcau=(mTambores/2+120)*g/1000+ (T2*2)/1000*0.5;       // cauda (esticador)
+  /* horizontais */
+  var Hacion=(T1-T2)/1000;                         // reação do acionamento
+  var Hestic=2*T2/1000;                            // esticador por gravidade
+  var Hancor=Math.max(Hacion,Hestic);
+
+  /* ================= RESULTADOS ================= */
+  var OUT=[
+    {sec:"Etapa 1 — Geometria"},
+    {k:"Ângulo de inclinação do trecho",v:theta.toFixed(0)+"°"+(theta>90?"  ⚠":"")},
+    {k:"ELEVAÇÃO TOTAL  H = L_incl · senθ",v:H.toFixed(2).replace(".",",")+" m",hi:true},
+    {k:"Projeção horizontal  ·  comprimento desenvolvido",v:Lproj.toFixed(1).replace(".",",")+" m   ·   "+Ltot.toFixed(1).replace(".",",")+" m"},
+    {k:"cos δ médio  (projeção / desenvolvido)",v:cosd.toFixed(3).replace(".",",")},
+    {k:"Capacidade volumétrica requerida",v:Qv.toFixed(1).replace(".",",")+" m³/h"},
+
+    {sec:"Etapa 2 — Velocidade admissível pelo ângulo"},
+    {k:"Por que limitar",v:"Em alto ângulo, acima de certa velocidade o material rola de volta dentro do bolsão: a capacidade real cai abaixo da calculada e a travessa sofre desgaste acelerado. O limite é função do ângulo e do tamanho do bloco.",hi:true},
+    {k:"Velocidade máxima recomendada",v:vmax.toFixed(2).replace(".",",")+" m/s"+(lump>100?"   (já com redução de 15 % por bloco acima de 100 mm)":"")},
+    {k:"Velocidade adotada",v:v.toFixed(2).replace(".",",")+" m/s"+(vOK?"   ✓ dentro do limite":(v>vmax?"   ⚠ ACIMA do limite — reduzir a velocidade e compensar com parede mais alta ou correia mais larga":"   ⚠ abaixo do mínimo prático de 0,5 m/s")),hi:!vOK},
+
+    {sec:"Etapa 3 — Parede ondulada e capacidade"},
+    {k:"Largura da correia base  ·  largura útil entre paredes",v:fmt(B)+" mm   ·   "+fmt(Math.round(bu))+" mm"},
+    {k:"PAREDE ONDULADA",v:"Tipo "+sw.tp+" · altura "+sw.h+" mm   (base "+sw.bw+" mm · passo da onda "+sw.dv+" mm · "+sw.mw.toFixed(1).replace(".",",")+" kg/m as duas)",hi:true},
+    {k:"Fator de enchimento  ·  redução por ângulo",v:phi.toFixed(2).replace(".",",")+"  ×  "+kTeta.toFixed(2).replace(".",",")+"  =  "+phiEf.toFixed(3).replace(".",",")+"   —  a redução por ângulo é estimativa conservadora; confirmar na curva de capacidade do fabricante"},
+    {k:"CAPACIDADE DA CONFIGURAÇÃO  3,6 · bu · h · v · φef",v:fmt(Math.round(selCap))+" m³/h   =   "+fmt(Math.round(selCap*rho))+" t/h"+(insuf?"   ⚠ INSUFICIENTE":"   ✓ folga de "+folgaCap.toFixed(2).replace(".",",")+" ×"),hi:true},
+
+    {sec:"Etapa 4 — Travessas"},
+    {k:"TRAVESSA",v:"T-"+cleat+" mm   ·   passo "+passo+" mm"+(passoOK?"":"   ⚠ abaixo do mínimo de "+Math.round(passoMin)+" mm"),hi:true},
+    {k:"Passo mínimo  max(1,5 · bloco ; 0,9 · h_parede)",v:Math.round(passoMin)+" mm"},
+    {k:"Maior bloco do material",v:lump.toFixed(0)+" mm"+(lumpOK?"   ✓ cabe no bolsão":"   ⚠ "+(lump>400?"acima de 400 mm, limite do catálogo":"grande para a largura útil ou para a altura da parede"))},
+
+    {sec:"Etapa 5 — Massa da correia por composição"},
+    {k:"Por que importa",v:"A correia Flexowell é carcaça mais duas paredes onduladas mais travessas. Adotar um valor único de massa erra nas duas pontas: subestima em correia larga com parede alta e superestima em correia pequena. A massa entra na resistência principal e na flecha.",hi:true},
+    {k:"Carcaça com coberturas",v:mCarc.toFixed(1).replace(".",",")+" kg/m"},
+    {k:"Paredes onduladas (as duas)",v:sw.mw.toFixed(1).replace(".",",")+" kg/m"},
+    {k:"Travessas  (T-"+cleat+" · esp. "+tCl.toFixed(0)+" mm · passo "+passo+" mm)",v:mCleat.toFixed(1).replace(".",",")+" kg/m"},
+    {k:"MASSA DA CORREIA  qB",v:qB.toFixed(1).replace(".",",")+" kg/m"+((isFinite(qBin)&&qBin>0)?"   (informada pelo usuário)":"   (estimada — confirmar na folha de dados do fabricante)"),hi:true},
+    {k:"Massa de material por metro  qG = Q/(3,6·v)",v:qG.toFixed(1).replace(".",",")+" kg/m"},
+    {k:"Roletes de carga  ·  de retorno",v:qRO+" · "+qRU+" kg/m"},
+
+    {sec:"Etapa 6 — Potência (ISO 5048 / DIN 22101)"},
+    {k:"Coeficiente de atrito fictício  f",v:fISO.toFixed(3).replace(".",",")+"   —  a norma situa f entre 0,020 e 0,024 para instalação em bom estado; 0,030 para condições desfavoráveis",hi:true},
+    {k:"Coeficiente de comprimento  C  (L = "+Ltot.toFixed(0)+" m)",v:Cf.toFixed(2).replace(".",",")+"   —  quanto mais curto o transportador, maior o peso relativo das resistências secundárias"},
+    {k:"Resistência principal  Fp = f·L·g·[qRO+qRU+(2qB+qG)·cosδ]",v:fmt(Math.round(Fp))+" N"},
+    {k:"RESISTÊNCIA DE ELEVAÇÃO  Fst = qG·g·H",v:fmt(Math.round(Fst))+" N   —  em alto ângulo é ela que domina, e deve ser bem maior que a de rolamento",hi:true},
+    {k:"Secundárias: aceleração · guias · limpadores",v:fmt(Math.round(Fac))+" · "+fmt(Math.round(Fgu))+" · "+fmt(Math.round(Flim))+" = "+fmt(Math.round(Fsec))+" N"},
+    {k:"Força tangencial total  Fu = C·Fp + Fsec + Fst",v:fmt(Math.round(Fu))+" N"},
+    {k:"POTÊNCIA EFETIVA  P = Fu·v/η",v:Peff.toFixed(2).replace(".",",")+" kW   =   "+(Peff/0.7457).toFixed(1).replace(".",",")+" HP   (η = "+eta.toFixed(2).replace(".",",")+")",hi:true},
+    {k:"Potência de seleção (+20 %)",v:Pmaj.toFixed(2).replace(".",",")+" kW",hi:true},
+    {k:"Aferição física",v:"elevar "+Q.toFixed(0)+" t/h a "+H.toFixed(2).replace(".",",")+" m exige "+((Q*1000/3600)*g*H/1000).toFixed(1).replace(".",",")+" kW só de elevação — a potência acima deve ficar acima disso, com margem para atrito e secundárias"},
+
+    {sec:"Etapa 7 — Tensões, carcaça e tambores"},
+    {k:"Tensões  T1 = Te·(1+K)  ·  T2 = T1 − Te",v:fmt(Math.round(T1))+" N   ·   "+fmt(Math.round(T2))+" N   (K = "+K.toFixed(2).replace(".",",")+")"},
+    {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm   ×  FS "+FS.toFixed(0)+"  =  "+carcReq.toFixed(0)+" N/mm"},
+    {k:"CARCAÇA DA CORREIA",v:carcass,hi:true},
+    {k:"Tambor mínimo — pela carcaça  ·  pela parede (2,5·h)",v:DminCarc+" mm   ·   "+DminPar+" mm"},
+    {k:"DIÂMETRO MÍNIMO DO TAMBOR",v:Dmin+" mm   —  governa: "+govD,hi:true},
+    {k:"Tambor adotado",v:DtUso.toFixed(0)+" mm"+((Dt>0)?"   (informado)":"   (adotado o mínimo)")+(DtOK?"   ✓":"   ⚠ ABAIXO DO MÍNIMO — a parede ondulada trabalha comprimida além do limite e trinca na raiz da onda"),hi:!DtOK},
+    {k:"Rotação do tambor",v:npul.toFixed(1).replace(".",",")+" rpm"},
+
+    {sec:"Etapa 8 — CONTRA-RECUO (backstop)"},
+    {k:"Por que é obrigatório",v:"Transportador de alto ângulo carregado desce ao perder o acionamento: a correia acelera ao contrário, o material despeja na cauda e o equipamento se destrói. O contra-recuo é item de segurança, não acessório.",hi:true},
+    {k:"Força gravitacional × resistência ao rolamento",v:fmt(Math.round(Fst))+" N   vs   "+fmt(Math.round(Fatr))+" N"},
+    {k:"CONTRA-RECUO NECESSÁRIO?",v:(precisaBS?"SIM — a gravidade supera o atrito em "+fmt(Math.round(Fbs))+" N. Prever contra-recuo no acionamento (ou freio com comando de falta de energia).":"Não pelo critério de gravidade; ainda assim, avaliar por segurança operacional se houver pessoas na região da cauda."),hi:precisaBS},
+    {k:"TORQUE DE RETENÇÃO no eixo do tambor  (FS 1,3)",v:(precisaBS?(fmt(Math.round(Tbs))+" N·m   —  se o contra-recuo for montado na entrada do redutor, dividir pela relação i ≈ "+sew.i.toFixed(1).replace(".",",")+" : 1, resultando "+fmt(Math.round(Tbs/Math.max(sew.i,1)))+" N·m"):"não aplicável"),hi:precisaBS},
+
+    {sec:"Etapa 9 — Flecha, roletes e raios de curva"},
+    {k:"Flecha relativa admitida",v:(sagRel*100).toFixed(1).replace(".",",")+" % do vão"},
+    {k:"Espaçamento máximo de roletes  a = √(8·T2·f/(g·(qB+qG)))",v:aMax.toFixed(2).replace(".",",")+" m   →   ADOTAR "+aAdot.toFixed(1).replace(".",",")+" m",hi:true},
+    {k:"Tensão mínima para conter a flecha",v:fmt(Math.round(T2min))+" N   vs   T2 = "+fmt(Math.round(T2))+" N"+(sagOK?"   ✓":"   ⚠ aumentar o pré-tensionamento ou reduzir o espaçamento")},
+    {k:"Curva CÔNCAVA — raio de não levantamento  R ≥ T1/(qB·g)",v:Rlift.toFixed(1).replace(".",",")+" m   —  é o raio que a correia exigiria para não descolar dos roletes por conta própria. Em transportador de alto ângulo esse valor quase sempre supera o comprimento disponível: a correia é leve e a tração é alta.",hi:true},
+    {k:"Raio côncavo adotado no arranjo",v:RconcAd.toFixed(1).replace(".",",")+" m   (limite da parede ondulada: 20·h = "+RconcPar.toFixed(1).replace(".",",")+" m)"},
+    {k:"ROLETES DE RETENÇÃO na curva côncava",v:(precisaRet?
+      ("OBRIGATÓRIOS — com raio de "+RconcAd.toFixed(1).replace(".",",")+" m a correia levanta. Força total de retenção no arco: "+kNkg(Fret)+", distribuída em "+nRet+" roletes de pressão ("+kNkg(Fret1,2)+" cada). Sem eles a correia descola, o material derrama na curva e a parede ondulada sofre flexão reversa.")
+      :"não necessários — o raio adotado supera o de levantamento"),hi:precisaRet},
+    {k:"RAIO MÍNIMO — curva CONVEXA (crista)",v:Rconv.toFixed(1).replace(".",",")+" m   (regra prática de 30 × altura da parede)   —  raio menor dobra a parede ondulada e trinca a raiz da onda; confirmar na tabela do fabricante",hi:true},
+
+    {sec:"Etapa 10 — Acionamento SEW"},
+    {k:"Momento no eixo  T = 9550·P/n",v:fmt(Math.round(sew.T))+" N·m"},
+    {k:"Torque de seleção  (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
+    {k:"Relação de redução  i",v:"≈ "+sew.i.toFixed(1).replace(".",",")+" : 1"},
+    {k:"Motor SEW (4 polos)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
+    {k:"MOTOREDUTOR SEW",v:sewDrive(sew,Pmaj),hi:true},
+
+    {sec:"Etapa 11 — Pesos e cargas nos apoios"},
+    {k:"Correia (ida e volta)  ·  roletes  ·  estrutura",v:fmt(Math.round(mCorreia))+" · "+fmt(Math.round(mRoletes))+" · "+fmt(Math.round(mEstrut))+" kg"},
+    {k:"Tambores  ·  acionamento",v:fmt(Math.round(mTambores))+" · "+fmt(Math.round(mAcion))+" kg"},
+    {k:"PESO VAZIO  ·  EM OPERAÇÃO",v:fmt(Math.round(mVazio))+" kg   ·   "+fmt(Math.round(mOper))+" kg   ("+kNkg(mOper*g/1000)+")",hi:true},
+    {k:"CARGA DISTRIBUÍDA — vazio  ·  em operação",v:kNmkg(qVazioD)+"   ·   "+kNmkg(qOperD),hi:true},
+    {k:"Material por metro (só o granel)",v:kNmkg(qG*g/1000)},
+    {k:"CARGA PONTUAL na CABEÇA (acionamento + tambor + tensões)",v:kNkg(Pcab),hi:true},
+    {k:"CARGA PONTUAL na CAUDA (tambor + esticador)",v:kNkg(Pcau),hi:true},
+    {k:"CARGA HORIZONTAL do acionamento  H = T1 − T2",v:kNkg(Hacion),hi:true},
+    {k:"CARGA HORIZONTAL do esticador  H = 2·T2",v:kNkg(Hestic),hi:true},
+    {k:"ANCORAGEM LONGITUDINAL a considerar",v:kNkg(Hancor)+"   —  aplicada no nível do eixo dos tambores; a estrutura precisa transferi-la à fundação",hi:true},
+
+    {sec:"Verificação global"},
+    {k:"Capacidade",v:(insuf?"⚠ configuração insuficiente":"✓ folga de "+folgaCap.toFixed(2).replace(".",",")+" ×")+"   ·   "+(vOK?"✓ velocidade dentro do limite":"⚠ velocidade acima do limite do ângulo")+"   ·   "+(lumpOK?"✓ bloco cabe":"⚠ bloco grande"),hi:!(vOK&&lumpOK&&!insuf)},
+    {k:"Correia e tambores",v:(DtOK?"✓ tambor atende ao mínimo":"⚠ tambor abaixo do mínimo")+"   ·   "+carcass+"   ·   "+(sagOK?"✓ flecha controlada":"⚠ flecha excessiva"),hi:!(DtOK&&sagOK)},
+    {k:"Segurança",v:(precisaBS?"⚠ EXIGE CONTRA-RECUO de "+fmt(Math.round(Tbs))+" N·m no eixo do tambor":"contra-recuo não exigido pelo critério de gravidade")+"   ·   "+(precisaRet?"⚠ exige roletes de retenção na curva côncava ("+kNkg(Fret)+")":"curva côncava sem retenção"),hi:(precisaBS||precisaRet)},
+    {k:"Observação de projeto",v:"⚠ PRÉ-DIMENSIONAMENTO. A massa da correia, a curva de capacidade por ângulo, os raios mínimos de curva e o diâmetro mínimo de tambor devem ser confirmados na folha de dados do fabricante — no Flexowell esses quatro itens são específicos da parede ondulada e não seguem as regras da correia lisa."}
+  ];
+  OUT.geo={tipo:"flexo",Q:Q,rho:rho,Lh1:Lh1,Li:Li,theta:theta,Lh2:Lh2,H:H,Lproj:Lproj,Ltot:Ltot,
+    v:v,vmax:vmax,vOK:vOK,B:B,bu:bu,sw:sw.tp+" "+sw.h,swh:sw.h,cleat:cleat,passo:passo,
+    Qv:Qv,selCap:selCap,folgaCap:folgaCap,insuf:insuf,phi:phi,kTeta:kTeta,phiEf:phiEf,
+    qB:qB,qG:qG,mCarc:mCarc,mw:sw.mw,mCleat:mCleat,
+    fISO:fISO,Cf:Cf,Fp:Fp,Fst:Fst,Fsec:Fsec,Fu:Fu,Peff:Peff,Pmaj:Pmaj,
+    T1:T1,T2:T2,trN:trN,carcass:carcass,Dmin:Dmin,DtUso:DtUso,DtOK:DtOK,govD:govD,
+    precisaBS:precisaBS,Tbs:Tbs,aAdot:aAdot,RconcAd:RconcAd,Rconv:Rconv,Rlift:Rlift,precisaRet:precisaRet,Fret:Fret,nRet:nRet,
+    mVazio:mVazio,mOper:mOper,qVazioD:qVazioD,qOperD:qOperD,Pcab:Pcab,Pcau:Pcau,
+    Hacion:Hacion,Hestic:Hestic,Hancor:Hancor,
+    motor:sew.mot.kw,motord:sew.mot.d,sew:sewDrive(sew,Pmaj),npul:npul,lump:lump,lumpOK:lumpOK};
+  return OUT;
+}
+
 const CALCS={
   flare:{
     titulo:"Flare (tocha de queima) — dimensionamento executivo",
@@ -2608,6 +2914,20 @@ const CALCS={
         {v:"5",t:"100% pedaços, não classificado (largura ≥ 5× pedaço)"},{v:"3",t:"90% pedaços / 10% finos, classificado (≥ 3×)"}]},
       {id:"regb",label:"Regime de trabalho dos roletes (Tab 1-07)",tipo:"select",valor:"10a16",opcoes:[
         {v:"ate6",t:"Até 6 h/dia (intermitente)"},{v:"6a9",t:"6 a 9 h/dia"},{v:"10a16",t:"10 a 16 h/dia"},{v:"16a24",t:"16 a 24 h/dia (contínuo)"}]},
+      {tipo:"head",label:"Critérios de cálculo"},
+      {id:"fxF",label:"Coeficiente de atrito fictício  f  (ISO 5048)",tipo:"select",valor:"0.022",opcoes:[
+        {v:"0.020",t:"0,020 — instalação nova, bem alinhada"},
+        {v:"0.022",t:"0,022 — condição normal"},
+        {v:"0.024",t:"0,024 — condição desfavorável"},
+        {v:"0.030",t:"0,030 — muito desfavorável (pó, desalinhamento)"}]},
+      {id:"fxEta",label:"Rendimento do acionamento  η",tipo:"select",valor:"0.85",opcoes:[
+        {v:"0.90",t:"0,90 — redutor de engrenagens direto"},
+        {v:"0.85",t:"0,85 — usual (redutor + acoplamentos)"},
+        {v:"0.80",t:"0,80 — com transmissão por correias"}]},
+      {id:"fxSag",label:"Flecha relativa admitida entre roletes",tipo:"select",valor:"0.015",opcoes:[
+        {v:"0.010",t:"1,0 % — material fino, rigoroso"},
+        {v:"0.015",t:"1,5 % — usual"},
+        {v:"0.020",t:"2,0 % — tolerante"}]},
       {tipo:"head",label:"Acionamento"},
       {id:"Dtb",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
       {id:"Lgb",label:"Comprimento das guias laterais (0 = desprezar)",unidade:"m",tipo:"number",valor:0},
@@ -2748,14 +3068,22 @@ const CALCS={
     campos:[
       {tipo:"head",label:"Processo"},
       {id:"Qf",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:300},
-      {id:"rhof",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.01"},
+      {id:"rhof",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:2.50,step:"0.01"},
       {id:"Lh1f",label:"Trecho horizontal inferior",unidade:"m",tipo:"number",valor:8},
       {id:"Lif",label:"Trecho inclinado (comprimento)",unidade:"m",tipo:"number",valor:30},
       {id:"thetaf",label:"Ângulo de inclinação do trecho",unidade:"°",tipo:"number",valor:55},
       {id:"Lh2f",label:"Trecho horizontal superior",unidade:"m",tipo:"number",valor:5},
       {id:"vf",label:"Velocidade da correia",unidade:"m/s",tipo:"number",valor:1.5,step:"0.1"},
       {tipo:"head",label:"Material e correia"},
-      {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:80},
+      {id:"fxMat",label:"Material (preset — preenche densidade, bloco e enchimento)",tipo:"select",valor:"minerio_fe",onchange:"flexPreset()",opcoes:[
+        {v:"minerio_fe",t:"Minério de ferro granulado"},{v:"sinter_feed",t:"Sinter feed / pellet feed"},
+        {v:"pelota",t:"Pelota"},{v:"sinter",t:"Sínter"},{v:"calcario",t:"Calcário britado"},
+        {v:"brita",t:"Brita / rocha britada"},{v:"areia",t:"Areia"},
+        {v:"carvao",t:"Carvão mineral"},{v:"coque",t:"Coque"},{v:"carvao_veg",t:"Carvão vegetal"},
+        {v:"clinquer",t:"Clínquer"},
+        {v:"briq_bar",t:"Briquete BAR (57 × 57 × 37,5 mm)"},
+        {v:"briq_bricao",t:"Briquete Bricão (120 × 108 × 87 mm)"}]},
+      {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:100},
       {id:"Bf",label:"Largura da correia base",tipo:"select",valor:"1000",opcoes:[
         {v:"400",t:"400 mm"},{v:"500",t:"500 mm"},{v:"650",t:"650 mm"},{v:"800",t:"800 mm"},{v:"1000",t:"1000 mm"},{v:"1200",t:"1200 mm"},{v:"1400",t:"1400 mm"},{v:"1600",t:"1600 mm"},{v:"1800",t:"1800 mm"},{v:"2000",t:"2000 mm"},{v:"2200",t:"2200 mm"},{v:"2400",t:"2400 mm"}]},
       {id:"swf",label:"Altura da parede ondulada (catálogo)",tipo:"select",valor:"auto",opcoes:[
@@ -2764,78 +3092,17 @@ const CALCS={
         {v:"N:60",t:"N · 60 mm"},{v:"N:80",t:"N · 80 mm"},{v:"N:100",t:"N · 100 mm"},{v:"N:120",t:"N · 120 mm"},
         {v:"S:120",t:"S · 120 mm"},{v:"S:160",t:"S · 160 mm"},{v:"S:200",t:"S · 200 mm"},{v:"S:240",t:"S · 240 mm"},{v:"S:280",t:"S · 280 mm"},{v:"S:320",t:"S · 320 mm"},
         {v:"ES:300",t:"ES · 300 mm"},{v:"ES:400",t:"ES · 400 mm"},{v:"ES:500",t:"ES · 500 mm"},{v:"ES:630",t:"ES · 630 mm"}]},
-      {id:"phif",label:"Fator de enchimento dos bolsões",tipo:"select",valor:"0.8",opcoes:[
-        {v:"0.9",t:"0,90 — material fino/fluido"},{v:"0.8",t:"0,80 — médio"},{v:"0.7",t:"0,70 — grosseiro/difícil"}]},
+      {id:"phif",label:"Fator de enchimento dos bolsões",tipo:"number",valor:0.80,step:"0.05"},
+      {id:"fxPasso",label:"Passo das travessas (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"25"},
+      {id:"fxQb",label:"Massa da correia (0 = estimar por composição)",unidade:"kg/m",tipo:"number",valor:0,step:"1"},
       {tipo:"head",label:"Acionamento"},
-      {id:"Dtf",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
+      {id:"Dtf",label:"Diâmetro do tambor de acionamento (0 = adotar o mínimo)",unidade:"mm",tipo:"number",valor:0,step:"50"},
       {id:"Kf",label:"Fator de abraçamento K (Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
         {v:"0.38",t:"Simples · revestido · gravidade · 210° (0,38)"},{v:"0.30",t:"Simples · revestido · gravidade · 240° (0,30)"},{v:"0.84",t:"Simples · aço · gravidade · 180° (0,84)"}]},
       {id:"fsf",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
         {v:"10",t:"10 (têxtil/EP)"},{v:"8",t:"8 (cabo de aço)"},{v:"12",t:"12 (severo)"}]}
     ],
-    calcular:function(){
-      var Q=num("Qf"),rho=num("rhof"),Lh1=num("Lh1f"),Li=num("Lif"),theta=num("thetaf"),Lh2=num("Lh2f"),v=num("vf"),lump=num("lumpf"),Dt=num("Dtf");
-      var B=parseFloat($("#Bf").value),phi=parseFloat($("#phif").value),K=parseFloat($("#Kf").value),FS=parseFloat($("#fsf").value);
-      if([Q,rho,Lh1,Li,theta,Lh2,v,lump,Dt].some(function(x){return isNaN(x);})||rho<=0||v<=0||Dt<=0||theta<0||theta>90) return null;
-      var H=Li*Math.sin(theta*Math.PI/180);
-      var Lh=Lh1+Lh2+Li*Math.cos(theta*Math.PI/180);
-      var Ltot=Lh1+Li+Lh2, ang=theta;
-      var Qv=Q/rho;
-      var SW=[{tp:"L",h:40,bw:30,dv:35},{tp:"N",h:60,bw:50,dv:42},{tp:"N",h:80,bw:50,dv:42},{tp:"N",h:100,bw:50,dv:42},{tp:"N",h:120,bw:50,dv:42},{tp:"S",h:120,bw:78,dv:63},{tp:"S",h:160,bw:78,dv:63},{tp:"S",h:200,bw:78,dv:63},{tp:"S",h:240,bw:78,dv:63},{tp:"S",h:280,bw:78,dv:63},{tp:"S",h:320,bw:78,dv:63},{tp:"ES",h:300,bw:100,dv:84},{tp:"ES",h:400,bw:100,dv:84},{tp:"ES",h:500,bw:100,dv:84},{tp:"ES",h:630,bw:100,dv:84}];
-      var swSel=$("#swf").value, sw=null,selCap=0,bu=0,insuf=false;
-      if(swSel!=="auto"){
-        var pp=swSel.split(":"),stp=pp[0],sh=parseFloat(pp[1]);
-        for(var i=0;i<SW.length;i++){ if(SW[i].tp===stp&&SW[i].h===sh){ sw=SW[i]; break; } }
-        if(sw){ bu=B-2*sw.bw; selCap=(bu>0)?3.6*bu*sw.h/1000*v*phi:0; insuf=(selCap<Qv); }
-      }
-      if(!sw){
-        for(var i=0;i<SW.length;i++){ var b=B-2*SW[i].bw; if(b<=0)continue; var cap=3.6*b*SW[i].h/1000*v*phi; if(cap>=Qv){ sw=SW[i]; selCap=cap; bu=b; break; } }
-        if(!sw){ sw=SW[SW.length-1]; bu=B-2*sw.bw; selCap=3.6*bu*sw.h/1000*v*phi; insuf=true; }
-      }
-      var CL=[20,35,40,55,60,75,90,100,110,120,140,160,180,200,220,240,280,300,400,500,600];
-      var cleat=CL[CL.length-1]; for(var c=0;c<CL.length;c++){ if(CL[c]>=sw.h){ cleat=CL[c]; break; } }
-      var lumpOK=(lump<=400)&&(lump<=bu*0.9)&&(lump<=sw.h);
-      var f=0.5, qB=30, qG=Q/(3.6*v), qRol=Math.round(0.018*B);
-      var Fp=f*Ltot*9.81*(qB+qRol+qG), Fst=qG*9.81*H, Fsec=0.15*Fp, Fu=Fp+Fsec+Fst;
-      var Peff=Fu*v/0.85/1000, Pmaj=Peff*1.20;
-      var Te=Peff*1000/v, T1=Te*(1+K), trN=T1/B, carcReq=trN*FS, carcass;
-      if(carcReq<=1000){ var EP=[200,250,315,400,500,630,800,1000]; var e=EP.find(function(x){return x>=carcReq;})||1000; carcass="Têxtil EP "+e+" N/mm (tipo ES)"; }
-      else{ var ST=[1000,1250,1600,2000,2500,3150,4000,5000,6300,8600]; var s=ST.find(function(x){return x>=carcReq;})||8600; carcass="Cabo de aço ST "+s+" N/mm"; }
-      var npul=v*60000/(Math.PI*Dt), sew=selSEW(Pmaj,npul);
-      return [
-        {sec:"Geometria e capacidade"},
-        {k:"Ângulo de inclinação",v:ang.toFixed(0)+"°"},
-        {k:"Elevação total  H = L_incl·senθ",v:H.toFixed(1)+" m"},
-        {k:"Comprimento horizontal total",v:Lh.toFixed(1)+" m"},
-        {k:"Comprimento total do transportador",v:Ltot.toFixed(1)+" m"},
-        {k:"Capacidade volumétrica requerida",v:Qv.toFixed(1)+" m³/h"},
-        {k:"Largura da correia base",v:fmt(B)+" mm"},
-        {k:"Largura útil (entre paredes)",v:fmt(Math.round(bu))+" mm"},
-        {k:"Capacidade da configuração",v:fmt(Math.round(selCap))+" m³/h · "+fmt(Math.round(selCap*rho))+" t/h"+(insuf?"  ⚠ aumentar largura/velocidade":"")},
-        {sec:"Seleção FLEXOWELL® (catálogo ContiTech)"},
-        {k:"Parede ondulada",v:"Tipo "+sw.tp+" · altura "+sw.h+" mm  (largura "+sw.bw+" mm · passo "+sw.dv+" mm)",hi:true},
-        {k:"Travessas (cleats)",v:"T-"+cleat+" mm  ·  espaçamento ≥ "+fmt(Math.round(Math.max(1.5*lump,sw.h)))+" mm",hi:true},
-        {k:"Carcaça da correia",v:carcass,hi:true},
-        {k:"Tamanho máx. de material",v:(lumpOK?"OK (≤ 400 mm e cabe no bolsão)":"⚠ "+(lump>400?"acima de 400 mm (limite do catálogo)":"acima da altura útil da parede — usar parede maior"))},
-        {sec:"Potência — ISO 5048 / DIN 22101"},
-        {k:"Massa por metro: correia · roletes · material",v:qB+" · "+qRol+" · "+Math.round(qG)+" kgf/m"},
-        {k:"Resist. principal Fp = f·L·g·(qB+qRol+qG), f = 0,5",v:fmt(Math.round(Fp))+" N"},
-        {k:"Resist. de elevação Fst = qG·g·H",v:fmt(Math.round(Fst))+" N"},
-        {k:"Resistências secundárias (15% de Fp)",v:fmt(Math.round(Fsec))+" N"},
-        {k:"Força tangencial total Fu",v:fmt(Math.round(Fu))+" N"},
-        {k:"Potência efetiva  P = Fu·v/η  (η 0,85)",v:Peff.toFixed(2)+" kW · "+(Peff/0.7457).toFixed(1)+" HP",hi:true},
-        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
-        {sec:"Tensão e acionamento SEW"},
-        {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
-        {k:"Rotação do tambor de acionamento",v:npul.toFixed(1).replace(".",",")+" rpm"},
-        {k:"Momento no eixo do redutor  T = 9550·P/n",v:fmt(Math.round(sew.T))+" N·m"},
-        {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
-        {k:"Relação de redução  i = n_motor / n_tambor",v:"≈ "+sew.i.toFixed(1).replace(".",",")+" : 1"},
-        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Redutor SEW série R",v:sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)",hi:true},
-        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
-      ];
-    }
+    calcular:function(){ return flexowellCalc(); }
   },
   silo_circular:{
     titulo:"Silo Circular — pré-dimensionamento",
@@ -6648,6 +6915,181 @@ function gerarRelatorio(){
         columnStyles:{0:{cellWidth:104},1:{cellWidth:78,halign:"right",fontStyle:"bold"}}});
       doc.setFontSize(7); doc.setTextColor(110);
       doc.text(san("Croqui esquemático (fora de escala) conforme a figura da pág. 1-21 do Manual de Britagem — alimentador de correia sob moega de alimentação."),14,doc.lastAutoTable.finalY+6);
+    } else if(G.tipo==="flexo"){
+      /* ============ CROQUI DO FLEXOWELL ============
+         Elevação com os três trechos e as duas curvas, bolsão em corte, e as cargas
+         distribuídas, pontuais e horizontais nos apoios. Área útil: x de 15 a 195 mm. */
+      var FXL=15, FXR=195;
+      function ffx(x,w){ var h=w/2; return Math.max(FXL+h,Math.min(FXR-h,x)); }
+      function ffl(x,w){ return Math.max(FXL,Math.min(FXR-w,x)); }
+      function ft(x,y,t,r,g2,b2,fs,al){ var f=fs||6.3; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w=doc.getTextWidth(san(t));
+        if(al==="center") doc.text(san(t),ffx(x,w),y,{align:"center"});
+        else if(al==="right") doc.text(san(t),Math.max(FXL+w,Math.min(FXR,x)),y,{align:"right"});
+        else doc.text(san(t),ffl(x,w),y); }
+      function fcotaH(x1,x2,y,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.4,x1,y+1.4); doc.line(x2,y-1.4,x2,y+1.4);
+        ft((x1+x2)/2,y-1.3,t,30,120,150,6.3,"center"); }
+      function fcotaV(x,y1,y2,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        var xc=ffx(x,0); doc.line(xc,y1,xc,y2); doc.line(xc-1.4,y1,xc+1.4,y1); doc.line(xc-1.4,y2,xc+1.4,y2);
+        ft(xc+1.6,(y1+y2)/2,t,30,120,150,6.3); }
+
+      ft(105,28,"FLEXOWELL  ·  "+G.Q.toFixed(0)+" t/h  ·  "+G.theta.toFixed(0)+"°  ·  H = "+G.H.toFixed(1)+" m  ·  parede "+G.sw+
+        "  ·  "+G.motor+" kW",20,60,100,8.0,"center");
+      ft(105,34,"correia "+G.B+" mm  ·  "+G.carcass+"  ·  travessa T-"+G.cleat+" a cada "+G.passo+" mm",120,90,40,6.6,"center");
+
+      /* escala: caber os três trechos em 150 mm de largura e 78 mm de altura */
+      var esc=Math.min(150/Math.max(G.Lproj,1), 78/Math.max(G.H,1));
+      var xA=26, yB=140;                                  // cauda, linha de base
+      var xB=xA+G.Lh1*esc, yBb=yB;
+      var dx=G.Li*Math.cos(G.theta*Math.PI/180)*esc, dy=G.H*esc;
+      var xC=xB+dx, yC=yB-dy;
+      var xD=xC+G.Lh2*esc, yD=yC;
+
+      /* estrutura da correia (ida) */
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.3);
+      doc.line(xA,yB,xB,yBb); doc.line(xB,yBb,xC,yC); doc.line(xC,yC,xD,yD);
+      /* ramo de retorno */
+      doc.setLineWidth(0.6); doc.setDrawColor(120,140,160);
+      doc.line(xA,yB+7,xB,yBb+7); doc.line(xB,yBb+7,xC,yC+7); doc.line(xC,yC+7,xD,yD+7);
+      /* tambores */
+      doc.setFillColor(70,92,122); doc.setDrawColor(45,62,86); doc.setLineWidth(0.5);
+      doc.circle(xA,yB+3.5,4.2,"FD"); doc.circle(xD,yD+3.5,5.4,"FD");
+      /* material nos bolsões */
+      doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+      for(var k=0;k<=10;k++){ var tt=k/10;
+        var px=xB+(xC-xB)*tt, py=yBb+(yC-yBb)*tt;
+        doc.rect(px-1.6,py-3.4,3.2,3.4,"FD"); }
+      for(var k2=0;k2<5;k2++){ var qx=xA+4+(xB-xA-6)*k2/4; doc.rect(qx-1.6,yB-3.4,3.2,3.4,"FD"); }
+      /* curvas: raios */
+      doc.setDrawColor(200,120,40); doc.setLineWidth(0.5);
+      doc.circle(xB,yBb-2.5,3.2); doc.circle(xC,yC+2.5,3.2);
+      ft(xB-16,yBb+16,"curva côncava",200,120,40,6.0);
+      ft(xB-16,yBb+19,"R "+G.RconcAd.toFixed(1)+" m",200,120,40,6.0);
+      ft(xC-6,yC-8,"curva convexa  R "+G.Rconv.toFixed(1)+" m",200,120,40,6.0);
+      if(G.precisaRet){ ft(xB-16,yBb+22,"roletes de retenção",190,70,60,6.0);
+        ft(xB-16,yBb+25,G.nRet+" un · "+G.Fret.toFixed(0)+" kN",190,70,60,6.0); }
+      /* acionamento e contra-recuo na cabeça */
+      doc.setFillColor(45,62,86);
+      doc.roundedRect(xD+7,yD-2,13,10,1.5,1.5,"F");
+      ft(xD+8,yD+12,"acionamento",60,80,110,6.0);
+      ft(xD+8,yD+15,G.motor+" kW",60,80,110,6.0);
+      if(G.precisaBS){ doc.setDrawColor(190,70,60); doc.setLineWidth(0.8);
+        doc.circle(xD+13.5,yD+3,4.6);
+        ft(xD+8,yD+18,"CONTRA-RECUO",190,70,60,6.0);
+        ft(xD+8,yD+21,G.Tbs.toFixed(0)+" N·m",190,70,60,6.0); }
+      /* esticador na cauda */
+      ft(xA-14,yB+16,"esticador",60,80,110,6.0);
+      ft(xA-14,yB+19,"por gravidade",60,80,110,6.0);
+      /* sentido do fluxo */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      var mx=(xB+xC)/2, my=(yBb+yC)/2;
+      doc.line(mx-5,my+5,mx+5,my-5); doc.line(mx+2,my-5,mx+5,my-5); doc.line(mx+5,my-2,mx+5,my-5);
+      ft(mx+7,my+1,"v = "+G.v.toFixed(2)+" m/s",40,140,90,6.0);
+
+      /* cotas */
+      fcotaH(xA,xB,yB+30,"Lh1 = "+G.Lh1.toFixed(1)+" m");
+      fcotaH(xC,xD,yC-14,"Lh2 = "+G.Lh2.toFixed(1)+" m");
+      fcotaV(xD+26,yC,yB,"H = "+G.H.toFixed(2)+" m");
+      ft((xB+xC)/2-10,my+9,"L incl = "+G.Li.toFixed(1)+" m  ·  "+G.theta.toFixed(0)+"°",30,120,150,6.3);
+      fcotaH(xA,xD,yB+36,"projeção horizontal = "+G.Lproj.toFixed(1)+" m");
+
+      /* ---------- CARGAS ---------- */
+      var yL=yB+46;
+      doc.setDrawColor(190,70,60); doc.setLineWidth(0.5);
+      for(var d2=0;d2<9;d2++){ var xd=xA+(xD-xA)*d2/8;
+        doc.line(xd,yL,xd,yL+4); doc.line(xd-1,yL+3,xd,yL+4); doc.line(xd+1,yL+3,xd,yL+4); }
+      doc.line(xA,yL,xD,yL);
+      ft(xA,yL-2,"carga distribuída — vazio "+G.qVazioD.toFixed(2)+" kN/m  ·  em operação "+G.qOperD.toFixed(2)+" kN/m",190,70,60,6.3);
+      /* pontuais */
+      doc.setLineWidth(0.7);
+      doc.line(xA,yL+7,xA,yL+14); doc.line(xA-1.3,yL+11.5,xA,yL+14); doc.line(xA+1.3,yL+11.5,xA,yL+14);
+      doc.line(xD,yL+7,xD,yL+14); doc.line(xD-1.3,yL+11.5,xD,yL+14); doc.line(xD+1.3,yL+11.5,xD,yL+14);
+      ft(xA-4,yL+18,"cauda  "+G.Pcau.toFixed(0)+" kN",190,70,60,6.3);
+      ft(xD-4,yL+18,"cabeça  "+G.Pcab.toFixed(0)+" kN",190,70,60,6.3,"right");
+      /* horizontais */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      doc.line(xD+4,yL+24,xD+18,yL+24); doc.line(xD+15,yL+22.6,xD+18,yL+24); doc.line(xD+15,yL+25.4,xD+18,yL+24);
+      doc.line(xA-18,yL+24,xA-4,yL+24); doc.line(xA-15,yL+22.6,xA-18,yL+24); doc.line(xA-15,yL+25.4,xA-18,yL+24);
+      ft(xA-18,yL+29,"H esticador "+G.Hestic.toFixed(0)+" kN",40,140,90,6.3);
+      ft(xD+18,yL+29,"H acionamento "+G.Hacion.toFixed(0)+" kN",40,140,90,6.3,"right");
+      ft(105,yL+34,"ancoragem longitudinal a considerar: "+G.Hancor.toFixed(0)+" kN",40,140,90,6.6,"center");
+
+      /* ---------- SEÇÃO DO BOLSÃO ---------- */
+      var sx=150, sy=52, sw2=Math.min(34,G.B/1000*26), sh2=Math.min(20,G.swh/1000*45+8);
+      ft(sx,sy-6,"SEÇÃO DO BOLSÃO",90,110,135,6.6,"center");
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+      doc.line(sx-sw2/2,sy+sh2,sx+sw2/2,sy+sh2);                 // base da correia
+      doc.setLineWidth(0.8);
+      for(var w2=0;w2<2;w2++){ var sg=w2?1:-1;
+        for(var o=0;o<5;o++){ var yo=sy+sh2-o*(sh2/5);
+          doc.line(sx+sg*sw2/2,yo,sx+sg*(sw2/2-1.8),yo-(sh2/10));
+          doc.line(sx+sg*(sw2/2-1.8),yo-(sh2/10),sx+sg*sw2/2,yo-(sh2/5)); } }
+      doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+      doc.rect(sx-sw2/2+2,sy+sh2-sh2*0.72,sw2-4,sh2*0.72,"FD");
+      fcotaH(sx-sw2/2,sx+sw2/2,sy-1.5,"B = "+G.B+" mm");
+      fcotaV(sx+sw2/2+8,sy,sy+sh2,"h "+G.swh+" mm");
+      ft(sx-sw2/2,sy+sh2+5,"útil "+Math.round(G.bu)+" mm  ·  enchimento "+G.phiEf.toFixed(2),90,110,135,6.0);
+
+      /* ---------- TABELAS EM PÁGINA PRÓPRIA ---------- */
+      doc.addPage();
+      doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+      try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+      doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+      doc.text(san("Flexowell — resumo de dimensionamento"),60,12);
+      doc.setDrawColor(217,169,74); doc.setLineWidth(0.8); doc.line(0,20,W,20);
+      doc.setFont("helvetica","normal");
+      var st={fontSize:8,cellPadding:1.5}, hs={fillColor:[22,38,60],textColor:255,fontSize:8.4},
+          cs={0:{cellWidth:88},1:{cellWidth:94,halign:"right",fontStyle:"bold"}};
+      doc.autoTable({startY:26,theme:"grid",margin:{left:14,right:14},styles:st,headStyles:hs,columnStyles:cs,
+        head:[["Processo e correia","Valor"]],
+        body:[
+          [san("Vazão / densidade"),san(G.Q.toFixed(0))+" t/h / "+san(G.rho.toFixed(2))+" t/m3"],
+          [san("Geometria Lh1 / L incl / Lh2 / ângulo"),san(G.Lh1.toFixed(1))+" / "+san(G.Li.toFixed(1))+" / "+san(G.Lh2.toFixed(1))+" m / "+san(G.theta.toFixed(0))+"°"],
+          [san("ELEVAÇÃO H"),san(G.H.toFixed(2))+" m"],
+          [san("Velocidade adotada / máxima"),san(G.v.toFixed(2))+" / "+san(G.vmax.toFixed(2))+" m/s"+(G.vOK?" OK":" EXCEDE")],
+          [san("Correia base / largura útil"),san(String(G.B))+" / "+san(String(Math.round(G.bu)))+" mm"],
+          [san("PAREDE ONDULADA"),san(G.sw)+" mm"],
+          [san("Travessa / passo"),"T-"+san(String(G.cleat))+" / "+san(String(G.passo))+" mm"],
+          [san("Enchimento φ × ângulo = efetivo"),san(G.phi.toFixed(2))+" x "+san(G.kTeta.toFixed(2))+" = "+san(G.phiEf.toFixed(3))],
+          [san("Capacidade da configuração"),san(String(Math.round(G.selCap)))+" m3/h ("+san(String(Math.round(G.selCap*G.rho)))+" t/h)"+(G.insuf?" INSUF":" folga "+san(G.folgaCap.toFixed(2))+"x")],
+          [san("Massa correia: carcaça+paredes+travessas"),san(G.mCarc.toFixed(1))+"+"+san(G.mw.toFixed(1))+"+"+san(G.mCleat.toFixed(1))+" = "+san(G.qB.toFixed(1))+" kg/m"],
+          [san("CARCAÇA"),san(G.carcass)]
+        ]});
+      doc.autoTable({startY:doc.lastAutoTable.finalY+4,theme:"grid",margin:{left:14,right:14},styles:st,headStyles:hs,columnStyles:cs,
+        head:[["Potência, tensões e verificações","Valor"]],
+        body:[
+          [san("f (ISO 5048) / C (L = "+G.Ltot.toFixed(0)+" m)"),san(G.fISO.toFixed(3))+" / "+san(G.Cf.toFixed(2))],
+          [san("Fp principal / Fst elevação"),san(String(Math.round(G.Fp)))+" / "+san(String(Math.round(G.Fst)))+" N"],
+          [san("Fsec secundárias / Fu total"),san(String(Math.round(G.Fsec)))+" / "+san(String(Math.round(G.Fu)))+" N"],
+          [san("POTÊNCIA EFETIVA / DE SELEÇÃO"),san(G.Peff.toFixed(1))+" / "+san(G.Pmaj.toFixed(1))+" kW"],
+          [san("Só elevação (aferição física)"),san(((G.Q*1000/3600)*9.80665*G.H/1000).toFixed(1))+" kW"],
+          [san("Tensões T1 / T2"),san(String(Math.round(G.T1)))+" / "+san(String(Math.round(G.T2)))+" N"],
+          [san("Tambor mínimo / adotado"),san(String(G.Dmin))+" / "+san(String(G.DtUso))+" mm"+(G.DtOK?" OK":" ABAIXO")],
+          [san("Governa o tambor mínimo"),san(G.govD)],
+          [san("CONTRA-RECUO"),G.precisaBS?(san(String(Math.round(G.Tbs)))+" N·m no eixo do tambor"):"nao exigido"],
+          [san("Espaçamento de roletes"),san(G.aAdot.toFixed(1))+" m"],
+          [san("Curva côncava: levantamento / adotado"),san(G.Rlift.toFixed(1))+" / "+san(G.RconcAd.toFixed(1))+" m"],
+          [san("Roletes de retenção na curva"),G.precisaRet?(san(String(G.nRet))+" un · "+san(G.Fret.toFixed(0))+" kN"):"nao necessarios"],
+          [san("Curva convexa mínima"),san(G.Rconv.toFixed(1))+" m"],
+          [san("MOTOREDUTOR SEW"),san(G.sew)]
+        ]});
+      doc.autoTable({startY:doc.lastAutoTable.finalY+4,theme:"grid",margin:{left:14,right:14},styles:st,headStyles:hs,columnStyles:cs,
+        head:[["Pesos e cargas nos apoios","Valor"]],
+        body:[
+          [san("Peso vazio / em operação"),san(fmt(Math.round(G.mVazio)))+" / "+san(fmt(Math.round(G.mOper)))+" kg"],
+          [san("Distribuída vazio / em operação"),san(G.qVazioD.toFixed(2))+" / "+san(G.qOperD.toFixed(2))+" kN/m"],
+          [san("PONTUAL na cabeça (acionamento)"),san(G.Pcab.toFixed(1))+" kN ("+san(fmt(kgf(G.Pcab)))+" kg)"],
+          [san("PONTUAL na cauda (esticador)"),san(G.Pcau.toFixed(1))+" kN ("+san(fmt(kgf(G.Pcau)))+" kg)"],
+          [san("HORIZONTAL do acionamento"),san(G.Hacion.toFixed(1))+" kN ("+san(fmt(kgf(G.Hacion)))+" kg)"],
+          [san("HORIZONTAL do esticador"),san(G.Hestic.toFixed(1))+" kN ("+san(fmt(kgf(G.Hestic)))+" kg)"],
+          [san("ANCORAGEM LONGITUDINAL"),san(G.Hancor.toFixed(1))+" kN ("+san(fmt(kgf(G.Hancor)))+" kg)"]
+        ]});
+      doc.setFontSize(7); doc.setTextColor(120,140,160);
+      doc.text(doc.splitTextToSize(san("Pre-dimensionamento. Massa da correia, curva de capacidade por angulo, raios minimos de curva e "+
+        "diametro minimo de tambor sao especificos da parede ondulada e devem ser confirmados na folha de dados do fabricante — nao seguem "+
+        "as regras da correia lisa. Cargas nos apoios sao estimativas para lancamento da estrutura."),182),14,
+        Math.min(doc.lastAutoTable.finalY+5,282));
     } else if(G.tipo==="flare"){
       /* ============ CROQUI DO FLARE ============
          Elevação com torre, chama inclinada e isopletas de radiação no solo; ao lado, o

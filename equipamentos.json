@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.65.2",
+    "versao": "1.66.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -110,16 +110,16 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Transportador Flexowell",
       "calculadora": "flexowell",
-      "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo/vertical: capacidade, seleção da parede ondulada, das travessas e da carcaça da correia pelo catálogo, potência e seleção do motoredutor SEW.",
-      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes onduladas L/N/NV/S/ES, travessas T, carcaça têxtil/cabo de aço); cálculo de potência conforme ISO 5048 / DIN 22101; acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)",
-      "resumo": "Correia de parede ondulada para alto ângulo e vertical: capacidade, seleção da parede, das travessas e da carcaça pelo catálogo, potência e acionamento.",
+      "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo e vertical. A POTÊNCIA segue a ISO 5048 e a DIN 22101, com coeficiente de atrito fictício f entre 0,020 e 0,030 selecionável, coeficiente de comprimento C, cos δ real da geometria e resistências secundárias calculadas por componentes — aceleração do material no carregamento, atrito nas guias e limpadores — em vez de percentual fixo. O resultado é confrontado com a aferição física da potência de elevação (Q·g·H), que é o piso incontornável do transportador. A MASSA DA CORREIA é obtida por composição: carcaça com coberturas, as duas paredes onduladas por tabela de catálogo e as travessas pela seção e pelo passo — adotar valor único erra nas duas pontas, porque a correia vai de cerca de 12 a 100 kg/m conforme a parede. Verifica a VELOCIDADE ADMISSÍVEL em função do ângulo, acima da qual o material rola de volta no bolsão; o DIÂMETRO MÍNIMO DO TAMBOR pelos dois critérios simultâneos de carcaça e de altura da parede ondulada; o CONTRA-RECUO, comparando a componente gravitacional do material com a resistência ao rolamento e dando o torque de retenção no eixo do tambor e na entrada do redutor — item de segurança, pois transportador de alto ângulo carregado desce ao perder o acionamento; a flecha e o espaçamento de roletes; e os raios mínimos de curva côncava, pelo critério de levantamento da correia, e convexa, pelo limite da parede ondulada, indicando os roletes de retenção quando o raio praticável fica abaixo do de levantamento. Entrega ainda pesos vazio e em operação, cargas distribuídas por metro, cargas pontuais na cabeça e na cauda, cargas horizontais do acionamento e do esticador, e a ancoragem longitudinal a transferir à fundação. Croqui com os três trechos, as duas curvas, o bolsão em corte e todas as cargas. Presets de material incluindo briquete BAR e Bricão.",
+      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes L/N/S/ES, travessas T, carcaça têxtil e cabo de aço); potência conforme ISO 5048 e DIN 22101 — resistência principal Fp = f·L·g·[qRO+qRU+(2qB+qG)·cosδ] com coeficiente de comprimento C, resistência de elevação Fst = qG·g·H e secundárias por componentes; flecha entre roletes a = √(8·T2·f/(g·(qB+qG))); raio côncavo de não levantamento R ≥ T1/(qB·g); acionamento SEW-EURODRIVE. Massa da correia, curva de capacidade por ângulo, raios mínimos de curva e diâmetro mínimo de tambor devem ser confirmados na folha de dados do fabricante — são específicos da parede ondulada.",
+      "resumo": "Correia de parede ondulada para alto ângulo: capacidade, potência ISO 5048, contra-recuo, tambor mínimo, curvas e cargas nos apoios.",
       "normas": [
         "ISO 5048",
-        "CEMA",
-        "SEW"
+        "DIN 22101",
+        "CEMA"
       ],
       "modelo_en": "Flexowell Conveyor",
-      "resumo_en": "Corrugated sidewall belt for steep and vertical lifts: capacity, sidewall, cleat and carcass selection from catalogue, power and drive.",
+      "resumo_en": "Corrugated sidewall belt for steep lifts: capacity, ISO 5048 power, backstop, minimum pulley, curve radii and support loads.",
       "grupo_en": "Conveyors",
       "subgrupo_en": "Flexowell"
     },
