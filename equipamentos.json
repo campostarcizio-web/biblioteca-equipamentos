@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.66.1",
+    "versao": "1.67.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -131,16 +131,18 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Transportador de Correia",
       "calculadora": "belt_conveyor",
-      "descricao": "Pré-dimensionamento de transportador de correia: capacidade e largura (incl. verificação por granulometria), velocidade, potência pelo Método Prático e verificação CEMA, tensões e seleção da classe da correia (EP), e seleção do motoredutor SEW.",
-      "referencia": "Manual FAÇO / Stephens-Adamson — Método Prático e CEMA; roletes (Tab. 1-07, 1-08, 1-15, Gráfico 1-02); largura/granulometria (Tab. 1-04, 1-05, 1-06); tensões (Tab. 1-28); CEMA; ABNT NBR 6172/6177",
-      "resumo": "Correia transportadora convencional: capacidade e largura com verificação por granulometria, velocidade, potência, tensões, classe da correia e acionamento.",
+      "descricao": "Roteiro completo do Manual FAÇO de Transportadores de Correia, passo a passo, com todos os dados de entrada selecionáveis a partir das tabelas do manual: material e inclinação máxima (Tab. 1-01/1-02), velocidade (1-05), largura por capacidade e granulometria (1-04/1-06), série de roletes com força radial, carga dinâmica e vida útil (1-07 a 1-14), espaçamento e flecha (1-15/1-16), potência pelo Método Prático (1-17 a 1-20) com verificação CEMA, tensões T1/T2/T3 pelos quatro casos das págs. 1.49-1.50, seleção da correia (Tad = Tu·B·n₁), esticador e contrapeso com curso (1-33, 1.67, 2-55 a 2-57) e conjunto de acionamento (1-34).",
+      "referencia": "Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34 e 2-55 a 2-57; verificação cruzada pelo método CEMA; ABNT NBR 6172/6177",
+      "resumo": "Correia transportadora convencional: roteiro FAÇO passo a passo, com roletes, tensões, contrapeso e acionamento conforme as tabelas do manual.",
       "normas": [
-        "NBR 6172",
+        "Manual FAÇO — Transportadores de Correia",
         "CEMA",
+        "NBR 6172",
+        "NBR 6177",
         "ISO 5048"
       ],
       "modelo_en": "Belt Conveyor",
-      "resumo_en": "Conventional belt conveyor: capacity and width with lump-size check, speed, power, tensions, belt class and drive selection.",
+      "resumo_en": "Conventional belt conveyor: full step-by-step FAÇO manual routine covering idlers, tensions, counterweight and drive selection from the manual's tables.",
       "grupo_en": "Conveyors",
       "subgrupo_en": "Conventional Belt Conveyor"
     },

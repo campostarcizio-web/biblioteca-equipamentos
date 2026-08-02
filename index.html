@@ -2276,6 +2276,50 @@ function flareCalc(){
 }
 
 /* ===================== FLEXOWELL — presets de material ===================== */
+/* ---------- Tab. 1-02 do Manual FAÇO — Características dos Materiais ----------
+   rho  = peso específico (t/m³, valor médio da faixa do manual)
+   rep  = ângulo de repouso (graus) · lmax = inclinação máx. recomendada λ (graus)
+   cod  = código de classificação (Tab. 1-01)
+   Materiais marcados fora=true NÃO constam do manual: valores estimados de forma
+   conservadora pela família de material — confirmar antes do projeto executivo.   */
+const FACO_MAT={
+  fe_britado:  {nome:"Ferro, minério de (britado)",              rho:2.30,rep:35,lmax:20,cod:"C26",  pag:"1.07"},
+  fe_minerio:  {nome:"Ferro, minério de",                        rho:2.40,rep:35,lmax:18,cod:"D36",  pag:"1.07"},
+  mn_minerio:  {nome:"Manganês, minério de",                     rho:2.10,rep:39,lmax:20,cod:"D37",  pag:"1.09"},
+  cu_minerio:  {nome:"Cobre, minério de",                        rho:2.15,rep:37,lmax:20,cod:"D37",  pag:"1.06"},
+  bauxita:     {nome:"Bauxita, em brita (3\" e abaixo)",          rho:1.30,rep:37,lmax:20,cod:"D37",  pag:"1.04"},
+  pedra_brit:  {nome:"Pedra britada",                            rho:2.15,rep:25,lmax:20,cod:"D26",  pag:"1.09"},
+  calc_moida:  {nome:"Pedra calcária moída",                     rho:1.40,rep:38,lmax:18,cod:"C36X", pag:"1.09"},
+  calc_agr:    {nome:"Pedra calcária para agricultura",          rho:1.10,rep:37,lmax:20,cod:"B36",  pag:"1.09"},
+  calc_poeira: {nome:"Poeira de pedra calcária",                 rho:1.35,rep:38,lmax:18,cod:"C26X", pag:"1.09"},
+  dolomita:    {nome:"Dolomita granulada",                       rho:1.45,rep:37,lmax:22,cod:"D36",  pag:"1.07"},
+  clinquer:    {nome:"Clínquer (cimento)",                       rho:1.35,rep:35,lmax:18,cod:"D37",  pag:"1.06"},
+  cimento:     {nome:"Cimento portland",                         rho:1.50,rep:37,lmax:20,cod:"A36M", pag:"1.06"},
+  escoria_af:  {nome:"Escória (lava) de alto forno, esmagada",   rho:1.35,rep:25,lmax:10,cod:"A27",  pag:"1.07"},
+  escoria_fe:  {nome:"Ferro, escória de forno",                  rho:0.90,rep:35,lmax:18,cod:"D37T", pag:"1.07"},
+  coque_miudo: {nome:"Coque miúdo, 1/4\" e abaixo",               rho:0.50,rep:37,lmax:20,cod:"C37Y", pag:"1.06"},
+  coque_des:   {nome:"Coque desagregado",                        rho:0.50,rep:35,lmax:18,cod:"B37QVT",pag:"1.06"},
+  carvao_ant:  {nome:"Carvão antracitoso uniforme",              rho:0.95,rep:27,lmax:16,cod:"C26",  pag:"1.05"},
+  carvao_bet:  {nome:"Carvão betuminoso uniforme",               rho:0.80,rep:35,lmax:16,cod:"D35T", pag:"1.05"},
+  carvao_fofo: {nome:"Carvão betuminoso fofo, 1/2\" e abaixo",    rho:0.75,rep:40,lmax:22,cod:"C35T", pag:"1.05"},
+  carvao_lenha:{nome:"Carvão de lenha (vegetal)",                rho:0.35,rep:35,lmax:20,cod:"D36Q", pag:"1.05"},
+  areia_seca:  {nome:"Areia silicosa seca",                      rho:1.50,rep:35,lmax:10,cod:"B27",  pag:"1.03"},
+  areia_umida: {nome:"Areia úmida",                              rho:1.90,rep:45,lmax:20,cod:"B47",  pag:"1.03"},
+  cascalho_s:  {nome:"Cascalho seco",                            rho:1.45,rep:30,lmax:15,cod:"B28L", pag:"1.05"},
+  pedregulho:  {nome:"Pedregulho pontiagudo (seco)",             rho:1.50,rep:37,lmax:15,cod:"D37",  pag:"1.09"},
+  /* --- fora do Manual FAÇO — valores estimados, confirmar --- */
+  sinter:      {nome:"Sínter",                                   rho:1.70,rep:38,lmax:16,cod:"D37",  fora:true},
+  pelota:      {nome:"Pelota / pellet",                          rho:2.10,rep:32,lmax:12,cod:"C26",  fora:true},
+  sinter_feed: {nome:"Sinter feed / pellet feed",                rho:2.20,rep:35,lmax:18,cod:"B37",  fora:true},
+  briq_bar:    {nome:"Briquete BAR (57×57×37,5 mm)",             rho:1.70,rep:35,lmax:12,cod:"D27",  fora:true},
+  briq_bricao: {nome:"Briquete Bricão (120×108×87 mm)",          rho:1.30,rep:37,lmax:10,cod:"D27",  fora:true}
+};
+function btPreset(){
+  var p=FACO_MAT[$("#btMat").value]; if(!p){ runCalc("belt_conveyor"); return; }
+  $("#btRho").value=p.rho;
+  runCalc("belt_conveyor");
+}
+
 const FLEX_MAT={
   minerio_fe:   {rho:2.50,lump:100,phi:0.80,abr:"alta",  nome:"Minério de ferro granulado"},
   sinter_feed:  {rho:2.20,lump:10, phi:0.85,abr:"alta",  nome:"Sinter feed / pellet feed"},
@@ -2887,179 +2931,537 @@ const CALCS={
       ];
     }
   },
+
   belt_conveyor:{
-    titulo:"Transportador de Correia — pré-dimensionamento",
-    referencia:"Manual FAÇO / Stephens-Adamson — Método Prático (Tab. 1-04, 1-05, 1-17 a 1-20) · CEMA · ABNT NBR 6172/6177",
+    titulo:"Transportador de Correia — roteiro FAÇO passo a passo",
+    referencia:"Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34, 2-55 a 2-57 · verificação cruzada CEMA",
     campos:[
-      {tipo:"head",label:"Processo"},
-      {id:"Qb",label:"Vazão de projeto",unidade:"t/h",tipo:"number",valor:500},
-      {id:"rhob",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.01"},
-      {id:"Lb",label:"Comprimento (projeção horizontal)",unidade:"m",tipo:"number",valor:60},
-      {id:"Hb",label:"Elevação (− para descida, 0 = horizontal)",unidade:"m",tipo:"number",valor:8},
-      {id:"vb",label:"Velocidade da correia",unidade:"m/s",tipo:"number",valor:2.0,step:"0.1"},
-      {id:"matb",label:"Classe do material (velocidade — Tab 1-05)",tipo:"select",valor:"pouco",opcoes:[
-        {v:"facil",t:"Escoamento fácil, não abrasivo (cereais, etc.)"},{v:"pouco",t:"Pouco abrasivo (carvão, terra, britado fino)"},{v:"muito",t:"Duro/pesado, muito abrasivo (minério, pedra)"}]},
-      {tipo:"head",label:"Correia, roletes e granulometria"},
-      {id:"Bselb",label:"Largura da correia (catálogo)",tipo:"select",valor:"auto",opcoes:[
-        {v:"auto",t:"Automático (pela capacidade e granulometria)"},
+      {tipo:"head",label:"Etapa 1 — Material (Tab. 1-01 e 1-02)"},
+      {id:"btMat",label:"Material transportado",tipo:"select",valor:"fe_britado",onchange:"btPreset()",opcoes:[
+        {v:"fe_britado",t:"Ferro, minério de (britado) — 1.07"},
+        {v:"fe_minerio",t:"Ferro, minério de — 1.07"},
+        {v:"mn_minerio",t:"Manganês, minério de — 1.09"},
+        {v:"cu_minerio",t:"Cobre, minério de — 1.06"},
+        {v:"bauxita",t:"Bauxita, em brita (3\" e abaixo) — 1.04"},
+        {v:"pedra_brit",t:"Pedra britada — 1.09"},
+        {v:"calc_moida",t:"Pedra calcária moída — 1.09"},
+        {v:"calc_agr",t:"Pedra calcária para agricultura — 1.09"},
+        {v:"calc_poeira",t:"Poeira de pedra calcária — 1.09"},
+        {v:"dolomita",t:"Dolomita granulada — 1.07"},
+        {v:"clinquer",t:"Clínquer (cimento) — 1.06"},
+        {v:"cimento",t:"Cimento portland — 1.06"},
+        {v:"escoria_af",t:"Escória (lava) de alto forno, esmagada — 1.07"},
+        {v:"escoria_fe",t:"Ferro, escória de forno — 1.07"},
+        {v:"coque_miudo",t:"Coque miúdo, 1/4\" e abaixo — 1.06"},
+        {v:"coque_des",t:"Coque desagregado — 1.06"},
+        {v:"carvao_ant",t:"Carvão antracitoso uniforme — 1.05"},
+        {v:"carvao_bet",t:"Carvão betuminoso uniforme — 1.05"},
+        {v:"carvao_fofo",t:"Carvão betuminoso fofo, 1/2\" e abaixo — 1.05"},
+        {v:"carvao_lenha",t:"Carvão de lenha (vegetal) — 1.05"},
+        {v:"areia_seca",t:"Areia silicosa seca — 1.03"},
+        {v:"areia_umida",t:"Areia úmida — 1.03"},
+        {v:"cascalho_s",t:"Cascalho seco — 1.05"},
+        {v:"pedregulho",t:"Pedregulho pontiagudo (seco) — 1.09"},
+        {v:"sinter",t:"Sínter  ⚠ fora do manual"},
+        {v:"pelota",t:"Pelota / pellet  ⚠ fora do manual"},
+        {v:"sinter_feed",t:"Sinter feed / pellet feed  ⚠ fora do manual"},
+        {v:"briq_bar",t:"Briquete BAR  ⚠ fora do manual"},
+        {v:"briq_bricao",t:"Briquete Bricão  ⚠ fora do manual"}]},
+      {id:"btRho",label:"Peso específico (ajustável)",unidade:"t/m³",tipo:"number",valor:2.30,step:"0.01"},
+      {id:"btLump",label:"Tamanho máximo dos pedaços",unidade:"mm",tipo:"number",valor:100},
+      {id:"btGran",label:"Granulometria — largura mínima (Tab. 1-06)",tipo:"select",valor:"5",opcoes:[
+        {v:"5",t:"100% pedaços de tamanho máximo, não classificado (B ≥ 5× pedaço)"},
+        {v:"3",t:"90% pedaços / 10% finos, classificado (B ≥ 3× pedaço)"}]},
+      {id:"btFino",label:"Composição para a flecha admissível (Tab. 1-16)",tipo:"select",valor:"p100",opcoes:[
+        {v:"fino",t:"Todo fino"},
+        {v:"p50",t:"50% pedaços de tamanho máximo"},
+        {v:"p100",t:"100% pedaços de tamanho máximo"}]},
+
+      {tipo:"head",label:"Etapa 2 — Geometria e capacidade"},
+      {id:"btQ",label:"Capacidade de projeto  Q",unidade:"t/h",tipo:"number",valor:500},
+      {id:"btL",label:"Distância entre centros — projeção horizontal  L",unidade:"m",tipo:"number",valor:60},
+      {id:"btH",label:"Desnível  H  (− para descida, 0 = horizontal)",unidade:"m",tipo:"number",valor:8},
+      {id:"btLg",label:"Comprimento das guias laterais (0 = comprimento normal, desprezar)",unidade:"m",tipo:"number",valor:0},
+
+      {tipo:"head",label:"Etapa 3 — Velocidade e largura (Tab. 1-04 e 1-05)"},
+      {id:"btClasse",label:"Classe do material para velocidade (Tab. 1-05)",tipo:"select",valor:"muito",opcoes:[
+        {v:"facil",t:"Escoamento fácil, não abrasivo (cereais, grãos)"},
+        {v:"pouco",t:"Pouco abrasivo (carvão, terra, britado fino)"},
+        {v:"muito",t:"Duro/pesado, muito abrasivo (minério, pedra britada)"}]},
+      {id:"btV",label:"Velocidade da correia  V",unidade:"m/s",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"btCfg",label:"Configuração dos roletes (Tab. 1-04)",tipo:"select",valor:"3x45",opcoes:[
+        {v:"3x45",t:"3 roletes iguais — inclinação lateral β = 45°"},
+        {v:"3x20",t:"3 roletes iguais — β = 20°"},
+        {v:"2x35",t:"2 roletes iguais — β = 35°"},
+        {v:"plano",t:"Roletes planos — β = 0°"}]},
+      {id:"btAlfa",label:"Ângulo de acomodação do material  α (Tab. 1-04)",tipo:"select",valor:"20",opcoes:[
+        {v:"0",t:"0°"},{v:"5",t:"5°"},{v:"10",t:"10°"},{v:"15",t:"15°"},{v:"20",t:"20°"},{v:"25",t:"25°"},{v:"30",t:"30°"}]},
+      {id:"btB",label:"Largura da correia  B",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — pela capacidade e granulometria"},
         {v:"16",t:"16\" (400 mm)"},{v:"20",t:"20\" (500 mm)"},{v:"24",t:"24\" (600 mm)"},{v:"30",t:"30\" (750 mm)"},
         {v:"36",t:"36\" (900 mm)"},{v:"42",t:"42\" (1050 mm)"},{v:"48",t:"48\" (1200 mm)"},{v:"54",t:"54\" (1350 mm)"},
         {v:"60",t:"60\" (1500 mm)"},{v:"72",t:"72\" (1800 mm)"},{v:"84",t:"84\" (2100 mm)"}]},
-      {id:"cfgb",label:"Configuração dos roletes (Tab 1-04)",tipo:"select",valor:"3x45",opcoes:[
-        {v:"3x45",t:"3 roletes iguais — 45°"},{v:"3x20",t:"3 roletes iguais — 20°"},{v:"2x35",t:"2 roletes iguais — 35°"},{v:"plano",t:"Roletes planos — 0°"}]},
-      {id:"alfab",label:"Ângulo de acomodação do material (α)",tipo:"select",valor:"20",opcoes:[
-        {v:"0",t:"0°"},{v:"5",t:"5°"},{v:"10",t:"10°"},{v:"15",t:"15°"},{v:"20",t:"20°"},{v:"25",t:"25°"},{v:"30",t:"30°"}]},
-      {id:"lumpb",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:100},
-      {id:"granb",label:"Granulometria (Tab 1-06)",tipo:"select",valor:"5",opcoes:[
-        {v:"5",t:"100% pedaços, não classificado (largura ≥ 5× pedaço)"},{v:"3",t:"90% pedaços / 10% finos, classificado (≥ 3×)"}]},
-      {id:"regb",label:"Regime de trabalho dos roletes (Tab 1-07)",tipo:"select",valor:"10a16",opcoes:[
-        {v:"ate6",t:"Até 6 h/dia (intermitente)"},{v:"6a9",t:"6 a 9 h/dia"},{v:"10a16",t:"10 a 16 h/dia"},{v:"16a24",t:"16 a 24 h/dia (contínuo)"}]},
-      {tipo:"head",label:"Critérios de cálculo"},
-      {id:"fxF",label:"Coeficiente de atrito fictício  f  (ISO 5048)",tipo:"select",valor:"0.022",opcoes:[
-        {v:"0.020",t:"0,020 — instalação nova, bem alinhada"},
-        {v:"0.022",t:"0,022 — condição normal"},
-        {v:"0.024",t:"0,024 — condição desfavorável"},
-        {v:"0.030",t:"0,030 — muito desfavorável (pó, desalinhamento)"}]},
-      {id:"fxEta",label:"Rendimento do acionamento  η",tipo:"select",valor:"0.85",opcoes:[
-        {v:"0.90",t:"0,90 — redutor de engrenagens direto"},
-        {v:"0.85",t:"0,85 — usual (redutor + acoplamentos)"},
-        {v:"0.80",t:"0,80 — com transmissão por correias"}]},
-      {id:"fxSag",label:"Flecha relativa admitida entre roletes",tipo:"select",valor:"0.015",opcoes:[
-        {v:"0.010",t:"1,0 % — material fino, rigoroso"},
-        {v:"0.015",t:"1,5 % — usual"},
-        {v:"0.020",t:"2,0 % — tolerante"}]},
-      {tipo:"head",label:"Acionamento"},
-      {id:"Dtb",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:500},
-      {id:"Lgb",label:"Comprimento das guias laterais (0 = desprezar)",unidade:"m",tipo:"number",valor:0},
-      {id:"Kb",label:"Fator de abraçamento K (Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
-        {v:"0.38",t:"Simples · tambor revestido · gravidade · 210° (K=0,38)"},
-        {v:"0.30",t:"Simples · tambor revestido · gravidade · 240° (K=0,30)"},
-        {v:"0.84",t:"Simples · tambor de aço · gravidade · 180° (K=0,84)"},
-        {v:"0.70",t:"Simples · tambor revestido · parafuso · 210° (K=0,70)"},
-        {v:"0.11",t:"Duplo · tambor revestido · gravidade · 380° (K=0,11)"}]},
-      {id:"fsb",label:"Fator de segurança da carcaça",tipo:"select",valor:"10",opcoes:[
-        {v:"10",t:"10 (correia têxtil / EP — padrão)"},{v:"8",t:"8 (serviço leve)"},{v:"12",t:"12 (serviço severo)"}]},
-      {tipo:"head",label:"Avançado — Método CEMA (refinar p/ Tab 1-25 e 1-26)"},
-      {id:"Wbb",label:"Peso da correia Wb",unidade:"kgf/m",tipo:"number",valor:16},
-      {id:"Kxb",label:"Kx — resist. roletes/deslizamento (Tab 1-25)",unidade:"kgf/m",tipo:"number",valor:0.8,step:"0.01"},
-      {id:"Kyb",label:"Ky — resist. à flexão (Tab 1-26)",tipo:"number",valor:0.025,step:"0.001"}
+
+      {tipo:"head",label:"Etapa 4 — Série de roletes (Tab. 1-07, 1-08, 1-11 a 1-14)"},
+      {id:"btReg",label:"Regime de trabalho  (Fator A — Tab. 1-07)",tipo:"select",valor:"10a16",opcoes:[
+        {v:"ate6",t:"Até 6 h/dia — operação intermitente"},
+        {v:"6a9",t:"6 a 9 h/dia"},
+        {v:"10a16",t:"10 a 16 h/dia"},
+        {v:"16a24",t:"16 a 24 h/dia — contínuo"}]},
+      {id:"btInst",label:"Tipo de instalação (Tab. 1-07)",tipo:"select",valor:"todas",opcoes:[
+        {v:"todas",t:"Todas as instalações (definitiva)"},
+        {v:"prov",t:"Instalação provisória / intermitente"}]},
+      {id:"btVida",label:"Vida útil teórica dos rolamentos (pág. 1.21)",tipo:"select",valor:"40000",opcoes:[
+        {v:"20000",t:"20.000 h — serviço intermitente ou provisório"},
+        {v:"30000",t:"30.000 h — serviço contínuo, 8 h/dia"},
+        {v:"40000",t:"40.000 h — serviço contínuo, 16 h/dia"},
+        {v:"50000",t:"50.000 h — serviço contínuo, 24 h/dia"}]},
+      {id:"btRolam",label:"Tipo de rolamento (Tab. 1-13 / 1-14)",tipo:"select",valor:"esf",opcoes:[
+        {v:"esf",t:"De esferas — séries AD (encaixe DIN)"},
+        {v:"con",t:"Cônico — séries ACD (mineração, siderurgia, pedreiras)"}]},
+      {id:"btTemp",label:"Temperatura do rolamento (Tab. 1-11)",tipo:"select",valor:"amb",opcoes:[
+        {v:"amb",t:"Ambiente — sem redução"},
+        {v:"125",t:"125 °C — reduz 5% da capacidade"},
+        {v:"150",t:"150 °C — reduz 10%"},
+        {v:"175",t:"175 °C — reduz 15%"},
+        {v:"200",t:"200 °C — reduz 25%"},
+        {v:"225",t:"225 °C — reduz 35%"},
+        {v:"250",t:"250 °C — reduz 40%"}]},
+
+      {tipo:"head",label:"Etapa 5 — Acionamento e abraçamento (Tab. 1-28, 1-29, 1-34)"},
+      {id:"btPos",label:"Posição do acionamento",tipo:"select",valor:"cabeca",opcoes:[
+        {v:"cabeca",t:"No tambor da cabeça ou próximo (caso 1 — pág. 1.49)"},
+        {v:"retorno",t:"No tambor de retorno (casos 2 a 4 — pág. 1.50)"}]},
+      {id:"btArco",label:"Arco de contato θ (Tab. 1-28)",tipo:"select",valor:"210",opcoes:[
+        {v:"180",t:"180° — acionamento simples, sem tambor de abraçamento"},
+        {v:"200",t:"200° — simples, com tambor de abraçamento"},
+        {v:"210",t:"210° — simples, com tambor de abraçamento"},
+        {v:"220",t:"220° — simples, com tambor de abraçamento"},
+        {v:"240",t:"240° — simples, com tambor de abraçamento"},
+        {v:"380",t:"380° — acionamento duplo"},
+        {v:"420",t:"420° — acionamento duplo"}]},
+      {id:"btTamb",label:"Superfície do tambor de acionamento (Tab. 1-29)",tipo:"select",valor:"borr",opcoes:[
+        {v:"borr",t:"Revestido com borracha  (μ = 0,35)"},
+        {v:"aco",t:"Aço  (μ = 0,25)"}]},
+      {id:"btDt",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:630},
+      {id:"btEta",label:"Rendimento total da transmissão  ηt (Tab. 1-34)",tipo:"select",valor:"0.94",opcoes:[
+        {v:"0.95",t:"0,95 — redução simples, moto-redutor de engrenagens helicoidais"},
+        {v:"0.94",t:"0,94 — redução dupla (usual) ou shaft-mounted"},
+        {v:"0.93",t:"0,93 — redução tripla"},
+        {v:"0.90",t:"0,90 — redutor de rosca sem fim até 20:1"},
+        {v:"0.88",t:"0,88 — redução dupla + correias V e polias (0,94 × 0,94)"},
+        {v:"0.92",t:"0,92 — redução dupla + acoplamento hidráulico (0,94 × 0,98)"}]},
+
+      {tipo:"head",label:"Etapa 6 — Esticador e correia (Tab. 1-33, 2-55 a 2-57)"},
+      {id:"btEst",label:"Tipo de esticador",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — pela Tab. 1-33 (largura × distância entre centros)"},
+        {v:"grav",t:"Por gravidade (contrapeso)"},
+        {v:"paraf",t:"Por parafuso"}]},
+      {id:"btPosEst",label:"Posição do esticador",tipo:"select",valor:"acion",opcoes:[
+        {v:"acion",t:"No ramo frouxo, junto ao acionamento (T = T2) — recomendado"},
+        {v:"traseiro",t:"No tambor traseiro (T = T3)"}]},
+      {id:"btPc",label:"Peso do tambor esticador + carrinho ou quadro guia  Pc",unidade:"kgf",tipo:"number",valor:400},
+      {id:"btCorr",label:"Tipo de correia (esticamento — Tab. 2-55 a 2-57)",tipo:"select",valor:"gy_ep",opcoes:[
+        {v:"gy_ep",t:"Goodyear EP — poliéster/nylon"},
+        {v:"gy_plylon",t:"Goodyear PLYLON — nylon"},
+        {v:"gy_flex",t:"Goodyear FLEXSTEEL — cabo de aço"},
+        {v:"gates_pen",t:"Gates PEN 100/140/220"},
+        {v:"merc_nn",t:"Mercúrio NN — nylon/nylon"},
+        {v:"merc_pn",t:"Mercúrio PN — poliéster/nylon"}]},
+      {id:"btEmenda",label:"Tipo de emenda",tipo:"select",valor:"vulc",opcoes:[
+        {v:"vulc",t:"Vulcanizada"},{v:"gramp",t:"Com grampos"}]},
+      {id:"btTensOp",label:"Condição de operação (Tab. 2-55 a 2-57)",tipo:"select",valor:"100",opcoes:[
+        {v:"100",t:"100% da tensão admissível"},{v:"75",t:"75% da tensão admissível"}]},
+      {id:"btTu",label:"Tensão unitária admissível da carcaça  Tu",unidade:"kgf/pol·lona",tipo:"number",valor:25},
+      {id:"btNl",label:"Número de lonas  n₁",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — mínimo que atenda Tad ≥ T1"},
+        {v:"3",t:"3 lonas"},{v:"4",t:"4 lonas"},{v:"5",t:"5 lonas"},{v:"6",t:"6 lonas"},{v:"7",t:"7 lonas"},{v:"8",t:"8 lonas"}],},
+
+      {tipo:"head",label:"Etapa 7 — Verificação CEMA (opcional)"},
+      {id:"btKx",label:"Kx — resistência dos roletes e ao deslizamento",unidade:"kgf/m",tipo:"number",valor:0.8,step:"0.01"},
+      {id:"btKy",label:"Ky — resistência à flexão da correia e do material",tipo:"number",valor:0.025,step:"0.001"}
     ],
     calcular:function(){
-      var Q=num("Qb"),rho=num("rhob"),L=num("Lb"),H=num("Hb"),v=num("vb"),Dt=num("Dtb"),Lg=num("Lgb");
-      var mat=$("#matb").value,cfg=$("#cfgb").value,alfa=parseInt($("#alfab").value,10);
-      if([Q,rho,L,H,v,Dt,Lg].some(function(x){return isNaN(x);})||rho<=0||v<=0||Dt<=0) return null;
-      function interp(xs,ys,x){ if(x<=xs[0])return ys[0]+(ys[1]-ys[0])*(x-xs[0])/(xs[1]-xs[0]); var n=xs.length; if(x>=xs[n-1])return ys[n-2]+(ys[n-1]-ys[n-2])*(x-xs[n-2])/(xs[n-1]-xs[n-2]); for(var i=1;i<n;i++){ if(x<=xs[i])return ys[i-1]+(ys[i]-ys[i-1])*(x-xs[i-1])/(xs[i]-xs[i-1]); } return ys[n-1]; }
-      var BL=[10,15,20,25,30,40,50,60,70,80,90,100,110];
-      var NV={16:[0.37,0.47,0.54,0.61,0.70,0.80,0.90,1.01,1.10,1.20,1.31,1.42,1.53],20:[0.45,0.55,0.64,0.72,0.81,0.95,1.09,1.20,1.32,1.43,1.54,1.67,1.80],24:[0.57,0.70,0.83,0.91,1.01,1.20,1.33,1.52,1.67,1.80,1.92,2.06,2.19],30:[0.69,0.81,0.97,1.10,1.22,1.44,1.66,1.83,2.04,2.19,2.39,2.55,2.71],36:[0.75,0.94,1.08,1.23,1.35,1.58,1.80,2.03,2.24,2.45,2.64,2.84,3.03],42:[0.85,1.01,1.22,1.39,1.54,1.80,2.04,2.28,2.52,2.76,2.95,3.17,3.38],48:[1.02,1.20,1.32,1.64,1.80,2.13,2.40,2.71,2.98,3.23,3.48,3.74,4.00]};
-      var N1=interp(BL,[0.50,0.63,0.74,0.81,0.95,1.11,1.25,1.42,1.50,1.64,1.75,1.87,2.05],L);
-      var Nh=interp([2,3,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30],[0.8,1.2,1.9,2.8,3.7,4.7,5.6,6.5,7.4,8.4,9.3,10.2,11.1],Math.abs(H));
-      var Ng=Lg>0?interp([5,10,20,25,30,35,40,45,50,55,60,65,70],[0.60,1.26,2.52,3.18,3.84,4.56,5.28,6.00,6.72,7.38,8.10,8.88,9.60],Lg):0;
+      /* ================= ENTRADAS ================= */
+      var Q=num("btQ"), rho=num("btRho"), L=num("btL"), H=num("btH"), v=num("btV"),
+          Lg=num("btLg"), lump=num("btLump"), Dt=num("btDt"), Pc=num("btPc"), Tu=num("btTu");
+      if([Q,rho,L,H,v,Lg,lump,Dt,Pc,Tu].some(function(x){return isNaN(x);})) return null;
+      if(rho<=0||v<=0||L<=0||Dt<=0) return null;
+      var matK=$("#btMat").value, MAT=FACO_MAT[matK]||FACO_MAT.fe_britado;
+      var cfg=$("#btCfg").value, alfa=parseInt($("#btAlfa").value,10), gf=parseFloat($("#btGran").value);
+      var classe=$("#btClasse").value, reg=$("#btReg").value, inst=$("#btInst").value;
+      var vida=parseInt($("#btVida").value,10), tipoRol=$("#btRolam").value, tempSel=$("#btTemp").value;
+      var pos=$("#btPos").value, arco=parseInt($("#btArco").value,10), superf=$("#btTamb").value;
+      var eta=parseFloat($("#btEta").value), estSel=$("#btEst").value, posEst=$("#btPosEst").value;
+      var corr=$("#btCorr").value, emenda=$("#btEmenda").value, tensOp=$("#btTensOp").value;
+      var g=9.80665;
+      function ip(xs,ys,x){ var n=xs.length;
+        if(x<=xs[0]) return ys[0]+(ys[1]-ys[0])*(x-xs[0])/(xs[1]-xs[0]);
+        if(x>=xs[n-1]) return ys[n-2]+(ys[n-1]-ys[n-2])*(x-xs[n-2])/(xs[n-1]-xs[n-2]);
+        for(var i=1;i<n;i++){ if(x<=xs[i]) return ys[i-1]+(ys[i]-ys[i-1])*(x-xs[i-1])/(xs[i]-xs[i-1]); }
+        return ys[n-1]; }
+      function vg(x,d){ return x.toFixed(d===undefined?2:d).replace(".",","); }
+
+      /* ========= ETAPA 1 — material ========= */
+      var lambda=Math.abs(Math.atan2(H,L)*180/Math.PI);
+      var lmaxOK=(lambda<=MAT.lmax+1e-9);
+
+      /* ========= ETAPA 2 — velocidade (Tab. 1-05) ========= */
+      var VW=[16,20,24,30,36,42,48,54,60,66,72];
+      var VEL={facil:[2.5,3.0,3.0,3.6,4.1,4.1,4.6,5.1,5.1,null,null],
+               pouco:[1.6,2.0,2.5,3.0,3.3,3.6,3.6,3.6,3.6,4.1,4.1],
+               muito:[1.6,1.8,2.3,2.8,3.0,3.0,3.3,3.3,3.3,3.8,3.8]};
+
+      /* ========= ETAPA 3 — largura (Tab. 1-04 e 1-06) ========= */
       var CAP={
         "3x45":{w:[24,30,36,42,48,54,60,72,84],r:{0:[109,179,265,369,490,627,782,1143,1672],5:[118,194,287,399,529,678,845,1233,1697],10:[128,209,309,430,570,729,909,1326,1822],15:[137,224,331,460,610,780,972,1419,1950],20:[147,239,354,492,651,833,1038,1514,2079],25:[157,255,378,524,694,888,1106,1613,2212],30:[166,271,401,556,737,942,1173,1711,2349]}},
         "3x20":{w:[24,30,36,42,48,54,60],r:{0:[58,95,141,197,261,335,418],5:[69,114,169,236,313,401,500],10:[82,134,199,277,367,470,586],15:[94,154,228,318,424,539,672],20:[107,174,258,359,476,609,759],25:[120,196,290,402,533,682,849],30:[133,217,321,445,590,755,940]}},
         "2x35":{w:[24,30,36,42,48,54,60,72,84],r:{0:[93,152,226,314,417,535,666,977,1341],5:[103,169,250,348,462,582,738,1078,1486],10:[114,186,276,384,509,652,812,1186,1631],15:[125,204,302,419,556,711,885,1296,1779],20:[135,221,328,455,603,772,961,1403,1929],25:[147,240,355,492,652,835,1040,1517,2083],30:[158,258,382,530,702,898,1118,1631,2242]}},
-        "plano":{w:[16,20,24,30,36,42,48,54,60,72,84],r:{0:[1,1,1,1,1,1,1,1,1,1,1],5:[4,7,10,17,25,35,44,59,74,108,153],10:[10,16,25,40,59,82,100,140,174,254,369],15:[15,26,39,63,93,129,163,219,272,397,569],20:[21,35,52,85,125,173,218,293,365,532,777],25:[26,44,66,107,158,219,266,371,461,673,948],30:[32,53,80,130,192,265,334,449,559,815,1021]}}
-      };
-      var VW=[16,20,24,30,36,42,48,54,60,66,72];
-      var VEL={facil:[2.5,3.0,3.0,3.6,4.1,4.1,4.6,5.1,5.1,null,null],pouco:[1.6,2.0,2.5,3.0,3.3,3.6,3.6,3.6,3.6,4.1,4.1],muito:[1.6,1.8,2.3,2.8,3.0,3.0,3.3,3.3,3.3,3.8,3.8]};
+        "plano":{w:[24,30,36,42,48,54,60],r:{0:[31,52,77,107,142,182,227],5:[41,68,101,141,187,239,299],10:[52,85,126,175,232,297,371],15:[62,102,151,210,278,356,444],20:[73,119,177,246,326,417,521],25:[84,137,203,282,375,479,598],30:[95,155,229,318,423,541,675]}}};
+      var tcap=CAP[cfg], row=tcap.r[alfa];
       var Creq=Q/(v*rho);
-      var t=CAP[cfg],row=t.r[alfa];
-      var Bcapw=null; for(var i=0;i<t.w.length;i++){ if(row[i]>=Creq){ Bcapw=t.w[i]; break; } }
-      var insuf=false; if(Bcapw===null){ Bcapw=t.w[t.w.length-1]; insuf=true; }
-      var lump=num("lumpb"), gf=parseFloat($("#granb").value);
+      var Bcap=null; for(var i=0;i<tcap.w.length;i++){ if(row[i]>=Creq){ Bcap=tcap.w[i]; break; } }
+      var capInsuf=false; if(Bcap===null){ Bcap=tcap.w[tcap.w.length-1]; capInsuf=true; }
       var lumpIn=(lump>0?lump*gf:0)/25.4;
-      var Bgran=t.w[t.w.length-1]; for(var j=0;j<t.w.length;j++){ if(t.w[j]>=lumpIn){ Bgran=t.w[j]; break; } }
-      var granInsuf=lumpIn>t.w[t.w.length-1];
-      var Bauto=Math.max(Bcapw,Bgran);
-      var Bselv=$("#Bselb").value, manualB=(Bselv!=="auto");
-      var B=manualB?parseInt(Bselv,10):Bauto;
-      var Bcap=(t.w.indexOf(B)>=0)?row[t.w.indexOf(B)]:interp(t.w,row,B);
-      var chosenLtCap=manualB&&(B<Bcapw), chosenLtGran=manualB&&(lump>0&&B<Bgran);
-      var govern=manualB?"escolha do usuário":((Bgran>Bcapw)?"granulometria":"capacidade");
-      var Bmm=Math.round(B*25.4);
-      var Qreal=Bcap*v*rho;
-      var Nvkeys=[16,20,24,30,36,42,48], nvB=B; if(B>48)nvB=48;
-      var nearNv=Nvkeys.reduce(function(a,b){return Math.abs(b-nvB)<Math.abs(a-nvB)?b:a;});
-      var Nv=interp(BL,NV[nearNv],L); if(B>48)Nv=Nv*(B/48);
-      var vi=0,best=1e9; for(var k=0;k<VW.length;k++){ if(VEL[mat][k]!=null && Math.abs(VW[k]-B)<best){best=Math.abs(VW[k]-B);vi=k;} }
-      var vrec=VEL[mat][vi];
-      var Hs=H>=0?1:-1;
-      var Ne=v*(Nv+Ng)+(Q/100)*(N1+Hs*Nh);
-      if(Ne<=0||isNaN(Ne)) return null;
-      var Nekw=Ne*0.7457;
-      var Te=75*Ne/v;
-      var Pmaj=Nekw*1.20;
-      var npul=v*60000/(Math.PI*Dt);
-      var sew=selSEW(Pmaj,npul);
-      var K=parseFloat($("#Kb").value), FS=parseFloat($("#fsb").value);
-      var T1=(1+K)*Te, T2=K*Te;
-      var trN=T1*9.80665/Bmm;
-      var carcReq=trN*FS;
-      var EP=[200,250,315,400,500,630,800,1000,1250,1600,2000];
-      var EPsel=EP.find(function(x){return x>=carcReq;})||EP[EP.length-1];
-      var servico=(mat==="muito")?"pesado":(mat==="facil")?"leve":"médio";
-      var Wm=Q/(3.6*v);
-      var Wb=num("Wbb"), Kx=num("Kxb"), Ky=num("Kyb");
+      var Bgran=tcap.w[tcap.w.length-1]; for(var j=0;j<tcap.w.length;j++){ if(tcap.w[j]>=lumpIn){ Bgran=tcap.w[j]; break; } }
+      var granInsuf=(lumpIn>tcap.w[tcap.w.length-1]);
+      var Bauto=Math.max(Bcap,Bgran);
+      var Bsel=$("#btB").value, manualB=(Bsel!=="auto");
+      var B=manualB?parseInt(Bsel,10):Bauto, Bmm=Math.round(B*25.4);
+      var idxB=tcap.w.indexOf(B);
+      var capB=(idxB>=0)?row[idxB]:ip(tcap.w,row,B);
+      var Qmax=capB*v*rho;
+      var vi=0,bd=1e9; for(var k=0;k<VW.length;k++){ if(VEL[classe][k]!=null&&Math.abs(VW[k]-B)<bd){bd=Math.abs(VW[k]-B);vi=k;} }
+      var vrec=VEL[classe][vi];
+
+      /* ========= ETAPA 4 — série de roletes ========= */
+      var beta=(cfg==="3x45")?45:(cfg==="2x35")?35:(cfg==="3x20")?20:0;
+      function fatorA(r,inst,d){
+        if(inst==="prov") return 6;
+        if(r==="ate6") return 6;
+        if(r==="16a24") return 15;
+        return (d<1.6)?((r==="6a9")?6:15):((d<=1.8)?12:15); }
+      var fatA=fatorA(reg,inst,rho);
+      var lumpPol=lump/25.4;
+      var fatB=(10+5*lumpPol)*rho;                       /* Tab. 1-08 */
+      var Capl=fatA*fatB;                                 /* C = A·B  */
+      /* Gráfico 1-02 — faixas de C para o diâmetro do rolo */
+      var DIA=[{c:600,mm:102,t:'4" (102 mm)'},{c:1500,mm:127,t:'5" (127 mm)'},
+               {c:2200,mm:152,t:'6" (152 mm)'},{c:2700,mm:165,t:'6½" (165 mm)'},{c:9e9,mm:178,t:'7" (178 mm)'}];
+      var di=0; while(di<DIA.length-1&&Capl>DIA[di].c) di++;
+      if(v>=3&&di<DIA.length-1) di++;
+      var rolo=DIA[di];
+      var nrpm=60*v/(Math.PI*rolo.mm/1000);
+
+      /* ========= ETAPA 5 — espaçamento (Tab. 1-15) e flecha (Tab. 1-16) ========= */
+      var SPC={16:[1.50,1.50,1.35],20:[1.50,1.20,1.20],24:[1.35,1.20,1.20],30:[1.35,1.20,1.20],
+               36:[1.35,1.20,1.05],42:[1.35,1.00,0.90],48:[1.30,1.00,0.90],54:[1.20,1.00,0.90],
+               60:[1.20,1.00,0.90],72:[1.20,0.90,0.90],84:[1.00,0.75,0.75],96:[1.00,0.75,0.60]};
+      var a=ip([0.8,1.6,2.4],SPC[B]||SPC[60],rho);
+      /* Tab. 1-16 — flecha admissível (%) por inclinação dos roletes × composição */
+      var T16={0:{fino:3,p50:3,p100:3},20:{fino:3,p50:3,p100:3},
+               35:{fino:3,p50:2,p100:2},45:{fino:3,p50:2,p100:1.5}};
+      var comp=$("#btFino").value;
+      var pctF=T16[beta][comp];
+      var coefT0=12.5/pctF;                               /* 4,17→3% · 6,25→2% · 12,50→1% */
+
+      /* ========= ETAPA 6 — pesos (pág. 1.47, Tab. 1-27) ========= */
+      var Wm=0.277*Q/v;
+      var WBT={16:5.2,20:6.5,24:7.7,30:11.9,36:14.3,42:17.7,48:20.2,54:26.8,60:29.8,72:35.7,84:41.6};
+      var Wb=WBT[B]||ip([16,20,24,30,36,42,48,54,60,72,84],[5.2,6.5,7.7,11.9,14.3,17.7,20.2,26.8,29.8,35.7,41.6],B);
+      var T0=coefT0*(Wm+Wb)*a;
+      var flecha=(Wm+Wb)*a*a/(8*T0);
+
+      /* ========= ETAPA 7 — verificação dos roletes ========= */
+      var JT={0:1.00,20:0.56,35:0.60,45:0.64};
+      var jf=JT[beta]!==undefined?JT[beta]:0.60;
+      var WRT={16:4.6,20:5.0,24:4.3,30:5.0,36:8.1,42:9.1,48:10.1,54:13.0,60:14.0,66:19.7,72:23.0,84:29.7};
+      var Wr=WRT[B]||ip([16,20,24,30,36,42,48,54,60,66,72,84],[4.6,5.0,4.3,5.0,8.1,9.1,10.1,13.0,14.0,19.7,23.0,29.7],B);
+      var sb=Math.sin(beta*Math.PI/180);
+      var Fr=(jf/2+(1-jf)/2*sb*sb)*Wm*a + Wb*a/6 + Wr/2;
+      var SRP=[25,40,63,100,125,160,200,250,320,400,500,630,800,1000,1250];
+      var SR={esf:{20000:[3.11,3.63,4.23,4.93,5.32,5.75,6.20,6.70,7.23,7.81,8.43,9.11,9.83,10.6,11.5],
+                   30000:[3.55,4.14,4.82,5.63,6.07,6.56,7.08,7.64,8.25,8.91,9.62,10.38,11.24,12.14,13.11],
+                   40000:[3.91,4.56,5.32,6.20,6.70,7.23,7.81,8.43,9.11,9.83,10.6,11.5,12.4,13.4,14.5],
+                   50000:[4.23,4.93,5.75,6.70,7.23,7.81,8.43,9.11,9.83,10.6,11.5,12.4,13.4,14.5,15.6]},
+              con:{20000:[2.78,3.19,3.66,4.20,4.50,4.82,5.17,5.54,5.94,6.36,6.81,7.30,7.82,8.38,8.98],
+                   30000:[3.13,3.59,4.12,4.73,5.07,5.43,5.83,6.24,6.68,7.16,7.67,8.22,8.81,9.43,10.1],
+                   40000:[3.42,3.92,4.50,5.17,5.54,5.94,6.36,6.81,7.30,7.82,8.38,8.98,9.62,10.3,11.0],
+                   50000:[3.66,4.20,4.82,5.54,5.94,6.36,6.81,7.30,7.82,8.38,8.98,9.62,10.3,11.0,11.8]}};
+      var Sr=ip(SRP,SR[tipoRol][vida],nrpm);
+      var Cd=Fr*Sr;
+      var REDT={amb:0,125:0.05,150:0.10,175:0.15,200:0.25,225:0.35,250:0.40};
+      var redT=REDT[tempSel]||0;
+      var Cdreq=Cd/(1-redT);
+      /* Tab. 1-12 + Tab. 1-14 */
+      var SER=[
+        {s:"1524 AD",  rl:"6202", cd:795,  ex:240, tipo:"esf", bmin:16,bmax:36},
+        {s:"1724 A",   rl:"6203", cd:975,  ex:260, tipo:"esf", bmin:20,bmax:48},
+        {s:"2024/2025/2026 AD", rl:"6204", cd:1295, ex:280, tipo:"esf", bmin:20,bmax:60},
+        {s:"2525/2526 AD",      rl:"6205", cd:1428, ex:580, tipo:"esf", bmin:24,bmax:72},
+        {s:"2034/2035/2036 AD", rl:"6304", cd:1622, ex:280, tipo:"esf", bmin:20,bmax:60},
+        {s:"3026/3027 AD",      rl:"6206", cd:1989, ex:940, tipo:"esf", bmin:36,bmax:72},
+        {s:"2535/2536 AD",      rl:"6305", cd:2295, ex:580, tipo:"esf", bmin:24,bmax:72},
+        {s:"2024/2025/2026 ACD",rl:"30204",cd:2653, ex:280, tipo:"con", bmin:20,bmax:60},
+        {s:"3036/3037 AD",      rl:"6306", cd:2867, ex:940, tipo:"esf", bmin:36,bmax:72},
+        {s:"2525/2526 ACD",     rl:"30205",cd:2978, ex:580, tipo:"con", bmin:24,bmax:72},
+        {s:"4027 AD",           rl:"6208", cd:3132, ex:2260,tipo:"esf", bmin:60,bmax:84},
+        {s:"3026/3027 ACD",     rl:"30206",cd:3876, ex:940, tipo:"con", bmin:36,bmax:72},
+        {s:"4037 AD",           rl:"6308", cd:4183, ex:2260,tipo:"esf", bmin:60,bmax:84},
+        {s:"4027 ACD",          rl:"30208",cd:5948, ex:2260,tipo:"con", bmin:60,bmax:84}];
+      var serie=null;
+      for(var q=0;q<SER.length;q++){ var e=SER[q];
+        if(e.tipo!==tipoRol) continue;
+        if(B<e.bmin||B>e.bmax) continue;
+        if(e.cd>=Cdreq && e.ex>=Fr){ serie=e; break; } }
+      var serieAlt=null;
+      if(!serie){ for(var q2=0;q2<SER.length;q2++){ var e2=SER[q2];
+          if(e2.cd>=Cdreq&&e2.ex>=Fr){ serieAlt=e2; break; } } }
+
+      /* ========= ETAPA 8 — potência (Método Prático, Tab. 1-17 a 1-20) ========= */
+      var BL=[10,15,20,25,30,40,50,60,70,80,90,100,110];
+      var NV={16:[0.37,0.47,0.54,0.61,0.70,0.80,0.90,1.01,1.10,1.20,1.31,1.42,1.53],
+              20:[0.45,0.55,0.64,0.72,0.81,0.95,1.09,1.20,1.32,1.43,1.54,1.67,1.80],
+              24:[0.57,0.70,0.83,0.91,1.01,1.20,1.33,1.52,1.67,1.80,1.92,2.06,2.19],
+              30:[0.69,0.81,0.97,1.10,1.22,1.44,1.66,1.83,2.04,2.19,2.39,2.55,2.71],
+              36:[0.75,0.94,1.08,1.23,1.35,1.58,1.80,2.03,2.24,2.45,2.64,2.84,3.03],
+              42:[0.85,1.01,1.22,1.39,1.54,1.80,2.04,2.28,2.52,2.76,2.95,3.17,3.38],
+              48:[1.02,1.20,1.32,1.64,1.80,2.13,2.40,2.71,2.98,3.23,3.48,3.74,4.00]};
+      var nvB=Math.min(B,48);
+      var nk=[16,20,24,30,36,42,48].reduce(function(x,y){return Math.abs(y-nvB)<Math.abs(x-nvB)?y:x;});
+      var Nv=ip(BL,NV[nk],L); if(B>48) Nv=Nv*(B/48);
+      var N1=ip(BL,[0.50,0.63,0.74,0.81,0.95,1.11,1.25,1.42,1.50,1.64,1.75,1.87,2.05],L);
+      var Nh=ip([2,3,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30],[0.8,1.2,1.9,2.8,3.7,4.7,5.6,6.5,7.4,8.4,9.3,10.2,11.1],Math.abs(H));
+      var Ng=(Lg>0)?ip([5,10,20,25,30,35,40,45,50,55,60,65,70],[0.60,1.26,2.52,3.18,3.84,4.56,5.28,6.00,6.72,7.38,8.10,8.88,9.60],Lg):0;
+      var sgn=(H>=0)?1:-1;
+      var Ne=v*(Nv+Ng)+(Q/100)*(N1+sgn*Nh);
+      var foraFaixa=(L>100)||(B>48);
+      /* Critério de regeneração (pág. 1.49-b). O manual imprime "Ne" dentro do colchete,
+         o que é auto-referente; por analogia com o critério (a) do método CEMA — em que o
+         colchete reúne apenas as parcelas horizontal e de vazio — adota-se N₁.            */
+      var regen=(H<0)&&((Q/100)*Nh >= 0.5*((Q/100)*N1 + v*(Nv+Ng)));
+      var Te=75*Math.abs(Ne)/v;
+
+      /* ========= ETAPA 9 — verificação CEMA ========= */
+      var Kx=num("btKx"), Ky=num("btKy");
       var Fg=(Lg>0)?(0.01488*0.5*Lg*B*B+8.92*Lg):0;
-      var Tecema=L*(Kx+Ky*(Wm+Wb)+0.015*Wb)+Hs*Math.abs(H)*Wm+Fg;
-      var Necema=Tecema*v/75, Necemakw=Necema*0.7457;
-      var reg=$("#regb").value;
-      function fatorA(r,d){ if(r==="ate6")return 6; if(r==="6a9")return d<1.6?6:(d<=1.8?12:15); if(r==="10a16")return d<1.6?15:(d<=1.8?12:15); return 15; }
-      var fatA=fatorA(reg,rho), lumpInch=lump/25.4, fatB=rho*(5*lumpInch+10), Caplic=fatA*fatB;
-      var DIA=[{c:400,mm:89,t:'3"'},{c:1000,mm:108,t:'4" · CEMA B'},{c:1600,mm:133,t:'5" · CEMA C'},{c:2400,mm:159,t:'6" · CEMA D'},{c:9e9,mm:178,t:'7" · CEMA E'}];
-      var di=0; while(di<DIA.length-1 && Caplic>DIA[di].c) di++; if(v>=3 && di<DIA.length-1) di++;
-      var roll=DIA[di];
-      var SPC={16:[1.50,1.50,1.35],20:[1.50,1.20,1.20],24:[1.35,1.20,1.20],30:[1.35,1.20,1.20],36:[1.35,1.20,1.05],42:[1.35,1.00,0.90],48:[1.30,1.00,0.90],54:[1.20,1.00,0.90],60:[1.20,1.00,0.90],72:[1.20,0.90,0.90],84:[1.00,0.75,0.75],96:[1.00,0.75,0.60]};
-      var spw=SPC[B]||SPC[60], aSpan=interp([0.8,1.6,2.4],spw,rho);
-      var Lc=Math.sqrt(L*L+H*H), Ncar=Math.ceil(Lc/aSpan)+1, Nret=Math.ceil(Lc/3.0)+1;
-      var rows=[
-        {sec:"Capacidade e largura"},
-        {k:"Velocidade adotada (v)",v:v.toFixed(2).replace(".",",")+" m/s"},
-        {k:"Capacidade volumétrica requerida (a 1 m/s)",v:Creq.toFixed(1)+" m³/h"},
-        {k:"Largura mínima por capacidade",v:Bcapw+'"'+(insuf?"  ⚠ acima da tabela":"")},
-        {k:"Largura mínima por granulometria",v:(lump>0?Bgran+'"':"—")+(granInsuf?"  ⚠ acima da tabela":"")},
-        {k:"Largura da correia adotada",v:B+'"  ('+fmt(Bmm)+" mm) — "+(manualB?"escolha do usuário (catálogo)":"rege: "+govern)+((chosenLtCap||chosenLtGran)?"  ⚠ abaixo do mínimo "+(chosenLtCap&&chosenLtGran?"por capacidade e granulometria":chosenLtCap?"por capacidade ("+Bcapw+'")':"por granulometria ("+Bgran+'")'):""),hi:true},
-        {k:"Capacidade na largura adotada",v:fmt(Math.round(Bcap))+" m³/h@1m/s  ·  "+fmt(Math.round(Qreal))+" t/h"},
-        {k:"Velocidade máx. recomendada (Tab 1-05)",v:(vrec?vrec.toFixed(1).replace(".",",")+" m/s":"—")+(vrec&&v>vrec*1.001?"  ⚠ acima":"")},
-        {sec:"Roletes — quantidade e diâmetro"},
-        {k:"Fator de aplicação C = A·B (Tab 1-07/08)",v:"A "+fatA+" × B "+Math.round(fatB)+" = "+Math.round(Caplic)},
-        {k:"Diâmetro recomendado dos rolos (Gráfico 1-02)",v:roll.mm+" mm  ·  "+roll.t,hi:true},
-        {k:"Espaçamento dos roletes de carga (Tab 1-15)",v:aSpan.toFixed(2).replace(".",",")+" m"},
-        {k:"Espaçamento dos roletes de retorno",v:"3,00 m"},
-        {k:"Comprimento da correia  √(L²+H²)",v:Lc.toFixed(1)+" m"},
-        {k:"Estações de roletes de carga",v:fmt(Ncar)+(cfg==="plano"?"  (1 rolo/estação)":"  (3 rolos/estação)")},
-        {k:"Roletes de retorno",v:fmt(Nret)},
-        {sec:"Potência — Método Prático (FAÇO)"},
-        {k:"Nv — correia vazia a 1 m/s",v:Nv.toFixed(2)+" HP"},
-        {k:"N1 — 100 t/h na horizontal (L)",v:N1.toFixed(2)+" HP"},
-        {k:(H<0?"Nh — descer 100 t/h (H)":"Nh — elevar 100 t/h (H)"),v:Nh.toFixed(2)+" HP"},
-        {k:"Ng — guias laterais",v:Ng.toFixed(2)+" HP"},
-        {k:"Potência efetiva Ne",v:Ne.toFixed(2)+" HP  ·  "+Nekw.toFixed(2)+" kW",hi:true},
-        {k:"Tensão efetiva Te = 75·Ne/v",v:fmt(Math.round(Te))+" kgf  ("+fmt(Math.round(Te*9.81))+" N)"},
-        {sec:"Verificação — Método CEMA"},
-        {k:"Peso do material Wm = Q/(3,6·v)",v:Wm.toFixed(1)+" kgf/m"},
-        {k:"Tensão efetiva Te (CEMA)",v:fmt(Math.round(Tecema))+" kgf"},
-        {k:"Potência efetiva Ne (CEMA)",v:Necema.toFixed(2)+" HP  ·  "+Necemakw.toFixed(2)+" kW"},
-        {sec:"Tensões e seleção da correia"},
-        {k:"Fator de abraçamento (K)",v:K.toFixed(2).replace(".",",")},
-        {k:"Tensão máxima T1 = (1+K)·Te",v:fmt(Math.round(T1))+" kgf  ("+fmt(Math.round(T1*9.81))+" N)",hi:true},
-        {k:"Tensão mínima T2 = K·Te",v:fmt(Math.round(T2))+" kgf"},
-        {k:"Tração de trabalho por largura",v:trN.toFixed(1).replace(".",",")+" N/mm"},
-        {k:"Resistência de carcaça requerida (FS "+FS+")",v:Math.round(carcReq)+" N/mm"},
-        {k:"Classe de correia recomendada",v:"EP "+EPsel+" N/mm  ·  serviço "+servico,hi:true},
-        {sec:"Potência de acionamento"},
-        {k:"Potência final majorada (+20%)",v:Pmaj.toFixed(2)+" kW",hi:true},
-        {sec:"Acionamento SEW recomendado (sobre a potência majorada)"},
-        {k:"Rotação do tambor de acionamento",v:npul.toFixed(1).replace(".",",")+" rpm"},
-        {k:"Momento no eixo do redutor  T = 9550·P/n",v:fmt(Math.round(sew.T))+" N·m"},
-        {k:"Fator de serviço adotado (fB)",v:"1,4"},
-        {k:"Torque de seleção (T · fB)",v:fmt(Math.round(sew.Tsel))+" N·m"},
-        {k:"Relação de redução  i = n_motor / n_tambor",v:"≈ "+sew.i.toFixed(1)+" : 1"},
-        {k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true},
-        {k:"Redutor SEW",v:sew.foraR?("acima da série R ("+fmt(sew.red.t)+" N·m) → industrial série "+sew.ind.serie+"  ·  faixa "+sew.ind.faixa):(sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)"),hi:true},
-        {k:"Motoredutor SEW recomendado",v:sewDrive(sew,Pmaj),hi:true}
-      ];
-      return rows;
+      var TeC=L*(Kx+Ky*(Wm+Wb)+0.015*Wb)+H*Wm+Fg;
+      var NeC=TeC*v/75;
+      var regenC=(H<0)&&(Math.abs(H)*Wm >= (L/2)*(Kx+Ky*(Wm+Wb)+0.015*Wb));
+
+      /* ========= ETAPA 10 — esticador (Tab. 1-33) e fator K (Tab. 1-28/1-29) ========= */
+      var T33={16:36,20:35,24:30,30:27,36:25,42:25,48:25,54:25,60:25,72:25,84:25};
+      var estAuto=(L>=(T33[B]||25))?"grav":"paraf";
+      var estic=(estSel==="auto")?estAuto:estSel;
+      var mu=(superf==="borr")?0.35:0.25;
+      var KT={grav:{180:0.84,200:0.72,210:0.66,220:0.62,240:0.54,380:0.23,420:0.18},
+              paraf:{180:1.20,200:1.00,210:1.00,220:0.90,240:0.80}};
+      var KTb={grav:{180:0.50,200:0.42,210:0.38,220:0.35,240:0.30,380:0.11,420:0.08},
+               paraf:{180:0.80,200:0.70,210:0.70,220:0.60,240:0.60}};
+      var Ktab=(superf==="borr")?KTb[estic][arco]:KT[estic][arco];
+      var Kform=1/(Math.exp(0.0174*arco*mu)-1);
+      var K=(Ktab!==undefined)?Ktab:Kform;
+      var Kfonte=(Ktab!==undefined)?"Tab. 1-28":"fórmula K = 1/(e^0,0174·θ·μ − 1)";
+
+      /* ========= ETAPA 11 — tensões (págs. 1.49 e 1.50) ========= */
+      var Frr=0.015*L*Wb;                                  /* atrito nos roletes de retorno */
+      var Hb=Math.abs(H)*Wb;
+      var T1,T2,T3,caso,fA1,fB1;
+      if(pos==="cabeca"){
+        caso="1 — horizontal ou em aclive, acionamento no tambor da cabeça";
+        fA1=(1+K)*Te; fB1=Te+T0+Hb-Frr; T1=Math.max(fA1,fB1);
+        T2=Math.max(K*Te, T0+Hb-Frr);
+        T3=Math.max(K*Te+Frr-Hb, T0);
+      } else if(H>=0){
+        caso="2 — horizontal ou em aclive, acionamento no tambor de retorno";
+        fA1=(1+K)*Te; fB1=Te+T0; T1=Math.max(fA1,fB1);
+        T2=Math.max(K*Te, T0);
+        T3=Math.max((1+K)*Te+Hb-Frr, Te+T0+Hb+Frr);
+      } else if(regen){
+        caso="3 — em declive, regenerativo, acionamento no tambor de retorno";
+        fA1=(1+K)*Te; fB1=Te+T0+Hb+Frr; T1=Math.max(fA1,fB1);
+        T2=Math.max(K*Te, T0+Hb+Frr);
+        T3=Math.max(K*Te-Hb-Frr, T0);
+      } else {
+        caso="4 — em declive, não regenerativo, acionamento no tambor de retorno";
+        fA1=(1+K)*Te; fB1=T0+Hb+Frr; T1=Math.max(fA1,fB1);
+        T2=Math.max(K*Te, T0+Hb+Frr-Te);
+        T3=Math.max((1+K)*Te-Hb-Frr, T0);
+      }
+      var govT1=(fA1>=fB1)?"A":"B";
+
+      /* ========= ETAPA 12 — seleção da correia (pág. 1.53) ========= */
+      var nlSel=$("#btNl").value, nlAuto=null;
+      for(var nl=3;nl<=8;nl++){ if(Tu*B*nl>=T1){ nlAuto=nl; break; } }
+      var n1=(nlSel==="auto")?(nlAuto||8):parseInt(nlSel,10);
+      var Tad=Tu*B*n1;
+      var okTad=(Tad>=T1);
+      var trab=T1*g/Bmm;
+
+      /* ========= ETAPA 13 — contrapeso (pág. 1.67) ========= */
+      var Test=(posEst==="acion")?T2:T3;
+      var lamR=lambda*Math.PI/180;
+      var G=2*Test+Math.cos(lamR)*0.10*Pc-Pc*Math.sin(lamR);
+      /* curso — Tab. 2-55 a 2-57 (% do comprimento do transportador medido ao longo da correia) */
+      var EST={
+        gy_plylon:{grav:{vulc:[2.5,2.5],gramp:[2.0,1.5]}, paraf:{vulc:[4.0,3.0],gramp:[1.5,1.0]}},
+        gy_ep:    {grav:{vulc:[1.5,1.5],gramp:[1.0,1.0]}, paraf:{vulc:[4.0,3.0],gramp:[1.5,1.0]}},
+        gy_flex:  {grav:{vulc:[0.5,0.5],gramp:null},      paraf:{vulc:[4.0,3.0],gramp:[1.5,1.0]}},
+        gates_pen:{grav:{vulc:[1.5,1.3],gramp:[1.3,1.3]}, paraf:{vulc:[1.7,1.5],gramp:[1.5,1.5]}},
+        merc_nn:  {grav:{vulc:[3.0,2.5],gramp:[2.5,2.0]}, paraf:{vulc:[4.0,3.0],gramp:[2.0,1.5]}},
+        merc_pn:  {grav:{vulc:[2.0,1.5],gramp:[1.0,1.0]}, paraf:{vulc:[2.0,1.5],gramp:[1.5,1.0]}}};
+      var ce=EST[corr][estic][emenda];
+      var pctE=ce?ce[(tensOp==="100")?0:1]:null;
+      var Lc=Math.sqrt(L*L+H*H);
+      var Lcorreia=2*Lc;
+      var along=(pctE!==null)?pctE/100*Lcorreia:null;      /* alongamento total da correia */
+      var curso=(along!==null)?along/2:null;               /* deslocamento do tambor esticador */
+      var cursoTot=(curso!==null)?curso+0.30:null;         /* + 300 mm p/ emendas e montagem */
+
+      /* ========= ETAPA 14 — acionamento (pág. 1.68) ========= */
+      var Nmot=Math.abs(Ne)/eta;
+      var NmotKW=Nmot*0.7457;
+      var npul=v*60000/(Math.PI*Dt);
+      var sew=selSEW(NmotKW,npul);
+      var Btamb=B+((B<=42)?4:6);
+
+      /* ================= SAÍDA ================= */
+      var OUT=[];
+      OUT.geo={tipo:"belt",L:L,H:H,lam:lambda,Bpol:B,Bmm:Bmm,v:v,a:a,Lc:Lc,rolo:rolo.mm,serie:(serie?serie.s:"—"),
+               estic:estic,G:G,curso:cursoTot,Pc:Pc,T1:T1,T2:T2,T3:T3,T0:T0,Te:Te,pos:pos,cfg:cfg,beta:beta,
+               Wm:Wm,Wb:Wb,Fr:Fr,Ne:Ne,Nmot:NmotKW,Ncar:Math.ceil(Lc/a)+1,Nret:Math.ceil(Lc/3)+1,
+               mat:MAT.nome,lmax:MAT.lmax,lmaxOK:lmaxOK,Dt:Dt,Btamb:Btamb,n1:n1,Tad:Tad,okTad:okTad};
+
+      OUT.push({sec:"Etapa 1 — Material (Tab. 1-01 e 1-02)"});
+      OUT.push({k:"Material",v:MAT.nome+(MAT.fora?"  ⚠ não consta do Manual FAÇO":"  ·  pág. "+MAT.pag)});
+      OUT.push({k:"Código de classificação (Tab. 1-01)",v:MAT.cod});
+      OUT.push({k:"Peso específico adotado",v:vg(rho)+" t/m³"});
+      OUT.push({k:"Ângulo de repouso (Tab. 1-02)",v:MAT.rep+"°"});
+      OUT.push({k:"Tamanho máximo dos pedaços",v:fmt(Math.round(lump))+" mm  ("+vg(lumpPol,1)+"\")"});
+
+      OUT.push({sec:"Etapa 2 — Inclinação (Tab. 1-02, coluna λ)"});
+      OUT.push({k:"Inclinação do transportador  λ = atan(H/L)",v:vg(lambda,1)+"°"});
+      OUT.push({k:"Inclinação máxima recomendada para o material",v:MAT.lmax+"°"+(MAT.fora?"  (estimada)":"")});
+      OUT.push({k:"Verificação",v:lmaxOK?"APROVADO — λ dentro do limite do manual":"REPROVADO — λ = "+vg(lambda,1)+"° excede "+MAT.lmax+"°: o material escorrega. Reduzir H, aumentar L ou usar correia com nervuras/tarugos.",hi:true});
+
+      OUT.push({sec:"Etapa 3 — Velocidade e largura (Tab. 1-04, 1-05 e 1-06)"});
+      OUT.push({k:"Velocidade adotada  V",v:vg(v)+" m/s"});
+      OUT.push({k:"Velocidade máx. recomendada (Tab. 1-05)",v:(vrec?vg(vrec,1)+" m/s":"—")+(vrec&&v>vrec*1.001?"  ⚠ ACIMA do recomendado":"  ✓")});
+      OUT.push({k:"Capacidade volumétrica requerida a 1 m/s  C = Q/(V·ρ)",v:vg(Creq,1)+" m³/h"});
+      OUT.push({k:"Largura mínima pela capacidade (Tab. 1-04)",v:Bcap+"\""+(capInsuf?"  ⚠ acima da tabela":"")});
+      OUT.push({k:"Largura mínima pela granulometria (Tab. 1-06, "+gf+"× pedaço)",v:(lump>0?Bgran+"\"":"—")+(granInsuf?"  ⚠ acima da tabela":"")});
+      OUT.push({k:"Largura adotada  B",v:B+"\"  ("+fmt(Bmm)+" mm)"+(manualB?"  — escolha do usuário":"  — rege: "+((Bgran>Bcap)?"granulometria":"capacidade"))+((manualB&&B<Bauto)?"  ⚠ abaixo do mínimo "+Bauto+"\"":""),hi:true});
+      OUT.push({k:"Capacidade da largura adotada",v:fmt(Math.round(capB))+" m³/h a 1 m/s  ·  "+fmt(Math.round(Qmax))+" t/h"});
+      OUT.push({k:"Ocupação da capacidade",v:vg(100*Q/Qmax,0)+"%"+((Q>Qmax)?"  ⚠ acima da capacidade":"")});
+
+      OUT.push({sec:"Etapa 4 — Série de roletes (Tab. 1-07 a 1-14)"});
+      OUT.push({k:"Fator A — tipo de serviço (Tab. 1-07)",v:String(fatA)});
+      OUT.push({k:"Fator B — característica do material (Tab. 1-08)",v:vg(fatB,0)+"   ["+vg(lumpPol,1)+"\" × "+vg(rho)+" t/m³]"});
+      OUT.push({k:"Fator de aplicação  C = A · B",v:fmt(Math.round(Capl))});
+      OUT.push({k:"Diâmetro dos rolos (Gráfico 1-02)",v:rolo.t,hi:true});
+      OUT.push({k:"Rotação dos rolos  n = 60·V/(π·D)",v:vg(nrpm,0)+" rpm"});
+      OUT.push({k:"Espaçamento dos roletes de carga  a (Tab. 1-15)",v:vg(a)+" m"});
+      OUT.push({k:"Espaçamento dos roletes de retorno (Tab. 1-15)",v:"3,00 m"});
+      OUT.push({k:"Comprimento da correia entre centros  √(L²+H²)",v:vg(Lc,1)+" m"});
+      OUT.push({k:"Estações de roletes de carga / retorno",v:fmt(Math.ceil(Lc/a)+1)+"  /  "+fmt(Math.ceil(Lc/3)+1)});
+
+      OUT.push({sec:"Etapa 5 — Pesos e tensão mínima (pág. 1.47, Tab. 1-16 e 1-27)"});
+      OUT.push({k:"Peso do material  Wm = 0,277·Q/V",v:vg(Wm,1)+" kgf/m"});
+      OUT.push({k:"Peso da correia  Wb (Tab. 1-27, tipo lona)",v:vg(Wb,1)+" kgf/m"});
+      OUT.push({k:"Flecha admissível (Tab. 1-16, β = "+beta+"°)",v:vg(pctF,1)+"%"});
+      OUT.push({k:"Tensão mínima  T₀ = "+vg(coefT0)+"·(Wm+Wb)·a",v:fmt(Math.round(T0))+" kgf",hi:true});
+      OUT.push({k:"Flecha resultante  f = (Wm+Wb)·a²/(8·T₀)",v:vg(flecha*1000,0)+" mm  ("+vg(100*flecha/a,2)+"% de a)"});
+
+      OUT.push({sec:"Etapa 6 — Verificação dos roletes (págs. 1.20 a 1.22)"});
+      OUT.push({k:"Fator j (Tab. 1-09, β = "+beta+"°)",v:vg(jf)});
+      OUT.push({k:"Peso de 1 rolo  Wr (Tab. 1-10)",v:vg(Wr,1)+" kgf"});
+      OUT.push({k:"Força radial  Fr = [j/2+(1−j)/2·sen²β]·Wm·a + Wb·a/6 + Wr/2",v:fmt(Math.round(Fr))+" kgf",hi:true});
+      OUT.push({k:"Rotação para a Tab. 1-13",v:vg(nrpm,0)+" rpm  ·  vida "+fmt(vida)+" h  ·  "+((tipoRol==="esf")?"esferas":"cônicos")});
+      OUT.push({k:"Fator de segurança do rolamento  Sr (Tab. 1-13)",v:vg(Sr)});
+      OUT.push({k:"Carga dinâmica  Cd = Fr · Sr",v:fmt(Math.round(Cd))+" kgf"});
+      if(redT>0) OUT.push({k:"Correção por temperatura (Tab. 1-11, "+tempSel+" °C)",v:"reduz "+vg(redT*100,0)+"% → Cd requerido "+fmt(Math.round(Cdreq))+" kgf"});
+      if(serie){
+        OUT.push({k:"Série de roletes selecionada (Tab. 1-12 e 1-14)",v:serie.s+"  ·  rolamento "+serie.rl,hi:true});
+        OUT.push({k:"Cd máximo da série  ×  requerido",v:fmt(serie.cd)+" ≥ "+fmt(Math.round(Cdreq))+" kgf   ✓"});
+        OUT.push({k:"Carga máxima no eixo (δ = 800 kgf/cm²)  ×  Fr",v:fmt(serie.ex)+" ≥ "+fmt(Math.round(Fr))+" kgf   ✓"});
+      } else if(serieAlt){
+        OUT.push({k:"Série de roletes",v:"⚠ nenhuma série da faixa de largura "+B+"\" atende. Mais próxima: "+serieAlt.s+" (rolamento "+serieAlt.rl+", Cd "+fmt(serieAlt.cd)+" kgf) — fora da faixa de largura ou do tipo de rolamento escolhido.",hi:true});
+      } else {
+        OUT.push({k:"Série de roletes",v:"⚠ Cd requerido ("+fmt(Math.round(Cdreq))+" kgf) acima de toda a Tab. 1-12 — reduzir o espaçamento a, a densidade ou consultar a FAÇO (série ESPECIAL).",hi:true});
+      }
+
+      OUT.push({sec:"Etapa 7 — Potência: Método Prático (Tab. 1-17 a 1-20)"});
+      if(foraFaixa) OUT.push({k:"⚠ Faixa de validade",v:"O Método Prático aplica-se a transportadores simples de até 100 m e pequena capacidade (pág. 1.26); as Tab. 1-17 a 1-20 vão até L = 110 m e B = 48\". "+((L>100)?"L = "+vg(L,0)+" m. ":"")+((B>48)?"B = "+B+"\" (Nv extrapolado pela razão B/48). ":"")+"Adotar o resultado do Método CEMA."});
+      OUT.push({k:"Nv — acionar a correia vazia a 1 m/s (Tab. 1-17)",v:vg(Nv)+" HP"});
+      OUT.push({k:"N₁ — deslocar 100 t/h na horizontal em L (Tab. 1-18)",v:vg(N1)+" HP"});
+      OUT.push({k:(H<0?"Nh — descer":"Nh — elevar")+" 100 t/h em H (Tab. 1-19)",v:vg(Nh)+" HP"+((H<0)?"  (subtraído)":"")});
+      OUT.push({k:"Ng — atrito das guias laterais (Tab. 1-20)",v:vg(Ng)+" HP"});
+      OUT.push({k:"Potência efetiva  Ne = V·(Nv+Ng) + (Q/100)·(N₁ ± Nh)",v:vg(Ne)+" HP  ·  "+vg(Ne*0.7457)+" kW",hi:true});
+      OUT.push({k:"Tensão efetiva  Te = 75·Ne/V",v:fmt(Math.round(Te))+" kgf  ("+fmt(Math.round(Te*g))+" N)",hi:true});
+      OUT.push({k:"Critério de regeneração (pág. 1.49-b)",v:"(Q/100)·Nh = "+vg((Q/100)*Nh)+"  ×  ½[(Q/100)·N₁ + V·(Nv+Ng)] = "+vg(0.5*((Q/100)*N1+v*(Nv+Ng)))+"   —   o manual imprime \"Ne\" dentro do colchete; por analogia com o critério (a) do CEMA, que reúne apenas as parcelas horizontal e de vazio, adota-se N₁."});
+      OUT.push({k:"Regime",v:regen?"REGENERATIVO — (Q/100)·Nh ≥ ½[(Q/100)·N₁ + V·(Nv+Ng)] (pág. 1.49-b): exigir freio e contra-recuo, e prever motor operando como gerador.":"Consumidor de potência"});
+
+      OUT.push({sec:"Etapa 8 — Verificação pelo Método CEMA"});
+      OUT.push({k:"Te = L·[Kx + Ky·(Wm+Wb) + 0,015·Wb] + H·Wm + Fg",v:fmt(Math.round(TeC))+" kgf"});
+      OUT.push({k:"Potência efetiva (CEMA)",v:vg(NeC)+" HP  ·  "+vg(NeC*0.7457)+" kW"});
+      OUT.push({k:"Divergência entre os métodos",v:vg(100*(NeC-Ne)/Math.abs(Ne||1),0)+"%"+((Math.abs(NeC-Ne)/Math.abs(Ne||1)>0.25)?"  ⚠ acima de 25% — revisar Kx e Ky":"")});
+      if(regenC!==regen) OUT.push({k:"⚠ Critério de regeneração",v:"os dois métodos divergem: prático = "+(regen?"regenerativo":"consumidor")+", CEMA = "+(regenC?"regenerativo":"consumidor")+". Adotar a hipótese conservadora."});
+
+      OUT.push({sec:"Etapa 9 — Esticador e fator de abraçamento (Tab. 1-28, 1-29 e 1-33)"});
+      OUT.push({k:"Tipo de esticador (Tab. 1-33: B = "+B+"\", L = "+vg(L,0)+" m)",v:((estic==="grav")?"POR GRAVIDADE (contrapeso)":"POR PARAFUSO")+((estSel==="auto")?"  — pela tabela":"  — escolha do usuário; a tabela indica "+((estAuto==="grav")?"gravidade":"parafuso")),hi:true});
+      OUT.push({k:"Coeficiente de atrito  μ (Tab. 1-29)",v:vg(mu)+"  ·  tambor "+((superf==="borr")?"revestido com borracha":"de aço")});
+      OUT.push({k:"Fator de abraçamento  K  (θ = "+arco+"°)",v:vg(K)+"   ["+Kfonte+"]",hi:true});
+
+      OUT.push({sec:"Etapa 10 — Tensões na correia (págs. 1.49 e 1.50)"});
+      OUT.push({k:"Caso adotado",v:"Caso "+caso});
+      OUT.push({k:"Atrito nos roletes de retorno  Fr = 0,015·L·Wb",v:fmt(Math.round(Frr))+" kgf"});
+      OUT.push({k:"Fórmula A — (1+K)·Te",v:fmt(Math.round(fA1))+" kgf"});
+      OUT.push({k:"Fórmula B — garantia de flecha mínima",v:fmt(Math.round(fB1))+" kgf"});
+      OUT.push({k:"T1 — tensão máxima no tambor de acionamento",v:fmt(Math.round(T1))+" kgf  ("+fmt(Math.round(T1*g))+" N)  — rege a fórmula "+govT1,hi:true});
+      OUT.push({k:"T2 — tensão mínima no tambor de acionamento",v:fmt(Math.round(T2))+" kgf"});
+      OUT.push({k:"T3 — tensão no tambor de retorno",v:fmt(Math.round(T3))+" kgf"});
+
+      OUT.push({sec:"Etapa 11 — Seleção da correia (pág. 1.53)"});
+      OUT.push({k:"Tensão unitária admissível  Tu",v:vg(Tu,0)+" kgf/pol·lona"});
+      OUT.push({k:"Número de lonas  n₁",v:String(n1)+((nlSel==="auto")?"  — mínimo que atende":"  — escolha do usuário")});
+      OUT.push({k:"Tensão admissível  Tad = Tu · B · n₁",v:fmt(Math.round(Tad))+" kgf",hi:true});
+      OUT.push({k:"Verificação  Tad ≥ T1",v:okTad?("APROVADO — folga "+vg(100*(Tad/T1-1),0)+"%"):("REPROVADO — faltam "+fmt(Math.round(T1-Tad))+" kgf: aumentar n₁, Tu ou a largura"),hi:true});
+      OUT.push({k:"Tração de trabalho por unidade de largura",v:vg(trab,1)+" N/mm"});
+
+      OUT.push({sec:"Etapa 12 — Esticamento e contrapeso (págs. 1.66-1.67, Tab. 2-55 a 2-57)"});
+      OUT.push({k:"Tensão no ponto do esticador  T",v:fmt(Math.round(Test))+" kgf  ("+((posEst==="acion")?"T2 — junto ao acionamento":"T3 — tambor traseiro")+")"});
+      OUT.push({k:"Peso do tambor esticador + carrinho  Pc",v:fmt(Math.round(Pc))+" kgf"});
+      OUT.push({k:((estic==="grav")?"Contrapeso":"Força a aplicar no parafuso")+"  G = 2·T + cos λ·0,10·Pc − Pc·sen λ",v:fmt(Math.round(G))+" kgf  ("+vg(G/1000,2)+" t)",hi:true});
+      if(pctE!==null){
+        OUT.push({k:"Esticamento da correia (Tab. 2-55/2-56/2-57)",v:vg(pctE,2)+"% do comprimento medido ao longo da correia  ·  emenda "+((emenda==="vulc")?"vulcanizada":"com grampos")+" a "+tensOp+"% da tensão admissível"});
+        OUT.push({k:"Comprimento total da correia  2·√(L²+H²)",v:vg(Lcorreia,1)+" m"});
+        OUT.push({k:"Alongamento total a absorver",v:vg(along,2)+" m"});
+        OUT.push({k:"Curso do tambor esticador  (alongamento / 2)",v:vg(curso,2)+" m",hi:true});
+        OUT.push({k:"Curso a prever em projeto  (+300 mm p/ emendas e montagem)",v:vg(cursoTot,2)+" m",hi:true});
+      } else {
+        OUT.push({k:"Esticamento da correia",v:"⚠ a Tab. 2-55 não prevê emenda com grampos para correia Flexsteel — usar emenda vulcanizada."});
+      }
+      if(estic==="grav") OUT.push({k:"Posição recomendada (pág. 1.66)",v:"no ramo frouxo, nas proximidades do tambor de acionamento ou no próprio tambor traseiro"});
+      else OUT.push({k:"Posição (pág. 1.66)",v:"o esticador por parafuso é usado exclusivamente no tambor traseiro"});
+
+      OUT.push({sec:"Etapa 13 — Conjunto de acionamento (pág. 1.68, Tab. 1-34)"});
+      OUT.push({k:"Rendimento total da transmissão  ηt",v:vg(eta)});
+      OUT.push({k:"Potência do motor  Nmotor = Ne/ηt",v:vg(Nmot)+" HP  ·  "+vg(NmotKW)+" kW",hi:true});
+      OUT.push({k:"Diâmetro do tambor de acionamento",v:fmt(Math.round(Dt))+" mm"});
+      OUT.push({k:"Rotação do tambor",v:vg(npul,1)+" rpm"});
+      OUT.push({k:"Momento no eixo do redutor  T = 9550·P/n",v:fmt(Math.round(sew.T))+" N·m"});
+      OUT.push({k:"Torque de seleção (fB = 1,4)",v:fmt(Math.round(sew.Tsel))+" N·m"});
+      OUT.push({k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true});
+      OUT.push({k:"Redutor SEW",v:sew.foraR?("acima da série R ("+fmt(sew.red.t)+" N·m) → industrial série "+sew.ind.serie+"  ·  faixa "+sew.ind.faixa):(sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)"),hi:true});
+      OUT.push({k:"Motoredutor SEW recomendado",v:sewDrive(sew,NmotKW),hi:true});
+      if(Nmot>75) OUT.push({k:"Partida (pág. 1.68)",v:"acima de 75 HP o manual recomenda acoplamento hidráulico entre motor e redutor para facilitar a partida"});
+      if(regen||regenC) OUT.push({k:"Contra-recuo / freio",v:"transportador regenerativo — prever freio e contra-recuo no conjunto de acionamento (pág. 1.70)"});
+      else if(H>0) OUT.push({k:"Contra-recuo",v:"aclive com carga — prever contra-recuo para impedir o retorno da correia na falta de energia"});
+
+      OUT.push({sec:"Etapa 14 — Tambores (pág. 1.57)"});
+      OUT.push({k:"Comprimento do tambor  B + "+((B<=42)?"4\"":"6\""),v:Btamb+"\"  ("+fmt(Math.round(Btamb*25.4))+" mm)"});
+      OUT.push({k:"Diâmetro mínimo",v:"função da classe da correia e da tensão — ver tabelas do capítulo 2 do manual"});
+      return OUT;
     }
   },
   flexowell:{
@@ -3095,6 +3497,20 @@ const CALCS={
       {id:"phif",label:"Fator de enchimento dos bolsões",tipo:"number",valor:0.80,step:"0.05"},
       {id:"fxPasso",label:"Passo das travessas (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"25"},
       {id:"fxQb",label:"Massa da correia (0 = estimar por composição)",unidade:"kg/m",tipo:"number",valor:0,step:"1"},
+      {tipo:"head",label:"Critérios de cálculo"},
+      {id:"fxF",label:"Coeficiente de atrito fictício  f  (ISO 5048)",tipo:"select",valor:"0.022",opcoes:[
+        {v:"0.020",t:"0,020 — instalação nova, bem alinhada"},
+        {v:"0.022",t:"0,022 — condição normal"},
+        {v:"0.024",t:"0,024 — condição desfavorável"},
+        {v:"0.030",t:"0,030 — muito desfavorável (pó, desalinhamento)"}]},
+      {id:"fxEta",label:"Rendimento do acionamento  η",tipo:"select",valor:"0.85",opcoes:[
+        {v:"0.90",t:"0,90 — redutor de engrenagens direto"},
+        {v:"0.85",t:"0,85 — usual (redutor + acoplamentos)"},
+        {v:"0.80",t:"0,80 — com transmissão por correias"}]},
+      {id:"fxSag",label:"Flecha relativa admitida entre roletes",tipo:"select",valor:"0.015",opcoes:[
+        {v:"0.010",t:"1,0 % — material fino, rigoroso"},
+        {v:"0.015",t:"1,5 % — usual"},
+        {v:"0.020",t:"2,0 % — tolerante"}]},
       {tipo:"head",label:"Acionamento"},
       {id:"Dtf",label:"Diâmetro do tambor de acionamento (0 = adotar o mínimo)",unidade:"mm",tipo:"number",valor:0,step:"50"},
       {id:"Kf",label:"Fator de abraçamento K (Tab 1-28)",tipo:"select",valor:"0.38",opcoes:[
@@ -7093,6 +7509,166 @@ function gerarRelatorio(){
         "diametro minimo de tambor sao especificos da parede ondulada e devem ser confirmados na folha de dados do fabricante — nao seguem "+
         "as regras da correia lisa. Cargas nos apoios sao estimativas para lancamento da estrutura."),182),14,
         Math.min(doc.lastAutoTable.finalY+5,282));
+    } else if(G.tipo==="belt"){
+      /* ================= CROQUI DO TRANSPORTADOR DE CORREIA (FAÇO) =================
+         Elevação com tambores, esticador e cotas + vista da seção transversal com os
+         roletes. Área útil: x de 15 a 195 mm. Todo rótulo passa por bt()/btc().        */
+      var BXL=15, BXR=195;
+      function bfl(x,w){ return Math.max(BXL,Math.min(BXR-w,x)); }
+      function bfc(x,w){ var h=w/2; return Math.max(BXL+h,Math.min(BXR-h,x)); }
+      function btx(x,y,t,r,g2,b2,fs,al){ var f=fs||6.4; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w=doc.getTextWidth(san(t));
+        if(al==="center") doc.text(san(t),bfc(x,w),y,{align:"center"});
+        else if(al==="right") doc.text(san(t),Math.max(BXL+w,Math.min(BXR,x)),y,{align:"right"});
+        else doc.text(san(t),bfl(x,w),y); }
+      function bcotaH(x1,x2,y,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.4,x1,y+1.4); doc.line(x2,y-1.4,x2,y+1.4);
+        btx((x1+x2)/2,y-1.3,t,30,120,150,6.3,"center"); }
+      function bcotaV(x,y1,y2,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x,y1,x,y2); doc.line(x-1.4,y1,x+1.4,y1); doc.line(x-1.4,y2,x+1.4,y2);
+        btx(x-2,(y1+y2)/2+1,t,30,120,150,6.3,"right"); }
+
+      /* ---- escala: a elevação ocupa x de 26 a 150, y de 40 a 96 ---- */
+      var ax0=26, ax1=150, ay=96;                 /* base (cauda) */
+      var subida=(G.H>=0);
+      var dx=ax1-ax0;
+      var dyMax=52, dyv=Math.min(dyMax, dx*Math.abs(G.H)/Math.max(G.L,0.001));
+      var yA=ay, yB=ay-dyv;                       /* cauda -> cabeça (aclive) */
+      if(!subida){ yA=ay-dyv; yB=ay; }
+      var rT=5.2, rE=4.0, rR=4.6;
+
+      /* ---- correia: ramo de carga e ramo de retorno ---- */
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.15);
+      doc.line(ax0,yA,ax1,yB);                                        /* ramo de carga  */
+      var off=2*rT;
+      doc.setLineWidth(0.9);
+      doc.line(ax0,yA+off,ax1,yB+off);                                /* ramo de retorno */
+      /* tambores: cauda (esquerda) e cabeça (direita) */
+      doc.setLineWidth(0.9); doc.setFillColor(255,255,255);
+      doc.circle(ax0,yA+rT,rR,"FD");
+      doc.circle(ax1,yB+rT,rT,"FD");
+      /* marca do acionamento */
+      var xac=(G.pos==="cabeca")?ax1:ax0, yac=(G.pos==="cabeca")?(yB+rT):(yA+rT), rac=(G.pos==="cabeca")?rT:rR;
+      doc.setFillColor(30,155,196); doc.setDrawColor(20,60,90); doc.setLineWidth(0.5);
+      doc.circle(xac,yac,rac*0.55,"FD");
+      btx(xac,yac+rac+5.5,"ACIONAMENTO",30,120,150,6.2,"center");
+      btx((G.pos==="cabeca")?ax0:ax1,((G.pos==="cabeca")?(yA+rT):(yB+rT))+((G.pos==="cabeca")?rR:rT)+5.5,
+          "tambor de retorno",110,130,150,6.2,"center");
+
+      /* ---- leito de material sobre o ramo de carga ---- */
+      var hMat=3.4;
+      doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+      var mx0=ax0+9, mx1=ax1-7;
+      var mya=yA+(yB-yA)*(mx0-ax0)/dx, myb=yA+(yB-yA)*(mx1-ax0)/dx;
+      doc.triangle(mx0,mya,mx1,myb,mx1,myb-hMat,"FD");
+      doc.triangle(mx0,mya,mx0,mya-hMat,mx1,myb-hMat,"FD");
+      /* seta do sentido de transporte */
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.6);
+      var sx=(ax0+ax1)/2, sy=(yA+yB)/2-7;
+      doc.line(sx-11,sy,sx+11,sy); doc.line(sx+11,sy,sx+7.5,sy-1.8); doc.line(sx+11,sy,sx+7.5,sy+1.8);
+
+      /* ---- roletes de carga e de retorno (representativos) ---- */
+      doc.setDrawColor(120,140,160); doc.setLineWidth(0.35);
+      var nRep=Math.max(4,Math.min(14,Math.round(dx/10)));
+      for(var ri=1;ri<nRep;ri++){
+        var xr=ax0+ri*dx/nRep, yr=yA+(yB-yA)*(xr-ax0)/dx;
+        doc.circle(xr,yr+2.0,1.7);
+        if(ri%3===0) doc.circle(xr,yr+off+2.0,1.5);
+      }
+
+      /* ---- esticador ---- */
+      var xe, ye;
+      if(G.estic==="grav"){
+        xe=ax0+dx*0.20; ye=(yA+(yB-yA)*(xe-ax0)/dx)+off;
+        doc.setDrawColor(20,40,60); doc.setLineWidth(0.8);
+        doc.circle(xe,ye+7,3.1);
+        doc.line(xe-3.1,ye,xe-3.1,ye+7); doc.line(xe+3.1,ye,xe+3.1,ye+7);
+        doc.setLineWidth(0.5); doc.line(xe,ye+10.1,xe,ye+16);
+        doc.setFillColor(60,80,105); doc.rect(xe-3.6,ye+16,7.2,5.2,"F");
+        btx(xe,ye+26,"contrapeso "+san(fmt(Math.round(G.G)))+" kgf",30,120,150,6.2,"center");
+        btx(xe,ye+29.5,(G.curso!=null)?("curso "+san(G.curso.toFixed(2))+" m"):"curso: ver Tab. 2-55",110,130,150,6.0,"center");
+      } else {
+        xe=ax0; ye=yA+rT;
+        doc.setDrawColor(20,40,60); doc.setLineWidth(0.6);
+        doc.line(ax0-9,ye,ax0-rR-0.6,ye);
+        doc.line(ax0-9,ye-2.2,ax0-9,ye+2.2);
+        btx(ax0-2,ye+13,"esticador por parafuso",110,130,150,6.2,"center");
+        btx(ax0-2,ye+16.5,"F = "+san(fmt(Math.round(G.G)))+" kgf",30,120,150,6.2,"center");
+      }
+
+      /* ---- cotas ---- */
+      bcotaH(ax0,ax1,Math.max(yA,yB)+off+34,"L = "+san(G.L.toFixed(1))+" m  (projecao horizontal)");
+      if(Math.abs(G.H)>0.01){
+        bcotaV(ax1+6,yB+rT,yA+rT,"H = "+san(Math.abs(G.H).toFixed(1))+" m");
+        btx(ax1-14,(yA+yB)/2-11,"lambda = "+san(G.lam.toFixed(1))+" deg  (max "+san(String(G.lmax))+" deg)",
+            G.lmaxOK?30:200,G.lmaxOK?120:60,G.lmaxOK?150:60,6.2,"center");
+      }
+      btx(sx,sy-3.5,"v = "+san(G.v.toFixed(2))+" m/s",30,120,150,6.2,"center");
+      btx(ax0,36,"Le = "+san(G.Lc.toFixed(1))+" m  ·  "+san(String(G.Ncar))+" estacoes de carga  ·  "+
+                 san(String(G.Nret))+" roletes de retorno",110,130,150,6.2);
+      btx(ax0,39.4,"espacamento a = "+san(G.a.toFixed(2))+" m  ·  retorno 3,00 m  ·  rolos "+
+                 san(String(G.rolo))+" mm  ·  serie "+san(G.serie),110,130,150,6.2);
+
+      /* ---- tensões junto aos tambores ---- */
+      btx(ax1+2,yB-2,"T1 = "+san(fmt(Math.round(G.T1)))+" kgf",30,120,150,6.2,"left");
+      btx(ax1+2,yB+off+4,"T2 = "+san(fmt(Math.round(G.T2)))+" kgf",30,120,150,6.2,"left");
+      btx(ax0-1,yA+off+9,"T3 = "+san(fmt(Math.round(G.T3)))+" kgf",30,120,150,6.2,"left");
+
+      /* ================= VISTA DA SEÇÃO TRANSVERSAL — faixa 158 a 192 ================= */
+      var cx=176, cy=72, semi=13;
+      doc.setDrawColor(20,40,60); doc.setLineWidth(1.0);
+      if(G.beta>0){
+        var brad=G.beta*Math.PI/180;
+        var w3=(G.cfg==="2x35")?semi:semi*0.62;         /* metade do rolo central */
+        var lat=semi-w3;
+        var xl=cx-w3, xr2=cx+w3;
+        var yl=cy-lat*Math.sin(brad), xll=xl-lat*Math.cos(brad);
+        var yr2=cy-lat*Math.sin(brad), xrr=xr2+lat*Math.cos(brad);
+        if(G.cfg!=="2x35") doc.line(xl,cy,xr2,cy);
+        doc.line(xl,cy,xll,yl); doc.line(xr2,cy,xrr,yr2);
+        /* material */
+        doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+        doc.triangle(xll,yl,xrr,yr2,cx,cy-lat*Math.sin(brad)-7,"FD");
+        if(G.cfg!=="2x35") doc.triangle(xl,cy-0.2,xr2,cy-0.2,cx,cy-lat*Math.sin(brad)-7,"FD");
+        doc.triangle(xll,yl,xl,cy-0.2,cx,cy-lat*Math.sin(brad)-7,"FD");
+        doc.triangle(xrr,yr2,xr2,cy-0.2,cx,cy-lat*Math.sin(brad)-7,"FD");
+        btx(cx,cy+7,"beta = "+san(String(G.beta))+" deg",110,130,150,6.2,"center");
+      } else {
+        doc.line(cx-semi,cy,cx+semi,cy);
+        doc.setFillColor(217,169,74); doc.setDrawColor(180,140,60); doc.setLineWidth(0.3);
+        doc.triangle(cx-semi*0.8,cy,cx+semi*0.8,cy,cx,cy-6,"FD");
+        btx(cx,cy+7,"roletes planos",110,130,150,6.2,"center");
+      }
+      doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+      doc.line(cx-semi,cy+12,cx+semi,cy+12);
+      doc.line(cx-semi,cy+10.6,cx-semi,cy+13.4); doc.line(cx+semi,cy+10.6,cx+semi,cy+13.4);
+      btx(cx,cy+17,"B = "+san(String(G.Bmm))+" mm  ("+san(String(G.Bpol))+"\")",30,120,150,6.4,"center");
+      btx(cx,cy+21,"Fr = "+san(fmt(Math.round(G.Fr)))+" kgf/rolete",110,130,150,6.2,"center");
+      btx(cx,44,"SECAO TRANSVERSAL",110,130,150,6.4,"center");
+
+      /* ---- quadro-resumo ---- */
+      doc.autoTable({startY:Math.max(yA,yB)+off+44,theme:"grid",margin:{left:14,right:14},
+        head:[[san("Resumo executivo"),san("Valor")]],
+        headStyles:{fillColor:[22,38,60],textColor:255,fontSize:9},
+        bodyStyles:{fontSize:8},alternateRowStyles:{fillColor:[244,247,250]},
+        columnStyles:{0:{cellWidth:104},1:{cellWidth:78,halign:"right",fontStyle:"bold"}},
+        body:[
+          [san("Material"),san(G.mat)],
+          [san("Largura x velocidade"),san(String(G.Bmm))+" mm  x  "+san(G.v.toFixed(2))+" m/s"],
+          [san("Serie de roletes / diametro do rolo"),san(G.serie)+"  /  "+san(String(G.rolo))+" mm"],
+          [san("Espacamento carga / retorno"),san(G.a.toFixed(2))+" / 3,00 m"],
+          [san("Potencia efetiva Ne / motor"),san(G.Ne.toFixed(2))+" HP  /  "+san(G.Nmot.toFixed(1))+" kW"],
+          [san("Tensoes T1 / T2 / T3"),san(fmt(Math.round(G.T1)))+" / "+san(fmt(Math.round(G.T2)))+" / "+san(fmt(Math.round(G.T3)))+" kgf"],
+          [san("Correia: lonas x Tad"),san(String(G.n1))+" lonas  ·  Tad "+san(fmt(Math.round(G.Tad)))+" kgf "+(G.okTad?"(OK)":"(REPROVADO)")],
+          [san("Esticador"),(G.estic==="grav")?san("gravidade · contrapeso "+fmt(Math.round(G.G))+" kgf"+((G.curso!=null)?(" · curso "+G.curso.toFixed(2)+" m"):""))
+                                              :san("parafuso · forca "+fmt(Math.round(G.G))+" kgf")],
+          [san("Comprimento do tambor"),san(String(G.Btamb))+"\"  ("+san(fmt(Math.round(G.Btamb*25.4)))+" mm)"],
+          [san("Inclinacao lambda / maxima"),san(G.lam.toFixed(1))+" deg / "+san(String(G.lmax))+" deg "+(G.lmaxOK?"(OK)":"(REPROVADO)")]
+        ]});
+      doc.setFontSize(7); doc.setTextColor(120,140,160);
+      doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
+        "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
+        "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,doc.lastAutoTable.finalY+6);
     } else if(G.tipo==="flare"){
       /* ============ CROQUI DO FLARE ============
          Elevação com torre, chama inclinada e isopletas de radiação no solo; ao lado, o
