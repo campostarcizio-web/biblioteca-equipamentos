@@ -2937,7 +2937,7 @@ const CALCS={
     referencia:"Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34, 2-55 a 2-57 · verificação cruzada CEMA",
     campos:[
       {tipo:"head",label:"Etapa 1 — Material (Tab. 1-01 e 1-02)"},
-      {id:"btMat",label:"Material transportado",tipo:"select",valor:"fe_britado",onchange:"btPreset()",opcoes:[
+      {id:"btMat",label:"Material transportado",tipo:"select",valor:"briq_bar",onchange:"btPreset()",opcoes:[
         {v:"fe_britado",t:"Ferro, minério de (britado) — 1.07"},
         {v:"fe_minerio",t:"Ferro, minério de — 1.07"},
         {v:"mn_minerio",t:"Manganês, minério de — 1.09"},
@@ -2967,8 +2967,8 @@ const CALCS={
         {v:"sinter_feed",t:"Sinter feed / pellet feed  ⚠ fora do manual"},
         {v:"briq_bar",t:"Briquete BAR  ⚠ fora do manual"},
         {v:"briq_bricao",t:"Briquete Bricão  ⚠ fora do manual"}]},
-      {id:"btRho",label:"Peso específico (ajustável)",unidade:"t/m³",tipo:"number",valor:2.30,step:"0.01"},
-      {id:"btLump",label:"Tamanho máximo dos pedaços",unidade:"mm",tipo:"number",valor:100},
+      {id:"btRho",label:"Peso específico (ajustável)",unidade:"t/m³",tipo:"number",valor:1.70,step:"0.01"},
+      {id:"btLump",label:"Tamanho máximo dos pedaços",unidade:"mm",tipo:"number",valor:57},
       {id:"btGran",label:"Granulometria — largura mínima (Tab. 1-06)",tipo:"select",valor:"5",opcoes:[
         {v:"5",t:"100% pedaços de tamanho máximo, não classificado (B ≥ 5× pedaço)"},
         {v:"3",t:"90% pedaços / 10% finos, classificado (B ≥ 3× pedaço)"}]},
@@ -2978,9 +2978,9 @@ const CALCS={
         {v:"p100",t:"100% pedaços de tamanho máximo"}]},
 
       {tipo:"head",label:"Etapa 2 — Geometria e capacidade"},
-      {id:"btQ",label:"Capacidade de projeto  Q",unidade:"t/h",tipo:"number",valor:500},
-      {id:"btL",label:"Distância entre centros — projeção horizontal  L",unidade:"m",tipo:"number",valor:60},
-      {id:"btH",label:"Desnível  H  (− para descida, 0 = horizontal)",unidade:"m",tipo:"number",valor:8},
+      {id:"btQ",label:"Capacidade de projeto  Q",unidade:"t/h",tipo:"number",valor:150},
+      {id:"btL",label:"Distância entre centros — projeção horizontal  L",unidade:"m",tipo:"number",valor:40},
+      {id:"btH",label:"Desnível  H  (− para descida, 0 = horizontal)",unidade:"m",tipo:"number",valor:5},
       {id:"btLg",label:"Comprimento das guias laterais (0 = comprimento normal, desprezar)",unidade:"m",tipo:"number",valor:0},
 
       {tipo:"head",label:"Etapa 3 — Velocidade e largura (Tab. 1-04 e 1-05)"},
