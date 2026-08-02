@@ -3044,6 +3044,19 @@ const CALCS={
         {v:"borr",t:"Revestido com borracha  (μ = 0,35)"},
         {v:"aco",t:"Aço  (μ = 0,25)"}]},
       {id:"btDt",label:"Diâmetro do tambor de acionamento",unidade:"mm",tipo:"number",valor:630},
+      {id:"btBase",label:"Base para dimensionar motor e redutor",tipo:"select",valor:"q100",opcoes:[
+        {v:"q100",t:"Capacidade máxima 100% da seção (correia cheia) — recomendado"},
+        {v:"qproj",t:"Vazão de projeto Q informada na Etapa 2"}]},
+      {id:"btPartida",label:"Tipo de partida",tipo:"select",valor:"dol",opcoes:[
+        {v:"dol",t:"Direta (DOL) — motor de gaiola, torque de partida até 2,0× o nominal"},
+        {v:"soft",t:"Soft-starter — torque limitado a ~1,5× o nominal"},
+        {v:"hidr",t:"Acoplamento hidráulico — torque limitado a ~1,4× (pág. 1.68: acima de 75 HP)"},
+        {v:"vfd",t:"Inversor de frequência — rampa controlada, ~1,3×"}]},
+      {id:"btTpart",label:"Tempo de aceleração na partida",tipo:"select",valor:"5",opcoes:[
+        {v:"3",t:"3 s — transportador curto"},
+        {v:"5",t:"5 s — usual"},
+        {v:"8",t:"8 s — longo ou com inércia elevada"},
+        {v:"12",t:"12 s — partida suave prolongada"}]},
       {id:"btEta",label:"Rendimento total da transmissão  ηt (Tab. 1-34)",tipo:"select",valor:"0.94",opcoes:[
         {v:"0.95",t:"0,95 — redução simples, moto-redutor de engrenagens helicoidais"},
         {v:"0.94",t:"0,94 — redução dupla (usual) ou shaft-mounted"},
@@ -3290,13 +3303,41 @@ const CALCS={
       }
       var govT1=(fA1>=fB1)?"A":"B";
 
+      /* ===== Capacidade máxima 100% da seção (correia cheia) — base de dimensionamento ===== */
+      /* (a) área da seção pela geometria CEMA: borda livre e = 0,055·B + 22,9 mm  */
+      var eB=0.055*Bmm+22.9, bw=Math.max(Bmm-2*eB,1);
+      var aC,sC;
+      if(cfg==="2x35"){ aC=0; sC=bw/2; }
+      else if(cfg==="plano"){ aC=bw/2; sC=0; }
+      else { aC=bw/6; sC=bw/3; }
+      var brad2=beta*Math.PI/180;
+      var Ab=(2*aC+sC*Math.cos(brad2))*sC*Math.sin(brad2);           /* área do trapézio do canal */
+      var cCh=2*(aC+sC*Math.cos(brad2));                             /* corda superior            */
+      var arad=alfa*Math.PI/180, As=0;
+      if(alfa>0){ var Rs=cCh/(2*Math.sin(arad)); As=Rs*Rs*(arad-Math.sin(arad)*Math.cos(arad)); }
+      var Acema=(Ab+As)/1e6;                                         /* m²                        */
+      var QvCema=Acema*3600, QmCema=QvCema*v*rho;                    /* m³/h a 1 m/s  ·  t/h      */
+      var QvFaco=capB, QmFaco=Qmax;
+      var Q100=Math.max(QmFaco,QmCema), fonte100=(QmCema>QmFaco)?"geometria CEMA":"Tab. 1-04 FAÇO";
+      var usa100=($("#btBase").value==="q100");
+      var Qdim=usa100?Q100:Q;
+
+      /* (b) potência e tensões com a correia cheia — Método Prático */
+      var Wm100=0.277*Q100/v;
+      var Ne100=v*(Nv+Ng)+(Q100/100)*(N1+sgn*Nh);
+      var Te100=75*Math.abs(Ne100)/v;
+      var T0_100=coefT0*(Wm100+Wb)*a;
+      var T1_100=Math.max((1+K)*Te100, Te100+T0_100+Hb-Frr);
+      var Nedim=usa100?Ne100:Ne, Tedim=usa100?Te100:Te, Wmdim=usa100?Wm100:Wm;
+
       /* ========= ETAPA 12 — seleção da correia (pág. 1.53) ========= */
+      var T1dim=usa100?Math.max(T1,T1_100):T1;                 /* tensão que rege a correia */
       var nlSel=$("#btNl").value, nlAuto=null;
-      for(var nl=3;nl<=8;nl++){ if(Tu*B*nl>=T1){ nlAuto=nl; break; } }
+      for(var nl=3;nl<=8;nl++){ if(Tu*B*nl>=T1dim){ nlAuto=nl; break; } }
       var n1=(nlSel==="auto")?(nlAuto||8):parseInt(nlSel,10);
       var Tad=Tu*B*n1;
-      var okTad=(Tad>=T1);
-      var trab=T1*g/Bmm;
+      var okTad=(Tad>=T1dim);
+      var trab=T1dim*g/Bmm;
 
       /* ========= ETAPA 13 — contrapeso (pág. 1.67) ========= */
       var Test=(posEst==="acion")?T2:T3;
@@ -3318,19 +3359,48 @@ const CALCS={
       var curso=(along!==null)?along/2:null;               /* deslocamento do tambor esticador */
       var cursoTot=(curso!==null)?curso+0.30:null;         /* + 300 mm p/ emendas e montagem */
 
-      /* ========= ETAPA 14 — acionamento (pág. 1.68) ========= */
-      var Nmot=Math.abs(Ne)/eta;
-      var NmotKW=Nmot*0.7457;
+
+      /* (c) partida — inércia das massas em movimento + destravamento */
+      var tp=parseFloat($("#btTpart").value), acel=v/tp;
+      var nRolosCarga=(cfg==="plano")?1:((cfg==="2x35")?2:3);
+      var Ncar=Math.ceil(Lc/a)+1, Nret=Math.ceil(Lc/3)+1;
+      var mLin=(Wmdim+2*Wb)*Lc;                                      /* material + 2 ramos, kg    */
+      var mRot=Wr*(Ncar*nRolosCarga+Nret);                           /* tubos dos rolos (J = m·r²)*/
+      var mTot=mLin+mRot;
+      var Facel=mTot*acel/g;                                         /* kgf                       */
+      var PART={dol:{fb:1.5,tmax:2.0,n:"direta (DOL)"},soft:{fb:1.3,tmax:1.5,n:"soft-starter"},
+                hidr:{fb:1.3,tmax:1.4,n:"acoplamento hidráulico"},vfd:{fb:1.2,tmax:1.3,n:"inversor de frequência"}};
+      var PT=PART[$("#btPartida").value]||PART.dol;
+      var TeBrk=Tedim*PT.fb;                                         /* destravamento a frio      */
+      var TePart=TeBrk+Facel;                                        /* tração máxima na partida  */
+      var T1Part=(1+K)*TePart;
+      var okTadPart=(Tad*1.5>=T1Part);                               /* transitório: FS reduzido  */
+
+      /* (d) motor e redutor */
+      var NeDimHP=Math.abs(Nedim), NmotHP=NeDimHP/eta, NmotKW=NmotHP*0.7457;
       var npul=v*60000/(Math.PI*Dt);
+      var Tpulley=Tedim*g*(Dt/2000);                                 /* torque nominal no tambor, N·m */
+      var TpulleyP=TePart*g*(Dt/2000);                               /* torque de pico na partida     */
       var sew=selSEW(NmotKW,npul);
+      var TselNom=sew.Tsel, TselPico=TpulleyP/2;                     /* redutor admite ~2× o nominal  */
+      var TselFinal=Math.max(TselNom,TselPico);
+      var redF=SEW_R.find(function(gx){return gx.t>=TselFinal;})||SEW_R[SEW_R.length-1];
+      var redRegePico=(TselPico>TselNom);
+      var foraRF=(TselFinal>SEW_R[SEW_R.length-1].t);
+      var torqPart=TePart/Math.max(Tedim,1e-9);                      /* múltiplo do torque nominal    */
+      var okTorque=(torqPart<=PT.tmax);
       var Btamb=B+((B<=42)?4:6);
 
       /* ================= SAÍDA ================= */
       var OUT=[];
       OUT.geo={tipo:"belt",L:L,H:H,lam:lambda,Bpol:B,Bmm:Bmm,v:v,a:a,Lc:Lc,rolo:rolo.mm,serie:(serie?serie.s:"—"),
                estic:estic,G:G,curso:cursoTot,Pc:Pc,T1:T1,T2:T2,T3:T3,T0:T0,Te:Te,pos:pos,cfg:cfg,beta:beta,
-               Wm:Wm,Wb:Wb,Fr:Fr,Ne:Ne,Nmot:NmotKW,Ncar:Math.ceil(Lc/a)+1,Nret:Math.ceil(Lc/3)+1,
-               mat:MAT.nome,lmax:MAT.lmax,lmaxOK:lmaxOK,Dt:Dt,Btamb:Btamb,n1:n1,Tad:Tad,okTad:okTad};
+               Wm:Wm,Wb:Wb,Fr:Fr,Ne:Ne,Nmot:NmotKW,Ncar:Ncar,Nret:Nret,
+               mat:MAT.nome,lmax:MAT.lmax,lmaxOK:lmaxOK,Dt:Dt,Btamb:Btamb,n1:n1,Tad:Tad,okTad:okTad,
+               Q:Q,Q100:Q100,usa100:usa100,Ne100:Ne100,Te100:Te100,T1_100:T1_100,
+               TePart:TePart,T1Part:T1Part,torqPart:torqPart,okTorque:okTorque,okTadPart:okTadPart,
+               partida:PT.n,tp:tp,TpulleyP:TpulleyP,TselFinal:TselFinal,redRegePico:redRegePico,
+               redS:(foraRF?"industrial":redF.s),motS:sew.mot.d,motKW:sew.mot.kw};
 
       OUT.push({sec:"Etapa 1 — Material (Tab. 1-01 e 1-02)"});
       OUT.push({k:"Material",v:MAT.nome+(MAT.fora?"  ⚠ não consta do Manual FAÇO":"  ·  pág. "+MAT.pag)});
@@ -3423,9 +3493,9 @@ const CALCS={
 
       OUT.push({sec:"Etapa 11 — Seleção da correia (pág. 1.53)"});
       OUT.push({k:"Tensão unitária admissível  Tu",v:vg(Tu,0)+" kgf/pol·lona"});
-      OUT.push({k:"Número de lonas  n₁",v:String(n1)+((nlSel==="auto")?"  — mínimo que atende":"  — escolha do usuário")});
+      OUT.push({k:"Número de lonas  n₁",v:String(n1)+((nlSel==="auto")?("  — mínimo que atende T1"+(usa100&&T1_100>T1?"₁₀₀ (correia cheia)":"")):"  — escolha do usuário")});
       OUT.push({k:"Tensão admissível  Tad = Tu · B · n₁",v:fmt(Math.round(Tad))+" kgf",hi:true});
-      OUT.push({k:"Verificação  Tad ≥ T1",v:okTad?("APROVADO — folga "+vg(100*(Tad/T1-1),0)+"%"):("REPROVADO — faltam "+fmt(Math.round(T1-Tad))+" kgf: aumentar n₁, Tu ou a largura"),hi:true});
+      OUT.push({k:"Verificação  Tad ≥ T1"+((usa100&&T1_100>T1)?"₁₀₀":""),v:"comparada com "+fmt(Math.round(T1dim))+" kgf — "+(okTad?("APROVADO, folga "+vg(100*(Tad/T1dim-1),0)+"%"):("REPROVADO, faltam "+fmt(Math.round(T1dim-Tad))+" kgf: aumentar n₁, Tu ou a largura")),hi:true});
       OUT.push({k:"Tração de trabalho por unidade de largura",v:vg(trab,1)+" N/mm"});
 
       OUT.push({sec:"Etapa 12 — Esticamento e contrapeso (págs. 1.66-1.67, Tab. 2-55 a 2-57)"});
@@ -3444,21 +3514,51 @@ const CALCS={
       if(estic==="grav") OUT.push({k:"Posição recomendada (pág. 1.66)",v:"no ramo frouxo, nas proximidades do tambor de acionamento ou no próprio tambor traseiro"});
       else OUT.push({k:"Posição (pág. 1.66)",v:"o esticador por parafuso é usado exclusivamente no tambor traseiro"});
 
-      OUT.push({sec:"Etapa 13 — Conjunto de acionamento (pág. 1.68, Tab. 1-34)"});
+      OUT.push({sec:"Etapa 13 — Capacidade máxima 100% da seção (correia cheia)"});
+      OUT.push({k:"Borda livre CEMA  e = 0,055·B + 22,9 mm",v:vg(eB,1)+" mm  →  largura útil "+vg(bw,0)+" mm"});
+      OUT.push({k:"Área da seção — canal + coroamento (geometria CEMA)",v:vg(Ab/1e6,4)+" + "+vg(As/1e6,4)+" = "+vg(Acema,4)+" m²"});
+      OUT.push({k:"Capacidade 100% pela geometria CEMA",v:vg(QvCema,1)+" m³/h a 1 m/s  ·  "+fmt(Math.round(QmCema))+" t/h"});
+      OUT.push({k:"Capacidade 100% pela Tab. 1-04 do manual",v:vg(QvFaco,1)+" m³/h a 1 m/s  ·  "+fmt(Math.round(QmFaco))+" t/h"});
+      OUT.push({k:"Capacidade máxima adotada  Q₁₀₀  (a maior das duas)",v:fmt(Math.round(Q100))+" t/h   ["+fonte100+"]",hi:true});
+      OUT.push({k:"Margem sobre a vazão de projeto",v:vg(100*(Q100/Q-1),0)+"%   (projeto "+fmt(Math.round(Q))+" t/h)"});
+      OUT.push({k:"Peso do material com a correia cheia  Wm₁₀₀",v:vg(Wm100,1)+" kgf/m"});
+      OUT.push({k:"Potência efetiva com a correia cheia  Ne₁₀₀",v:vg(Ne100)+" HP  ·  "+vg(Ne100*0.7457)+" kW",hi:true});
+      OUT.push({k:"Tração efetiva com a correia cheia  Te₁₀₀",v:fmt(Math.round(Te100))+" kgf  ("+fmt(Math.round(Te100*g))+" N)"});
+      OUT.push({k:"Tensão máxima com a correia cheia  T1₁₀₀",v:fmt(Math.round(T1_100))+" kgf"+((T1_100>Tad)?("  ⚠ acima de Tad = "+fmt(Math.round(Tad))+" kgf — rever nº de lonas"):"  ✓ abaixo de Tad")});
+      OUT.push({k:"Base adotada para motor e redutor",v:usa100?("capacidade máxima Q₁₀₀ = "+fmt(Math.round(Q100))+" t/h"):("vazão de projeto Q = "+fmt(Math.round(Q))+" t/h  ⚠ sem margem de correia cheia"),hi:true});
+
+      OUT.push({sec:"Etapa 14 — Tração máxima na partida (correia cheia)"});
+      OUT.push({k:"Tipo de partida",v:PT.n+"  —  torque disponível até "+vg(PT.tmax,1)+"× o nominal"});
+      OUT.push({k:"Tempo de aceleração / aceleração",v:vg(tp,0)+" s  →  a = V/t = "+vg(acel,3)+" m/s²"});
+      OUT.push({k:"Massa em translação  (Wm + 2·Wb)·Le",v:fmt(Math.round(mLin))+" kg   [material "+fmt(Math.round(Wmdim*Lc))+" + correia "+fmt(Math.round(2*Wb*Lc))+"]"});
+      OUT.push({k:"Massa girante equivalente dos rolos  (J = m·r²)",v:fmt(Math.round(mRot))+" kg   ["+fmt(Ncar*nRolosCarga)+" rolos de carga + "+fmt(Nret)+" de retorno]"});
+      OUT.push({k:"Massa total acelerada",v:fmt(Math.round(mTot))+" kg   —  demais inércias (tambores, redutor, motor) na pág. 1.77 do manual"});
+      OUT.push({k:"Força de inércia  F = m·a/g",v:fmt(Math.round(Facel))+" kgf"});
+      OUT.push({k:"Destravamento a frio  Te × "+vg(PT.fb,1),v:fmt(Math.round(TeBrk))+" kgf"});
+      OUT.push({k:"TRAÇÃO MÁXIMA NA PARTIDA  Te,partida = Te·f + F",v:fmt(Math.round(TePart))+" kgf  ("+fmt(Math.round(TePart*g))+" N)",hi:true});
+      OUT.push({k:"Múltiplo do torque nominal na partida",v:vg(torqPart)+"×"+(okTorque?("   ✓ dentro dos "+vg(PT.tmax,1)+"× do "+PT.n):("   ⚠ acima dos "+vg(PT.tmax,1)+"× do "+PT.n+" — alongar o tempo de partida, usar partida mais suave ou aumentar o motor")),hi:true});
+      OUT.push({k:"Tensão máxima transitória  T1,partida = (1+K)·Te,partida",v:fmt(Math.round(T1Part))+" kgf"});
+      OUT.push({k:"Verificação da correia na partida  (1,5·Tad ≥ T1,partida)",v:okTadPart?("APROVADO — 1,5·Tad = "+fmt(Math.round(1.5*Tad))+" kgf  ≥  "+fmt(Math.round(T1Part))+" kgf"):("REPROVADO — 1,5·Tad = "+fmt(Math.round(1.5*Tad))+" kgf  <  "+fmt(Math.round(T1Part))+" kgf: aumentar n₁ ou suavizar a partida"),hi:true});
+      OUT.push({k:"Contrapeso na partida",v:"o esticador por gravidade acompanha o pico e mantém a tensão; com esticador por parafuso, verificar o escorregamento no tambor (K deve ser mantido)"});
+
+      OUT.push({sec:"Etapa 15 — Conjunto de acionamento (pág. 1.68, Tab. 1-34)"});
       OUT.push({k:"Rendimento total da transmissão  ηt",v:vg(eta)});
-      OUT.push({k:"Potência do motor  Nmotor = Ne/ηt",v:vg(Nmot)+" HP  ·  "+vg(NmotKW)+" kW",hi:true});
+      OUT.push({k:"Potência do motor  Nmotor = Ne/ηt",v:vg(NmotHP)+" HP  ·  "+vg(NmotKW)+" kW   ["+(usa100?"correia cheia 100%":"vazão de projeto")+"]",hi:true});
       OUT.push({k:"Diâmetro do tambor de acionamento",v:fmt(Math.round(Dt))+" mm"});
       OUT.push({k:"Rotação do tambor",v:vg(npul,1)+" rpm"});
-      OUT.push({k:"Momento no eixo do redutor  T = 9550·P/n",v:fmt(Math.round(sew.T))+" N·m"});
-      OUT.push({k:"Torque de seleção (fB = 1,4)",v:fmt(Math.round(sew.Tsel))+" N·m"});
-      OUT.push({k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d,hi:true});
-      OUT.push({k:"Redutor SEW",v:sew.foraR?("acima da série R ("+fmt(sew.red.t)+" N·m) → industrial série "+sew.ind.serie+"  ·  faixa "+sew.ind.faixa):(sew.red.s+"  (Md "+fmt(sew.red.t)+" N·m)"),hi:true});
-      OUT.push({k:"Motoredutor SEW recomendado",v:sewDrive(sew,NmotKW),hi:true});
-      if(Nmot>75) OUT.push({k:"Partida (pág. 1.68)",v:"acima de 75 HP o manual recomenda acoplamento hidráulico entre motor e redutor para facilitar a partida"});
+      OUT.push({k:"Torque nominal no tambor  Te·g·D/2",v:fmt(Math.round(Tpulley))+" N·m"});
+      OUT.push({k:"Torque de pico na partida  Te,partida·g·D/2",v:fmt(Math.round(TpulleyP))+" N·m",hi:true});
+      OUT.push({k:"Torque de seleção do redutor — regime  (fB = 1,4)",v:fmt(Math.round(TselNom))+" N·m"});
+      OUT.push({k:"Torque de seleção do redutor — pico/2",v:fmt(Math.round(TselPico))+" N·m   (o redutor admite ~2× o nominal em transitório)"});
+      OUT.push({k:"Torque de seleção adotado",v:fmt(Math.round(TselFinal))+" N·m   —  rege "+(redRegePico?"a PARTIDA":"o regime contínuo"),hi:true});
+      OUT.push({k:"Motor SEW (4 polos, ~1750 rpm)",v:sew.mot.kw.toString().replace(".",",")+" kW · "+sew.mot.d+((sew.mot.kw<NmotKW)?"  ⚠ acima do maior DRN tabelado":""),hi:true});
+      OUT.push({k:"Redutor SEW",v:foraRF?("torque de seleção "+fmt(Math.round(TselFinal))+" N·m acima da série R (máx. "+fmt(SEW_R[SEW_R.length-1].t)+" N·m) → redutor industrial"):(redF.s+"  (Md "+fmt(redF.t)+" N·m)"),hi:true});
+      OUT.push({k:"Motoredutor SEW recomendado",v:foraRF?sewDrive(sew,NmotKW):(redF.s+" "+sew.mot.d),hi:true});
+      if(NmotHP>75) OUT.push({k:"Partida (pág. 1.68)",v:"acima de 75 HP o manual recomenda acoplamento hidráulico entre motor e redutor para facilitar a partida"});
       if(regen||regenC) OUT.push({k:"Contra-recuo / freio",v:"transportador regenerativo — prever freio e contra-recuo no conjunto de acionamento (pág. 1.70)"});
       else if(H>0) OUT.push({k:"Contra-recuo",v:"aclive com carga — prever contra-recuo para impedir o retorno da correia na falta de energia"});
 
-      OUT.push({sec:"Etapa 14 — Tambores (pág. 1.57)"});
+      OUT.push({sec:"Etapa 16 — Tambores (pág. 1.57)"});
       OUT.push({k:"Comprimento do tambor  B + "+((B<=42)?"4\"":"6\""),v:Btamb+"\"  ("+fmt(Math.round(Btamb*25.4))+" mm)"});
       OUT.push({k:"Diâmetro mínimo",v:"função da classe da correia e da tensão — ver tabelas do capítulo 2 do manual"});
       return OUT;
@@ -7657,7 +7757,11 @@ function gerarRelatorio(){
           [san("Largura x velocidade"),san(String(G.Bmm))+" mm  x  "+san(G.v.toFixed(2))+" m/s"],
           [san("Serie de roletes / diametro do rolo"),san(G.serie)+"  /  "+san(String(G.rolo))+" mm"],
           [san("Espacamento carga / retorno"),san(G.a.toFixed(2))+" / 3,00 m"],
-          [san("Potencia efetiva Ne / motor"),san(G.Ne.toFixed(2))+" HP  /  "+san(G.Nmot.toFixed(1))+" kW"],
+          [san("Capacidade projeto / maxima 100%"),san(fmt(Math.round(G.Q)))+" / "+san(fmt(Math.round(G.Q100)))+" t/h"],
+          [san("Potencia efetiva Ne (projeto / 100%)"),san(G.Ne.toFixed(2))+" / "+san(G.Ne100.toFixed(2))+" HP"],
+          [san("Motor / redutor"+(G.usa100?" (base 100%)":" (base projeto)")),san(G.motKW+" kW "+G.motS)+"  ·  "+san(G.redS)],
+          [san("Tracao na partida (correia cheia)"),san(fmt(Math.round(G.TePart)))+" kgf  ·  "+san(G.torqPart.toFixed(2))+"x nominal "+(G.okTorque?"(OK)":"(REVER)")],
+          [san("Torque de pico no tambor / selecao redutor"),san(fmt(Math.round(G.TpulleyP)))+" / "+san(fmt(Math.round(G.TselFinal)))+" N.m "+(G.redRegePico?"(rege a partida)":"(rege o regime)")],
           [san("Tensoes T1 / T2 / T3"),san(fmt(Math.round(G.T1)))+" / "+san(fmt(Math.round(G.T2)))+" / "+san(fmt(Math.round(G.T3)))+" kgf"],
           [san("Correia: lonas x Tad"),san(String(G.n1))+" lonas  ·  Tad "+san(fmt(Math.round(G.Tad)))+" kgf "+(G.okTad?"(OK)":"(REPROVADO)")],
           [san("Esticador"),(G.estic==="grav")?san("gravidade · contrapeso "+fmt(Math.round(G.G))+" kgf"+((G.curso!=null)?(" · curso "+G.curso.toFixed(2)+" m"):""))
@@ -7665,10 +7769,12 @@ function gerarRelatorio(){
           [san("Comprimento do tambor"),san(String(G.Btamb))+"\"  ("+san(fmt(Math.round(G.Btamb*25.4)))+" mm)"],
           [san("Inclinacao lambda / maxima"),san(G.lam.toFixed(1))+" deg / "+san(String(G.lmax))+" deg "+(G.lmaxOK?"(OK)":"(REPROVADO)")]
         ]});
+      var byFim=doc.lastAutoTable.finalY+6;
+      if(byFim>272){ doc.addPage(); byFim=22; }
       doc.setFontSize(7); doc.setTextColor(120,140,160);
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
-        "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,doc.lastAutoTable.finalY+6);
+        "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
     } else if(G.tipo==="flare"){
       /* ============ CROQUI DO FLARE ============
          Elevação com torre, chama inclinada e isopletas de radiação no solo; ao lado, o
