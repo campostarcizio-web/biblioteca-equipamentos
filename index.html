@@ -3073,7 +3073,10 @@ const CALCS={
       {id:"btPosEst",label:"Posição do esticador",tipo:"select",valor:"acion",opcoes:[
         {v:"acion",t:"No ramo frouxo, junto ao acionamento (T = T2) — recomendado"},
         {v:"traseiro",t:"No tambor traseiro (T = T3)"}]},
-      {id:"btPc",label:"Peso do tambor esticador + carrinho ou quadro guia  Pc",unidade:"kgf",tipo:"number",valor:400},
+      {id:"btPcModo",label:"Peso do tambor esticador + carrinho  Pc",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Estimado automaticamente pela geometria do tambor"},
+        {v:"man",t:"Informado abaixo (dado do fabricante)"}]},
+      {id:"btPc",label:"Pc  —  usado quando o modo acima é \"informado\"",unidade:"kgf",tipo:"number",valor:400},
       {id:"btCorr",label:"Tipo de correia (esticamento — Tab. 2-55 a 2-57)",tipo:"select",valor:"gy_ep",opcoes:[
         {v:"gy_ep",t:"Goodyear EP — poliéster/nylon"},
         {v:"gy_plylon",t:"Goodyear PLYLON — nylon"},
@@ -3341,6 +3344,33 @@ const CALCS={
 
       /* ========= ETAPA 13 — contrapeso (pág. 1.67) ========= */
       var Test=(posEst==="acion")?T2:T3;
+      /* ---- Pc estimado: casca + discos/cubos + eixo, dimensionado por tensão e flecha ----
+         Não há tabela de peso de tambores no manual; a massa é obtida da geometria com
+         a largura de face da pág. 1.57 (B + 4" até 42", B + 6" acima) e aço 7.850 kg/m³.
+         O eixo é dimensionado à flexão pura (pág. 1.58) com δ = 800 kgf/cm² — o mesmo
+         valor que a Tab. 1-12 adota para eixos de roletes — e verificado à flecha, pela
+         inclinação máxima de 0,0015 rad nos mancais (limite usual dos rolamentos).      */
+      var Bface=(B+((B<=42)?4:6))*25.4;                    /* largura da face, mm  */
+      var Dest=Dt;                                          /* mesmo Ø do tambor de acionamento */
+      var tCasca=(Dest<=630)?9.5:((Dest<=1000)?12.7:15.9);  /* chapa comercial, mm  */
+      var rhoAco=7850;
+      var mCasca=Math.PI*(Dest/1000)*(tCasca/1000)*(Bface/1000)*rhoAco;
+      var mCorpo=mCasca*1.45;                               /* + 2 discos e 2 cubos  */
+      var Pest=2*Test;                                      /* resultante no tambor esticador, kgf */
+      var Lman=Bface+250;                                   /* distância entre mancais, mm */
+      var Mfl=Pest*(2*Lman-Bface)/8/10;                      /* momento fletor, kgf·cm     */
+      var dTens=Math.pow(32*Mfl/(Math.PI*800),1/3)*10;       /* por tensão, mm             */
+      var Ireq=(Pest*9.80665)*Math.pow(Lman/1000,2)/(16*2.06e11*0.0015);
+      var dFlecha=Math.pow(64*Ireq/Math.PI,0.25)*1000;       /* por flecha, mm             */
+      var dCalc=Math.max(dTens,dFlecha);
+      var DEIXO=[40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,180,200,220,250,280];
+      var dEixo=DEIXO.find(function(x){return x>=dCalc;})||DEIXO[DEIXO.length-1];
+      var regeEixo=(dFlecha>=dTens)?"flecha":"tensão";
+      var mEixo=Math.PI/4*Math.pow(dEixo/1000,2)*((Lman+300)/1000)*rhoAco;
+      var mTambor=mCorpo+mEixo;
+      var PcAuto=mTambor*1.70;                              /* + carrinho, 2 mancais e quadro guia */
+      var pcAutoOn=($("#btPcModo").value==="auto");
+      if(pcAutoOn){ Pc=PcAuto; var _f=$("#btPc"); if(_f) _f.value=Math.round(PcAuto); }
       var lamR=lambda*Math.PI/180;
       var G=2*Test+Math.cos(lamR)*0.10*Pc-Pc*Math.sin(lamR);
       /* curso — Tab. 2-55 a 2-57 (% do comprimento do transportador medido ao longo da correia) */
@@ -3500,7 +3530,16 @@ const CALCS={
 
       OUT.push({sec:"Etapa 12 — Esticamento e contrapeso (págs. 1.66-1.67, Tab. 2-55 a 2-57)"});
       OUT.push({k:"Tensão no ponto do esticador  T",v:fmt(Math.round(Test))+" kgf  ("+((posEst==="acion")?"T2 — junto ao acionamento":"T3 — tambor traseiro")+")"});
-      OUT.push({k:"Peso do tambor esticador + carrinho  Pc",v:fmt(Math.round(Pc))+" kgf"});
+      if(pcAutoOn){
+        OUT.push({k:"Tambor esticador — Ø × face",v:fmt(Math.round(Dest))+" × "+fmt(Math.round(Bface))+" mm   (face = B + "+((B<=42)?"4\"":"6\"")+", pág. 1.57)"});
+        OUT.push({k:"Casca  π·D·t·L·ρ   (chapa "+vg(tCasca,1)+" mm, aço 7.850 kg/m³)",v:fmt(Math.round(mCasca))+" kg   →  com 2 discos e 2 cubos (+45%): "+fmt(Math.round(mCorpo))+" kg"});
+        OUT.push({k:"Eixo — carga resultante  P = 2·T",v:fmt(Math.round(Pest))+" kgf  ·  vão entre mancais "+fmt(Math.round(Lman))+" mm  ·  M = "+fmt(Math.round(Mfl))+" kgf·cm"});
+        OUT.push({k:"Diâmetro do eixo — tensão (δ = 800 kgf/cm²) × flecha (0,0015 rad)",v:vg(dTens,0)+" mm  ×  "+vg(dFlecha,0)+" mm   →  adotado "+fmt(dEixo)+" mm  (rege a "+regeEixo+")"});
+        OUT.push({k:"Massa do eixo  /  do tambor completo",v:fmt(Math.round(mEixo))+"  /  "+fmt(Math.round(mTambor))+" kg"});
+        OUT.push({k:"Peso do tambor esticador + carrinho  Pc  (tambor × 1,70)",v:fmt(Math.round(Pc))+" kgf   —  ESTIMADO: carrinho, 2 mancais e quadro guia. Substituir pelo dado do fabricante quando houver.",hi:true});
+      } else {
+        OUT.push({k:"Peso do tambor esticador + carrinho  Pc",v:fmt(Math.round(Pc))+" kgf   —  informado pelo usuário"});
+      }
       OUT.push({k:((estic==="grav")?"Contrapeso":"Força a aplicar no parafuso")+"  G = 2·T + cos λ·0,10·Pc − Pc·sen λ",v:fmt(Math.round(G))+" kgf  ("+vg(G/1000,2)+" t)",hi:true});
       if(pctE!==null){
         OUT.push({k:"Esticamento da correia (Tab. 2-55/2-56/2-57)",v:vg(pctE,2)+"% do comprimento medido ao longo da correia  ·  emenda "+((emenda==="vulc")?"vulcanizada":"com grampos")+" a "+tensOp+"% da tensão admissível"});
