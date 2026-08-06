@@ -2043,7 +2043,26 @@ function flareCalc(){
     vt=0.5*vt+0.5*vn;
   }
   var tret=selvN("flTret",20);                                          // min
-  var Wliq=num("flWliq"); if(!isFinite(Wliq)||Wliq<0)Wliq=0;            // kg/h de líquido
+  /* ---- líquido a reter: por CONDENSAÇÃO do gás saturado, ou informado ----
+     O gás sai do lavador saturado. Ao esfriar na linha, a água que excede a saturação
+     na nova temperatura condensa e chega ao KO drum. O que rege é a UMIDADE ABSOLUTA
+     (Nm³ de água por Nm³ de gás seco), não a fração molar — usar a fração molar aqui
+     subestima o líquido, porque o gás seco não muda enquanto a água sai.              */
+  function psatKPa(T){ return Math.pow(10, 8.07131-1730.63/(233.426+T))*0.133322; }
+  var liqModo=selv("flLiqModo","cond");
+  var umidIn=num("flUmid"); if(!isFinite(umidIn)||umidIn<0)umidIn=0;
+  var Tko=num("flTko"); if(!isFinite(Tko))Tko=Tc;
+  var yIn=umidIn/100, wIn=(yIn<1)?(yIn/(1-yIn)):0;
+  var yOut=Math.min(psatKPa(Tko)/Patm,0.99), wOut=yOut/(1-yOut);
+  var dW=Math.max(wIn-wOut,0);                                          // Nm³ água/Nm³ seco
+  var Wagua=QNm*wIn/22.414*18.015;                                      // kg/h de vapor na entrada
+  var Wcond=QNm*dW/22.414*18.015;                                       // kg/h que condensam
+  var Wliq;
+  if(liqModo==="cond"){ Wliq=Wcond; var _fw=$("#flWliq"); if(_fw) _fw.value=Math.round(Wcond); }
+  else { Wliq=num("flWliq"); if(!isFinite(Wliq)||Wliq<0)Wliq=0; }
+  var condSens=[38,35,30,25,20,15,10].map(function(T){
+    var yo=Math.min(psatKPa(T)/Patm,0.99), wo=yo/(1-yo);
+    return {T:T,kg:QNm*Math.max(wIn-wo,0)/22.414*18.015}; });
   var Vliq=(Wliq/rhoL)*(tret/60);                                       // m³ de retenção
   /* vaso horizontal: o gás percorre L enquanto a gota cai a altura livre */
   var Dko=num("flDko");
@@ -2414,6 +2433,14 @@ function flareCalc(){
     {k:"Gás ácido",v:(acido?"⚠ Há H2S. O critério passa a ser TOXICOLÓGICO e normalmente governa sobre o de inflamabilidade: verificar a concentração de SO2 ao nível do solo com a tocha acesa, e de H2S com a tocha apagada, por modelo de dispersão atmosférica.":"sem H2S declarado — critério apenas de inflamabilidade"),hi:acido},
 
     {sec:"Etapa 6 — Vaso separador (knockout drum)"},
+    ...((liqModo==="cond"&&umidIn>0)?[
+    {k:"Origem do líquido",v:"CONDENSAÇÃO do gás saturado ao longo da linha. O gás sai do lavador saturado a "+Tc.toFixed(0)+" °C carregando "+fmt(Math.round(Wagua))+" kg/h de vapor d'água; ao esfriar até "+Tko.toFixed(0)+" °C a água que excede a nova saturação precipita. Não é slug de alívio — é um fluxo contínuo, e o dreno tem de escoar continuamente.",hi:true},
+    {k:"Umidade absoluta  entrada → saída",v:wIn.toFixed(4).replace(".",",")+" → "+wOut.toFixed(4).replace(".",",")+" Nm³ de água por Nm³ de gás seco   (Δ = "+dW.toFixed(4).replace(".",",")+")"},
+    {k:"LÍQUIDO A RETER  (calculado)",v:fmt(Math.round(Wcond))+" kg/h   =   "+(Wcond/1000).toFixed(2).replace(".",",")+" m³/h",hi:true},
+    {k:"⚠ Sensibilidade à temperatura de saída",v:condSens.map(function(c){return c.T+" °C: "+fmt(Math.round(c.kg));}).join("  ·  ")+"  [kg/h]  —  o resultado depende inteiramente do ΔT ao longo da linha, que só se fecha com o traçado e o isolamento definidos. Em noite fria a condensação mais que triplica.",hi:true}
+    ]:[
+    {k:"Vazão de líquido",v:fmt(Math.round(Wliq))+" kg/h   —  informada pelo usuário"}
+    ]),
     {k:"Função",v:"Reter as gotas que, se chegassem à ponta, cairiam acesas — a chamada chuva de fogo. A API 521 pede a remoção de gotas de 300 a 600 µm.",hi:true},
     {k:"Gota de projeto  ·  massa específica do líquido",v:dgota.toFixed(0)+" µm   ·   "+rhoL.toFixed(0)+" kg/m³"},
     {k:"Velocidade terminal da gota",v:vt.toFixed(3).replace(".",",")+" m/s   (Re = "+Re.toFixed(0)+" · Cd = "+Cd.toFixed(3).replace(".",",")+")"},
@@ -2929,6 +2956,11 @@ const CALCS={
         {v:"outro",t:"Outro / envelope de vários cenários"}]},
       {id:"flW",label:"Vazão de alívio de projeto  W",unidade:"kg/h",tipo:"number",valor:192851,step:"1000"},
       {id:"flWmin",label:"Vazão contínua mínima (turndown; 0 = não informada)",unidade:"kg/h",tipo:"number",valor:8158,step:"50"},
+      {id:"flLiqModo",label:"Vazão de líquido a reter",tipo:"select",valor:"cond",opcoes:[
+        {v:"cond",t:"Calcular pela CONDENSAÇÃO do gás saturado ao longo da linha"},
+        {v:"man",t:"Informar abaixo (slug de alívio, arraste do lavador, etc.)"}]},
+      {id:"flUmid",label:"Saturação do gás na entrada (item 1.6 da folha de dados)",unidade:"% vol",tipo:"number",valor:7.3,step:"0.1"},
+      {id:"flTko",label:"Temperatura do gás na saída da linha / no KO drum",unidade:"°C",tipo:"number",valor:35,step:"1"},
       {id:"flWliq",label:"Vazão de líquido no alívio (0 = sem líquido)",unidade:"kg/h",tipo:"number",valor:3500,step:"100"},
       {tipo:"head",label:"Gás de alívio"},
       {id:"flGas",label:"Gás (preset — preenche MW, k, PCI, F e LII)",tipo:"select",valor:"bfg_bar_gusa",onchange:"flarePreset()",opcoes:[
