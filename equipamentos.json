@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.69.1",
+    "versao": "1.72.1",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -507,19 +507,23 @@
       "fabricante": "Pré-dimensionamento",
       "modelo": "Flare (Tocha de Queima)",
       "calculadora": "flare",
-      "descricao": "Flare de emergência ou de queima contínua de gás de processo, com o caso de partida de gás de topo de mini alto-forno a carvão vegetal + BAR já carregado: ponta por Mach e pela pressão disponível na fonte, contrapressão, chama e radiação (API 521), dispersão com a tocha apagada, vaso separador, selagem e purga, pilotos (API 537), estabilidade de chama em gás de baixo PCI, casco dimensionado virole a virole com a espessura de chapa de cada trecho, helicoide supressor de vórtices, tubulações de serviço da torre, bicos de gás auxiliar, vento (NBR 6123), sismo (NBR 15421), chumbadores e bloco de fundação com verificação de tombamento, deslizamento e tensão no solo.",
+      "descricao": "Flare de emergência ou de queima contínua de gás de processo, com o caso de gás de topo de mini alto-forno a carvão vegetal + BAR já carregado (Rev. 1, com consumidores de processo): ponta por Mach, velocidade admissível e pressão disponível na fonte, contrapressão, chama e radiação (API 521) com verificação do posto ocupado mais próximo e altura adotada separada da mínima, dispersão com a tocha apagada, vaso separador com o líquido calculado pela condensação, selagem e purga, pilotos (API 537), estabilidade de chama em gás de baixo PCI, balanço da planta e verificação de turndown com ou sem marcha reduzida e opção de bico estagiado, casco dimensionado virole a virole, helicoide supressor de vórtices, patamares de acesso e escada com o acréscimo de vento dos acessórios, tubulações de serviço, bicos de gás auxiliar, vento (NBR 6123), sismo (NBR 15421), anel de base, nervuras, chumbadores e bloco de fundação, com croqui de detalhamento mecânico para o projetista.",
       "referencia": "API STD 521 — Pressure-relieving and Depressuring Systems: contingências de alívio, velocidade de saída na ponta (Mach 0,2 contínuo · 0,5 em emergência), Mach ≤ 0,2 no header, contrapressão admissível por tipo de válvula, comprimento de chama (Figura 8, ajuste de Beychok L = 0,0059·Q^0,478 com Q em Btu/h), inclinação da chama pelo vento, radiação térmica D = √(τ·F·Q/(4π·K)) com os níveis de 1,58 / 4,73 / 6,31 / 9,46 kW/m² acrescidos da parcela solar de 0,79 a 1,04 kW/m², e vaso separador com remoção de gotas de 300 a 600 µm e 20 a 30 min de retenção. API STD 537 — Flare Details: número de pilotos por diâmetro de ponta, ignição e detecção de chama, selos de velocidade e molecular. ABNT NBR 6123 (vento); velocidade crítica de vórtices por Strouhal St = 0,20 e número de Scruton; ABNT NBR 15421 (sismo); ABNT NBR 8800 (casco, base e chumbadores).",
-      "resumo": "Flare: ponta, radiação, altura, KO drum, pilotos, casco por viroles, helicoide, tubulações, bicos de apoio e fundação.",
+      "resumo": "Flare: ponta, radiação, turndown, casco por viroles, helicoide, plataformas, tubulações, bicos, base e fundação.",
       "normas": [
         "API 521",
         "API 537",
         "NBR 6123",
         "NBR 15421",
+        "NBR 6120",
         "NBR 6118",
+        "NBR 14718",
+        "NR-35",
+        "AWS D1.1",
         "IEC 60079"
       ],
       "modelo_en": "Flare Stack",
-      "resumo_en": "Flare: tip, radiation, height, KO drum, pilots, shell courses, helical strakes, service piping, support burners and foundation.",
+      "resumo_en": "Flare: tip, radiation, turndown, shell courses, strakes, platforms, piping, burners, base ring and foundation.",
       "grupo_en": "Utilities & Safety",
       "subgrupo_en": "Flare Stack"
     }
