@@ -2108,7 +2108,10 @@ function flareCalc(){
 
   /* ---------- ETAPA 8 — SELAGEM E PURGA ---------- */
   var selo=selv("flSelo","molecular");
-  var vPurga=({nenhum:0.30,velocidade:0.03,molecular:0.006})[selo];
+  var vPurTab=({nenhum:0.30,velocidade:0.03,molecular:0.006})[selo];
+  var vPurIn=num("flVpur");
+  var vPurUser=(isFinite(vPurIn)&&vPurIn>0);
+  var vPurga=vPurUser?vPurIn:vPurTab;
   var Qpurga=vPurga*Atip*3600;                          // m³/h nas condições da ponta
   var Nmpurga=Qpurga*(273.15/TK)*(Patm/101.325);        // Nm³/h aprox.
   var purgaAno=Nmpurga*8760;
@@ -2302,7 +2305,28 @@ function flareCalc(){
   var tubPur=dnPor((Nmpurga*1.2504/3600)/rhoN2,15);
   /* gás de apoio */
   var apPc=num("flApPc"); if(!isFinite(apPc)||apPc<0)apPc=3;
-  var Qap=Qcal*apPc/100;                                      // kW
+  var apBase=selv("flApBase","minima");
+  /* A capacidade dos bicos de apoio NÃO escala com a carga de emergência: eles seguram a
+     frente de chama, e isso é um fenômeno de borda — depende da menor condição de queima
+     e do perímetro do anel de estabilização, não do pico. Dimensionar por % do pico
+     produz um consumo de GLP fora de escala com o que a função exige.                  */
+  /* menor condição de QUEIMA — lida direto dos campos, porque o bloco de turndown
+     é avaliado adiante e não pode ser referenciado aqui.                            */
+  var _cons=num("flCons"); if(!isFinite(_cons)||_cons<0)_cons=0;
+  var _ger=num("flGer");   if(!isFinite(_ger)||_ger<=0)_ger=QNm;
+  var _exc=Math.max(_ger-_cons,0);
+  var _semT=(selv("flTurnModo","sem")==="sem");
+  var _qmin=_semT?_exc:((Wmin>0)?(Wmin/rhoN):_exc);
+  if(!isFinite(_qmin)||_qmin<=0) _qmin=QNm;
+  var QminQueima=_qmin*rhoN/3600*LHV;                         // kW na menor condição de queima
+  var perimTip0=Math.PI*dtip;
+  var apPer=num("flApPer"); if(!isFinite(apPer)||apPer<=0)apPer=150;
+  var apAbs=num("flApAbs"); if(!isFinite(apAbs)||apAbs<=0)apAbs=2;
+  var Qap, apBaseTxt;
+  if(apBase==="projeto"){ Qap=Qcal*apPc/100; apBaseTxt=apPc.toFixed(1).replace(".",",")+"% da carga de PROJETO ("+(Qcal/1000).toFixed(1).replace(".",",")+" MW)"; }
+  else if(apBase==="perim"){ Qap=apPer*perimTip0; apBaseTxt=apPer.toFixed(0)+" kW por metro de perímetro × "+perimTip0.toFixed(2).replace(".",",")+" m"; }
+  else if(apBase==="abs"){ Qap=apAbs*1000; apBaseTxt="capacidade absoluta informada"; }
+  else { Qap=QminQueima*apPc/100; apBaseTxt=apPc.toFixed(1).replace(".",",")+"% da MENOR condição de queima ("+(QminQueima/1000).toFixed(1).replace(".",",")+" MW)"; }
   var Wap=Qap/AP.LHVm*3600;                                   // kg/h
   var Vap=Qap/(AP.LHVv*1000)*3600;                            // Nm³/h
   var rhoAp=(2.47e5)*AP.MW/(8314*298.15);
@@ -2447,7 +2471,15 @@ function flareCalc(){
   var larAnel=(Dbc-Dst)/2+0.075;                             // m — do casco ao bordo externo
   var pBase=Pcomp*1000/((Math.PI*Dbc*larAnel)/nCh);          // Pa — pressão média sob o anel
   var pBaseMPa=Math.min(pBase/1e6,0.85*fck/1.4);
-  var MpAnel=pBaseMPa*Math.pow(larAnel*1000,2)/2;            // N·mm por mm de largura
+  /* Com um par de nervuras por chumbador, a chapa do anel NÃO trabalha em balanço em
+     toda a largura: ela vence entre nervuras como laje apoiada em duas bordas, e só o
+     trecho externo ao círculo de chumbadores fica em balanço. Tratar o anel inteiro
+     como balanço, ignorando as nervuras, engrossa a chapa sem necessidade.           */
+  var espNerv=Math.PI*Dbc/(2*nCh)*1000;                      // mm — vão livre entre nervuras
+  var balExt=0.075*1000;                                     // mm — balanço além do chumbador
+  var MvaoAnel=pBaseMPa*Math.pow(espNerv,2)/8;               // N·mm/mm — vão entre nervuras
+  var MbalAnel=pBaseMPa*Math.pow(balExt,2)/2;                // N·mm/mm — balanço externo
+  var MpAnel=Math.max(MvaoAnel,MbalAnel);
   var tAnelCalc=Math.sqrt(6*MpAnel/(0.90*fyB));              // mm
   var tAnelIn=num("flTanel");
   var CHAPA2=[12.5,16.0,19.0,22.4,25.0,31.5,38.0,44.5,50.0,63.0,75.0];
@@ -2587,6 +2619,8 @@ function flareCalc(){
     {k:"Radiação admissível adotada  K",v:Kadm.toFixed(2).replace(".",",")+" kW/m²   —   "+({1.58:"exposição contínua, pessoal com vestimenta adequada",4.73:"ação emergencial de 2 a 3 min, sem blindagem",6.31:"ação emergencial até 30 s, sem blindagem",9.46:"sem presença de pessoal"})[Kadm]},
     {k:"Parcela solar somada  (API 521)",v:Ksol.toFixed(2).replace(".",",")+" kW/m²   —  o pico solar vai de 0,79 a 1,04 kW/m²; ignorá-lo subdimensiona a altura, e o efeito é tanto maior quanto menor for o K admissível",hi:true},
     {k:"Radiação líquida disponível  K − solar",v:Knet.toFixed(2).replace(".",",")+" kW/m²"},
+    {k:"⚠ PARCELA SOLAR — a origem da divergência com planilhas simplificadas",v:"A API 521 apresenta os níveis admissíveis (1,58 · 4,73 · 6,31 · 9,46 kW/m²) como valores TOTAIS, já incluindo a radiação solar. O solar tem portanto de ser DEDUZIDO do admissível para achar o que resta para a chama: K_chama = "+Kadm.toFixed(2).replace(".",",")+" − "+Ksol.toFixed(2).replace(".",",")+" = "+Knet.toFixed(2).replace(".",",")+" kW/m². Ignorar o solar devolve uma distância bem menor e uma torre mais baixa — é a diferença mais comum entre este cálculo e uma planilha de ordem de grandeza, e o efeito cresce quanto menor for o K admissível.",hi:true},
+    {k:"Distância ao centro da chama — COM e SEM deduzir o solar",v:"deduzindo o solar (correto): "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Knet)).toFixed(1).replace(".",",")+" m   ·   sem deduzir: "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Math.max(Kadm,0.1))).toFixed(1).replace(".",",")+" m   →   diferença de "+((Math.sqrt(Kadm/Knet)-1)*100).toFixed(0)+"%. Para reproduzir uma planilha que ignora o solar, zerar o campo de radiação solar.",hi:true},
     {k:"DISTÂNCIA MÍNIMA ao centro da chama  D = √(τ·F·Q/(4π·K))",v:Drad.toFixed(1).replace(".",",")+" m",hi:true},
     {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
     {k:"ALTURA REQUERIDA — ENVELOPE DOS CRITÉRIOS",v:"radiação no ponto com pessoal "+Hrad.toFixed(1).replace(".",",")+" m   ·   radiação na base (9,46 kW/m²) "+Hbase.toFixed(1).replace(".",",")+" m   ·   mínimo construtivo "+Hmin.toFixed(0)+" m",hi:true},
@@ -2637,7 +2671,8 @@ function flareCalc(){
     {sec:"Etapa 7 — Selagem e purga"},
     {k:"Por que existe",v:"Impedir a entrada de ar pelo topo. Ar dentro da tubulação com gás combustível significa mistura explosiva e detonação interna — o modo de falha mais destrutivo de uma tocha.",hi:true},
     {k:"Selo adotado",v:({nenhum:"Nenhum — só purga contínua",velocidade:"Selo de velocidade (fluídico)",molecular:"Selo molecular (de flutuação)"})[selo]},
-    {k:"Velocidade de purga requerida",v:vPurga.toFixed(3).replace(".",",")+" m/s   —  0,30 m/s sem selo · 0,03 m/s com selo de velocidade · 0,006 m/s com selo molecular"},
+    {k:"Velocidade de purga  —  tabela do selo × adotada",v:vPurTab.toFixed(3).replace(".",",")+" m/s pelo selo "+selo+"   →   ADOTADA "+vPurga.toFixed(3).replace(".",",")+" m/s"+(vPurUser?"   (informada — a planilha usa 0,015 m/s)":"   (pelo tipo de selo)"),hi:true},
+    {k:"Referência de velocidade de purga",v:vPurga.toFixed(3).replace(".",",")+" m/s   —  0,30 m/s sem selo · 0,03 m/s com selo de velocidade · 0,006 m/s com selo molecular"},
     {k:"CONSUMO DE GÁS DE PURGA",v:Nmpurga.toFixed(1).replace(".",",")+" Nm³/h   =   "+fmt(Math.round(purgaAno))+" Nm³/ano",hi:true},
     {k:"Economia do selo",v:(selo==="nenhum"?"Sem selo o consumo é 50 vezes maior que com selo molecular. Ao longo da vida da instalação o selo se paga muitas vezes — avaliar a instalação.":"O selo reduz o consumo de purga em uma a duas ordens de grandeza frente à operação sem selo.")},
 
@@ -2726,7 +2761,9 @@ function flareCalc(){
     {sec:"Etapa 17 — Bicos de gás auxiliar (apoio à chama)"},
     {k:"Por que existem",v:"O gás de topo desta planta tem PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³, cerca de um terço do patamar da API 537. A ponta não sustenta a chama sozinha em toda a faixa: os bicos auxiliares injetam combustível de alto PCI no anel de estabilização, criando uma coroa de chama que ancora a queima do gás pobre. Não confundir com enriquecimento da corrente — são coisas diferentes.",hi:true},
     {k:"Combustível de apoio",v:AP.nome+"   ·   PCI "+fmt(AP.LHVm)+" kJ/kg  =  "+AP.LHVv.toFixed(1).replace(".",",")+" MJ/Nm³"},
-    {k:"Capacidade especificada dos bicos",v:apPc.toFixed(1).replace(".",",")+"% da carga térmica de projeto   =   "+(Qap/1000).toFixed(1).replace(".",",")+" MW   =   "+Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h)",hi:true},
+    {k:"Base de dimensionamento dos bicos",v:apBaseTxt+"   —  a capacidade dos bicos de apoio é fenômeno de BORDA: eles seguram a frente de chama no anel de estabilização. Escalar pela carga de emergência infla o consumo de GLP sem ganho de estabilidade."},
+    {k:"Capacidade especificada dos bicos",v:(Qap/1000).toFixed(2).replace(".",",")+" MW   =   "+Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h) de "+AP.nome,hi:true},
+    {k:"Comparação com a carga de projeto",v:(Qap/Math.max(Qcal,1)*100).toFixed(2).replace(".",",")+"% da carga térmica de projeto   ·   "+(Qap/Math.max(QminQueima,1)*100).toFixed(1).replace(".",",")+"% da menor condição de queima"},
     {k:"Número de bicos  ·  distribuição",v:nBicos+" bicos igualmente espaçados no perímetro da ponta ("+perimTip.toFixed(2).replace(".",",")+" m  →  "+fmt(Math.round(perimTip/nBicos*1000))+" mm entre bicos)"},
     {k:"Capacidade individual",v:QbicoKW.toFixed(0)+" kW por bico   ("+WbicoKg.toFixed(1).replace(".",",")+" kg/h)   —  faixa de queimador industrial padrão; exigir do fabricante a curva de turndown de cada bico"},
     {k:"Tipo recomendado",v:"Bico de PRÉ-MISTURA PARCIAL com anel de retenção de chama (flame holder), corpo em aço inoxidável refratário AISI 310 ou Incoloy 800H, injeção tangencial ao anel de estabilização da ponta e retentor cerâmico na saída. Cada bico com válvula de bloqueio individual acessível da plataforma superior, para manutenção com a tocha em operação.",hi:true},
@@ -2735,7 +2772,8 @@ function flareCalc(){
     {k:"Situação no PCI MÍNIMO GARANTIDO  ("+PCImin.toFixed(0)+" kcal/Nm³ = "+LHVmin.toFixed(2).replace(".",",")+" MJ/Nm³)",v:estMin?
       ("✓ ainda acima do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — a ponta de baixo PCI sustenta a chama sem apoio contínuo; os bicos ficam para a partida e para o turndown"):
       ("⚠ ABAIXO do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — nesta condição a chama depende do apoio. Levar a corrente inteira ao alvo exigiria "+fmt(Math.round(VapAlvo))+" Nm³/h de "+AP.nome+" = "+(QapAlvo/1000).toFixed(1).replace(".",",")+" MW, ou "+(QapAlvo/Math.max(Qcal,1)*100).toFixed(0)+"% da carga térmica da própria tocha — inviável como regime. O caminho é ponta de baixo PCI com estabilização mecânica, pilotos permanentes e os bicos de apoio acima, dimensionados para a partida."),hi:!estMin},
-    {k:"PCI de projeto  ×  mínimo garantido",v:(LHVvol*KCAL).toFixed(0)+" kcal/Nm³ no cenário de projeto   ·   "+PCImin.toFixed(0)+" kcal/Nm³ garantido   —  a diferença de "+((LHVvol*KCAL-PCImin)/Math.max(PCImin,1)*100).toFixed(0)+"% é a margem que a operação tem antes de acionar o apoio"},
+    {k:"PCI de projeto  ×  mínimo garantido",v:(LHVvol*KCAL).toFixed(0)+" kcal/Nm³ adotado no cálculo da carga térmica   ·   "+PCImin.toFixed(0)+" kcal/Nm³ como mínimo garantido"+
+      ((LHVvol*KCAL<=PCImin*1.001)?"   ⚠ SÃO O MESMO VALOR (ou o de projeto é menor). Isso é inconsistente: o PCI que dimensiona a ALTURA tem de ser o MÁXIMO esperado, porque radiação cresce com a carga térmica; o que dimensiona a ESTABILIDADE tem de ser o MÍNIMO. Usar o mesmo número nos dois papéis deixa a torre sem margem se o gás vier mais rico que o previsto.":"   ✓ o de projeto está acima do mínimo, como deve ser"),hi:(LHVvol*KCAL<=PCImin*1.001)},
 
     {sec:"Etapa 18 — Cargas na fundação e bloco"},
     {k:"Ação de vento — os dois caminhos",v:"simplificado (q do topo uniforme): F = "+Fw.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(Mw))+" kN·m   ·   integrado (perfil S2 real): F = "+FwInt.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(MwInt))+" kN·m   →   adotado o "+ventoGov+", acrescido do helicoide"},
@@ -2795,6 +2833,7 @@ function flareCalc(){
     {sec:"Etapa 21 — Anel de base, nervuras e chumbadores"},
     {k:"Anel de base — largura",v:larAnel.toFixed(3).replace(".",",")+" m   (do casco ao bordo externo, incluindo distância de borda do chumbador)"},
     {k:"Pressão de contato no concreto",v:pBaseMPa.toFixed(2).replace(".",",")+" MPa   vs   fcd = 0,85·fck/1,4 = "+(0.85*fck/1.4).toFixed(2).replace(".",",")+" MPa"},
+    {k:"Momento na chapa do anel",v:"vão entre nervuras "+espNerv.toFixed(0)+" mm → "+(MvaoAnel/1000).toFixed(1).replace(".",",")+" kN·mm/mm   ·   balanço externo "+balExt.toFixed(0)+" mm → "+(MbalAnel/1000).toFixed(1).replace(".",",")+" kN·mm/mm   —  rege o "+((MvaoAnel>=MbalAnel)?"vão":"balanço")},
     {k:"Espessura do anel  t = √(6·M/σadm)",v:"calculada "+tAnelCalc.toFixed(1).replace(".",",")+" mm   →   ADOTADA "+tAnel.toFixed(1).replace(".",",")+" mm"+((tAnel===tBase)?"  (limitada pela virole da base)":""),hi:true},
     {k:"NERVURAS — quantidade",v:nNerv+" nervuras   (um par por chumbador, ladeando cada um dos "+nCh+")",hi:true},
     {k:"Braço do chumbador ao casco",v:fmt(Math.round(exNerv))+" mm   —  é este braço que gera a flexão que a nervura tem de absorver"},
@@ -2822,7 +2861,7 @@ function flareCalc(){
     assist:assist,Wvap:Wvap,Qar:Qar,npil:npil,fracSm:fracSm,
     Dst:Dst,tcom:tcom,Vk:Vk,Fw:Fw,Mw:Mw,fn:fn,Vcr:Vcr,Sc:Sc,strakes:strakes,vivRisco:vivRisco,
     mTot:mTot,Wtot:Wtot,Flat:Flat,Mlat:Mlat,latGov:latGov,nCh:nCh,diaCh:diaCh,Dbc:Dbc,
-    tipoUso:tipoUso,esbeltez:esbeltez,machOK:machOK,headOK:headOK,baseOK:baseOK,nVir:nVir,hVir:hVir,tTopo:tTopo,tBase:tBase,tConstr:tConstr,corr:corr,massaCasco:massaCasco,massaTotal:massaTotal,
+    tipoUso:tipoUso,esbeltez:esbeltez,machOK:machOK,headOK:headOK,baseOK:baseOK,fy:fy,nVir:nVir,hVir:hVir,tTopo:tTopo,tBase:tBase,tConstr:tConstr,corr:corr,massaCasco:massaCasco,massaTotal:massaTotal,
     helOn:helOn,nFitas:nFitas,hHel:hHel,passoHel:passoHel,LHel:LHel,fnR:fnR,VcrR:VcrR,ScR:ScR,
     Nk:Nk,VkB:VkB,MkB:MkB,Dbl:Dbl,Hbl2:Hbl2,volConc:volConc,sigMax:sigMax,sigMin:sigMin,sigSolo:sigSolo,FSt:FSt,FSd:FSd,
     dnPil:Math.max(tubPil.dn,20),dnFFG:dnFFG,dnAr:dnAr,dnPur:Math.max(tubPur.dn,20),dnAp:Math.max(tubAp.dn,25),dnDre:dnDre,
@@ -3281,6 +3320,7 @@ const CALCS={
       {id:"flDko",label:"Diâmetro do vaso (0 = dimensionar)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
       {tipo:"head",label:"Selagem, purga e supressão de fumaça"},
       {id:"flSelo",label:"Selo contra entrada de ar",tipo:"select",valor:"molecular",opcoes:[
+      {id:"flVpur",label:"Velocidade de purga adotada (0 = pelo tipo de selo)",unidade:"m/s",tipo:"number",valor:0.015,step:"0.001"},
         {v:"molecular",t:"Selo molecular — purga 0,006 m/s"},
         {v:"velocidade",t:"Selo de velocidade — purga 0,03 m/s"},
         {v:"nenhum",t:"Sem selo — purga 0,30 m/s"}]},
@@ -3294,7 +3334,14 @@ const CALCS={
       {id:"flApGas",label:"Combustível de apoio",tipo:"select",valor:"glp",opcoes:[
         {v:"glp",t:"GLP comercial (50/50 C3/C4) — 104,6 MJ/Nm³ · 45.900 kJ/kg"},
         {v:"gn",t:"Gás natural — 36,0 MJ/Nm³ · 48.000 kJ/kg"}]},
-      {id:"flApPc",label:"Capacidade dos bicos de apoio (% da carga térmica de projeto)",unidade:"%",tipo:"number",valor:3,step:"0.5"},
+      {id:"flApBase",label:"Base para a capacidade dos bicos de apoio",tipo:"select",valor:"minima",opcoes:[
+        {v:"minima",t:"% da MENOR condição de queima — é onde a chama precisa de apoio"},
+        {v:"projeto",t:"% da carga térmica de PROJETO (emergência) — conservador"},
+        {v:"perim",t:"Por metro de perímetro da ponta (anel de retenção)"},
+        {v:"abs",t:"Capacidade absoluta informada abaixo"}]},
+      {id:"flApPc",label:"Capacidade dos bicos de apoio (% da base escolhida)",unidade:"%",tipo:"number",valor:3,step:"0.5"},
+      {id:"flApPer",label:"Carga por metro de perímetro (base \"por perímetro\")",unidade:"kW/m",tipo:"number",valor:150,step:"10"},
+      {id:"flApAbs",label:"Capacidade absoluta (base \"absoluta\")",unidade:"MW",tipo:"number",valor:2,step:"0.5"},
       {id:"flPCImin",label:"PCI MÍNIMO GARANTIDO do gás (item 1.7 — dado crítico)",unidade:"kcal/Nm³",tipo:"number",valor:840,step:"10"},
       {id:"flApAlvo",label:"PCI volumétrico alvo na ponta para chama estável",unidade:"MJ/Nm³",tipo:"number",valor:3.5,step:"0.1"},
       {id:"flApHrs",label:"Autonomia da reserva de gás de apoio (blow-in)",unidade:"h",tipo:"number",valor:8,step:"1"},
@@ -8578,8 +8625,8 @@ function gerarRelatorio(){
         doc.setFillColor((vv2%2===0)?78:66,(vv2%2===0)?100:88,(vv2%2===0)?130:116);
         doc.setDrawColor(40,58,80);
         doc.rect(ecx-ewS,y1v,2*ewS,y2v-y1v,"FD");
-        if(vv2%2===0||G.viroles.length<=8)
-          mt(ecx+ewS+2,(y1v+y2v)/2+1.2,"V"+vr.n+"  t "+vr.t.toFixed(1)+" mm",120,140,160,5.4);
+        if(vv2%3===0||G.viroles.length<=6)
+          mt(ecx+ewS+5.5,(y1v+y2v)/2+1.2,"V"+vr.n+"  t "+vr.t.toFixed(1)+" mm",120,140,160,5.2);
       }
       /* helicoide */
       if(G.helOn){
@@ -8590,8 +8637,8 @@ function gerarRelatorio(){
           var yh1=yH0-(yH0-yH1)*hk/nH, yh2=yH0-(yH0-yH1)*(hk+1)/nH;
           doc.line(ecx-ewS,yh1,ecx+ewS,yh2);
         }
-        mt(Math.max(ecx-ewS-2,MXL+22),yH1+7,"helicoide "+G.nFitas+" fitas",210,130,45,5.6,"right");
-        mt(Math.max(ecx-ewS-2,MXL+26),yH1+10.5,"h "+Math.round(G.hHel*1000)+" · p "+Math.round(G.passoHel*1000)+" mm",210,130,45,5.6,"right");
+        mt(Math.max(ecx-ewS-2,MXL+22),yH1+15,"helicoide "+G.nFitas+" fitas",210,130,45,5.4,"right");
+        mt(Math.max(ecx-ewS-2,MXL+26),yH1+18.5,"h "+Math.round(G.hHel*1000)+" · p "+Math.round(G.passoHel*1000)+" mm",210,130,45,5.4,"right");
       }
       /* ponta */
       doc.setFillColor(150,90,50); doc.setDrawColor(110,60,30); doc.setLineWidth(0.4);
@@ -8620,7 +8667,7 @@ function gerarRelatorio(){
       var ewB=Math.min(ewS*2.0,(ecx-MXL-3));
       doc.rect(ecx-ewB,eyG-2.2,ewB*2,2.2,"FD");
       /* cotas */
-      mcotaV(Math.max(ecx-ewS-9,MXL+3),eyT,eyG,"H = "+G.Hst.toFixed(1)+" m");
+      mcotaV(Math.max(ecx-ewS-11,MXL+2),eyT,eyG,"H = "+G.Hst.toFixed(1)+" m");
       mcotaH(ecx-ewS,ecx+ewS,eyG+9,"D = "+Math.round(G.Dst*1000)+" mm");
       mt(MXL,eyG+16,"Viroles: "+G.nVir+" x "+G.hVir.toFixed(2)+" m  ·  chapa "+G.tTopo.toFixed(1)+" a "+G.tBase.toFixed(1)+" mm  ·  aco fy "+G.fy+" MPa",90,110,140,5.8);
       mt(MXL,eyG+20,"Plataformas: "+(G.nDesc)+" patamares + 1 de manutencao  ·  largura util "+G.larPlat.toFixed(2)+" m  ·  escada "+G.Lesc.toFixed(1)+" m",90,110,140,5.8);
@@ -8680,7 +8727,7 @@ function gerarRelatorio(){
       doc.line(bx-cw*0.42-2,cy+13,bx-cw*0.42+2,cy+13);
       mt(bx+cw*0.42+3,cy+8,"anc. "+Math.round(30*G.diaCh)+" mm",200,80,60,5.4);
       mt(bx-cw*0.9,cy-chh*0.62-3,"nervura "+Math.round(G.hNerv)+" mm",180,140,50,5.4);
-      mt(bx-cw*0.9,cy-1.0,"anel t "+G.tAnel.toFixed(1)+" mm",90,110,140,5.4);
+      mt(bx-cw*0.9,cy+4.5,"anel t "+G.tAnel.toFixed(1)+" mm",90,110,140,5.4);
       mt(bx-cw,cy+18,"grout sem retracao · caneleta de drenagem no topo do bloco",90,110,140,5.4);
 
       /* ---------- QUADRO DE CARGAS ---------- */
