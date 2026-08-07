@@ -1999,26 +1999,74 @@ function flareCalc(){
   var backOK=(PbackMan<=PbackAdm);
   var headOK=(MaH<=MaHead+0.005);
 
-  /* ---------- ETAPA 4 — CHAMA: COMPRIMENTO E INCLINAÇÃO ---------- */
-  /* Comprimento de chama: ajuste de Beychok sobre a Figura 8 da API 521,
-     L(ft) = 0,0059 · Q(Btu/h)^0,478                                                        */
+  /* ---------- ETAPA 4 — CHAMA: COMPRIMENTO, TRAJETÓRIA E INCLINAÇÃO ---------- */
+  /* 4.1 COMPRIMENTO — a partir da liberação de calor já obtida na Etapa 1.
+     Ajuste publicado da curva comprimento de chama × liberação de calor da API 521:
+        subsônica   L(ft) = 0,00604  · Q(Btu/h)^0,4776
+        sônica      L(ft) = 0,004503 · Q(Btu/h)^0,45988
+     Chama de alta quantidade de movimento queima mais curta porque entranha ar mais
+     depressa; interpola-se pelo Mach da ponta, já calculado na Etapa 2. Para Mach
+     baixo o resultado praticamente coincide com a curva subsônica.                  */
   var Qbtu=Qcal*3412.142;
-  var Lf=0.3048*0.0059*Math.pow(Qbtu,0.478);           // m
+  var LfSub=0.3048*0.00604*Math.pow(Qbtu,0.4776);      // m — chama subsônica
+  var LfSon=0.3048*0.004503*Math.pow(Qbtu,0.45988);    // m — chama sônica
+  var fMa=Math.max(0,Math.min(1,Ma));
+  var Lf=(1-fMa)*LfSub+fMa*LfSon;                      // m — adotado
   var uw=num("flUw"); if(!isFinite(uw)||uw<0)uw=30;    // m/s — vento de PROJETO para a chama
-  /* Inclinação simplificada tan θ = u_vento/u_saída. Em ponta de alta velocidade essa
-     relação devolve chama quase vertical, o que é POUCO CONSERVADOR: na realidade o jato
-     desacelera e o vento a inclina bem mais. Por isso o ângulo pode ser imposto, e a
-     Etapa 4 traz a sensibilidade a 45° como envelope. */
+
+  /* 4.2 INCLINAÇÃO — duas bases, adotando-se a maior.
+     (a) SIMPLIFICADA, vetor de velocidades na saída:  tan θ = u_vento / u_saída.
+         Só é válida junto ao bico, porque supõe que o jato conserva a velocidade de
+         saída ao longo de toda a chama. Como o jato desacelera, ela SUBESTIMA.
+     (b) TRAJETÓRIA com decaimento do jato: em jato livre turbulento redondo a
+         velocidade no eixo decai como u(s)/u_saída = 6,2·D/s para s ≳ 6·D (relação
+         clássica de jato livre — Abramovich / Rajaratnam). A inclinação local segue o
+         vetor soma  tan θ(s) = u_vento/u(s), crescente ao longo da chama, e a
+         trajetória é a integral desse campo de s = 0 até L. Dela saem a inclinação
+         média (da corda bico→ponta), a inclinação local na ponta e o CENTRÓIDE da
+         chama, que substitui a aproximação de meio comprimento em linha reta.        */
   var tetaIn=num("flTeta");
-  var tetaCalcG=Math.atan2(uw,Math.max(Vsai,0.01))*180/Math.PI;
-  /* o ângulo imposto é um PISO, não um substituto: se o vento de projeto contra a
-     velocidade de saída devolver inclinação maior, é ela que vale — impor um ângulo
-     menor que o físico seria não conservador.                                        */
-  var tetaG=(isFinite(tetaIn)&&tetaIn>0)?Math.max(tetaIn,tetaCalcG):tetaCalcG;
+  var tetaCalcG=Math.atan2(uw,Math.max(Vsai,0.01))*180/Math.PI;          // (a)
+  var NSt=400, dsT=Lf/NSt, sxT=0, syT=0, sxC=0, syC=0, thLoc=0;
+  for(var isT=1;isT<=NSt;isT++){
+    var sT=(isT-0.5)*dsT;
+    var uLoc=Vsai*Math.min(1,6.2*Math.max(dtip,0.01)/Math.max(sT,1e-6)); // nunca acima da saída
+    thLoc=Math.atan2(uw,Math.max(uLoc,0.01));
+    sxT+=Math.sin(thLoc)*dsT; syT+=Math.cos(thLoc)*dsT;
+    sxC+=sxT*dsT; syC+=syT*dsT;
+  }
+  var tetaTrajG=Math.atan2(sxT,Math.max(syT,1e-6))*180/Math.PI;   // (b) corda bico→ponta
+  var tetaPontaG=thLoc*180/Math.PI;                               // local, na ponta da chama
+  var xcTraj=(Lf>0)?sxC/Lf:0, ycTraj=(Lf>0)?syC/Lf:0;             // centróide da chama
+  /* o ângulo informado é um PISO, não um substituto: se a física devolver inclinação
+     maior, é ela que vale — impor um ângulo menor que o calculado seria não conservador. */
   var tetaImposto=(isFinite(tetaIn)&&tetaIn>0);
-  var tetaRegeCalc=(tetaImposto&&tetaCalcG>tetaIn);
+  var tetaG=Math.max(tetaTrajG,tetaCalcG,tetaImposto?tetaIn:0);
+  var baseTeta=(tetaG<=tetaTrajG+1e-9)?"traj":((tetaG<=tetaCalcG+1e-9)?"simp":"imp");
+  var tetaRegeCalc=(tetaImposto&&tetaG>tetaIn+1e-9);
   var teta=tetaG*Math.PI/180;
-  var dxF=0.5*Lf*Math.sin(teta), dyF=0.5*Lf*Math.cos(teta);   // centro da chama
+  /* centro emissor: se rege a trajetória, usa-se o centróide real da curva; se rege um
+     ângulo imposto maior, mantém-se a reta de meio comprimento naquele ângulo.        */
+  var usaTraj=(baseTeta==="traj");
+  var dxF=usaTraj?xcTraj:0.5*Lf*Math.sin(teta);
+  var dyF=usaTraj?ycTraj:0.5*Lf*Math.cos(teta);
+  var dxRet=0.5*Lf*Math.sin(teta), dyRet=0.5*Lf*Math.cos(teta);
+  /* ponta da chama, para verificar alcance e queda */
+  var xPonta=usaTraj?sxT:Lf*Math.sin(teta);
+  var yPonta=usaTraj?syT:Lf*Math.cos(teta);
+
+  /* 4.3 VERIFICAÇÃO DA INCLINAÇÃO MÁXIMA ADMISSÍVEL.
+     Não há limite normativo de inclinação: a API 521 pede que se considere a distorção
+     pelo vento, não que ela fique abaixo de um valor. O limite abaixo é de PRÁTICA de
+     projeto e existe para proteger três coisas — que a chama não deite sobre a
+     plataforma e o casco, que a ponta não avance sobre área ocupada, e que o centro
+     emissor não desça a ponto de inviabilizar a radiação no solo.                    */
+  var tetaMax=num("flTetaMax"); if(!isFinite(tetaMax)||tetaMax<=0)tetaMax=75;
+  var tetaOK=(tetaG<=tetaMax+1e-9);
+  /* razão velocidade de saída / vento — é ela que comanda toda a distorção */
+  var razVJ=(uw>0)?(Vsai/uw):Infinity;
+  var razMin=num("flRazMin"); if(!isFinite(razMin)||razMin<=0)razMin=2.0;
+  var razOK=(razVJ>=razMin);
 
   /* ---------- ETAPA 5 — RADIAÇÃO E ALTURA (API 521) ---------- */
   var Frad=num("flFrad"); if(!isFinite(Frad)||Frad<=0)Frad=0.20;
@@ -2665,15 +2713,21 @@ function flareCalc(){
     {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
     {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
 
-    {sec:"Etapa 3 — Chama: comprimento e inclinação pelo vento"},
-    {k:"Comprimento de chama  L = 0,0059·Q^0,478",v:Lf.toFixed(1).replace(".",",")+" m   (ajuste de Beychok sobre a Figura 8 da API 521, com Q em Btu/h)",hi:true},
+    {sec:"Etapa 3 — Chama: comprimento, trajetória e verificação da inclinação"},
+    {k:"3.1  COMPRIMENTO DA CHAMA  L",v:Lf.toFixed(1).replace(".",",")+" m   —  da liberação de calor da Etapa 1 ("+(Qcal/1000).toFixed(1).replace(".",",")+" MW = "+(Qbtu/1e6).toFixed(0)+" MMBtu/h), pelo ajuste da curva comprimento × liberação de calor da API 521",hi:true},
+    {k:"Curvas subsônica × sônica, interpoladas pelo Mach da ponta",v:"subsônica L = 0,00604·Q^0,4776 → "+LfSub.toFixed(1).replace(".",",")+" m   ·   sônica L = 0,004503·Q^0,45988 → "+LfSon.toFixed(1).replace(".",",")+" m   ·   Mach da ponta "+Ma.toFixed(3).replace(".",",")+"   →   ADOTADO "+Lf.toFixed(1).replace(".",",")+" m   (Q em Btu/h). Chama de alta quantidade de movimento entranha ar mais depressa e queima mais curta; com Mach baixo o resultado praticamente coincide com a curva subsônica."},
     {k:"⚠ Qual vento entra aqui",v:"NÃO é o vento predominante do sítio — o item 5.3 da folha de dados traz 3 m/s, que é média anual e serve para descrever o local, não para verificar projeto. Inclinação de chama e downwash pedem vento de PROJETO, de alta recorrência. Referência: a V0 da NBR 6123 adotada é "+V0.toFixed(0)+" m/s (rajada de 3 s a 10 m); o vento médio correspondente fica na casa de "+(V0*0.69).toFixed(0)+" m/s, e é dessa ordem o valor a usar.",hi:true},
-    {k:"Vento de projeto para a chama",v:uw.toFixed(1).replace(".",",")+" m/s   —  velocidade de saída "+Vsai.toFixed(0)+" m/s"},
-    {k:"Inclinação da chama a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°   —   "+
-      (tetaRegeCalc?("REGE A CALCULADA: tan θ = u_vento/u_saída = "+uw.toFixed(0)+"/"+Vsai.toFixed(1).replace(".",",")+" dá "+tetaCalcG.toFixed(1).replace(".",",")+"°, acima do piso imposto de "+tetaIn.toFixed(0)+"°"):
-       (tetaImposto?("rege o PISO imposto de "+tetaIn.toFixed(0)+"°; a relação tan θ = u_vento/u_saída daria "+tetaCalcG.toFixed(1).replace(".",",")+"°"):"calculada por tan θ = u_vento/u_saída")),hi:true},
-    {k:"⚠ Limitação do modelo de inclinação",v:"Em ponta de alta velocidade a relação tan θ = u_vento/u_saída devolve chama quase vertical, e isso é POUCO CONSERVADOR — o jato desacelera ao longo da chama e o vento a inclina mais do que a expressão sugere. Recomenda-se rodar a sensibilidade impondo 45° no campo de entrada e adotar o envelope, ou usar a curva de distorção de chama do fabricante.",hi:!tetaImposto},
-    {k:"Centro emissor da chama (a partir do topo)",v:"Δx = "+dxF.toFixed(1).replace(".",",")+" m na horizontal   ·   Δy = "+dyF.toFixed(1).replace(".",",")+" m na vertical   —  o vento aproxima o centro emissor do solo, e é com a chama inclinada que a radiação deve ser verificada, nunca com a chama vertical",hi:true},
+    {k:"3.2  Razão que comanda a distorção  u_saída ÷ u_vento",v:Vsai.toFixed(1).replace(".",",")+" ÷ "+uw.toFixed(1).replace(".",",")+" = "+(isFinite(razVJ)?razVJ.toFixed(2).replace(".",","):"∞")+"×   vs   mínimo de "+razMin.toFixed(1).replace(".",",")+"× adotado"+(razOK?"   ✓ jato domina o vento":"   ⚠ ABAIXO — jato fraco frente ao vento: chama muito inclinada e risco de downwash (sucção da chama para a esteira da torre, que queima casco e plataforma). Aumentar a velocidade de saída reduzindo o diâmetro da ponta, ou reduzir o vento de projeto se houver base para isso."),hi:!razOK},
+    {k:"3.3  Inclinação SIMPLIFICADA  tan θ = u_vento/u_saída",v:tetaCalcG.toFixed(1).replace(".",",")+"°   —  vale só junto ao bico: supõe que o jato conserva a velocidade de saída ao longo de toda a chama. Como ele desacelera, esta base SUBESTIMA a inclinação e não deve ser usada sozinha."},
+    {k:"3.4  Inclinação pela TRAJETÓRIA com decaimento do jato",v:"corda bico→ponta "+tetaTrajG.toFixed(1).replace(".",",")+"°   ·   local na ponta da chama "+tetaPontaG.toFixed(1).replace(".",",")+"°   —  integra-se tan θ(s) = u_vento/u(s) de s = 0 a L, com o decaimento de jato livre turbulento u(s)/u_saída = 6,2·D/s (D = "+dtip.toFixed(2).replace(".",",")+" m). A inclinação cresce ao longo da chama porque o jato perde velocidade enquanto o vento não muda.",hi:true},
+    {k:"INCLINAÇÃO ADOTADA a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°   —   "+
+      ({traj:"REGE A TRAJETÓRIA com decaimento do jato",simp:"rege a simplificada tan θ = u_vento/u_saída",imp:"rege o PISO imposto pelo usuário ("+(tetaImposto?tetaIn.toFixed(0):"0")+"°)"})[baseTeta]+
+      "   ·   simplificada "+tetaCalcG.toFixed(1).replace(".",",")+"°   ·   trajetória "+tetaTrajG.toFixed(1).replace(".",",")+"°"+(tetaImposto?("   ·   piso imposto "+tetaIn.toFixed(0)+"°"):"")+"   →   adota-se sempre a MAIOR",hi:true},
+    {k:"3.5  VERIFICAÇÃO — inclinação adotada × máxima admissível",v:tetaG.toFixed(1).replace(".",",")+"°   vs   "+tetaMax.toFixed(0)+"° admissíveis"+(tetaOK?("   ✓ DENTRO do aceitável   (folga de "+(tetaMax-tetaG).toFixed(1).replace(".",",")+"°)"):("   ⚠ ACIMA do aceitável — excede em "+(tetaG-tetaMax).toFixed(1).replace(".",",")+"°")),hi:true},
+    {k:"O que esse limite protege",v:"Não há limite normativo de inclinação: a API 521 manda considerar a distorção pelo vento, não a mantém abaixo de um valor. O limite é de PRÁTICA de projeto e existe para garantir três coisas — que a chama não deite sobre a plataforma e o casco (dano térmico e ao revestimento), que a ponta não avance sobre área ocupada, e que o centro emissor não desça a ponto de a radiação no solo não fechar. As três são verificadas nas linhas abaixo e na Etapa 4."},
+    {k:"3.6  Alcance da PONTA da chama a partir do eixo da torre",v:"horizontal "+xPonta.toFixed(1).replace(".",",")+" m   ·   vertical "+yPonta.toFixed(1).replace(".",",")+" m acima do topo   —  cota da ponta "+(Hst+yPonta).toFixed(1).replace(".",",")+" m"+((xPonta>=Rpes&&Rpes>0)?("   ⚠ a ponta ALCANÇA a horizontal do posto ocupado ("+Rpes.toFixed(0)+" m): a radiação no posto passa a ser por chama sobre a cabeça, e o modelo de fonte pontual perde validade — exigir do fornecedor a curva de distorção"):("   ✓ a ponta pára a "+(Rpes-xPonta).toFixed(1).replace(".",",")+" m antes da horizontal do posto ocupado")),hi:(xPonta>=Rpes&&Rpes>0)},
+    {k:"3.7  Centro emissor da chama (a partir do topo da torre)",v:"Δx = "+dxF.toFixed(1).replace(".",",")+" m na horizontal   ·   Δy = "+dyF.toFixed(1).replace(".",",")+" m na vertical"+(usaTraj?("   —  CENTRÓIDE da trajetória curva; a reta de meio comprimento no mesmo ângulo daria Δx = "+dxRet.toFixed(1).replace(".",",")+" m e Δy = "+dyRet.toFixed(1).replace(".",",")+" m"):"   —  meio comprimento em linha reta no ângulo adotado")+".  É com a chama inclinada que a radiação deve ser verificada, nunca com a chama vertical: o vento baixa o centro emissor e o aproxima do posto a sotavento.",hi:true},
+    {k:"⚠ Limite deste modelo",v:"O decaimento de jato livre 6,2·D/s vale para jato isotérmico sem combustão; a expansão térmica da chama sustenta a velocidade um pouco mais, e o empuxo a levanta. O resultado aqui fica entre a relação simplificada (otimista) e a chama deitada, que é onde a curva de distorção da API 521 também situa este caso. Para projeto executivo, exigir a curva de distorção do fornecedor da ponta e comparar."},
 
     {sec:"Etapa 4 — Radiação térmica e altura da torre (API 521)"},
     {k:"Fração da energia irradiada  F",v:Frad.toFixed(2).replace(".",",")+"   —  cerca de 0,15 para hidrogênio, 0,20 para metano e gás natural, 0,30 a 0,38 para hidrocarbonetos pesados e insaturados"},
@@ -2916,7 +2970,8 @@ function flareCalc(){
   ];
   OUT.geo={tipo:"flare",contInuo:contInuo,LHVvol:LHVvol,estavel:estavel,baixoPCI:baixoPCI,razEnr:razEnr,QNm:QNm,teorCO:teorCO,toxico:toxico,poeira:poeira,npilTab:npilTab,W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
     dHead:dHead,MaH:MaH,PbackMan:PbackMan,PbackAdm:PbackAdm,backOK:backOK,Pset:Pset,
-    Lf:Lf,tetaG:tetaG,tetaCalcG:tetaCalcG,dxF:dxF,dyF:dyF,uw:uw,Hrad:Hrad,Hbase:Hbase,Hmin:Hmin,govH:govH,Frad:Frad,Kadm:Kadm,Ksol:Ksol,Drad:Drad,
+    Lf:Lf,tetaG:tetaG,tetaCalcG:tetaCalcG,tetaTrajG:tetaTrajG,tetaPontaG:tetaPontaG,tetaMax:tetaMax,tetaOK:tetaOK,
+    xPonta:xPonta,yPonta:yPonta,razVJ:razVJ,razMin:razMin,razOK:razOK,dxF:dxF,dyF:dyF,uw:uw,Hrad:Hrad,Hbase:Hbase,Hmin:Hmin,govH:govH,Frad:Frad,Kadm:Kadm,Ksol:Ksol,Drad:Drad,
     Hreq:Hreq,Hst:Hst,Rpes:Rpes,Kbase:Kbase,Kpes:Kpes,Rlim:Rlim,isop:isop,radOK:radOK,
     xLII:xLII,dispOK:dispOK,acido:acido,folgaPlat:folgaPlat,
     Dko:Dko,Lko:Lko,vt:vt,dgota:dgota,selo:selo,Nmpurga:Nmpurga,
@@ -3451,6 +3506,8 @@ const CALCS={
       {id:"flRpes",label:"DISTÂNCIA da base ao POSTO OCUPADO mais próximo (do plot plan)",unidade:"m",tipo:"number",valor:30,step:"5"},
       {id:"flUw",label:"VENTO DE PROJETO para inclinação da chama e downwash",unidade:"m/s",tipo:"number",valor:30,step:"1"},
       {id:"flTeta",label:"Inclinação MÍNIMA imposta à chama (0 = só a calculada; adota-se sempre a maior)",unidade:"°",tipo:"number",valor:45,step:"5"},
+      {id:"flTetaMax",label:"Inclinação MÁXIMA admissível da chama (critério de verificação)",unidade:"°",tipo:"number",valor:75,step:"5"},
+      {id:"flRazMin",label:"Razão mínima velocidade de saída ÷ vento (anti-downwash)",unidade:"×",tipo:"number",valor:2,step:"0.5"},
       {id:"flH",label:"ALTURA ADOTADA da torre (0 = adotar a mínima calculada)",unidade:"m",tipo:"number",valor:40,step:"1"},
       {id:"flHmin",label:"Altura mínima construtiva",tipo:"select",valor:"10",opcoes:[
         {v:"10",t:"10 m"},{v:"15",t:"15 m"},{v:"20",t:"20 m"},{v:"30",t:"30 m"}]},
@@ -8649,6 +8706,9 @@ function gerarRelatorio(){
 
       /* torre */
       var wSt=Math.max(1.6,G.Dst*esc/2);
+      /* torre baixa e gorda estoura a escala: limita-se a meia-largura desenhada para
+         que casco, seta de vento (22 mm à esquerda) e base caibam na área útil.      */
+      wSt=Math.min(wSt,(cx-XL-26)/2.2,(XR-2-cx)/2.2); if(!(wSt>1.6)) wSt=1.6;
       doc.setFillColor(70,92,122); doc.setDrawColor(45,62,86); doc.setLineWidth(0.4);
       doc.rect(cx-wSt,yTip,2*wSt,yG-yTip,"FD");
       /* ponta */
@@ -8664,15 +8724,17 @@ function gerarRelatorio(){
       doc.line(cx+wSt+1.2,yTip,cx+wSt+1.2,yG);
       /* base */
       doc.setFillColor(45,62,86); doc.rect(cx-wSt*2.2,yG-1.6,wSt*4.4,1.6,"F");
+      /* meia-largura do casco no desenho, limitada para a base da chama não sair da folha */
+      var wCh=Math.min(wSt*1.4,(XR-2-cx),(cx-XL-2)); if(!(wCh>0.5)) wCh=0.5;
 
       /* chama inclinada */
       var tr=G.tetaG*Math.PI/180;
       var xf1=cx+G.Lf*esc*Math.sin(tr), yf1=yTip-3-G.Lf*esc*Math.cos(tr);
       xf1=Math.max(XL+2,Math.min(XR-2,xf1)); yf1=Math.max(24,yf1);
       doc.setFillColor(240,170,60); doc.setDrawColor(240,170,60);
-      doc.triangle(cx-wSt*1.4,yTip-3,cx+wSt*1.4,yTip-3,xf1,yf1,"F");
+      doc.triangle(cx-wCh,yTip-3,cx+wCh,yTip-3,xf1,yf1,"F");
       doc.setFillColor(230,110,40);
-      doc.triangle(cx-wSt*0.7,yTip-3,cx+wSt*0.7,yTip-3,(cx+xf1)/2,(yTip-3+yf1)/2,"F");
+      doc.triangle(cx-wCh*0.5,yTip-3,cx+wCh*0.5,yTip-3,(cx+xf1)/2,(yTip-3+yf1)/2,"F");
       /* centro emissor */
       var xc0=cx+G.dxF*esc, yc0=yTip-3-G.dyF*esc;
       /* com chama muito inclinada o centro emissor sai da folha — mantém-se o marcador
@@ -8793,6 +8855,8 @@ function gerarRelatorio(){
       /* plataformas */
       for(var pk=0;pk<G.cotasPlat.length;pk++){
         var cp2=G.cotasPlat[pk], ypl=eyG-cp2.z*esc2;
+        /* cota fora de escala (torre curta e plataforma alta) não pode sair da folha */
+        if(!isFinite(ypl)||ypl<12||ypl>283) continue;
         var topo=(cp2.tipo!=="descanso");
         var lp=Math.min(topo?(G.Rext*esc2):(G.Rext*esc2*0.55),26);
         doc.setDrawColor(30,110,160); doc.setLineWidth(topo?0.7:0.45);
@@ -8921,7 +8985,10 @@ function gerarRelatorio(){
         head:[["Chama, radiacao e dispersao","Valor"]],
         body:[
           [san("Comprimento de chama"),san(G.Lf.toFixed(1))+" m"],
-          [san("Inclinacao adotada"),san(G.tetaG.toFixed(1))+"°  (simplificada "+san(G.tetaCalcG.toFixed(1))+"°)"],
+          [san("Inclinacao adotada"),san(G.tetaG.toFixed(1))+"°  (simplif. "+san(G.tetaCalcG.toFixed(1))+"° · trajetoria "+san(G.tetaTrajG.toFixed(1))+"°)"],
+          [san("Inclinacao maxima admissivel"),san(G.tetaMax.toFixed(0))+"°   "+(G.tetaOK?"ATENDE":"EXCEDE")],
+          [san("Alcance da ponta da chama"),"dx "+san(G.xPonta.toFixed(1))+" m  ·  dy "+san(G.yPonta.toFixed(1))+" m"],
+          [san("u_saida / u_vento"),(isFinite(G.razVJ)?san(G.razVJ.toFixed(2)):"inf")+"x  (min "+san(G.razMin.toFixed(1))+"x)   "+(G.razOK?"ATENDE":"BAIXA - downwash")],
           [san("Fracao irradiada F / K admissivel"),san(G.Frad.toFixed(2))+" / "+san(G.Kadm.toFixed(2))+" kW/m2"],
           [san("Parcela solar somada"),san(G.Ksol.toFixed(2))+" kW/m2"],
           [san("Distancia minima ao centro da chama"),san(G.Drad.toFixed(1))+" m"],
@@ -9409,8 +9476,13 @@ function gerarRelatorio(){
       var isBan=!!G.banana, incS=G.inclS||0, incSr=incS*Math.PI/180, uMid=0.45;
       var px=44,py=58,pw=120,ph=18;
       var drop1,drop2,drop;
-      if(isBan){ drop1=pw*uMid*Math.tan(incr); drop2=pw*(1-uMid)*Math.tan(incSr); drop=drop1+drop2; if(drop>50){var sc=50/drop; drop1*=sc; drop2*=sc; drop=50;} }
-      else { drop=pw*Math.tan(incr); if(drop>46) drop=46; drop1=drop; drop2=0; }
+      if(isBan){ drop1=pw*uMid*Math.tan(incr); drop2=pw*(1-uMid)*Math.tan(incSr); drop=drop1+drop2;
+        /* inclinação negativa devolve queda negativa: limita-se em módulo, senão o
+           desenho sobe acima da margem superior da folha.                          */
+        if(Math.abs(drop)>44){var sc=44/Math.abs(drop); drop1*=sc; drop2*=sc;}
+        drop1=Math.max(-44,Math.min(44,drop1)); drop2=Math.max(-44,Math.min(44,drop2));
+        drop=Math.max(-44,Math.min(44,drop1+drop2)); }
+      else { drop=pw*Math.tan(incr); drop=Math.max(-44,Math.min(44,drop)); drop1=drop; drop2=0; }
       function topY(u){ if(!isBan) return drop*u; if(u<=uMid) return drop1*(u/uMid); return drop1+drop2*((u-uMid)/(1-uMid)); }
       // caixa da peneira
       if(isBan){
@@ -9569,11 +9641,17 @@ function gerarRelatorio(){
       doc.text(san((G.regPlano?"face = ":"αv = ")+G.alfaGov.toFixed(1)+"°  (exig. "+G.alfaFlow.toFixed(1)+"°)"),cx-wH+3,yTrans+(yBoca-yTrans)*0.55);
       /* ---------- VISTA 2: PLANTA ---------- */
       var pL=132, pT=44, pW=54, pH=pW*(G.b/G.D);
+      /* silo muito mais comprido que largo estoura a caixa da planta: mantém-se a
+         proporção até o limite e daí em diante desenha-se fora de escala.          */
+      if(!isFinite(pH)||pH<=0) pH=pW*0.6; pH=Math.max(8,Math.min(pH,72));
       doc.setFontSize(8); doc.setTextColor(C1[0],C1[1],C1[2]);
       doc.text(san("PLANTA"),pL,pT-6);
       doc.setFillColor(CMA[0],CMA[1],CMA[2]); doc.setDrawColor(C1[0],C1[1],C1[2]); doc.setLineWidth(1.0);
       doc.rect(pL,pT,pW,pH,"FD");
       var bwP=pW*(G.Bw/G.D), blP=pH*(G.Bl/G.b);
+      /* boca maior que o silo (entrada degenerada) não pode extrapolar a planta */
+      if(!isFinite(bwP)||bwP<=0)bwP=pW*0.2; if(!isFinite(blP)||blP<=0)blP=pH*0.2;
+      bwP=Math.min(bwP,pW*0.96); blP=Math.min(blP,pH*0.96);
       doc.setFillColor(255,255,255); doc.setDrawColor(180,60,60); doc.setLineWidth(0.8);
       doc.rect(pL+(pW-bwP)/2,pT+(pH-blP)/2,bwP,blP,"FD");
       /* linhas de vale */
