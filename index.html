@@ -616,17 +616,21 @@ function selPerfil(crit,fam){
   if(alts.length) return {best:alts[0],alts:alts,dobro:false};
   // Nenhum perfil isolado atende — propor seção composta com o maior perfil da família.
   var univ=CAT_PERFIS.filter(function(p){ return (!fam||p.fam===fam); });
+  /* família sem perfis catalogados: cai para o catálogo inteiro em vez de quebrar */
+  if(!univ.length) univ=CAT_PERFIS.slice();
   if(crit.i){
     // Critério de coluna: associar perfis NÃO aumenta i_min se eles forem justapostos;
     // é preciso afastá-los (seção composta em caixão / treliçada).
     var bi=univ.slice().sort(function(x,y){ return y.A-x.A; })[0];
-    var nd2=Math.max(2,Math.ceil(crit.A/bi.A));
+    var nd2=Math.max(2,Math.ceil((crit.A>0&&bi.A>0)?(crit.A/bi.A):2));
+    if(!isFinite(nd2)) nd2=2;
     return {best:{fam:bi.fam,n:nd2+" x "+bi.n+"  — SEÇÃO COMPOSTA (perfis afastados; definir o "+
             "espaçamento para i_min ≥ "+crit.i.toFixed(1).replace(".",",")+" cm, com travejamento)",
             A:nd2*bi.A,Ix:nd2*bi.Ix,W:nd2*bi.W,imin:crit.i,kg:nd2*bi.kg},alts:[],dobro:true};
   }
   var base=univ.slice().sort(function(x,y){ return (y.W||0)-(x.W||0); })[0];
-  var nd=Math.max(2,Math.ceil(crit.W/base.W));
+  var nd=Math.max(2,Math.ceil((crit.W>0&&base.W>0)?(crit.W/base.W):2));
+  if(!isFinite(nd)) nd=2;
   var comp={fam:base.fam,n:nd+" x "+base.n+"  (perfis associados)",A:nd*base.A,Ix:nd*base.Ix,
             W:nd*base.W,imin:base.imin,kg:nd*base.kg};
   return {best:comp,alts:[comp],dobro:true};
@@ -1843,7 +1847,8 @@ function flareCalc(){
   var Pset=num("flPset");  if(!isFinite(Pset)||Pset<=0)Pset=1000;  // kPa man. — pressão de ajuste da PSV
   var tipoPSV=selv("flPSV","balanc");
   var Lhead=num("flLhead");if(!isFinite(Lhead)||Lhead<=0)Lhead=200; // m equivalentes
-  var Dhead=num("flDhead");if(!isFinite(Dhead)||Dhead<0)Dhead=0;    // mm (0 = dimensionar)
+  var dhSel=selv("flDhead","auto");
+  var Dhead=(dhSel==="auto")?0:(parseFloat(dhSel)*1000);            // mm (0 = dimensionar)
   var tipoFl=selv("flTipo","auto");
   var assist=selv("flAssist","vapor");
   var servico=selv("flServico","emerg");
@@ -1880,6 +1885,28 @@ function flareCalc(){
   var razEnr=baixoPCI?((LHVlim-LHVvol)/(LHVsup-LHVlim)):0;   // Nm³ de apoio por Nm³ de gás
   var QNm=Gs/rhoN*3600;                                // Nm³/h de gás de processo
   var Qenr=razEnr*QNm;                                 // Nm³/h de gás de apoio
+
+  /* ---------- RISER — o tubo de subida, dimensionado por velocidade ----------
+     É o critério da planilha de referência: D = √(4·Q/(v·π)) com v de projeto entre
+     20 e 30 m/s em BFG. A ponta assenta sobre ele; o casco da torre o envolve.      */
+  var vRiser=num("flVriser"); if(!isFinite(vRiser)||vRiser<=0)vRiser=25;
+  var vMaxRis=num("flVmax"); if(!isFinite(vMaxRis)||vMaxRis<=0)vMaxRis=30;
+  var Driser_req=Math.sqrt(4*Qv/(vRiser*Math.PI));            // m
+  var DRIS=[]; for(var r0=5;r0<=40;r0++) DRIS.push(r0/10);
+  /* regra do MAIS PRÓXIMO: entre o comercial abaixo e o acima, adota-se o de menor
+     diferença absoluta. Arredondar sempre para cima afasta demais do requerido e
+     encarece o tubo; para baixo, a velocidade sobe — por isso o aviso adiante.      */
+  function maisProx(v,lst){ var best=lst[0];
+    for(var q=0;q<lst.length;q++){ if(Math.abs(lst[q]-v)<Math.abs(best-v)) best=lst[q]; }
+    return best; }
+  var drSel=selv("flDriser","auto");
+  var Driser, drAuto=(drSel==="auto");
+  if(drAuto){ Driser=maisProx(Driser_req,DRIS); }
+  else { Driser=parseFloat(drSel); }
+  var drAcima=(Driser<Driser_req);
+  var Ariser=Math.PI*Driser*Driser/4;
+  var vRiserReal=Qv/Ariser, MaRiser=vRiserReal/son;
+  var riserOK=(vRiserReal<=vMaxRis*1.0001);
 
   /* ---------- ETAPA 2 — DIÂMETRO DA PONTA (Mach, API 521) ---------- */
   var Vadm=maAdm*son;
@@ -1941,12 +1968,18 @@ function flareCalc(){
   else {
     dHead=DN[DN.length-1];
     for(var j=0;j<DN.length;j++){ if(DN[j]>=dHeadCalc){ dHead=DN[j]; break; } }
-    var dHeadMach=dHead;
-    for(var j2=0;j2<DN.length;j2++){
-      if(DN[j2]<dHeadMach) continue;
-      var Dh2=DN[j2]/1000, Vh2=Qv/(Math.PI*Dh2*Dh2/4);
-      if(fD*(Lhead/Dh2)*rho*Vh2*Vh2/2/1000<=dpHeadAdm){ dHead=DN[j2]; break; }
-      dHead=DN[j2];
+    /* mesma régua do riser: passo de 0,1 m e adoção do MAIS PRÓXIMO do requerido por
+       Mach; depois verifica-se a perda de carga e, se não couber, abre-se até o limite
+       do riser — header maior que o riser é incoerente.                               */
+    var dHeadMach=maisProx(dHeadCalc/1000,DRIS)*1000;
+    dHead=dHeadMach;
+    var dLim=Math.max(Driser*1000,dHeadMach);
+    for(var j2=0;j2<DRIS.length;j2++){
+      var cand=DRIS[j2]*1000;
+      if(cand<dHeadMach||cand>dLim) continue;
+      var Dh2=DRIS[j2], Vh2=Qv/(Math.PI*Dh2*Dh2/4);
+      if(fD*(Lhead/Dh2)*rho*Vh2*Vh2/2/1000<=dpHeadAdm){ dHead=cand; break; }
+      dHead=cand;
     }
     dhGov=(dHead>dHeadMach);
   }
@@ -1971,15 +2004,19 @@ function flareCalc(){
      L(ft) = 0,0059 · Q(Btu/h)^0,478                                                        */
   var Qbtu=Qcal*3412.142;
   var Lf=0.3048*0.0059*Math.pow(Qbtu,0.478);           // m
-  var uw=num("flUw"); if(!isFinite(uw)||uw<0)uw=8;     // m/s — vento de projeto para a chama
+  var uw=num("flUw"); if(!isFinite(uw)||uw<0)uw=30;    // m/s — vento de PROJETO para a chama
   /* Inclinação simplificada tan θ = u_vento/u_saída. Em ponta de alta velocidade essa
      relação devolve chama quase vertical, o que é POUCO CONSERVADOR: na realidade o jato
      desacelera e o vento a inclina bem mais. Por isso o ângulo pode ser imposto, e a
      Etapa 4 traz a sensibilidade a 45° como envelope. */
   var tetaIn=num("flTeta");
   var tetaCalcG=Math.atan2(uw,Math.max(Vsai,0.01))*180/Math.PI;
-  var tetaG=(isFinite(tetaIn)&&tetaIn>0)?tetaIn:tetaCalcG;
+  /* o ângulo imposto é um PISO, não um substituto: se o vento de projeto contra a
+     velocidade de saída devolver inclinação maior, é ela que vale — impor um ângulo
+     menor que o físico seria não conservador.                                        */
+  var tetaG=(isFinite(tetaIn)&&tetaIn>0)?Math.max(tetaIn,tetaCalcG):tetaCalcG;
   var tetaImposto=(isFinite(tetaIn)&&tetaIn>0);
+  var tetaRegeCalc=(tetaImposto&&tetaCalcG>tetaIn);
   var teta=tetaG*Math.PI/180;
   var dxF=0.5*Lf*Math.sin(teta), dyF=0.5*Lf*Math.cos(teta);   // centro da chama
 
@@ -2015,6 +2052,7 @@ function flareCalc(){
   var Hst=Hadot?Huser:Hmincalc;
   var radOK=(Hst>=Hreq-0.05);
   var folgaH=Hst-Hreq;
+  var dPriser=0.02*(Hst/Driser)*rho*vRiserReal*vRiserReal/2/1000;   // kPa — atrito na subida
   /* radiação resultante em pontos de interesse */
   function Krad(R,H){
     var dx=R-dxF, dy=H+dyF;
@@ -2109,6 +2147,7 @@ function flareCalc(){
   /* ---------- ETAPA 8 — SELAGEM E PURGA ---------- */
   var selo=selv("flSelo","molecular");
   var vPurTab=({nenhum:0.30,velocidade:0.03,molecular:0.006})[selo];
+  if(!isFinite(vPurTab)) vPurTab=0.30;   /* selo desconhecido: adota-se o caso sem selo, conservador */
   var vPurIn=num("flVpur");
   var vPurUser=(isFinite(vPurIn)&&vPurIn>0);
   var vPurga=vPurUser?vPurIn:vPurTab;
@@ -2148,7 +2187,9 @@ function flareCalc(){
   var Vk=V0*S1w*S2w*S3w, qv=0.613*Vk*Vk/1000;           // kPa
   /* diâmetro do casco: por esbeltez construtiva se não informado */
   var Dst=num("flDst");
-  if(!isFinite(Dst)||Dst<=0){ Dst=Math.max(dtip, Hst/28); Dst=Math.ceil(Dst*10)/10; }
+  /* o casco autoportante É o riser: adota-se o diâmetro do riser, respeitando a ponta
+     e um mínimo de esbeltez construtiva.                                            */
+  if(!isFinite(Dst)||Dst<=0){ Dst=Math.max(Driser, dtip, Hst/40); Dst=Math.ceil(Dst*10)/10; }
   var Ca=num("flCa"); if(!isFinite(Ca)||Ca<=0)Ca=0.7;   // cilindro circular, regime supercrítico
   var Fw=qv*Ca*Dst*Hst;                                  // kN
   var Mw=Fw*Hst/2;                                       // kN·m na base
@@ -2591,25 +2632,46 @@ function flareCalc(){
     {k:"Selagem hídrica",v:"Em planta de gusa o selo hídrico (selo líquido) costuma ser preferível ao selo molecular: além de barrar o ar, ele lava o particulado residual e dá controle de contrapressão. Prever purga e reposição de água, e proteção contra congelamento se aplicável."}
     ]:[]),
 
-    {sec:"Etapa 1 — Diâmetro da ponta (API 521)"},
+    {sec:"Etapa 1 — RISER: diâmetro do tubo de subida"},
+    {k:"Critério",v:"O riser é dimensionado por VELOCIDADE, não por Mach: D = √(4·Q/(v·π)). Em gás de topo de alto-forno adota-se de 20 a 30 m/s — acima disso a perda de carga come a pouca pressão disponível, abaixo disso o tubo fica caro e a chama perde ancoragem.",hi:true},
+    {k:"Vazão volumétrica na temperatura de operação",v:Qv.toFixed(2).replace(".",",")+" m³/s   ("+fmt(Math.round(Qv*3600))+" m³/h a "+Tc.toFixed(0)+" °C)"},
+    {k:"Velocidade de projeto adotada",v:vRiser.toFixed(0)+" m/s"},
+    {k:"DIÂMETRO NECESSÁRIO do riser  D = √(4·Q/(v·π))",v:Driser_req.toFixed(3).replace(".",",")+" m   =   "+fmt(Math.round(Driser_req*1000))+" mm",hi:true},
+    {k:"DIÂMETRO ADOTADO do riser",v:Driser.toFixed(1).replace(".",",")+" m   (DN "+fmt(Math.round(Driser*1000))+")"+(drAuto?("   —  o mais próximo de "+Driser_req.toFixed(3).replace(".",",")+" m no passo de 0,1 m ("+((Driser-Driser_req)>=0?"+":"")+((Driser-Driser_req)*1000).toFixed(0)+" mm)"):"   —  escolha do usuário")+(drAcima?"   ⚠ abaixo do requerido: a velocidade sobe":""),hi:true},
+    {k:"Velocidade em cada diâmetro comercial",v:DRIS.filter(function(d){return d>=Driser_req-0.3&&d<=Driser_req+0.4;}).map(function(d){
+      var vv=Qv/(Math.PI*d*d/4);
+      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s"+((vv<=vMaxRis)?"":" ⚠");
+      }).join("   ·   ")+"   —  passo comercial de 0,1 m; adota-se o de menor diferença absoluta em relação ao requerido ("+Driser_req.toFixed(3).replace(".",",")+" m). O ⚠ marca quem passa de "+vMaxRis.toFixed(0)+" m/s.",hi:true},
+    {k:"Velocidade resultante no riser",v:vRiserReal.toFixed(2).replace(".",",")+" m/s   ·   Ma = "+MaRiser.toFixed(3).replace(".",",")+"   "+(riserOK?"✓ dentro do adotado":"⚠ ACIMA do valor de projeto — subir um diâmetro"),hi:!riserOK},
+    {k:"Perda de carga no riser  (Darcy, f = 0,020)",v:dPriser.toFixed(3).replace(".",",")+" kPa   em "+(Hst>0?Hst.toFixed(0):"30")+" m de subida"},
+
+    {sec:"Etapa 1b — Diâmetro da ponta (API 521)"},
     {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
     {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
-    {k:"DIÂMETRO DA PONTA ADOTADO",v:dpol+"\" ("+(dtip*1000).toFixed(0)+" mm)"+((isFinite(dUser)&&dUser>0)?"   (imposto pelo usuário)":"   (comercial imediatamente superior)"),hi:true},
+    {k:"DIÂMETRO DA PONTA ADOTADO",v:dpol+"\" ("+(dtip*1000).toFixed(0)+" mm)"+((isFinite(dUser)&&dUser>0)?"   (imposto pelo usuário)":(dpGov?("   —  ABERTO além do requerido por Mach ("+dcalc.toFixed(0)+" mm) para respeitar a velocidade máxima de "+vMaxTip.toFixed(0)+" m/s e a perda de carga admissível"):"   (comercial imediatamente superior ao requerido por Mach)")),hi:true},
     {k:"Velocidade e Mach na vazão de projeto",v:Vsai.toFixed(0)+" m/s   ·   Ma = "+Ma.toFixed(3).replace(".",",")+(machOK?"   ✓ dentro do limite":"   ⚠ ACIMA do limite adotado — aumentar o diâmetro"),hi:!machOK},
     {k:"Velocidade e Mach na vazão mínima contínua",v:(Wmin>0?(VsaiMin.toFixed(1).replace(".",",")+" m/s   ·   Ma = "+MaMin.toFixed(4).replace(".",",")+"   —  verificar com o fabricante a estabilidade de chama e o limite de retrocesso nesta condição"):"não informada — informar a vazão contínua mínima para verificar a estabilidade de chama em turndown")},
     {k:"Perda de carga na ponta  ΔP = K·ρV²/2",v:dPtip.toFixed(2).replace(".",",")+" kPa   (K = "+Ktip.toFixed(1).replace(".",",")+" — 1,5 típico de ponta tubular, 2 a 3 em ponta proprietária; confirmar com a curva do fabricante)"},
 
     {sec:"Etapa 2 — Contrapressão (o critério que costuma governar)"},
     {k:"Por que importa",v:"A perda de carga da ponta somada à do header retorna como CONTRAPRESSÃO no bocal das válvulas de segurança. Se ultrapassar o limite do tipo de PSV, a capacidade de alívio cai e o sistema deixa de proteger o equipamento. Dimensionar a ponta isolada, sem fechar o balanço hidráulico, é o erro mais comum em projeto de tocha.",hi:true},
-    {k:"Header — critério de Mach ≤ 0,20 (API 521)",v:"diâmetro requerido "+dHeadCalc.toFixed(0)+" mm   →   adotado DN "+dHead+"   ·   velocidade "+Vh.toFixed(0)+" m/s   ·   Ma = "+MaH.toFixed(3).replace(".",",")+(headOK?"   ✓":"   ⚠ acima de 0,20 — aumentar o diâmetro do header"),hi:!headOK},
+    {k:"Header — critério de Mach ≤ 0,20 (API 521)",v:"diâmetro requerido "+dHeadCalc.toFixed(0)+" mm   →   adotado DN "+dHead+(dhGov?"  (ABERTO além do Mach para caber na perda de carga admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa; teto = diâmetro do riser)":"  (o mais próximo do requerido, passo de 0,1 m)")+"   ·   velocidade "+Vh.toFixed(0)+" m/s   ·   Ma = "+MaH.toFixed(3).replace(".",",")+(headOK?"   ✓":"   ⚠ acima de 0,20 — aumentar o diâmetro do header"),hi:!headOK},
+    {k:"HEADER — requerido × adotado",v:"requerido por Mach ≤ 0,20: "+(dHeadCalc/1000).toFixed(3).replace(".",",")+" m   →   ADOTADO "+(dHead/1000).toFixed(1).replace(".",",")+" m (DN "+dHead+")   ·   diferença "+((dHead-dHeadCalc)>=0?"+":"")+(dHead-dHeadCalc).toFixed(0)+" mm   ·   velocidade "+Vh.toFixed(1).replace(".",",")+" m/s"+((dhSel==="auto")?"   (automático)":"   (escolha do usuário)"),hi:true},
+    {k:"Velocidade no header por diâmetro comercial",v:DRIS.filter(function(d){return d>=dHeadCalc/1000-0.3&&d<=Math.max(dHeadCalc/1000+0.4,dHead/1000+0.1);}).map(function(d){
+      var vv=Qv/(Math.PI*d*d/4), dp=fD*(Lhead/d)*rho*vv*vv/2/1000;
+      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s / "+dp.toFixed(2).replace(".",",")+" kPa"+((dp<=dpHeadAdm)?"":" ⚠");
+      }).join("   ·   ")+"   —  velocidade e perda de carga em cada diâmetro; o ⚠ marca quem estoura a perda admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa"},
     {k:"Perda de carga no header  (Darcy, f = 0,015)",v:dPhead.toFixed(2).replace(".",",")+" kPa   em "+Lhead.toFixed(0)+" m equivalentes"},
     {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
     {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
 
     {sec:"Etapa 3 — Chama: comprimento e inclinação pelo vento"},
     {k:"Comprimento de chama  L = 0,0059·Q^0,478",v:Lf.toFixed(1).replace(".",",")+" m   (ajuste de Beychok sobre a Figura 8 da API 521, com Q em Btu/h)",hi:true},
+    {k:"⚠ Qual vento entra aqui",v:"NÃO é o vento predominante do sítio — o item 5.3 da folha de dados traz 3 m/s, que é média anual e serve para descrever o local, não para verificar projeto. Inclinação de chama e downwash pedem vento de PROJETO, de alta recorrência. Referência: a V0 da NBR 6123 adotada é "+V0.toFixed(0)+" m/s (rajada de 3 s a 10 m); o vento médio correspondente fica na casa de "+(V0*0.69).toFixed(0)+" m/s, e é dessa ordem o valor a usar.",hi:true},
     {k:"Vento de projeto para a chama",v:uw.toFixed(1).replace(".",",")+" m/s   —  velocidade de saída "+Vsai.toFixed(0)+" m/s"},
-    {k:"Inclinação da chama a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°"+(tetaImposto?"   (imposta pelo usuário; a relação simplificada daria "+tetaCalcG.toFixed(1).replace(".",",")+"°)":"   (tan θ = u_vento / u_saída → "+tetaCalcG.toFixed(1).replace(".",",")+"°)"),hi:true},
+    {k:"Inclinação da chama a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°   —   "+
+      (tetaRegeCalc?("REGE A CALCULADA: tan θ = u_vento/u_saída = "+uw.toFixed(0)+"/"+Vsai.toFixed(1).replace(".",",")+" dá "+tetaCalcG.toFixed(1).replace(".",",")+"°, acima do piso imposto de "+tetaIn.toFixed(0)+"°"):
+       (tetaImposto?("rege o PISO imposto de "+tetaIn.toFixed(0)+"°; a relação tan θ = u_vento/u_saída daria "+tetaCalcG.toFixed(1).replace(".",",")+"°"):"calculada por tan θ = u_vento/u_saída")),hi:true},
     {k:"⚠ Limitação do modelo de inclinação",v:"Em ponta de alta velocidade a relação tan θ = u_vento/u_saída devolve chama quase vertical, e isso é POUCO CONSERVADOR — o jato desacelera ao longo da chama e o vento a inclina mais do que a expressão sugere. Recomenda-se rodar a sensibilidade impondo 45° no campo de entrada e adotar o envelope, ou usar a curva de distorção de chama do fabricante.",hi:!tetaImposto},
     {k:"Centro emissor da chama (a partir do topo)",v:"Δx = "+dxF.toFixed(1).replace(".",",")+" m na horizontal   ·   Δy = "+dyF.toFixed(1).replace(".",",")+" m na vertical   —  o vento aproxima o centro emissor do solo, e é com a chama inclinada que a radiação deve ser verificada, nunca com a chama vertical",hi:true},
 
@@ -2625,7 +2687,7 @@ function flareCalc(){
     {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
     {k:"ALTURA REQUERIDA — ENVELOPE DOS CRITÉRIOS",v:"radiação no ponto com pessoal "+Hrad.toFixed(1).replace(".",",")+" m   ·   radiação na base (9,46 kW/m²) "+Hbase.toFixed(1).replace(".",",")+" m   ·   mínimo construtivo "+Hmin.toFixed(0)+" m",hi:true},
     {k:"ALTURA MÍNIMA REQUERIDA  →  GOVERNA: "+govH,v:Hreq.toFixed(1).replace(".",",")+" m   —  é o mínimo que atende à radiação; abaixo disso o projeto reprova",hi:true},
-    {k:"ALTURA ADOTADA DA TORRE",v:Hst.toFixed(1).replace(".",",")+" m"+(Hadot?("   —  informada pelo usuário   ·   mínima calculada "+Hmincalc.toFixed(1).replace(".",",")+" m"):("   —  adotada a mínima calculada, arredondada para múltiplo de 2 m"))+(radOK?("   ✓ atende, com folga de "+folgaH.toFixed(1).replace(".",",")+" m sobre a mínima"):("   ⚠ ABAIXO da mínima de "+Hreq.toFixed(1).replace(".",",")+" m — a radiação no ponto com pessoal ultrapassa o admissível")),hi:true},
+    {k:"ALTURA ADOTADA DA TORRE",v:Hst.toFixed(1).replace(".",",")+" m"+(Hadot?("   —  informada pelo usuário   ·   mínima requerida "+Hreq.toFixed(1).replace(".",",")+" m   (arredondada para múltiplo de 2 m: "+Hmincalc.toFixed(0)+" m)"):("   —  adotada a mínima calculada, arredondada para múltiplo de 2 m"))+(radOK?("   ✓ atende, com folga de "+folgaH.toFixed(1).replace(".",",")+" m sobre a mínima"):("   ⚠ ABAIXO da mínima de "+Hreq.toFixed(1).replace(".",",")+" m — a radiação no ponto com pessoal ultrapassa o admissível")),hi:true},
     {k:"Efeito da altura adotada",v:"Todo o dimensionamento estrutural adiante — viroles, chapa, helicoide, plataformas, vento e fundação — decorre desta altura, e não da mínima. Subir a torre reduz a radiação no solo, mas encarece casco, acesso e fundação de forma mais que proporcional: o momento na base cresce com o quadrado da altura."},
     {k:"Radiação na base da torre",v:Kbase.toFixed(2).replace(".",",")+" kW/m²   vs   9,46 kW/m² (sem pessoal)"+(baseOK?"   ✓":"   ⚠ EXCEDE — a base precisa ser área restrita e sem equipamento sensível"),hi:!baseOK},
     {k:"Radiação no ponto com pessoal",v:Kpes.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissível"},
@@ -3287,6 +3349,46 @@ const CALCS={
         {v:"0.2",t:"Mach 0,20 — operação contínua"},
         {v:"0.5",t:"Mach 0,50 — alívio de emergência"},
         {v:"0.8",t:"Mach 0,80 — ponta de alta velocidade (exige projeto do fabricante)"}]},
+      {id:"flVriser",label:"Velocidade de projeto no RISER",unidade:"m/s",tipo:"number",valor:25,step:"1"},
+      {id:"flDriser",label:"Diâmetro ADOTADO do riser",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — comercial de 0,1 m MAIS PRÓXIMO do requerido"},
+        {v:"0.5",t:"0.5 m  (DN 500)"},
+        {v:"0.6",t:"0.6 m  (DN 600)"},
+        {v:"0.7",t:"0.7 m  (DN 700)"},
+        {v:"0.8",t:"0.8 m  (DN 800)"},
+        {v:"0.9",t:"0.9 m  (DN 900)"},
+        {v:"1.0",t:"1.0 m  (DN 1000)"},
+        {v:"1.1",t:"1.1 m  (DN 1100)"},
+        {v:"1.2",t:"1.2 m  (DN 1200)"},
+        {v:"1.3",t:"1.3 m  (DN 1300)"},
+        {v:"1.4",t:"1.4 m  (DN 1400)"},
+        {v:"1.5",t:"1.5 m  (DN 1500)"},
+        {v:"1.6",t:"1.6 m  (DN 1600)"},
+        {v:"1.7",t:"1.7 m  (DN 1700)"},
+        {v:"1.8",t:"1.8 m  (DN 1800)"},
+        {v:"1.9",t:"1.9 m  (DN 1900)"},
+        {v:"2.0",t:"2.0 m  (DN 2000)"},
+        {v:"2.1",t:"2.1 m  (DN 2100)"},
+        {v:"2.2",t:"2.2 m  (DN 2200)"},
+        {v:"2.3",t:"2.3 m  (DN 2300)"},
+        {v:"2.4",t:"2.4 m  (DN 2400)"},
+        {v:"2.5",t:"2.5 m  (DN 2500)"},
+        {v:"2.6",t:"2.6 m  (DN 2600)"},
+        {v:"2.7",t:"2.7 m  (DN 2700)"},
+        {v:"2.8",t:"2.8 m  (DN 2800)"},
+        {v:"2.9",t:"2.9 m  (DN 2900)"},
+        {v:"3.0",t:"3.0 m  (DN 3000)"},
+        {v:"3.1",t:"3.1 m  (DN 3100)"},
+        {v:"3.2",t:"3.2 m  (DN 3200)"},
+        {v:"3.3",t:"3.3 m  (DN 3300)"},
+        {v:"3.4",t:"3.4 m  (DN 3400)"},
+        {v:"3.5",t:"3.5 m  (DN 3500)"},
+        {v:"3.6",t:"3.6 m  (DN 3600)"},
+        {v:"3.7",t:"3.7 m  (DN 3700)"},
+        {v:"3.8",t:"3.8 m  (DN 3800)"},
+        {v:"3.9",t:"3.9 m  (DN 3900)"},
+        {v:"4.0",t:"4.0 m  (DN 4000)"},
+        ]},
       {id:"flDtip",label:"Diâmetro da ponta (0 = calcular)",unidade:"pol",tipo:"number",valor:0,step:"2"},
       {id:"flKtip",label:"Coeficiente de perda de carga da ponta  K",tipo:"number",valor:1.5,step:"0.1"},
       {id:"flPset",label:"Pressão de ajuste da PSV mais crítica",unidade:"kPa man.",tipo:"number",valor:1000,step:"50"},
@@ -3296,7 +3398,47 @@ const CALCS={
         {v:"balanc",t:"Balanceada com fole — até 50 %"},
         {v:"pilot",t:"Operada por piloto — até 80 %"}]},
       {id:"flLhead",label:"Comprimento equivalente do header coletor",unidade:"m",tipo:"number",valor:200,step:"10"},
-      {id:"flDhead",label:"Diâmetro do header (0 = dimensionar por Mach ≤ 0,2)",unidade:"mm",tipo:"number",valor:0,step:"50"},
+      {id:"flDhead",label:"Diâmetro ADOTADO do header",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — 0,1 m MAIS PRÓXIMO, respeitando Mach ≤ 0,2 e a pressão disponível"},
+        {v:"0.3",t:"0.3 m  (DN 300)"},
+        {v:"0.4",t:"0.4 m  (DN 400)"},
+        {v:"0.5",t:"0.5 m  (DN 500)"},
+        {v:"0.6",t:"0.6 m  (DN 600)"},
+        {v:"0.7",t:"0.7 m  (DN 700)"},
+        {v:"0.8",t:"0.8 m  (DN 800)"},
+        {v:"0.9",t:"0.9 m  (DN 900)"},
+        {v:"1.0",t:"1.0 m  (DN 1000)"},
+        {v:"1.1",t:"1.1 m  (DN 1100)"},
+        {v:"1.2",t:"1.2 m  (DN 1200)"},
+        {v:"1.3",t:"1.3 m  (DN 1300)"},
+        {v:"1.4",t:"1.4 m  (DN 1400)"},
+        {v:"1.5",t:"1.5 m  (DN 1500)"},
+        {v:"1.6",t:"1.6 m  (DN 1600)"},
+        {v:"1.7",t:"1.7 m  (DN 1700)"},
+        {v:"1.8",t:"1.8 m  (DN 1800)"},
+        {v:"1.9",t:"1.9 m  (DN 1900)"},
+        {v:"2.0",t:"2.0 m  (DN 2000)"},
+        {v:"2.1",t:"2.1 m  (DN 2100)"},
+        {v:"2.2",t:"2.2 m  (DN 2200)"},
+        {v:"2.3",t:"2.3 m  (DN 2300)"},
+        {v:"2.4",t:"2.4 m  (DN 2400)"},
+        {v:"2.5",t:"2.5 m  (DN 2500)"},
+        {v:"2.6",t:"2.6 m  (DN 2600)"},
+        {v:"2.7",t:"2.7 m  (DN 2700)"},
+        {v:"2.8",t:"2.8 m  (DN 2800)"},
+        {v:"2.9",t:"2.9 m  (DN 2900)"},
+        {v:"3.0",t:"3.0 m  (DN 3000)"},
+        {v:"3.1",t:"3.1 m  (DN 3100)"},
+        {v:"3.2",t:"3.2 m  (DN 3200)"},
+        {v:"3.3",t:"3.3 m  (DN 3300)"},
+        {v:"3.4",t:"3.4 m  (DN 3400)"},
+        {v:"3.5",t:"3.5 m  (DN 3500)"},
+        {v:"3.6",t:"3.6 m  (DN 3600)"},
+        {v:"3.7",t:"3.7 m  (DN 3700)"},
+        {v:"3.8",t:"3.8 m  (DN 3800)"},
+        {v:"3.9",t:"3.9 m  (DN 3900)"},
+        {v:"4.0",t:"4.0 m  (DN 4000)"},
+        ]},
       {tipo:"head",label:"Radiação e altura"},
       {id:"flFrad",label:"Fração da energia irradiada  F",tipo:"number",valor:0.12,step:"0.01"},
       {id:"flTau",label:"Transmissividade atmosférica  τ  (1,0 = conservador)",tipo:"number",valor:1.0,step:"0.01"},
@@ -3307,8 +3449,8 @@ const CALCS={
         {v:"9.46",t:"9,46 kW/m² — sem presença de pessoal"}]},
       {id:"flKsol",label:"Parcela de radiação solar somada",unidade:"kW/m²",tipo:"number",valor:1.0,step:"0.05"},
       {id:"flRpes",label:"DISTÂNCIA da base ao POSTO OCUPADO mais próximo (do plot plan)",unidade:"m",tipo:"number",valor:30,step:"5"},
-      {id:"flUw",label:"Vento de projeto para inclinação da chama",unidade:"m/s",tipo:"number",valor:3,step:"1"},
-      {id:"flTeta",label:"Inclinação da chama (45° = envelope conservador · 0 = calcular por tan θ = u_vento/u_saída)",unidade:"°",tipo:"number",valor:45,step:"5"},
+      {id:"flUw",label:"VENTO DE PROJETO para inclinação da chama e downwash",unidade:"m/s",tipo:"number",valor:30,step:"1"},
+      {id:"flTeta",label:"Inclinação MÍNIMA imposta à chama (0 = só a calculada; adota-se sempre a maior)",unidade:"°",tipo:"number",valor:45,step:"5"},
       {id:"flH",label:"ALTURA ADOTADA da torre (0 = adotar a mínima calculada)",unidade:"m",tipo:"number",valor:40,step:"1"},
       {id:"flHmin",label:"Altura mínima construtiva",tipo:"select",valor:"10",opcoes:[
         {v:"10",t:"10 m"},{v:"15",t:"15 m"},{v:"20",t:"20 m"},{v:"30",t:"30 m"}]},
@@ -3320,10 +3462,10 @@ const CALCS={
       {id:"flDko",label:"Diâmetro do vaso (0 = dimensionar)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
       {tipo:"head",label:"Selagem, purga e supressão de fumaça"},
       {id:"flSelo",label:"Selo contra entrada de ar",tipo:"select",valor:"molecular",opcoes:[
-      {id:"flVpur",label:"Velocidade de purga adotada (0 = pelo tipo de selo)",unidade:"m/s",tipo:"number",valor:0.015,step:"0.001"},
         {v:"molecular",t:"Selo molecular — purga 0,006 m/s"},
         {v:"velocidade",t:"Selo de velocidade — purga 0,03 m/s"},
         {v:"nenhum",t:"Sem selo — purga 0,30 m/s"}]},
+      {id:"flVpur",label:"Velocidade de purga adotada (0 = pelo tipo de selo)",unidade:"m/s",tipo:"number",valor:0.015,step:"0.001"},
       {id:"flAssist",label:"Supressão de fumaça",tipo:"select",valor:"nenhum",opcoes:[
         {v:"vapor",t:"Assistência a vapor"},
         {v:"ar",t:"Assistência a ar (soprador)"},
@@ -4215,7 +4357,7 @@ const CALCS={
       OUT.push({k:"Capacidade 100% pela geometria CEMA",v:vg(QvCema,1)+" m³/h a 1 m/s  ·  "+fmt(Math.round(QmCema))+" t/h"});
       OUT.push({k:"Capacidade 100% pela Tab. 1-04 do manual",v:vg(QvFaco,1)+" m³/h a 1 m/s  ·  "+fmt(Math.round(QmFaco))+" t/h"});
       OUT.push({k:"Capacidade máxima adotada  Q₁₀₀  (a maior das duas)",v:fmt(Math.round(Q100))+" t/h   ["+fonte100+"]",hi:true});
-      OUT.push({k:"Margem sobre a vazão de projeto",v:vg(100*(Q100/Q-1),0)+"%   (projeto "+fmt(Math.round(Q))+" t/h)"});
+      OUT.push({k:"Margem sobre a vazão de projeto",v:(Q>0?vg(100*(Q100/Q-1),0)+"%":"—")+"   (projeto "+fmt(Math.round(Q))+" t/h)"});
       OUT.push({k:"Peso do material com a correia cheia  Wm₁₀₀",v:vg(Wm100,1)+" kgf/m"});
       OUT.push({k:"Potência efetiva com a correia cheia  Ne₁₀₀",v:vg(Ne100)+" HP  ·  "+vg(Ne100*0.7457)+" kW",hi:true});
       OUT.push({k:"Tração efetiva com a correia cheia  Te₁₀₀",v:fmt(Math.round(Te100))+" kgf  ("+fmt(Math.round(Te100*g))+" N)"});
@@ -8533,6 +8675,9 @@ function gerarRelatorio(){
       doc.triangle(cx-wSt*0.7,yTip-3,cx+wSt*0.7,yTip-3,(cx+xf1)/2,(yTip-3+yf1)/2,"F");
       /* centro emissor */
       var xc0=cx+G.dxF*esc, yc0=yTip-3-G.dyF*esc;
+      /* com chama muito inclinada o centro emissor sai da folha — mantém-se o marcador
+         dentro da área útil, deixando o rótulo dizer a posição real.                  */
+      xc0=Math.max(XL+4,Math.min(XR-32,xc0)); yc0=Math.max(26,Math.min(yG-4,yc0));
       doc.setDrawColor(190,60,50); doc.setLineWidth(0.5);
       doc.line(xc0-2,yc0,xc0+2,yc0); doc.line(xc0,yc0-2,xc0,yc0+2);
       nt(xc0+3,yc0,"centro emissor",190,60,50,6.0);
