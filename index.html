@@ -1835,14 +1835,51 @@ function flarePreset(){
 function flareCalc(){
   var g=9.80665, Ru=8314;                       // J/(kmol·K)
   /* ---------- ENTRADAS ---------- */
-  var W=num("flW");        if(!isFinite(W)||W<=0)W=50000;        // kg/h — vazão da contingência
+  /* ===== COMPOSIÇÃO MOLAR =====================================================
+     Propriedades por componente. PCI volumétrico a 0 °C e 1 atm; Cp molar médio a
+     ~300 K, do qual sai k = Cp/(Cp − R). Inertes têm PCI nulo mas pesam na massa
+     molecular, no Cp e — sobretudo — diluem o PCI volumétrico da mistura, que é o
+     número que decide a estabilidade de chama em gás de alto-forno.               */
+  var COMPQ={
+    CO :{MW:28.010,PCI:12.64,Cp:29.14,comb:true , nome:"CO"  },
+    H2 :{MW: 2.016,PCI:10.79,Cp:28.84,comb:true , nome:"H2"  },
+    CH4:{MW:16.043,PCI:35.88,Cp:35.69,comb:true , nome:"CH4" },
+    H2S:{MW:34.081,PCI:23.37,Cp:34.19,comb:true , nome:"H2S" },
+    CO2:{MW:44.010,PCI: 0   ,Cp:37.13,comb:false, nome:"CO2" },
+    N2 :{MW:28.014,PCI: 0   ,Cp:29.12,comb:false, nome:"N2"  },
+    H2O:{MW:18.015,PCI: 0   ,Cp:33.58,comb:false, nome:"H2O" }
+  };
+  var COMPID={CO:"flCO",H2:"flH2",CH4:"flCH4",H2S:"flH2S",CO2:"flCO2",N2:"flN2",H2O:"flH2O"};
+  var yPc={}, somaY=0, yComb=0, yInerte=0;
+  for(var ck0 in COMPQ){ var vY=num(COMPID[ck0]); if(!isFinite(vY)||vY<0)vY=0;
+    yPc[ck0]=vY; somaY+=vY; if(COMPQ[ck0].comb) yComb+=vY; else yInerte+=vY; }
+  /* a composição raramente fecha 100 % (há sempre o "outros"): normaliza-se para o
+     total informado, e o desvio fica registrado para o projetista julgar.          */
+  var fNorm=(somaY>0)?(100/somaY):0;
+  var MWcomp=0, PCIvolComp=0, CpComp=0;
+  for(var ck1 in COMPQ){ var yy=yPc[ck1]*fNorm/100;
+    MWcomp+=yy*COMPQ[ck1].MW; PCIvolComp+=yy*COMPQ[ck1].PCI; CpComp+=yy*COMPQ[ck1].Cp; }
+  var kComp=(CpComp>8.4)?(CpComp/(CpComp-8.314)):1.30;
+  var compModo=selv("flCompModo","informado");
+  var usaComp=(compModo==="composicao")&&(somaY>0)&&(MWcomp>0);
+
   var MW=num("flMW");      if(!isFinite(MW)||MW<=0)MW=18.5;
   var kg=num("flK");       if(!isFinite(kg)||kg<=1.01)kg=1.27;
   var LHV=num("flLHV");    if(!isFinite(LHV)||LHV<=0)LHV=48000;  // kJ/kg
+  var MWinf=MW, kInf=kg, LHVinf=LHV;
+  if(usaComp){ MW=MWcomp; kg=kComp; LHV=PCIvolComp*1000/(MWcomp/22.414); }
+  /* A vazão entra em Nm³/h — é o que sai do balanço da planta e o que o fornecedor cota.
+     A massa específica normal vem da massa molecular pelo volume molar de 22,414 Nm³/kmol,
+     e é ela que converte para kg/h, que é a base de toda a energia e da hidráulica.      */
+  var rhoN=MW/22.414;                                            // kg/Nm³
+  var SGar=MW/28.9647;                                           // densidade relativa ao ar
+  var QNin=num("flQN");    if(!isFinite(QNin)||QNin<=0)QNin=40000; // Nm³/h — contingência
+  var W=QNin*rhoN;                                               // kg/h
   var Tc=num("flT");       if(!isFinite(Tc))Tc=60;               // °C na ponta
   var Zc=num("flZ");       if(!isFinite(Zc)||Zc<=0)Zc=1.0;
   var TK=Tc+273.15;
-  var Wmin=num("flWmin");  if(!isFinite(Wmin)||Wmin<0)Wmin=0;    // kg/h — vazão contínua mínima
+  var QNmin=num("flQNmin"); if(!isFinite(QNmin)||QNmin<0)QNmin=0; // Nm³/h — contínua mínima
+  var Wmin=QNmin*rhoN;                                           // kg/h
   var maAdm=selvN("flMach",0.5);
   var Pset=num("flPset");  if(!isFinite(Pset)||Pset<=0)Pset=1000;  // kPa man. — pressão de ajuste da PSV
   var tipoPSV=selv("flPSV","balanc");
@@ -1871,7 +1908,6 @@ function flareCalc(){
      pilotos segue a tabela padrão. Abaixo disso — e em serviço tóxico — a norma exige que
      comprador e fabricante ACORDEM o número de pilotos, porque a chama deixa de se sustentar
      sozinha. Gás de topo de alto-forno fica a menos de um terço desse patamar.            */
-  var rhoN=MW/22.414;                                  // kg/Nm³
   var LHVvol=LHV*rhoN/1000;                            // MJ/Nm³
   var LHVlim=11.82;
   /* Ressalva: o critério VOLUMÉTRICO foi construído para misturas de hidrocarboneto com
@@ -2649,7 +2685,7 @@ function flareCalc(){
 
   /* ================= RESULTADOS ================= */
   var OUT=[
-    {sec:"Etapa 0 — Caso de projeto"},
+    {sec:"1 — CENÁRIO DE PROJETO: a contingência que dimensiona"},
     {k:"Princípio de dimensionamento",v:"A tocha NÃO é dimensionada pela vazão normal, e sim pela PIOR CONTINGÊNCIA DE ALÍVIO (incêndio na área, bloqueio de saída, falha de energia, falha de água de resfriamento, expansão térmica). Avalia-se cada cenário isoladamente e adota-se o envelope. Todo o resto — diâmetro, altura, vaso separador e estrutura — decorre dessa vazão.",hi:true},
     {k:"Vazão de alívio de projeto  W",v:fmt(Math.round(W))+" kg/h   =   "+Gs.toFixed(2).replace(".",",")+" kg/s",hi:true},
     {k:"Gás",v:(FLARE_GAS[selv("flGas","gas_natural")]||{nome:"personalizado"}).nome+"   ·   MW = "+MW.toFixed(2).replace(".",",")+" kg/kmol   ·   k = "+kg.toFixed(2).replace(".",",")+"   ·   PCI = "+fmt(Math.round(LHV))+" kJ/kg   ·   Z = "+Zc.toFixed(2).replace(".",",")},
@@ -2657,255 +2693,7 @@ function flareCalc(){
     {k:"Massa específica e velocidade sônica na ponta",v:rho.toFixed(3).replace(".",",")+" kg/m³   ·   c = √(k·R·T/MW) = "+son.toFixed(0)+" m/s"},
     {k:"Vazão volumétrica na ponta",v:Qv.toFixed(2).replace(".",",")+" m³/s   =   "+fmt(Math.round(Qv*3600))+" m³/h"},
     {k:"LIBERAÇÃO DE CALOR  Q = W · PCI",v:(Qcal/1000).toFixed(1).replace(".",",")+" MW   =   "+fmt(Math.round(Qbtu/1e6))+" MMBtu/h",hi:true},
-
-    {sec:"Etapa 0b — ESTABILIDADE DE CHAMA (o critério que governa em gás de baixo PCI)"},
-    {k:"Serviço",v:(contInuo?"QUEIMA CONTÍNUA de gás de processo — a tocha opera permanentemente, e não como dispositivo de emergência. Isso muda três coisas: o Mach admissível cai para 0,2, a pressão disponível na fonte substitui o critério de contrapressão da PSV, e a manutenção da ponta passa a ser rotina programada.":"ALÍVIO DE EMERGÊNCIA — operação rara e de curta duração"),hi:true},
-    {k:"Massa específica normal e PCI VOLUMÉTRICO",v:rhoN.toFixed(3).replace(".",",")+" kg/Nm³   →   "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³   =   "+(LHVvol*26.84).toFixed(0)+" Btu/scf",hi:true},
-    {k:"Vazão volumétrica normal",v:fmt(Math.round(QNm))+" Nm³/h"},
-    {k:"LIMITE DA API 537  (11,82 MJ/Nm³ = 300 Btu/scf)",v:(ricoH2?
-      "✓ NÃO SE APLICA — gás rico em hidrogênio (MW = "+MW.toFixed(1).replace(".",",")+" kg/kmol). O PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ é baixo porque o gás é leve, não porque queime mal: o hidrogênio tem a maior velocidade de chama entre os combustíveis usuais e é extremamente estável. O critério volumétrico foi construído para misturas de hidrocarboneto com inertes. A atenção aqui é outra — chama pouco luminosa, quase invisível à luz do dia, o que exige detecção de chama por termopar ou UV/IR e sinalização, nunca inspeção visual.":
-      (estavel?"✓ ATENDE — o gás sustenta chama e o número de pilotos segue a tabela padrão da norma":
-      "⚠ NÃO ATENDE — está a "+(LHVvol/LHVlim*100).toFixed(0)+" % do limite. Abaixo de 11,82 MJ/Nm³ a API 537 determina que o número de pilotos seja ACORDADO entre comprador e fabricante, porque a chama não se sustenta sozinha. Este é o caso de gás de topo de alto-forno, de aciaria e de gaseificação.")),hi:!estavel},
-    ...(baixoPCI?[
-    {k:"Enriquecimento necessário para atingir o limite",v:razEnr.toFixed(2).replace(".",",")+" Nm³ de gás natural por Nm³ de gás de processo   =   "+(razEnr*100).toFixed(0)+" %   →   "+fmt(Math.round(Qenr))+" Nm³/h de gás de apoio",hi:true},
-    {k:"⚠ Enriquecer a corrente inteira NÃO é o caminho",v:"Com "+(razEnr*100).toFixed(0)+" % de gás natural o custo de combustível de apoio inviabiliza a operação — e queimar gás nobre para descartar gás pobre é um contrassenso energético. O caminho correto em gás de baixo PCI é outro: (a) PONTA ESPECÍFICA PARA BAIXO PCI, com anéis de retenção de chama e cones de estabilização, que sustenta combustão com PCI bem abaixo do patamar da norma; (b) PILOTOS PERMANENTES alimentados por gás de apoio (GLP ou gás natural), em número acordado com o fabricante e com detecção individual de chama; (c) velocidade de saída REDUZIDA, tipicamente 20 a 60 m/s em vez das centenas de m/s de uma tocha de refinaria, para não soprar a chama. O consumo de apoio fica restrito aos pilotos, não à corrente principal.",hi:true},
-    {k:"Consequência sobre a radiação",v:"O baixo PCI tem um lado favorável: a fração irradiada é pequena (F ≈ 0,10 contra 0,20 do gás natural) e a liberação de calor por unidade de vazão é baixa. A torre resultante é bem mais baixa que a de uma tocha de hidrocarboneto de mesma vazão mássica — a radiação deixa de ser o critério dominante, e a estabilidade assume."}
-    ]:[]),
-    ...((teorCO>=1)?[
-    {k:"⚠ TEOR DE MONÓXIDO DE CARBONO",v:teorCO.toFixed(0)+" % mol   —  serviço TÓXICO. O CO é inodoro e letal, e a falha de chama libera a corrente inteira sem queima. Requisitos que decorrem disso: pilotos redundantes com detecção individual de chama e intertravamento, sistema de ignição automático com religamento, monitoramento de chama enviado à sala de controle, e verificação da concentração de CO ao nível do solo com a tocha apagada por modelo de dispersão — este último NÃO é dispensável e não é coberto pela estimativa de jato desta planilha.",hi:true},
-    {k:"Eficiência de destruição",v:"Exigir do fabricante a eficiência de destruição garantida do CO na faixa de operação, incluindo a vazão mínima. Em tocha de baixo PCI mal dimensionada a eficiência despenca em turndown, justamente quando a chama está mais frágil."}
-    ]:[]),
-    ...((poeira>0)?[
-    {k:"⚠ PARTICULADO NA CORRENTE",v:fmt(Math.round(poeira))+" mg/Nm³"+(poeira>50?"   —  ACIMA de 50 mg/Nm³: o vaso separador NÃO resolve. Gás de topo de alto-forno sai do forno com vários g/Nm³ e exige limpeza a montante — ciclone seguido de lavador venturi ou precipitador — antes de chegar à tocha. Sem isso a ponta e os bicos de piloto entopem, a chama fica instável e a manutenção vira semanal.":"   —  abaixo de 50 mg/Nm³, aceitável para a ponta"),hi:(poeira>50)},
-    {k:"Selagem hídrica",v:"Em planta de gusa o selo hídrico (selo líquido) costuma ser preferível ao selo molecular: além de barrar o ar, ele lava o particulado residual e dá controle de contrapressão. Prever purga e reposição de água, e proteção contra congelamento se aplicável."}
-    ]:[]),
-
-    {sec:"Etapa 1 — RISER: diâmetro do tubo de subida"},
-    {k:"Critério",v:"O riser é dimensionado por VELOCIDADE, não por Mach: D = √(4·Q/(v·π)). Em gás de topo de alto-forno adota-se de 20 a 30 m/s — acima disso a perda de carga come a pouca pressão disponível, abaixo disso o tubo fica caro e a chama perde ancoragem.",hi:true},
-    {k:"Vazão volumétrica na temperatura de operação",v:Qv.toFixed(2).replace(".",",")+" m³/s   ("+fmt(Math.round(Qv*3600))+" m³/h a "+Tc.toFixed(0)+" °C)"},
-    {k:"Velocidade de projeto adotada",v:vRiser.toFixed(0)+" m/s"},
-    {k:"DIÂMETRO NECESSÁRIO do riser  D = √(4·Q/(v·π))",v:Driser_req.toFixed(3).replace(".",",")+" m   =   "+fmt(Math.round(Driser_req*1000))+" mm",hi:true},
-    {k:"DIÂMETRO ADOTADO do riser",v:Driser.toFixed(1).replace(".",",")+" m   (DN "+fmt(Math.round(Driser*1000))+")"+(drAuto?("   —  o mais próximo de "+Driser_req.toFixed(3).replace(".",",")+" m no passo de 0,1 m ("+((Driser-Driser_req)>=0?"+":"")+((Driser-Driser_req)*1000).toFixed(0)+" mm)"):"   —  escolha do usuário")+(drAcima?"   ⚠ abaixo do requerido: a velocidade sobe":""),hi:true},
-    {k:"Velocidade em cada diâmetro comercial",v:DRIS.filter(function(d){return d>=Driser_req-0.3&&d<=Driser_req+0.4;}).map(function(d){
-      var vv=Qv/(Math.PI*d*d/4);
-      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s"+((vv<=vMaxRis)?"":" ⚠");
-      }).join("   ·   ")+"   —  passo comercial de 0,1 m; adota-se o de menor diferença absoluta em relação ao requerido ("+Driser_req.toFixed(3).replace(".",",")+" m). O ⚠ marca quem passa de "+vMaxRis.toFixed(0)+" m/s.",hi:true},
-    {k:"Velocidade resultante no riser",v:vRiserReal.toFixed(2).replace(".",",")+" m/s   ·   Ma = "+MaRiser.toFixed(3).replace(".",",")+"   "+(riserOK?"✓ dentro do adotado":"⚠ ACIMA do valor de projeto — subir um diâmetro"),hi:!riserOK},
-    {k:"Perda de carga no riser  (Darcy, f = 0,020)",v:dPriser.toFixed(3).replace(".",",")+" kPa   em "+(Hst>0?Hst.toFixed(0):"30")+" m de subida"},
-
-    {sec:"Etapa 1b — Diâmetro da ponta (API 521)"},
-    {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
-    {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
-    {k:"DIÂMETRO DA PONTA ADOTADO",v:dpol+"\" ("+(dtip*1000).toFixed(0)+" mm)"+((isFinite(dUser)&&dUser>0)?"   (imposto pelo usuário)":(dpGov?("   —  ABERTO além do requerido por Mach ("+dcalc.toFixed(0)+" mm) para respeitar a velocidade máxima de "+vMaxTip.toFixed(0)+" m/s e a perda de carga admissível"):"   (comercial imediatamente superior ao requerido por Mach)")),hi:true},
-    {k:"Velocidade e Mach na vazão de projeto",v:Vsai.toFixed(0)+" m/s   ·   Ma = "+Ma.toFixed(3).replace(".",",")+(machOK?"   ✓ dentro do limite":"   ⚠ ACIMA do limite adotado — aumentar o diâmetro"),hi:!machOK},
-    {k:"Velocidade e Mach na vazão mínima contínua",v:(Wmin>0?(VsaiMin.toFixed(1).replace(".",",")+" m/s   ·   Ma = "+MaMin.toFixed(4).replace(".",",")+"   —  verificar com o fabricante a estabilidade de chama e o limite de retrocesso nesta condição"):"não informada — informar a vazão contínua mínima para verificar a estabilidade de chama em turndown")},
-    {k:"Perda de carga na ponta  ΔP = K·ρV²/2",v:dPtip.toFixed(2).replace(".",",")+" kPa   (K = "+Ktip.toFixed(1).replace(".",",")+" — 1,5 típico de ponta tubular, 2 a 3 em ponta proprietária; confirmar com a curva do fabricante)"},
-
-    {sec:"Etapa 2 — Contrapressão (o critério que costuma governar)"},
-    {k:"Por que importa",v:"A perda de carga da ponta somada à do header retorna como CONTRAPRESSÃO no bocal das válvulas de segurança. Se ultrapassar o limite do tipo de PSV, a capacidade de alívio cai e o sistema deixa de proteger o equipamento. Dimensionar a ponta isolada, sem fechar o balanço hidráulico, é o erro mais comum em projeto de tocha.",hi:true},
-    {k:"Header — critério de Mach ≤ 0,20 (API 521)",v:"diâmetro requerido "+dHeadCalc.toFixed(0)+" mm   →   adotado DN "+dHead+(dhGov?"  (ABERTO além do Mach para caber na perda de carga admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa; teto = diâmetro do riser)":"  (o mais próximo do requerido, passo de 0,1 m)")+"   ·   velocidade "+Vh.toFixed(0)+" m/s   ·   Ma = "+MaH.toFixed(3).replace(".",",")+(headOK?"   ✓":"   ⚠ acima de 0,20 — aumentar o diâmetro do header"),hi:!headOK},
-    {k:"HEADER — requerido × adotado",v:"requerido por Mach ≤ 0,20: "+(dHeadCalc/1000).toFixed(3).replace(".",",")+" m   →   ADOTADO "+(dHead/1000).toFixed(1).replace(".",",")+" m (DN "+dHead+")   ·   diferença "+((dHead-dHeadCalc)>=0?"+":"")+(dHead-dHeadCalc).toFixed(0)+" mm   ·   velocidade "+Vh.toFixed(1).replace(".",",")+" m/s"+((dhSel==="auto")?"   (automático)":"   (escolha do usuário)"),hi:true},
-    {k:"Velocidade no header por diâmetro comercial",v:DRIS.filter(function(d){return d>=dHeadCalc/1000-0.3&&d<=Math.max(dHeadCalc/1000+0.4,dHead/1000+0.1);}).map(function(d){
-      var vv=Qv/(Math.PI*d*d/4), dp=fD*(Lhead/d)*rho*vv*vv/2/1000;
-      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s / "+dp.toFixed(2).replace(".",",")+" kPa"+((dp<=dpHeadAdm)?"":" ⚠");
-      }).join("   ·   ")+"   —  velocidade e perda de carga em cada diâmetro; o ⚠ marca quem estoura a perda admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa"},
-    {k:"Perda de carga no header  (Darcy, f = 0,015)",v:dPhead.toFixed(2).replace(".",",")+" kPa   em "+Lhead.toFixed(0)+" m equivalentes"},
-    {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
-    {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
-
-    {sec:"Etapa 3 — Chama: comprimento, trajetória e verificação da inclinação"},
-    {k:"3.1  COMPRIMENTO DA CHAMA  L",v:Lf.toFixed(1).replace(".",",")+" m   —  da liberação de calor da Etapa 1 ("+(Qcal/1000).toFixed(1).replace(".",",")+" MW = "+(Qbtu/1e6).toFixed(0)+" MMBtu/h), pelo ajuste da curva comprimento × liberação de calor da API 521",hi:true},
-    {k:"Curvas subsônica × sônica, interpoladas pelo Mach da ponta",v:"subsônica L = 0,00604·Q^0,4776 → "+LfSub.toFixed(1).replace(".",",")+" m   ·   sônica L = 0,004503·Q^0,45988 → "+LfSon.toFixed(1).replace(".",",")+" m   ·   Mach da ponta "+Ma.toFixed(3).replace(".",",")+"   →   ADOTADO "+Lf.toFixed(1).replace(".",",")+" m   (Q em Btu/h). Chama de alta quantidade de movimento entranha ar mais depressa e queima mais curta; com Mach baixo o resultado praticamente coincide com a curva subsônica."},
-    {k:"⚠ Qual vento entra aqui",v:"NÃO é o vento predominante do sítio — o item 5.3 da folha de dados traz 3 m/s, que é média anual e serve para descrever o local, não para verificar projeto. Inclinação de chama e downwash pedem vento de PROJETO, de alta recorrência. Referência: a V0 da NBR 6123 adotada é "+V0.toFixed(0)+" m/s (rajada de 3 s a 10 m); o vento médio correspondente fica na casa de "+(V0*0.69).toFixed(0)+" m/s, e é dessa ordem o valor a usar.",hi:true},
-    {k:"3.2  Razão que comanda a distorção  u_saída ÷ u_vento",v:Vsai.toFixed(1).replace(".",",")+" ÷ "+uw.toFixed(1).replace(".",",")+" = "+(isFinite(razVJ)?razVJ.toFixed(2).replace(".",","):"∞")+"×   vs   mínimo de "+razMin.toFixed(1).replace(".",",")+"× adotado"+(razOK?"   ✓ jato domina o vento":"   ⚠ ABAIXO — jato fraco frente ao vento: chama muito inclinada e risco de downwash (sucção da chama para a esteira da torre, que queima casco e plataforma). Aumentar a velocidade de saída reduzindo o diâmetro da ponta, ou reduzir o vento de projeto se houver base para isso."),hi:!razOK},
-    {k:"3.3  Inclinação SIMPLIFICADA  tan θ = u_vento/u_saída",v:tetaCalcG.toFixed(1).replace(".",",")+"°   —  vale só junto ao bico: supõe que o jato conserva a velocidade de saída ao longo de toda a chama. Como ele desacelera, esta base SUBESTIMA a inclinação e não deve ser usada sozinha."},
-    {k:"3.4  Inclinação pela TRAJETÓRIA com decaimento do jato",v:"corda bico→ponta "+tetaTrajG.toFixed(1).replace(".",",")+"°   ·   local na ponta da chama "+tetaPontaG.toFixed(1).replace(".",",")+"°   —  integra-se tan θ(s) = u_vento/u(s) de s = 0 a L, com o decaimento de jato livre turbulento u(s)/u_saída = 6,2·D/s (D = "+dtip.toFixed(2).replace(".",",")+" m). A inclinação cresce ao longo da chama porque o jato perde velocidade enquanto o vento não muda.",hi:true},
-    {k:"INCLINAÇÃO ADOTADA a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°   —   "+
-      ({traj:"REGE A TRAJETÓRIA com decaimento do jato",simp:"rege a simplificada tan θ = u_vento/u_saída",imp:"rege o PISO imposto pelo usuário ("+(tetaImposto?tetaIn.toFixed(0):"0")+"°)"})[baseTeta]+
-      "   ·   simplificada "+tetaCalcG.toFixed(1).replace(".",",")+"°   ·   trajetória "+tetaTrajG.toFixed(1).replace(".",",")+"°"+(tetaImposto?("   ·   piso imposto "+tetaIn.toFixed(0)+"°"):"")+"   →   adota-se sempre a MAIOR",hi:true},
-    {k:"3.5  VERIFICAÇÃO — inclinação adotada × máxima admissível",v:tetaG.toFixed(1).replace(".",",")+"°   vs   "+tetaMax.toFixed(0)+"° admissíveis"+(tetaOK?("   ✓ DENTRO do aceitável   (folga de "+(tetaMax-tetaG).toFixed(1).replace(".",",")+"°)"):("   ⚠ ACIMA do aceitável — excede em "+(tetaG-tetaMax).toFixed(1).replace(".",",")+"°")),hi:true},
-    {k:"O que esse limite protege",v:"Não há limite normativo de inclinação: a API 521 manda considerar a distorção pelo vento, não a mantém abaixo de um valor. O limite é de PRÁTICA de projeto e existe para garantir três coisas — que a chama não deite sobre a plataforma e o casco (dano térmico e ao revestimento), que a ponta não avance sobre área ocupada, e que o centro emissor não desça a ponto de a radiação no solo não fechar. As três são verificadas nas linhas abaixo e na Etapa 4."},
-    {k:"3.6  Alcance da PONTA da chama a partir do eixo da torre",v:"horizontal "+xPonta.toFixed(1).replace(".",",")+" m   ·   vertical "+yPonta.toFixed(1).replace(".",",")+" m acima do topo   —  cota da ponta "+(Hst+yPonta).toFixed(1).replace(".",",")+" m"+((xPonta>=Rpes&&Rpes>0)?("   ⚠ a ponta ALCANÇA a horizontal do posto ocupado ("+Rpes.toFixed(0)+" m): a radiação no posto passa a ser por chama sobre a cabeça, e o modelo de fonte pontual perde validade — exigir do fornecedor a curva de distorção"):("   ✓ a ponta pára a "+(Rpes-xPonta).toFixed(1).replace(".",",")+" m antes da horizontal do posto ocupado")),hi:(xPonta>=Rpes&&Rpes>0)},
-    {k:"3.7  Centro emissor da chama (a partir do topo da torre)",v:"Δx = "+dxF.toFixed(1).replace(".",",")+" m na horizontal   ·   Δy = "+dyF.toFixed(1).replace(".",",")+" m na vertical"+(usaTraj?("   —  CENTRÓIDE da trajetória curva; a reta de meio comprimento no mesmo ângulo daria Δx = "+dxRet.toFixed(1).replace(".",",")+" m e Δy = "+dyRet.toFixed(1).replace(".",",")+" m"):"   —  meio comprimento em linha reta no ângulo adotado")+".  É com a chama inclinada que a radiação deve ser verificada, nunca com a chama vertical: o vento baixa o centro emissor e o aproxima do posto a sotavento.",hi:true},
-    {k:"⚠ Limite deste modelo",v:"O decaimento de jato livre 6,2·D/s vale para jato isotérmico sem combustão; a expansão térmica da chama sustenta a velocidade um pouco mais, e o empuxo a levanta. O resultado aqui fica entre a relação simplificada (otimista) e a chama deitada, que é onde a curva de distorção da API 521 também situa este caso. Para projeto executivo, exigir a curva de distorção do fornecedor da ponta e comparar."},
-
-    {sec:"Etapa 4 — Radiação térmica e altura da torre (API 521)"},
-    {k:"Fração da energia irradiada  F",v:Frad.toFixed(2).replace(".",",")+"   —  cerca de 0,15 para hidrogênio, 0,20 para metano e gás natural, 0,30 a 0,38 para hidrocarbonetos pesados e insaturados"},
-    {k:"Transmissividade atmosférica  τ",v:tau.toFixed(2).replace(".",",")+(tau>=0.999?"   (1,0 = conservador, sem crédito de absorção atmosférica)":"   (crédito de absorção — justificar pela umidade relativa do local)")},
-    {k:"Radiação admissível adotada  K",v:Kadm.toFixed(2).replace(".",",")+" kW/m²   —   "+({1.58:"exposição contínua, pessoal com vestimenta adequada",4.73:"ação emergencial de 2 a 3 min, sem blindagem",6.31:"ação emergencial até 30 s, sem blindagem",9.46:"sem presença de pessoal"})[Kadm]},
-    {k:"Parcela solar somada  (API 521)",v:Ksol.toFixed(2).replace(".",",")+" kW/m²   —  o pico solar vai de 0,79 a 1,04 kW/m²; ignorá-lo subdimensiona a altura, e o efeito é tanto maior quanto menor for o K admissível",hi:true},
-    {k:"Radiação líquida disponível  K − solar",v:Knet.toFixed(2).replace(".",",")+" kW/m²"},
-    {k:"⚠ PARCELA SOLAR — a origem da divergência com planilhas simplificadas",v:"A API 521 apresenta os níveis admissíveis (1,58 · 4,73 · 6,31 · 9,46 kW/m²) como valores TOTAIS, já incluindo a radiação solar. O solar tem portanto de ser DEDUZIDO do admissível para achar o que resta para a chama: K_chama = "+Kadm.toFixed(2).replace(".",",")+" − "+Ksol.toFixed(2).replace(".",",")+" = "+Knet.toFixed(2).replace(".",",")+" kW/m². Ignorar o solar devolve uma distância bem menor e uma torre mais baixa — é a diferença mais comum entre este cálculo e uma planilha de ordem de grandeza, e o efeito cresce quanto menor for o K admissível.",hi:true},
-    {k:"Distância ao centro da chama — COM e SEM deduzir o solar",v:"deduzindo o solar (correto): "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Knet)).toFixed(1).replace(".",",")+" m   ·   sem deduzir: "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Math.max(Kadm,0.1))).toFixed(1).replace(".",",")+" m   →   diferença de "+((Math.sqrt(Kadm/Knet)-1)*100).toFixed(0)+"%. Para reproduzir uma planilha que ignora o solar, zerar o campo de radiação solar.",hi:true},
-    {k:"DISTÂNCIA MÍNIMA ao centro da chama  D = √(τ·F·Q/(4π·K))",v:Drad.toFixed(1).replace(".",",")+" m",hi:true},
-    {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
-    {k:"ALTURA REQUERIDA — ENVELOPE DOS CRITÉRIOS",v:"radiação no ponto com pessoal "+Hrad.toFixed(1).replace(".",",")+" m   ·   radiação na base (9,46 kW/m²) "+Hbase.toFixed(1).replace(".",",")+" m   ·   mínimo construtivo "+Hmin.toFixed(0)+" m",hi:true},
-    {k:"ALTURA MÍNIMA REQUERIDA  →  GOVERNA: "+govH,v:Hreq.toFixed(1).replace(".",",")+" m   —  é o mínimo que atende à radiação; abaixo disso o projeto reprova",hi:true},
-    {k:"ALTURA ADOTADA DA TORRE",v:Hst.toFixed(1).replace(".",",")+" m"+(Hadot?("   —  informada pelo usuário   ·   mínima requerida "+Hreq.toFixed(1).replace(".",",")+" m   (arredondada para múltiplo de 2 m: "+Hmincalc.toFixed(0)+" m)"):("   —  adotada a mínima calculada, arredondada para múltiplo de 2 m"))+(radOK?("   ✓ atende, com folga de "+folgaH.toFixed(1).replace(".",",")+" m sobre a mínima"):("   ⚠ ABAIXO da mínima de "+Hreq.toFixed(1).replace(".",",")+" m — a radiação no ponto com pessoal ultrapassa o admissível")),hi:true},
-    {k:"Efeito da altura adotada",v:"Todo o dimensionamento estrutural adiante — viroles, chapa, helicoide, plataformas, vento e fundação — decorre desta altura, e não da mínima. Subir a torre reduz a radiação no solo, mas encarece casco, acesso e fundação de forma mais que proporcional: o momento na base cresce com o quadrado da altura."},
-    {k:"Radiação na base da torre",v:Kbase.toFixed(2).replace(".",",")+" kW/m²   vs   9,46 kW/m² (sem pessoal)"+(baseOK?"   ✓":"   ⚠ EXCEDE — a base precisa ser área restrita e sem equipamento sensível"),hi:!baseOK},
-    {k:"Radiação no ponto com pessoal",v:Kpes.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissível"},
-    {k:"RAIO DA ÁREA RESTRITA  (até K = 1,58 kW/m²)",v:(Rlim>0?(Rlim.toFixed(0)+" m a partir da base — dentro deste raio não pode haver posto de trabalho permanente"):"acima de 400 m — revisar a altura ou o K adotado"),hi:true},
-    {k:"Isopletas de radiação (com solar, altura adotada)",v:isop.map(function(p){ return p.R+" m: "+p.K.toFixed(2).replace(".",",")+""; }).join("   ·   ")+"   [kW/m²]"},
-
-    {sec:"Etapa 4b — VERIFICAÇÃO DO POSTO OCUPADO MAIS PRÓXIMO"},
-    {k:"Por que esta verificação existe",v:"A API 521 não fixa uma distância: ela fixa um NÍVEL DE RADIAÇÃO admissível conforme o tempo de exposição e a proteção do pessoal. Quem transforma isso em geometria é o plot plan — a distância do posto ocupado mais próximo. Informada a distância, o critério vira uma altura mínima de torre; informada a altura, ele vira uma distância mínima de afastamento. As duas leituras estão abaixo.",hi:true},
-    {k:"DISTÂNCIA informada ao posto ocupado",v:Rpes.toFixed(1).replace(".",",")+" m   a partir da base da torre",hi:true},
-    {k:"Critério de radiação adotado",v:Kadm.toFixed(2).replace(".",",")+" kW/m² TOTAIS admissíveis   ("+({1.58:"exposição contínua, pessoal sem proteção",4.73:"ação emergencial de 2 a 3 min",6.31:"ação emergencial até 30 s",9.46:"sem presença de pessoal"}[Kadm]||"critério do usuário")+")   —  dos quais "+Ksol.toFixed(2).replace(".",",")+" kW/m² são a parcela SOLAR, restando "+Knet.toFixed(2).replace(".",",")+" kW/m² para a chama. Ignorar o solar subdimensiona a torre, e o efeito é tanto maior quanto menor o K admissível."},
-    {k:"ALTURA NECESSÁRIA para esta distância",v:HreqDe(Rpes).toFixed(1).replace(".",",")+" m   —  é a altura mínima de torre que faz a radiação no posto ocupado cair ao admissível",hi:true},
-    {k:"ALTURA ADOTADA  ×  necessária",v:Hst.toFixed(1).replace(".",",")+" m   vs   "+HreqDe(Rpes).toFixed(1).replace(".",",")+" m   →   "+(postOK?("✓ APROVADO — folga de "+(Hst-HreqDe(Rpes)).toFixed(1).replace(".",",")+" m"):("⚠ REPROVADO — faltam "+(HreqDe(Rpes)-Hst).toFixed(1).replace(".",",")+" m de torre, ou afastar o posto ocupado")),hi:true},
-    {k:"RADIAÇÃO RESULTANTE no posto ocupado",v:Kpost.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissíveis   "+(postOK?"✓":"⚠ ACIMA DO ADMISSÍVEL"),hi:!postOK},
-    {k:"LEITURA INVERSA — afastamento mínimo com a altura adotada",v:"com "+Hst.toFixed(1).replace(".",",")+" m de torre, nenhum posto ocupado pode ficar a menos de "+RlimAdm.toFixed(0)+" m da base. Levar este raio ao plot plan e verificar o que existe dentro dele.",hi:true},
-    {k:"Sensibilidade — altura necessária por distância",v:sensR.map(function(sr){ return sr.R+" m: "+sr.H.toFixed(0)+" m"; }).join("   ·   ")+"   —  use esta linha para negociar o arranjo: às vezes afastar o posto 10 m custa menos que subir a torre 5 m"},
-    {k:"O que conta como posto ocupado",v:"Sala de controle, laboratório, oficina, refeitório, guarita, escritório, posto fixo de operação e via de circulação regular de pessoas. Não conta área de passagem eventual com procedimento e EPI. Na dúvida, considerar ocupado — a API 521 trata a exposição contínua como a condição mais restritiva justamente porque o pessoal não tem como se afastar."},
-    {k:"⚠ Origem do dado",v:"Este valor tem de vir do PLOT PLAN, que o item 5.1 da folha de dados registra como PENDENTE. Enquanto o desenho não existir, os "+Rpes.toFixed(0)+" m são premissa, e a altura de torre que decorre deles também.",hi:true},
-
-    {sec:"Etapa 5 — Dispersão com a tocha apagada"},
-    {k:"Por que verificar",v:"Se o piloto falhar, sai gás não queimado. A nuvem precisa diluir abaixo do limite inferior de inflamabilidade antes de alcançar o solo ou qualquer plataforma. É o critério que mais se esquece — e o único que pode governar a altura acima da radiação.",hi:true},
-    {k:"Limite inferior de inflamabilidade  LII",v:LII.toFixed(1).replace(".",",")+" % vol."},
-    {k:"EXTENSÃO VERTICAL DO ENVELOPE INFLAMÁVEL",v:xLII.toFixed(1).replace(".",",")+" m acima da ponta   —  jato de quantidade de movimento, C/C0 = 5,0·(d/x)·√(ρ_gás/ρ_ar). É a distância no EIXO DO JATO até a concentração cair ao LII. Como o jato sobe, isto não é requisito de altura da torre: é requisito de AFASTAMENTO de plataformas, passarelas e estruturas elevadas.",hi:true},
-    {k:"Afastamento de estruturas elevadas",v:(folgaPlat>0?("estrutura mais próxima a "+folgaPlat.toFixed(1).replace(".",",")+" m acima da ponta"+(dispOK?"   ✓ fora do envelope inflamável":"   ⚠ DENTRO do envelope inflamável — reposicionar a estrutura ou elevar a tocha")):"nenhuma estrutura elevada informada — se houver plataforma, passarela ou torre vizinha acima do nível da ponta, informe a folga para verificar"),hi:(folgaPlat>0&&!dispOK)},
-    {k:"Alcance ao nível do solo",v:"NÃO é calculado aqui. Depende do vento, da estabilidade atmosférica e do relevo, e exige modelo de dispersão dedicado (gaussiano ou CFD). A estimativa de jato acima serve para triagem e para posicionar estruturas elevadas, não para concluir sobre o solo.",hi:true},
-    {k:"Gás ácido",v:(acido?"⚠ Há H2S. O critério passa a ser TOXICOLÓGICO e normalmente governa sobre o de inflamabilidade: verificar a concentração de SO2 ao nível do solo com a tocha acesa, e de H2S com a tocha apagada, por modelo de dispersão atmosférica.":"sem H2S declarado — critério apenas de inflamabilidade"),hi:acido},
-
-    {sec:"Etapa 6 — Vaso separador (knockout drum)"},
-    ...((liqModo==="cond"&&umidIn>0)?[
-    {k:"Origem do líquido",v:"CONDENSAÇÃO do gás saturado ao longo da linha. O gás sai do lavador saturado a "+Tc.toFixed(0)+" °C carregando "+fmt(Math.round(Wagua))+" kg/h de vapor d'água; ao esfriar até "+Tko.toFixed(0)+" °C a água que excede a nova saturação precipita. Não é slug de alívio — é um fluxo contínuo, e o dreno tem de escoar continuamente.",hi:true},
-    {k:"Umidade absoluta  entrada → saída",v:wIn.toFixed(4).replace(".",",")+" → "+wOut.toFixed(4).replace(".",",")+" Nm³ de água por Nm³ de gás seco   (Δ = "+dW.toFixed(4).replace(".",",")+")"},
-    {k:"LÍQUIDO A RETER  (calculado)",v:fmt(Math.round(Wcond))+" kg/h   =   "+(Wcond/1000).toFixed(2).replace(".",",")+" m³/h",hi:true},
-    {k:"⚠ Sensibilidade à temperatura de saída",v:condSens.map(function(c){return c.T+" °C: "+fmt(Math.round(c.kg));}).join("  ·  ")+"  [kg/h]  —  o resultado depende inteiramente do ΔT ao longo da linha, que só se fecha com o traçado e o isolamento definidos. Em noite fria a condensação mais que triplica.",hi:true}
-    ]:[
-    {k:"Vazão de líquido",v:fmt(Math.round(Wliq))+" kg/h   —  informada pelo usuário"}
-    ]),
-    {k:"Função",v:"Reter as gotas que, se chegassem à ponta, cairiam acesas — a chamada chuva de fogo. A API 521 pede a remoção de gotas de 300 a 600 µm.",hi:true},
-    {k:"Gota de projeto  ·  massa específica do líquido",v:dgota.toFixed(0)+" µm   ·   "+rhoL.toFixed(0)+" kg/m³"},
-    {k:"Velocidade terminal da gota",v:vt.toFixed(3).replace(".",",")+" m/s   (Re = "+Re.toFixed(0)+" · Cd = "+Cd.toFixed(3).replace(".",",")+")"},
-    {k:"Vaso horizontal — diâmetro e comprimento",v:"D = "+Dko.toFixed(1).replace(".",",")+" m   ·   L = "+Lko.toFixed(1).replace(".",",")+" m   ·   L/D = "+razLD.toFixed(1).replace(".",",")+(koOK?"   ✓ dentro de 2 a 5":"   ⚠ fora da faixa usual de 2 a 5"),hi:true},
-    {k:"Velocidade do gás na seção livre",v:vgas.toFixed(1).replace(".",",")+" m/s"},
-    {k:"Retenção de líquido",v:(Wliq>0?("vazão de líquido "+fmt(Math.round(Wliq))+" kg/h   ·   "+tret.toFixed(0)+" min   →   "+Vliq.toFixed(1).replace(".",",")+" m³ requeridos   vs   "+Vko.toFixed(1).replace(".",",")+" m³ disponíveis"+(koVolOK?"   ✓":"   ⚠ insuficiente — aumentar D ou L")):"não informada — a API 521 recomenda de 20 a 30 min de retenção para o cenário de emergência"),hi:(Wliq>0&&!koVolOK)},
-
-    {sec:"Etapa 7 — Selagem e purga"},
-    {k:"Por que existe",v:"Impedir a entrada de ar pelo topo. Ar dentro da tubulação com gás combustível significa mistura explosiva e detonação interna — o modo de falha mais destrutivo de uma tocha.",hi:true},
-    {k:"Selo adotado",v:({nenhum:"Nenhum — só purga contínua",velocidade:"Selo de velocidade (fluídico)",molecular:"Selo molecular (de flutuação)"})[selo]},
-    {k:"Velocidade de purga  —  tabela do selo × adotada",v:vPurTab.toFixed(3).replace(".",",")+" m/s pelo selo "+selo+"   →   ADOTADA "+vPurga.toFixed(3).replace(".",",")+" m/s"+(vPurUser?"   (informada — a planilha usa 0,015 m/s)":"   (pelo tipo de selo)"),hi:true},
-    {k:"Referência de velocidade de purga",v:vPurga.toFixed(3).replace(".",",")+" m/s   —  0,30 m/s sem selo · 0,03 m/s com selo de velocidade · 0,006 m/s com selo molecular"},
-    {k:"CONSUMO DE GÁS DE PURGA",v:Nmpurga.toFixed(1).replace(".",",")+" Nm³/h   =   "+fmt(Math.round(purgaAno))+" Nm³/ano",hi:true},
-    {k:"Economia do selo",v:(selo==="nenhum"?"Sem selo o consumo é 50 vezes maior que com selo molecular. Ao longo da vida da instalação o selo se paga muitas vezes — avaliar a instalação.":"O selo reduz o consumo de purga em uma a duas ordens de grandeza frente à operação sem selo.")},
-
-    {sec:"Etapa 8 — Supressão de fumaça"},
-    {k:"Sistema adotado",v:({vapor:"Assistência a VAPOR",ar:"Assistência a AR (soprador)",nenhum:"Sem assistência — queima luminosa"})[assist]},
-    {k:"Capacidade smokeless especificada",v:fracSm.toFixed(0)+" % do pico   =   "+fmt(Math.round(Wsm))+" kg/h   —  raramente se especifica 100 %: o pico de emergência é raro e curto, e o custo de vapor ou do soprador é proporcional"},
-    {k:"Consumo de vapor",v:(assist==="vapor"?(fmt(Math.round(Wvap))+" kg/h   (razão "+Rvap.toFixed(2).replace(".",",")+" kg vapor/kg HC — de 0,15 para gases leves a 0,50 para insaturados e aromáticos)"):"não se aplica"),hi:(assist==="vapor")},
-    {k:"Ar e potência do soprador",v:(assist==="ar"?(fmt(Math.round(Qar))+" m³/h   ·   potência estimada "+Psopr.toFixed(0)+" kW (ΔP 3 kPa · η 0,65)"):"não se aplica"),hi:(assist==="ar")},
-
-    {sec:"Etapa 9 — Pilotos e ignição (API 537)"},
-    {k:"NÚMERO DE PILOTOS",v:npil+((baixoPCI||toxico)?("   —  tabela da API 537 daria "+npilTab+" pelo diâmetro, mas em "+(baixoPCI&&toxico?"baixo PCI e serviço tóxico":(baixoPCI?"baixo PCI":"serviço tóxico"))+" a norma remete o número a ACORDO entre comprador e fabricante; adotou-se um piloto adicional como mínimo, a confirmar em proposta"):("   —  tabela da API 537: 1 até 8\" · 2 de 8\" a 24\" · 3 de 24\" a 42\" · 4 acima de 42\"")),hi:true},
-    {k:"Consumo de gás dos pilotos",v:Qpil.toFixed(0)+" Nm³/h   (≈ 4 Nm³/h por piloto, contínuo)"},
-    {k:"Requisitos do sistema",v:"Ignição por gerador de frente de chama ou por ignitor eletrônico de alta energia, com detecção de chama por termopar em cada piloto e sinalização em sala de controle. Os pilotos devem manter chama sob vento e chuva de projeto — é item de segurança, não de conveniência."},
-
-    {sec:"Etapa 10 — Estrutura: vento (NBR 6123)"},
-    {k:"Tipo de torre",v:tipoUso+((tipoFl==="auto")?("   (recomendado pela altura de "+Hst.toFixed(0)+" m: autoportante até cerca de 60 m, estaiada até 120 m, treliçada acima)"):"   (imposto pelo usuário)"),hi:true},
-    {k:"Velocidade característica  Vk = V0·S1·S2·S3",v:Vk.toFixed(1).replace(".",",")+" m/s   (V0 = "+V0.toFixed(0)+" · S1 = "+S1w.toFixed(2).replace(".",",")+" · S2 = "+S2w.toFixed(3).replace(".",",")+" cat. "+catW+" cl. "+clsW+" · S3 = "+S3w.toFixed(2).replace(".",",")+")"},
-    {k:"Pressão dinâmica  q = 0,613·Vk²",v:qv.toFixed(2).replace(".",",")+" kPa"},
-    {k:"Diâmetro do casco  ·  esbeltez",v:Dst.toFixed(2).replace(".",",")+" m   ·   H/D = "+esbeltez.toFixed(0)+(esbeltez>35?"   ⚠ muito esbelta — verificar deslocamento no topo e vibração":"   ✓")},
-    {k:"Força e momento de vento na base",v:"Fw = "+kNkg(Fw)+"   ·   M = "+fmt(Math.round(Mw))+" kN·m"},
-    {k:"Casco a flexão  (Ca = "+Ca.toFixed(2).replace(".",",")+" · γf = 1,4)",v:"W requerido "+fmt(Math.round(Wreq))+" cm³   →   espessura calculada "+tcalc.toFixed(1).replace(".",",")+" mm + "+corr.toFixed(1).replace(".",",")+" mm de sobrespessura   →   COMERCIAL "+tcom.toFixed(1).replace(".",",")+" mm",hi:true},
-
-    {sec:"Etapa 11 — Vibração induzida por vórtices (VIV)"},
-    {k:"Por que verifica",v:"Numa torre esbelta a VIV manda mais que o vento estático. O desprendimento alternado de vórtices excita a estrutura na direção TRANSVERSAL ao vento, e quando a frequência de desprendimento coincide com a natural a amplitude cresce até a falha por fadiga. Tocha é o caso clássico.",hi:true},
-    {k:"Frequência natural do 1º modo",v:fn.toFixed(2).replace(".",",")+" Hz   (viga em balanço: fn = (1,875²/2π)·√(EI/mL⁴))"},
-    {k:"Velocidade crítica  Vcr = fn·D/St   (St = 0,20)",v:Vcr.toFixed(1).replace(".",",")+" m/s   vs   Vk = "+Vk.toFixed(1).replace(".",",")+" m/s"+(vivRisco?"   ⚠ a crítica está DENTRO da faixa de vento de projeto":"   ✓ a crítica está acima do vento de projeto"),hi:vivRisco},
-    {k:"Número de Scruton  Sc = 2·m·δ/(ρ_ar·D²)",v:Sc.toFixed(1).replace(".",",")+"   (δ = 0,01 — aço soldado)"+(Sc<10?"   ⚠ abaixo de 10: amortecimento insuficiente para conter a amplitude":"   ✓ acima de 10")},
-    {k:"MEDIDA REQUERIDA",v:(strakes?"⚠ INSTALAR SUPRESSORES — strakes helicoidais no terço superior (3 hélices, passo 5·D, altura 0,10·D) ou amortecedor de massa sintonizada. Sem isso a torre acumula ciclos de fadiga na solda de base.":"Não é necessário supressor de vórtices com os dados adotados.")+"   —  observação: em torre de tocha nua o número de Scruton é quase sempre inferior a 10 e a velocidade crítica cai bem abaixo do vento de projeto, de modo que o resultado \"requer supressor\" é a regra e não a exceção. A decisão real é sobre QUAL solução adotar (strakes, amortecedor sintonizado ou aumento de espessura), e ela deve ser fechada com análise de fadiga do número de ciclos em lock-in.",hi:strakes},
-
-    {sec:"Etapa 12 — Sismo, base e chumbadores"},
-    {k:"Massa da torre",v:fmt(Math.round(mTorre))+" kg de casco + "+fmt(Math.round(mAcess))+" kg de ponta, pilotos, escada e plataformas   =   "+fmt(Math.round(mTot))+" kg   ("+kNkg(Wtot)+")",hi:true},
-    {k:"Sismo  Sds = 2,5·ag·Ca   ·   Cs = Sds/R",v:"zona "+zona+" · solo "+solo+"   →   ag = "+ag.toFixed(3).replace(".",",")+"g · Sds = "+Sds.toFixed(3).replace(".",",")+" · Cs = "+Cs.toFixed(3).replace(".",",")+"   →   V = "+kNkg(Vsis)},
-    {k:"AÇÃO LATERAL GOVERNANTE",v:kNkg(Flat)+"   ·   momento na base "+fmt(Math.round(Mlat))+" kN·m   —   "+latGov,hi:true},
-    {k:"Chumbadores",v:nCh.toFixed(0)+" unidades num círculo de "+Dbc.toFixed(2).replace(".",",")+" m   ·   tração por chumbador "+Tanc.toFixed(1).replace(".",",")+" kN   →   Ø"+diaCh.toFixed(0)+" mm (classe "+fub.toFixed(0)+" MPa)",hi:true},
-    {k:"Compressão por ponto e área de apoio",v:Pcomp.toFixed(0)+" kN   ·   área requerida "+Abp.toFixed(0)+" cm²   (fck = "+fck.toFixed(0)+" MPa · fcd = "+fcd.toFixed(1).replace(".",",")+" MPa)"},
-
-    {sec:"Etapa 13 — Materiais, ruído e requisitos ambientais"},
-    {k:"Materiais",v:"Ponta em liga de alta temperatura — Incoloy 800H/800HT, 253MA ou Hastelloy X, conforme a temperatura de chama e o teor de enxofre. Riser e casco em aço carbono (fy = "+fy.toFixed(0)+" MPa). A transição entre a liga e o carbono é ponto de inspeção obrigatório."},
-    {k:"Ruído",v:"Jato mais rugido de combustão, agravado pela injeção de vapor — passa facilmente de 100 dB junto à ponta. O nível na comunidade costuma ser restrição de licenciamento e às vezes obriga a mudar de assistência a vapor para ar, ou a redesenhar os bicos. Exigir do fabricante a curva de ruído medida, com e sem vapor; correlação genérica não substitui ensaio.",hi:true},
-    {k:"Requisitos ambientais",v:"Eficiência de destruição mínima (usualmente 98 % para compostos orgânicos), monitoramento contínuo de vazão e composição, e limite de luminosidade noturna. No Brasil o licenciamento é estadual e as condicionantes variam — verificar antes de fixar a altura, porque elas podem governar a implantação mais que a engenharia."},
-    {k:"Acesso e manutenção",v:"A ponta é consumível e precisa ser removível: prever davit no topo, torre basculante ou acesso por guindaste, e definir isso ANTES de fechar o arranjo — é decisão de layout, não detalhe."},
-
-    {sec:"Etapa 14 — Casco: trechos (viroles) e espessura de chapa"},
-    {k:"Critério",v:"A pressão dinâmica cresce com a cota pelo fator S2 da NBR 6123, então o momento NÃO é o de carga uniforme. A torre é dividida em viroles da largura da chapa e o vento é integrado trecho a trecho, do topo para a base. Cada virole é dimensionada pelo momento na SUA base — por isso a chapa engrossa de cima para baixo.",hi:true},
-    {k:"Diâmetro do casco  ·  largura útil da chapa",v:fmt(Math.round(Dmm))+" mm  ·  "+fmt(Math.round(wPl*1000))+" mm   →   "+nVir+" viroles de "+hVir.toFixed(2).replace(".",",")+" m"},
-    {k:"Aço  ·  tensão admissível  ·  sobrespessura de corrosão",v:"fy = "+fy+" MPa   ·   σadm = 0,90·fy = "+sadmMPa.toFixed(0)+" MPa   ·   c = "+corr.toFixed(0)+" mm"},
-    {k:"Mínimo construtivo  D/200",v:tConstr.toFixed(1).replace(".",",")+" mm   —  esbeltez de parede para montagem e transporte; abaixo disso o casco ovaliza no içamento"},
-    ...viroles.map(function(vv,ii){ return {k:"Virole "+(ii+1)+"  ·  cota "+vv.z0.toFixed(1).replace(".",",")+" a "+vv.z1.toFixed(1).replace(".",",")+" m",
-      v:"F = "+vv.F.toFixed(1).replace(".",",")+" kN  ·  M = "+fmt(Math.round(vv.M))+" kN·m   →   t por flexão "+vv.tFlex.toFixed(2).replace(".",",")+
-        " mm   →   CHAPA "+vv.t.toFixed(1).replace(".",",")+" mm   ·   σ = "+vv.sig.toFixed(1).replace(".",",")+
-        " MPa   ·   σcr,local = "+vv.sigCr.toFixed(0)+" MPa (FS "+vv.fs.toFixed(1).replace(".",",")+")"}; }),
-    {k:"Chapa no topo  /  na base",v:tTopo.toFixed(1).replace(".",",")+" mm  /  "+tBase.toFixed(1).replace(".",",")+" mm",hi:true},
-    {k:"Flambagem local do cilindro  σcr = 0,605·α·E·t/R  (α = 0,50)",v:locOK?"✓ todas as viroles com FS ≥ 1,5 contra flambagem local":"⚠ alguma virole com FS < 1,5 — aumentar a chapa ou prever anéis enrijecedores",hi:!locOK},
-    {k:"Massa do casco",v:kNkg(massaCasco*g/1000)+"   ·   "+(massaCasco/Hst).toFixed(0)+" kg/m médios"},
-    {k:"Soldas e ensaios",v:"Soldas de topo com penetração total nas juntas circunferenciais e longitudinais. Ensaio: 100% visual, 10% de radiografia nas circunferenciais das duas viroles inferiores e 100% de líquido penetrante na junta casco-flange de base. Chanfro e consumível conforme AWS D1.1."},
-
-    {sec:"Etapa 15 — Helicoide supressor de vórtices"},
-    {k:"Por que é necessário",v:"O desprendimento alternado de vórtices excita a torre transversalmente ao vento quando a velocidade crítica cai dentro da faixa de operação. Numa chaminé esbelta e leve o amortecimento estrutural é baixíssimo, e a amplitude cresce até a fadiga da solda de base. O helicoide quebra a correlação dos vórtices ao longo da altura e elimina a excitação — é a solução padrão, e a mais barata.",hi:true},
-    {k:"Frequência natural  f₁ = (1,875²/2π)·√(E·I/(m·H⁴))",v:fnR.toFixed(2).replace(".",",")+" Hz   (I = "+IstR.toFixed(4).replace(".",",")+" m⁴  ·  m = "+massaLreal.toFixed(0)+" kg/m)"},
-    {k:"Velocidade crítica  Vcr = f₁·D/St   (St = 0,20)",v:VcrR.toFixed(1).replace(".",",")+" m/s   vs   Vk de projeto "+Vk.toFixed(1).replace(".",",")+" m/s   "+(vivRiscoR?"⚠ a crítica é ATINGIDA na faixa de operação":"✓ acima da velocidade de projeto"),hi:vivRiscoR},
-    {k:"Número de Scruton  Sc = 2·m·δ/(ρar·D²)",v:ScR.toFixed(1).replace(".",",")+"   (δ = "+deltaLog.toFixed(3).replace(".",",")+")   —  abaixo de 10 a amplitude é inaceitável e o supressor é obrigatório",hi:(ScR<10)},
-    {k:"DECISÃO",v:helOn?("HELICOIDE NECESSÁRIO"+((helSel==="sim")?" (imposto pelo usuário)":" (Sc = "+ScR.toFixed(1).replace(".",",")+" < 10 com Vcr dentro da faixa)")):
-      ((helSel==="nao")?"dispensado por escolha do usuário — verificar fadiga da base se Vcr estiver na faixa":"dispensado — Sc ≥ 10 ou Vcr acima da velocidade de projeto"),hi:true},
-    ...(helOn?[
-    {k:"Número de fitas",v:nFitas+" fitas helicoidais igualmente espaçadas a 120°"},
-    {k:"Altura da aleta  h = 0,10·D",v:fmt(Math.round(hHel*1000))+" mm   (faixa consagrada 0,09 a 0,12·D)"},
-    {k:"Passo  p = 5,0·D",v:fmt(Math.round(passoHel*1000))+" mm   (faixa 4,5 a 5,5·D)"},
-    {k:"Extensão a partir do topo",v:LHel.toFixed(1).replace(".",",")+" m   —  da cota "+zHel.toFixed(1).replace(".",",")+" m ao topo ("+(100*LHel/Hst).toFixed(0)+"% da altura; prática: terço superior)"},
-    {k:"Comprimento desenvolvido de cada fita",v:compFita.toFixed(1).replace(".",",")+" m   ·   total "+(nFitas*compFita).toFixed(1).replace(".",",")+" m"},
-    {k:"Chapa da aleta  ·  massa",v:chapaHel.toFixed(1).replace(".",",")+" mm   ·   "+kNkg(massaHel*g/1000)},
-    {k:"Fixação",v:"solda intermitente dos dois lados, cordão de 6 mm, passo 150 mm alternado. A aleta não pode terminar em degrau — prever rebaixo em rampa nos dois extremos para não criar concentração de tensão."},
-    {k:"⚠ CONSEQUÊNCIA SOBRE O VENTO",v:"O helicoide eleva o arrasto do trecho de Ca = "+Ca.toFixed(2).replace(".",",")+" para "+CaHel.toFixed(2).replace(".",",")+". Acréscimo: ΔF = "+dFwHel.toFixed(1).replace(".",",")+" kN e ΔM = "+fmt(Math.round(dMwHel))+" kN·m na base — já incorporados nas cargas de fundação abaixo. Esquecer esse acréscimo é o erro mais comum ao acrescentar helicoide depois do projeto estrutural fechado.",hi:true}
-    ]:[]),
-
-    {sec:"Etapa 16 — Tubulações de serviço da torre"},
-    {k:"Critério",v:"Cada linha é dimensionada pela vazão e por velocidade admissível: 10 m/s em gás de piloto, 15 m/s em purga e gás de apoio, 1,0 m/s em condensado. Abaixo do DN calculado prevalece o mínimo de prática (robustez mecânica ao longo do riser e resistência a vibração)."},
-    {k:"Gás de piloto — "+npil+" pilotos × "+pilKg.toFixed(1).replace(".",",")+" kg/h",v:Wpil.toFixed(1).replace(".",",")+" kg/h de "+AP.nome+" a 1,5 kgf/cm²   →   Ø calculado "+tubPil.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubPil.dn,20)+"  (mínimo de prática DN 20; adotar DN 25 se o riser passar de 25 m)",hi:true},
-    {k:"Linha de ignição — gerador de frente de chama (FFG)",v:"DN "+dnFFG+"  ·  linha dedicada de mistura ar/gás até cada piloto, com purga permanente. Percurso o mais reto possível; cada curva atrasa a frente de chama e reduz a confiabilidade do acendimento."},
-    {k:"Purga de N₂",v:Nmpurga.toFixed(0)+" Nm³/h a 3 kgf/cm²   →   Ø calculado "+tubPur.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubPur.dn,20)},
-    {k:"Gás de apoio aos bicos auxiliares",v:Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h) de "+AP.nome+"   →   Ø calculado "+tubAp.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubAp.dn,25),hi:true},
-    {k:"Dreno de condensado do KO drum",v:Qcond.toFixed(1).replace(".",",")+" m³/h   →   Ø calculado "+tubDre.dcalc.toFixed(0)+" mm   →   DN "+dnDre+"  (mínimo de prática DN 50 — condensado de BFG arrasta finos e entope linha estreita)"},
-    {k:"Dreno do pé do riser",v:"DN 50 com selo, escoando para o mesmo destino do condensado. Obrigatório: água de chuva e condensação acumulam no fundo do riser e, na partida, são arrastadas para a ponta."},
-    {k:"Ar de instrumento",v:"DN "+dnAr+"  ·  10 Nm³/h a 7 kgf/cm² para atuação de válvulas e limpeza de janela dos detectores ópticos"},
-    {k:"Montagem no riser",v:"Todas as linhas de serviço externas ao casco, em suportes deslizantes que acompanhem a dilatação do riser. Juntas de expansão nas linhas de piloto e apoio — o casco alonga vários centímetros entre a partida e o regime."},
-
-    {sec:"Etapa 17 — Bicos de gás auxiliar (apoio à chama)"},
-    {k:"Por que existem",v:"O gás de topo desta planta tem PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³, cerca de um terço do patamar da API 537. A ponta não sustenta a chama sozinha em toda a faixa: os bicos auxiliares injetam combustível de alto PCI no anel de estabilização, criando uma coroa de chama que ancora a queima do gás pobre. Não confundir com enriquecimento da corrente — são coisas diferentes.",hi:true},
-    {k:"Combustível de apoio",v:AP.nome+"   ·   PCI "+fmt(AP.LHVm)+" kJ/kg  =  "+AP.LHVv.toFixed(1).replace(".",",")+" MJ/Nm³"},
-    {k:"Base de dimensionamento dos bicos",v:apBaseTxt+"   —  a capacidade dos bicos de apoio é fenômeno de BORDA: eles seguram a frente de chama no anel de estabilização. Escalar pela carga de emergência infla o consumo de GLP sem ganho de estabilidade."},
-    {k:"Capacidade especificada dos bicos",v:(Qap/1000).toFixed(2).replace(".",",")+" MW   =   "+Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h) de "+AP.nome,hi:true},
-    {k:"Comparação com a carga de projeto",v:(Qap/Math.max(Qcal,1)*100).toFixed(2).replace(".",",")+"% da carga térmica de projeto   ·   "+(Qap/Math.max(QminQueima,1)*100).toFixed(1).replace(".",",")+"% da menor condição de queima"},
-    {k:"Número de bicos  ·  distribuição",v:nBicos+" bicos igualmente espaçados no perímetro da ponta ("+perimTip.toFixed(2).replace(".",",")+" m  →  "+fmt(Math.round(perimTip/nBicos*1000))+" mm entre bicos)"},
-    {k:"Capacidade individual",v:QbicoKW.toFixed(0)+" kW por bico   ("+WbicoKg.toFixed(1).replace(".",",")+" kg/h)   —  faixa de queimador industrial padrão; exigir do fabricante a curva de turndown de cada bico"},
-    {k:"Tipo recomendado",v:"Bico de PRÉ-MISTURA PARCIAL com anel de retenção de chama (flame holder), corpo em aço inoxidável refratário AISI 310 ou Incoloy 800H, injeção tangencial ao anel de estabilização da ponta e retentor cerâmico na saída. Cada bico com válvula de bloqueio individual acessível da plataforma superior, para manutenção com a tocha em operação.",hi:true},
-    {k:"Acionamento",v:"Modulação por malha de PCI: analisador de gás em linha (calorímetro ou cromatógrafo rápido) na entrada do riser comanda a válvula de controle do apoio. Intertravamento: apoio em 100% durante blow-in e sempre que o PCI cair abaixo do mínimo garantido de "+PCImin.toFixed(0)+" kcal/Nm³ ("+LHVmin.toFixed(2).replace(".",",")+" MJ/Nm³)."},
-    {k:"Reserva de combustível de apoio",v:reservaAp.toFixed(1).replace(".",",")+" t para "+apHrs.toFixed(0)+" h de blow-in   +   "+reservaPil.toFixed(2).replace(".",",")+" t para 72 h de pilotos   =   tanque de "+(Math.ceil((reservaAp+reservaPil)*1.3))+" t",hi:true},
-    {k:"Situação no PCI MÍNIMO GARANTIDO  ("+PCImin.toFixed(0)+" kcal/Nm³ = "+LHVmin.toFixed(2).replace(".",",")+" MJ/Nm³)",v:estMin?
-      ("✓ ainda acima do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — a ponta de baixo PCI sustenta a chama sem apoio contínuo; os bicos ficam para a partida e para o turndown"):
-      ("⚠ ABAIXO do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — nesta condição a chama depende do apoio. Levar a corrente inteira ao alvo exigiria "+fmt(Math.round(VapAlvo))+" Nm³/h de "+AP.nome+" = "+(QapAlvo/1000).toFixed(1).replace(".",",")+" MW, ou "+(QapAlvo/Math.max(Qcal,1)*100).toFixed(0)+"% da carga térmica da própria tocha — inviável como regime. O caminho é ponta de baixo PCI com estabilização mecânica, pilotos permanentes e os bicos de apoio acima, dimensionados para a partida."),hi:!estMin},
-    {k:"PCI de projeto  ×  mínimo garantido",v:(LHVvol*KCAL).toFixed(0)+" kcal/Nm³ adotado no cálculo da carga térmica   ·   "+PCImin.toFixed(0)+" kcal/Nm³ como mínimo garantido"+
-      ((LHVvol*KCAL<=PCImin*1.001)?"   ⚠ SÃO O MESMO VALOR (ou o de projeto é menor). Isso é inconsistente: o PCI que dimensiona a ALTURA tem de ser o MÁXIMO esperado, porque radiação cresce com a carga térmica; o que dimensiona a ESTABILIDADE tem de ser o MÍNIMO. Usar o mesmo número nos dois papéis deixa a torre sem margem se o gás vier mais rico que o previsto.":"   ✓ o de projeto está acima do mínimo, como deve ser"),hi:(LHVvol*KCAL<=PCImin*1.001)},
-
-    {sec:"Etapa 18 — Cargas na fundação e bloco"},
-    {k:"Ação de vento — os dois caminhos",v:"simplificado (q do topo uniforme): F = "+Fw.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(Mw))+" kN·m   ·   integrado (perfil S2 real): F = "+FwInt.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(MwInt))+" kN·m   →   adotado o "+ventoGov+", acrescido do helicoide"},
-    {k:"Massas",v:"casco "+fmt(Math.round(massaCasco))+"   ·   plataformas e guarda-corpos "+fmt(Math.round(massaPlat))+"   ·   escada "+fmt(Math.round(massaEsc))+"   ·   anel de base "+fmt(Math.round(massaAnel))+"   ·   nervuras "+fmt(Math.round(massaNerv))+"   ·   ponta e linhas "+fmt(Math.round(massaPonta))+"   ·   helicoide "+fmt(Math.round(massaHel))+"   =   "+fmt(Math.round(massaTotal))+" kg"},
-    {k:"REAÇÃO VERTICAL característica  Nk",v:kNkg(Nk),hi:true},
-    {k:"REAÇÃO HORIZONTAL característica  Vk",v:kNkg(VkB)+"   —  governa "+govBase,hi:true},
-    {k:"MOMENTO característico na base  Mk",v:fmt(Math.round(MkB))+" kN·m   ("+fmt(Math.round(MkB*101.97))+" kgf·m)",hi:true},
-    {k:"Combinação última (γf = 1,4 na ação lateral · peso não majorado)",v:"Nd = "+Nd.toFixed(1).replace(".",",")+" kN   ·   Vd = "+Vd.toFixed(1).replace(".",",")+" kN   ·   Md = "+fmt(Math.round(Md2))+" kN·m"},
-    {k:"Excentricidade da resultante  e = Mk/Ntot",v:excent.toFixed(2).replace(".",",")+" m   vs   núcleo central D/8 = "+nucleo.toFixed(2).replace(".",",")+" m   "+((excent<=nucleo)?"✓ resultante dentro do núcleo — base toda comprimida":"⚠ fora do núcleo — haveria descolamento; o bloco foi aumentado até eliminá-lo")},
-    {k:"BLOCO DE FUNDAÇÃO adotado",v:"circular Ø "+Dbl.toFixed(1).replace(".",",")+" m  ×  "+Hbl2.toFixed(1).replace(".",",")+" m de altura   ·   "+volConc.toFixed(1).replace(".",",")+" m³ de concreto fck "+fck+" MPa   ·   peso próprio "+kNkg(Pbl),hi:true},
-    {k:"Tensão no solo  σ = N/A ± M/W",v:"σmáx = "+sigMax.toFixed(0)+" kPa   ·   σmín = "+sigMin.toFixed(0)+" kPa   vs   σadm = "+sigSolo.toFixed(0)+" kPa   "+((sigMax<=sigSolo&&sigMin>=0)?"✓":"⚠ REPROVADO — aumentar o bloco ou melhorar o solo"),hi:!(sigMax<=sigSolo&&sigMin>=0)},
-    {k:"Segurança ao TOMBAMENTO  (Ntot·D/2)/Mk",v:FSt.toFixed(2).replace(".",",")+"   ≥ 1,50   "+((FSt>=1.5)?"✓":"⚠ REPROVADO"),hi:!(FSt>=1.5)},
-    {k:"Segurança ao DESLIZAMENTO  (0,40·Ntot)/Vk",v:FSd.toFixed(2).replace(".",",")+"   ≥ 1,50   "+((FSd>=1.5)?"✓":"⚠ REPROVADO — prever dente de cisalhamento ou estacas"),hi:!(FSd>=1.5)},
-    {k:"⚠ Tensão admissível do solo",v:"Adotados "+sigSolo.toFixed(0)+" kPa. O item 5.6 da folha de dados registra a sondagem SPT como PENDENTE — sem ela este bloco é indicativo. Em solo de baixa capacidade a solução passa a ser estaca ou tubulão, e as dimensões acima não se aplicam."},
-    {k:"Armadura e detalhes",v:"Armadura de flexão nas duas direções na face inferior, malha superior de retração, e gaiola de ancoragem dos chumbadores solidarizada à armadura principal. Prever gabarito metálico de chumbadores e caneleta de drenagem no topo do bloco — água empoçada na base é a causa mais comum de corrosão do flange."},
-    {sec:"Etapa 19 — Balanço da planta e verificação de turndown"},
+    {sec:"2 — BALANÇO DE MASSA DA PLANTA e verificação de turndown"},
     {k:"Regra que não muda",v:"Os consumidores de processo NÃO reduzem o diâmetro de projeto: todos podem cair juntos, e o cenário governante segue sendo 100% da geração. O que eles mudam é o PONTO NORMAL de operação e, com ele, a razão de turndown que a ponta tem de cobrir.",hi:true},
     {k:"Geração normal  −  consumo de processo",v:fmt(Math.round(GerNor))+" − "+fmt(Math.round(Cons))+" Nm³/h"+((Deficit>0)?("   ⚠ DÉFICIT de "+fmt(Math.round(Deficit))+" Nm³/h"):"")},
     {k:"EXCEDENTE CONTÍNUO ao flare  (ponto normal de operação)",v:fmt(Math.round(Exced))+" Nm³/h   =   "+(Exced*rhoN/1000).toFixed(1).replace(".",",")+" t/h   ·   aproveitamento do gás gerado "+(aproveit*100).toFixed(0)+"%",hi:true},
@@ -2932,8 +2720,211 @@ function flareCalc(){
     {k:"Capacidade total no cenário de emergência",v:capOK?"✓ suficiente":"⚠ INSUFICIENTE",hi:!capOK}
     ]),
     {k:"Oscilação dos consumidores",v:"Não há gasômetro entre a geração e os consumidores, então toda oscilação dos "+fmt(Math.round(Cons))+" Nm³/h de consumo vai direto para o flare. Sem turndown especificado a faixa fecha, mas vale registrar: se a operação real levar a tocha abaixo de "+fmt(Math.round(Exced))+" Nm³/h com alguma frequência, a premissa de \"sem turndown\" precisa ser revista."},
+    {sec:"2b — COMPOSIÇÃO DO GÁS: combustíveis, inertes e propriedades derivadas"},
+    {k:"Composição molar informada",v:(function(){var t=[];for(var c in COMPQ){if(yPc[c]>0)t.push(COMPQ[c].nome+" "+yPc[c].toFixed(1).replace(".",",")+" %");}return t.join("   ·   ")||"não informada";})()+"   —   soma "+somaY.toFixed(1).replace(".",",")+" %"+((Math.abs(somaY-100)>1)?"   ⚠ não fecha 100 %: o saldo é tratado como \"outros\" e a composição é normalizada":"   ✓ fecha 100 %"),hi:(Math.abs(somaY-100)>1)},
+    {k:"Fração COMBUSTÍVEL × fração INERTE",v:yComb.toFixed(1).replace(".",",")+" % combustíveis (CO + H2 + CH4 + H2S)   ·   "+yInerte.toFixed(1).replace(".",",")+" % inertes (CO2 + N2 + H2O)   —  é o inerte que derruba o PCI volumétrico e, com ele, a estabilidade de chama; nenhum ajuste de ponta compensa diluição desta ordem",hi:(yInerte>50)},
+    {k:"Propriedades CALCULADAS da composição",v:"MW = "+MWcomp.toFixed(2).replace(".",",")+" kg/kmol   ·   k = "+kComp.toFixed(3).replace(".",",")+"   ·   PCI = "+PCIvolComp.toFixed(2).replace(".",",")+" MJ/Nm³   —  MW por Σ y·MW, k por Cp̄/(Cp̄ − R) e PCI por Σ y·PCI de cada componente"},
+    {k:"Propriedades INFORMADAS (folha de dados / preset)",v:"MW = "+MWinf.toFixed(2).replace(".",",")+" kg/kmol   ·   k = "+kInf.toFixed(3).replace(".",",")+"   ·   PCI = "+(LHVinf*(MWinf/22.414)/1000).toFixed(2).replace(".",",")+" MJ/Nm³"},
+    {k:"BASE ADOTADA",v:(usaComp?"CALCULADA da composição":"INFORMADA na folha de dados")+"   →   MW = "+MW.toFixed(2).replace(".",",")+" kg/kmol   ·   k = "+kg.toFixed(3).replace(".",",")+"   ·   PCI = "+Math.round(LHV)+" kJ/kg"+(usaComp?"":"   —  para calcular da composição, trocar o campo \"Base de MW, k e PCI\""),hi:true},
+    {k:"Divergência entre as duas bases",v:"MW "+(((MWcomp/Math.max(MWinf,0.01))-1)*100).toFixed(1).replace(".",",")+" %   ·   PCI volumétrico "+(((PCIvolComp/Math.max(LHVinf*(MWinf/22.414)/1000,0.001))-1)*100).toFixed(1).replace(".",",")+" %   —  divergência grande indica composição incompleta ou PCI de folha medido em base diferente (seca × úmida). Vale investigar antes de seguir."},
 
-    {sec:"Etapa 20 — Patamares de acesso, escada e guarda-corpo"},
+    {sec:"3 — PROPRIEDADES TERMODINÂMICAS na condição da ponta"},
+    {k:"Temperatura e pressão",v:Tc.toFixed(0)+" °C = "+TK.toFixed(1).replace(".",",")+" K   ·   "+Patm.toFixed(3).replace(".",",")+" kPa abs (descarga à atmosfera)"},
+    {k:"Fator de compressibilidade  Z",v:Zc.toFixed(3).replace(".",",")+(Zc>=0.999?"   —  gás ideal; aceitável perto da atmosférica":"   —  informado")},
+    {k:"Massa específica  ρ = P·MW/(Z·R·T)",v:rho.toFixed(3).replace(".",",")+" kg/m³ na ponta   ·   "+rhoN.toFixed(3).replace(".",",")+" kg/Nm³ na base normal"},
+    {k:"Densidade relativa ao ar  SG = MW/28,965",v:SGar.toFixed(3).replace(".",",")+(SGar>1?"   ⚠ MAIS PESADO que o ar — na falha de chama a nuvem desce e se espalha rente ao solo, o que agrava a dispersão e o risco de CO":"   —  mais leve que o ar: a nuvem sobe"),hi:(SGar>1)},
+    {k:"Razão de calores específicos  k = Cp/Cv",v:kg.toFixed(3).replace(".",",")},
+    {k:"Velocidade do som  c = √(k·R·T/MW)",v:son.toFixed(0)+" m/s   —  é o divisor do Mach na ponta e no header"},
+    {k:"Poder calorífico INFERIOR  PCI",v:Math.round(LHV)+" kJ/kg   =   "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³   =   "+(LHVvol*238.85).toFixed(0)+" kcal/Nm³"},
+    {k:"Poder calorífico SUPERIOR  PCS (estimado)",v:(LHVvol+ (yPc.H2+yPc.CH4*2+ (yPc.H2O||0))*fNorm/100*2.44 ).toFixed(2).replace(".",",")+" MJ/Nm³   —  PCS = PCI + calor latente da água formada (2,44 MJ por Nm³ de H2O gerado, do H2 e do CH4). Em gás de alto-forno a diferença é pequena porque há pouco hidrogênio; para a tocha o que vale é o PCI."},
+
+    {sec:"4 — CARGA TÉRMICA DO FLARE"},
+    {k:"Cadeia de conversão",v:QNin.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,".")+" Nm³/h   →   × ρN "+rhoN.toFixed(3).replace(".",",")+"   →   "+Math.round(W).toString().replace(/\B(?=(\d{3})+(?!\d))/g,".")+" kg/h   →   ÷ 3600   →   "+Gs.toFixed(2).replace(".",",")+" kg/s   →   ÷ ρ "+rho.toFixed(3).replace(".",",")+"   →   "+Qv.toFixed(2).replace(".",",")+" m³/s reais na ponta",hi:true},
+    {k:"LIBERAÇÃO DE CALOR  Q̇ = ṁ · PCI",v:(Qcal/1000).toFixed(1).replace(".",",")+" MW   =   "+(Qcal*3412.142/1e6).toFixed(0)+" MMBtu/h   —  é dela que saem o comprimento de chama e a radiação",hi:true},
+
+    {sec:"5 — HIDRÁULICA DA LINHA DE FLARE: riser"},
+    {k:"Critério",v:"O riser é dimensionado por VELOCIDADE, não por Mach: D = √(4·Q/(v·π)). Em gás de topo de alto-forno adota-se de 20 a 30 m/s — acima disso a perda de carga come a pouca pressão disponível, abaixo disso o tubo fica caro e a chama perde ancoragem.",hi:true},
+    {k:"Vazão volumétrica na temperatura de operação",v:Qv.toFixed(2).replace(".",",")+" m³/s   ("+fmt(Math.round(Qv*3600))+" m³/h a "+Tc.toFixed(0)+" °C)"},
+    {k:"Velocidade de projeto adotada",v:vRiser.toFixed(0)+" m/s"},
+    {k:"DIÂMETRO NECESSÁRIO do riser  D = √(4·Q/(v·π))",v:Driser_req.toFixed(3).replace(".",",")+" m   =   "+fmt(Math.round(Driser_req*1000))+" mm",hi:true},
+    {k:"DIÂMETRO ADOTADO do riser",v:Driser.toFixed(1).replace(".",",")+" m   (DN "+fmt(Math.round(Driser*1000))+")"+(drAuto?("   —  o mais próximo de "+Driser_req.toFixed(3).replace(".",",")+" m no passo de 0,1 m ("+((Driser-Driser_req)>=0?"+":"")+((Driser-Driser_req)*1000).toFixed(0)+" mm)"):"   —  escolha do usuário")+(drAcima?"   ⚠ abaixo do requerido: a velocidade sobe":""),hi:true},
+    {k:"Velocidade em cada diâmetro comercial",v:DRIS.filter(function(d){return d>=Driser_req-0.3&&d<=Driser_req+0.4;}).map(function(d){
+      var vv=Qv/(Math.PI*d*d/4);
+      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s"+((vv<=vMaxRis)?"":" ⚠");
+      }).join("   ·   ")+"   —  passo comercial de 0,1 m; adota-se o de menor diferença absoluta em relação ao requerido ("+Driser_req.toFixed(3).replace(".",",")+" m). O ⚠ marca quem passa de "+vMaxRis.toFixed(0)+" m/s.",hi:true},
+    {k:"Velocidade resultante no riser",v:vRiserReal.toFixed(2).replace(".",",")+" m/s   ·   Ma = "+MaRiser.toFixed(3).replace(".",",")+"   "+(riserOK?"✓ dentro do adotado":"⚠ ACIMA do valor de projeto — subir um diâmetro"),hi:!riserOK},
+    {k:"Perda de carga no riser  (Darcy, f = 0,020)",v:dPriser.toFixed(3).replace(".",",")+" kPa   em "+(Hst>0?Hst.toFixed(0):"30")+" m de subida"},
+    {sec:"5b — HIDRÁULICA DA LINHA DE FLARE: contrapressão total do sistema"},
+    {k:"Por que importa",v:"A perda de carga da ponta somada à do header retorna como CONTRAPRESSÃO no bocal das válvulas de segurança. Se ultrapassar o limite do tipo de PSV, a capacidade de alívio cai e o sistema deixa de proteger o equipamento. Dimensionar a ponta isolada, sem fechar o balanço hidráulico, é o erro mais comum em projeto de tocha.",hi:true},
+    {k:"Header — critério de Mach ≤ 0,20 (API 521)",v:"diâmetro requerido "+dHeadCalc.toFixed(0)+" mm   →   adotado DN "+dHead+(dhGov?"  (ABERTO além do Mach para caber na perda de carga admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa; teto = diâmetro do riser)":"  (o mais próximo do requerido, passo de 0,1 m)")+"   ·   velocidade "+Vh.toFixed(0)+" m/s   ·   Ma = "+MaH.toFixed(3).replace(".",",")+(headOK?"   ✓":"   ⚠ acima de 0,20 — aumentar o diâmetro do header"),hi:!headOK},
+    {k:"HEADER — requerido × adotado",v:"requerido por Mach ≤ 0,20: "+(dHeadCalc/1000).toFixed(3).replace(".",",")+" m   →   ADOTADO "+(dHead/1000).toFixed(1).replace(".",",")+" m (DN "+dHead+")   ·   diferença "+((dHead-dHeadCalc)>=0?"+":"")+(dHead-dHeadCalc).toFixed(0)+" mm   ·   velocidade "+Vh.toFixed(1).replace(".",",")+" m/s"+((dhSel==="auto")?"   (automático)":"   (escolha do usuário)"),hi:true},
+    {k:"Velocidade no header por diâmetro comercial",v:DRIS.filter(function(d){return d>=dHeadCalc/1000-0.3&&d<=Math.max(dHeadCalc/1000+0.4,dHead/1000+0.1);}).map(function(d){
+      var vv=Qv/(Math.PI*d*d/4), dp=fD*(Lhead/d)*rho*vv*vv/2/1000;
+      return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s / "+dp.toFixed(2).replace(".",",")+" kPa"+((dp<=dpHeadAdm)?"":" ⚠");
+      }).join("   ·   ")+"   —  velocidade e perda de carga em cada diâmetro; o ⚠ marca quem estoura a perda admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa"},
+    {k:"Perda de carga no header  (Darcy, f = 0,015)",v:dPhead.toFixed(2).replace(".",",")+" kPa   em "+Lhead.toFixed(0)+" m equivalentes"},
+    {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
+    {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
+    {sec:"6 e 7 — FLARE TIP: área, diâmetro, velocidade e Mach"},
+    {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
+    {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
+    {k:"DIÂMETRO DA PONTA ADOTADO",v:dpol+"\" ("+(dtip*1000).toFixed(0)+" mm)"+((isFinite(dUser)&&dUser>0)?"   (imposto pelo usuário)":(dpGov?("   —  ABERTO além do requerido por Mach ("+dcalc.toFixed(0)+" mm) para respeitar a velocidade máxima de "+vMaxTip.toFixed(0)+" m/s e a perda de carga admissível"):"   (comercial imediatamente superior ao requerido por Mach)")),hi:true},
+    {k:"Velocidade e Mach na vazão de projeto",v:Vsai.toFixed(0)+" m/s   ·   Ma = "+Ma.toFixed(3).replace(".",",")+(machOK?"   ✓ dentro do limite":"   ⚠ ACIMA do limite adotado — aumentar o diâmetro"),hi:!machOK},
+    {k:"Velocidade e Mach na vazão mínima contínua",v:(Wmin>0?(VsaiMin.toFixed(1).replace(".",",")+" m/s   ·   Ma = "+MaMin.toFixed(4).replace(".",",")+"   —  verificar com o fabricante a estabilidade de chama e o limite de retrocesso nesta condição"):"não informada — informar a vazão contínua mínima para verificar a estabilidade de chama em turndown")},
+    {k:"Perda de carga na ponta  ΔP = K·ρV²/2",v:dPtip.toFixed(2).replace(".",",")+" kPa   (K = "+Ktip.toFixed(1).replace(".",",")+" — 1,5 típico de ponta tubular, 2 a 3 em ponta proprietária; confirmar com a curva do fabricante)"},
+    {sec:"8 — ESTABILIDADE DA CHAMA (o critério que governa em gás de baixo PCI)"},
+    {k:"Serviço",v:(contInuo?"QUEIMA CONTÍNUA de gás de processo — a tocha opera permanentemente, e não como dispositivo de emergência. Isso muda três coisas: o Mach admissível cai para 0,2, a pressão disponível na fonte substitui o critério de contrapressão da PSV, e a manutenção da ponta passa a ser rotina programada.":"ALÍVIO DE EMERGÊNCIA — operação rara e de curta duração"),hi:true},
+    {k:"Massa específica normal e PCI VOLUMÉTRICO",v:rhoN.toFixed(3).replace(".",",")+" kg/Nm³   →   "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³   =   "+(LHVvol*26.84).toFixed(0)+" Btu/scf",hi:true},
+    {k:"Vazão volumétrica normal",v:fmt(Math.round(QNm))+" Nm³/h"},
+    {k:"LIMITE DA API 537  (11,82 MJ/Nm³ = 300 Btu/scf)",v:(ricoH2?
+      "✓ NÃO SE APLICA — gás rico em hidrogênio (MW = "+MW.toFixed(1).replace(".",",")+" kg/kmol). O PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ é baixo porque o gás é leve, não porque queime mal: o hidrogênio tem a maior velocidade de chama entre os combustíveis usuais e é extremamente estável. O critério volumétrico foi construído para misturas de hidrocarboneto com inertes. A atenção aqui é outra — chama pouco luminosa, quase invisível à luz do dia, o que exige detecção de chama por termopar ou UV/IR e sinalização, nunca inspeção visual.":
+      (estavel?"✓ ATENDE — o gás sustenta chama e o número de pilotos segue a tabela padrão da norma":
+      "⚠ NÃO ATENDE — está a "+(LHVvol/LHVlim*100).toFixed(0)+" % do limite. Abaixo de 11,82 MJ/Nm³ a API 537 determina que o número de pilotos seja ACORDADO entre comprador e fabricante, porque a chama não se sustenta sozinha. Este é o caso de gás de topo de alto-forno, de aciaria e de gaseificação.")),hi:!estavel},
+    ...(baixoPCI?[
+    {k:"Enriquecimento necessário para atingir o limite",v:razEnr.toFixed(2).replace(".",",")+" Nm³ de gás natural por Nm³ de gás de processo   =   "+(razEnr*100).toFixed(0)+" %   →   "+fmt(Math.round(Qenr))+" Nm³/h de gás de apoio",hi:true},
+    {k:"⚠ Enriquecer a corrente inteira NÃO é o caminho",v:"Com "+(razEnr*100).toFixed(0)+" % de gás natural o custo de combustível de apoio inviabiliza a operação — e queimar gás nobre para descartar gás pobre é um contrassenso energético. O caminho correto em gás de baixo PCI é outro: (a) PONTA ESPECÍFICA PARA BAIXO PCI, com anéis de retenção de chama e cones de estabilização, que sustenta combustão com PCI bem abaixo do patamar da norma; (b) PILOTOS PERMANENTES alimentados por gás de apoio (GLP ou gás natural), em número acordado com o fabricante e com detecção individual de chama; (c) velocidade de saída REDUZIDA, tipicamente 20 a 60 m/s em vez das centenas de m/s de uma tocha de refinaria, para não soprar a chama. O consumo de apoio fica restrito aos pilotos, não à corrente principal.",hi:true},
+    {k:"Consequência sobre a radiação",v:"O baixo PCI tem um lado favorável: a fração irradiada é pequena (F ≈ 0,10 contra 0,20 do gás natural) e a liberação de calor por unidade de vazão é baixa. A torre resultante é bem mais baixa que a de uma tocha de hidrocarboneto de mesma vazão mássica — a radiação deixa de ser o critério dominante, e a estabilidade assume."}
+    ]:[]),
+    ...((teorCO>=1)?[
+    {k:"⚠ TEOR DE MONÓXIDO DE CARBONO",v:teorCO.toFixed(0)+" % mol   —  serviço TÓXICO. O CO é inodoro e letal, e a falha de chama libera a corrente inteira sem queima. Requisitos que decorrem disso: pilotos redundantes com detecção individual de chama e intertravamento, sistema de ignição automático com religamento, monitoramento de chama enviado à sala de controle, e verificação da concentração de CO ao nível do solo com a tocha apagada por modelo de dispersão — este último NÃO é dispensável e não é coberto pela estimativa de jato desta planilha.",hi:true},
+    {k:"Eficiência de destruição",v:"Exigir do fabricante a eficiência de destruição garantida do CO na faixa de operação, incluindo a vazão mínima. Em tocha de baixo PCI mal dimensionada a eficiência despenca em turndown, justamente quando a chama está mais frágil."}
+    ]:[]),
+    ...((poeira>0)?[
+    {k:"⚠ PARTICULADO NA CORRENTE",v:fmt(Math.round(poeira))+" mg/Nm³"+(poeira>50?"   —  ACIMA de 50 mg/Nm³: o vaso separador NÃO resolve. Gás de topo de alto-forno sai do forno com vários g/Nm³ e exige limpeza a montante — ciclone seguido de lavador venturi ou precipitador — antes de chegar à tocha. Sem isso a ponta e os bicos de piloto entopem, a chama fica instável e a manutenção vira semanal.":"   —  abaixo de 50 mg/Nm³, aceitável para a ponta"),hi:(poeira>50)},
+    {k:"Selagem hídrica",v:"Em planta de gusa o selo hídrico (selo líquido) costuma ser preferível ao selo molecular: além de barrar o ar, ele lava o particulado residual e dá controle de contrapressão. Prever purga e reposição de água, e proteção contra congelamento se aplicável."}
+    ]:[]),
+    {sec:"8b — Bicos de gás auxiliar (apoio à chama)"},
+    {k:"Por que existem",v:"O gás de topo desta planta tem PCI volumétrico de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³, cerca de um terço do patamar da API 537. A ponta não sustenta a chama sozinha em toda a faixa: os bicos auxiliares injetam combustível de alto PCI no anel de estabilização, criando uma coroa de chama que ancora a queima do gás pobre. Não confundir com enriquecimento da corrente — são coisas diferentes.",hi:true},
+    {k:"Combustível de apoio",v:AP.nome+"   ·   PCI "+fmt(AP.LHVm)+" kJ/kg  =  "+AP.LHVv.toFixed(1).replace(".",",")+" MJ/Nm³"},
+    {k:"Base de dimensionamento dos bicos",v:apBaseTxt+"   —  a capacidade dos bicos de apoio é fenômeno de BORDA: eles seguram a frente de chama no anel de estabilização. Escalar pela carga de emergência infla o consumo de GLP sem ganho de estabilidade."},
+    {k:"Capacidade especificada dos bicos",v:(Qap/1000).toFixed(2).replace(".",",")+" MW   =   "+Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h) de "+AP.nome,hi:true},
+    {k:"Comparação com a carga de projeto",v:(Qap/Math.max(Qcal,1)*100).toFixed(2).replace(".",",")+"% da carga térmica de projeto   ·   "+(Qap/Math.max(QminQueima,1)*100).toFixed(1).replace(".",",")+"% da menor condição de queima"},
+    {k:"Número de bicos  ·  distribuição",v:nBicos+" bicos igualmente espaçados no perímetro da ponta ("+perimTip.toFixed(2).replace(".",",")+" m  →  "+fmt(Math.round(perimTip/nBicos*1000))+" mm entre bicos)"},
+    {k:"Capacidade individual",v:QbicoKW.toFixed(0)+" kW por bico   ("+WbicoKg.toFixed(1).replace(".",",")+" kg/h)   —  faixa de queimador industrial padrão; exigir do fabricante a curva de turndown de cada bico"},
+    {k:"Tipo recomendado",v:"Bico de PRÉ-MISTURA PARCIAL com anel de retenção de chama (flame holder), corpo em aço inoxidável refratário AISI 310 ou Incoloy 800H, injeção tangencial ao anel de estabilização da ponta e retentor cerâmico na saída. Cada bico com válvula de bloqueio individual acessível da plataforma superior, para manutenção com a tocha em operação.",hi:true},
+    {k:"Acionamento",v:"Modulação por malha de PCI: analisador de gás em linha (calorímetro ou cromatógrafo rápido) na entrada do riser comanda a válvula de controle do apoio. Intertravamento: apoio em 100% durante blow-in e sempre que o PCI cair abaixo do mínimo garantido de "+PCImin.toFixed(0)+" kcal/Nm³ ("+LHVmin.toFixed(2).replace(".",",")+" MJ/Nm³)."},
+    {k:"Reserva de combustível de apoio",v:reservaAp.toFixed(1).replace(".",",")+" t para "+apHrs.toFixed(0)+" h de blow-in   +   "+reservaPil.toFixed(2).replace(".",",")+" t para 72 h de pilotos   =   tanque de "+(Math.ceil((reservaAp+reservaPil)*1.3))+" t",hi:true},
+    {k:"Situação no PCI MÍNIMO GARANTIDO  ("+PCImin.toFixed(0)+" kcal/Nm³ = "+LHVmin.toFixed(2).replace(".",",")+" MJ/Nm³)",v:estMin?
+      ("✓ ainda acima do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — a ponta de baixo PCI sustenta a chama sem apoio contínuo; os bicos ficam para a partida e para o turndown"):
+      ("⚠ ABAIXO do alvo de "+alvoPCI.toFixed(1).replace(".",",")+" MJ/Nm³ — nesta condição a chama depende do apoio. Levar a corrente inteira ao alvo exigiria "+fmt(Math.round(VapAlvo))+" Nm³/h de "+AP.nome+" = "+(QapAlvo/1000).toFixed(1).replace(".",",")+" MW, ou "+(QapAlvo/Math.max(Qcal,1)*100).toFixed(0)+"% da carga térmica da própria tocha — inviável como regime. O caminho é ponta de baixo PCI com estabilização mecânica, pilotos permanentes e os bicos de apoio acima, dimensionados para a partida."),hi:!estMin},
+    {k:"PCI de projeto  ×  mínimo garantido",v:(LHVvol*KCAL).toFixed(0)+" kcal/Nm³ adotado no cálculo da carga térmica   ·   "+PCImin.toFixed(0)+" kcal/Nm³ como mínimo garantido"+
+      ((LHVvol*KCAL<=PCImin*1.001)?"   ⚠ SÃO O MESMO VALOR (ou o de projeto é menor). Isso é inconsistente: o PCI que dimensiona a ALTURA tem de ser o MÁXIMO esperado, porque radiação cresce com a carga térmica; o que dimensiona a ESTABILIDADE tem de ser o MÍNIMO. Usar o mesmo número nos dois papéis deixa a torre sem margem se o gás vier mais rico que o previsto.":"   ✓ o de projeto está acima do mínimo, como deve ser"),hi:(LHVvol*KCAL<=PCImin*1.001)},
+    {sec:"9 e 19 — GÁS DE PURGA e selo contra entrada de ar"},
+    {k:"Por que existe",v:"Impedir a entrada de ar pelo topo. Ar dentro da tubulação com gás combustível significa mistura explosiva e detonação interna — o modo de falha mais destrutivo de uma tocha.",hi:true},
+    {k:"Selo adotado",v:({nenhum:"Nenhum — só purga contínua",velocidade:"Selo de velocidade (fluídico)",molecular:"Selo molecular (de flutuação)"})[selo]},
+    {k:"Velocidade de purga  —  tabela do selo × adotada",v:vPurTab.toFixed(3).replace(".",",")+" m/s pelo selo "+selo+"   →   ADOTADA "+vPurga.toFixed(3).replace(".",",")+" m/s"+(vPurUser?"   (informada — a planilha usa 0,015 m/s)":"   (pelo tipo de selo)"),hi:true},
+    {k:"Referência de velocidade de purga",v:vPurga.toFixed(3).replace(".",",")+" m/s   —  0,30 m/s sem selo · 0,03 m/s com selo de velocidade · 0,006 m/s com selo molecular"},
+    {k:"CONSUMO DE GÁS DE PURGA",v:Nmpurga.toFixed(1).replace(".",",")+" Nm³/h   =   "+fmt(Math.round(purgaAno))+" Nm³/ano",hi:true},
+    {k:"Economia do selo",v:(selo==="nenhum"?"Sem selo o consumo é 50 vezes maior que com selo molecular. Ao longo da vida da instalação o selo se paga muitas vezes — avaliar a instalação.":"O selo reduz o consumo de purga em uma a duas ordens de grandeza frente à operação sem selo.")},
+    {sec:"10 — PILOTOS E IGNIÇÃO (API 537)"},
+    {k:"NÚMERO DE PILOTOS",v:npil+((baixoPCI||toxico)?("   —  tabela da API 537 daria "+npilTab+" pelo diâmetro, mas em "+(baixoPCI&&toxico?"baixo PCI e serviço tóxico":(baixoPCI?"baixo PCI":"serviço tóxico"))+" a norma remete o número a ACORDO entre comprador e fabricante; adotou-se um piloto adicional como mínimo, a confirmar em proposta"):("   —  tabela da API 537: 1 até 8\" · 2 de 8\" a 24\" · 3 de 24\" a 42\" · 4 acima de 42\"")),hi:true},
+    {k:"Consumo de gás dos pilotos",v:Qpil.toFixed(0)+" Nm³/h   (≈ 4 Nm³/h por piloto, contínuo)"},
+    {k:"Requisitos do sistema",v:"Ignição por gerador de frente de chama ou por ignitor eletrônico de alta energia, com detecção de chama por termopar em cada piloto e sinalização em sala de controle. Os pilotos devem manter chama sob vento e chuva de projeto — é item de segurança, não de conveniência."},
+    {sec:"11 — OPERAÇÃO SMOKELESS (supressão de fumaça)"},
+    {k:"Sistema adotado",v:({vapor:"Assistência a VAPOR",ar:"Assistência a AR (soprador)",nenhum:"Sem assistência — queima luminosa"})[assist]},
+    {k:"Capacidade smokeless especificada",v:fracSm.toFixed(0)+" % do pico   =   "+fmt(Math.round(Wsm))+" kg/h   —  raramente se especifica 100 %: o pico de emergência é raro e curto, e o custo de vapor ou do soprador é proporcional"},
+    {k:"Consumo de vapor",v:(assist==="vapor"?(fmt(Math.round(Wvap))+" kg/h   (razão "+Rvap.toFixed(2).replace(".",",")+" kg vapor/kg HC — de 0,15 para gases leves a 0,50 para insaturados e aromáticos)"):"não se aplica"),hi:(assist==="vapor")},
+    {k:"Ar e potência do soprador",v:(assist==="ar"?(fmt(Math.round(Qar))+" m³/h   ·   potência estimada "+Psopr.toFixed(0)+" kW (ΔP 3 kPa · η 0,65)"):"não se aplica"),hi:(assist==="ar")},
+    {sec:"12 — GEOMETRIA DA CHAMA: comprimento, trajetória e inclinação"},
+    {k:"3.1  COMPRIMENTO DA CHAMA  L",v:Lf.toFixed(1).replace(".",",")+" m   —  da liberação de calor da Etapa 1 ("+(Qcal/1000).toFixed(1).replace(".",",")+" MW = "+(Qbtu/1e6).toFixed(0)+" MMBtu/h), pelo ajuste da curva comprimento × liberação de calor da API 521",hi:true},
+    {k:"Curvas subsônica × sônica, interpoladas pelo Mach da ponta",v:"subsônica L = 0,00604·Q^0,4776 → "+LfSub.toFixed(1).replace(".",",")+" m   ·   sônica L = 0,004503·Q^0,45988 → "+LfSon.toFixed(1).replace(".",",")+" m   ·   Mach da ponta "+Ma.toFixed(3).replace(".",",")+"   →   ADOTADO "+Lf.toFixed(1).replace(".",",")+" m   (Q em Btu/h). Chama de alta quantidade de movimento entranha ar mais depressa e queima mais curta; com Mach baixo o resultado praticamente coincide com a curva subsônica."},
+    {k:"⚠ Qual vento entra aqui",v:"NÃO é o vento predominante do sítio — o item 5.3 da folha de dados traz 3 m/s, que é média anual e serve para descrever o local, não para verificar projeto. Inclinação de chama e downwash pedem vento de PROJETO, de alta recorrência. Referência: a V0 da NBR 6123 adotada é "+V0.toFixed(0)+" m/s (rajada de 3 s a 10 m); o vento médio correspondente fica na casa de "+(V0*0.69).toFixed(0)+" m/s, e é dessa ordem o valor a usar.",hi:true},
+    {k:"3.2  Razão que comanda a distorção  u_saída ÷ u_vento",v:Vsai.toFixed(1).replace(".",",")+" ÷ "+uw.toFixed(1).replace(".",",")+" = "+(isFinite(razVJ)?razVJ.toFixed(2).replace(".",","):"∞")+"×   vs   mínimo de "+razMin.toFixed(1).replace(".",",")+"× adotado"+(razOK?"   ✓ jato domina o vento":"   ⚠ ABAIXO — jato fraco frente ao vento: chama muito inclinada e risco de downwash (sucção da chama para a esteira da torre, que queima casco e plataforma). Aumentar a velocidade de saída reduzindo o diâmetro da ponta, ou reduzir o vento de projeto se houver base para isso."),hi:!razOK},
+    {k:"3.3  Inclinação SIMPLIFICADA  tan θ = u_vento/u_saída",v:tetaCalcG.toFixed(1).replace(".",",")+"°   —  vale só junto ao bico: supõe que o jato conserva a velocidade de saída ao longo de toda a chama. Como ele desacelera, esta base SUBESTIMA a inclinação e não deve ser usada sozinha."},
+    {k:"3.4  Inclinação pela TRAJETÓRIA com decaimento do jato",v:"corda bico→ponta "+tetaTrajG.toFixed(1).replace(".",",")+"°   ·   local na ponta da chama "+tetaPontaG.toFixed(1).replace(".",",")+"°   —  integra-se tan θ(s) = u_vento/u(s) de s = 0 a L, com o decaimento de jato livre turbulento u(s)/u_saída = 6,2·D/s (D = "+dtip.toFixed(2).replace(".",",")+" m). A inclinação cresce ao longo da chama porque o jato perde velocidade enquanto o vento não muda.",hi:true},
+    {k:"INCLINAÇÃO ADOTADA a partir da vertical",v:tetaG.toFixed(1).replace(".",",")+"°   —   "+
+      ({traj:"REGE A TRAJETÓRIA com decaimento do jato",simp:"rege a simplificada tan θ = u_vento/u_saída",imp:"rege o PISO imposto pelo usuário ("+(tetaImposto?tetaIn.toFixed(0):"0")+"°)"})[baseTeta]+
+      "   ·   simplificada "+tetaCalcG.toFixed(1).replace(".",",")+"°   ·   trajetória "+tetaTrajG.toFixed(1).replace(".",",")+"°"+(tetaImposto?("   ·   piso imposto "+tetaIn.toFixed(0)+"°"):"")+"   →   adota-se sempre a MAIOR",hi:true},
+    {k:"3.5  VERIFICAÇÃO — inclinação adotada × máxima admissível",v:tetaG.toFixed(1).replace(".",",")+"°   vs   "+tetaMax.toFixed(0)+"° admissíveis"+(tetaOK?("   ✓ DENTRO do aceitável   (folga de "+(tetaMax-tetaG).toFixed(1).replace(".",",")+"°)"):("   ⚠ ACIMA do aceitável — excede em "+(tetaG-tetaMax).toFixed(1).replace(".",",")+"°")),hi:true},
+    {k:"O que esse limite protege",v:"Não há limite normativo de inclinação: a API 521 manda considerar a distorção pelo vento, não a mantém abaixo de um valor. O limite é de PRÁTICA de projeto e existe para garantir três coisas — que a chama não deite sobre a plataforma e o casco (dano térmico e ao revestimento), que a ponta não avance sobre área ocupada, e que o centro emissor não desça a ponto de a radiação no solo não fechar. As três são verificadas nas linhas abaixo e na Etapa 4."},
+    {k:"3.6  Alcance da PONTA da chama a partir do eixo da torre",v:"horizontal "+xPonta.toFixed(1).replace(".",",")+" m   ·   vertical "+yPonta.toFixed(1).replace(".",",")+" m acima do topo   —  cota da ponta "+(Hst+yPonta).toFixed(1).replace(".",",")+" m"+((xPonta>=Rpes&&Rpes>0)?("   ⚠ a ponta ALCANÇA a horizontal do posto ocupado ("+Rpes.toFixed(0)+" m): a radiação no posto passa a ser por chama sobre a cabeça, e o modelo de fonte pontual perde validade — exigir do fornecedor a curva de distorção"):("   ✓ a ponta pára a "+(Rpes-xPonta).toFixed(1).replace(".",",")+" m antes da horizontal do posto ocupado")),hi:(xPonta>=Rpes&&Rpes>0)},
+    {k:"3.7  Centro emissor da chama (a partir do topo da torre)",v:"Δx = "+dxF.toFixed(1).replace(".",",")+" m na horizontal   ·   Δy = "+dyF.toFixed(1).replace(".",",")+" m na vertical"+(usaTraj?("   —  CENTRÓIDE da trajetória curva; a reta de meio comprimento no mesmo ângulo daria Δx = "+dxRet.toFixed(1).replace(".",",")+" m e Δy = "+dyRet.toFixed(1).replace(".",",")+" m"):"   —  meio comprimento em linha reta no ângulo adotado")+".  É com a chama inclinada que a radiação deve ser verificada, nunca com a chama vertical: o vento baixa o centro emissor e o aproxima do posto a sotavento.",hi:true},
+    {k:"⚠ Limite deste modelo",v:"O decaimento de jato livre 6,2·D/s vale para jato isotérmico sem combustão; a expansão térmica da chama sustenta a velocidade um pouco mais, e o empuxo a levanta. O resultado aqui fica entre a relação simplificada (otimista) e a chama deitada, que é onde a curva de distorção da API 521 também situa este caso. Para projeto executivo, exigir a curva de distorção do fornecedor da ponta e comparar."},
+    {sec:"13 e 14 — RADIAÇÃO TÉRMICA e altura da torre (API 521)"},
+    {k:"Fração da energia irradiada  F",v:Frad.toFixed(2).replace(".",",")+"   —  cerca de 0,15 para hidrogênio, 0,20 para metano e gás natural, 0,30 a 0,38 para hidrocarbonetos pesados e insaturados"},
+    {k:"Transmissividade atmosférica  τ",v:tau.toFixed(2).replace(".",",")+(tau>=0.999?"   (1,0 = conservador, sem crédito de absorção atmosférica)":"   (crédito de absorção — justificar pela umidade relativa do local)")},
+    {k:"Radiação admissível adotada  K",v:Kadm.toFixed(2).replace(".",",")+" kW/m²   —   "+({1.58:"exposição contínua, pessoal com vestimenta adequada",4.73:"ação emergencial de 2 a 3 min, sem blindagem",6.31:"ação emergencial até 30 s, sem blindagem",9.46:"sem presença de pessoal"})[Kadm]},
+    {k:"Parcela solar somada  (API 521)",v:Ksol.toFixed(2).replace(".",",")+" kW/m²   —  o pico solar vai de 0,79 a 1,04 kW/m²; ignorá-lo subdimensiona a altura, e o efeito é tanto maior quanto menor for o K admissível",hi:true},
+    {k:"Radiação líquida disponível  K − solar",v:Knet.toFixed(2).replace(".",",")+" kW/m²"},
+    {k:"⚠ PARCELA SOLAR — a origem da divergência com planilhas simplificadas",v:"A API 521 apresenta os níveis admissíveis (1,58 · 4,73 · 6,31 · 9,46 kW/m²) como valores TOTAIS, já incluindo a radiação solar. O solar tem portanto de ser DEDUZIDO do admissível para achar o que resta para a chama: K_chama = "+Kadm.toFixed(2).replace(".",",")+" − "+Ksol.toFixed(2).replace(".",",")+" = "+Knet.toFixed(2).replace(".",",")+" kW/m². Ignorar o solar devolve uma distância bem menor e uma torre mais baixa — é a diferença mais comum entre este cálculo e uma planilha de ordem de grandeza, e o efeito cresce quanto menor for o K admissível.",hi:true},
+    {k:"Distância ao centro da chama — COM e SEM deduzir o solar",v:"deduzindo o solar (correto): "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Knet)).toFixed(1).replace(".",",")+" m   ·   sem deduzir: "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Math.max(Kadm,0.1))).toFixed(1).replace(".",",")+" m   →   diferença de "+((Math.sqrt(Kadm/Knet)-1)*100).toFixed(0)+"%. Para reproduzir uma planilha que ignora o solar, zerar o campo de radiação solar.",hi:true},
+    {k:"DISTÂNCIA MÍNIMA ao centro da chama  D = √(τ·F·Q/(4π·K))",v:Drad.toFixed(1).replace(".",",")+" m",hi:true},
+    {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
+    {k:"ALTURA REQUERIDA — ENVELOPE DOS CRITÉRIOS",v:"radiação no ponto com pessoal "+Hrad.toFixed(1).replace(".",",")+" m   ·   radiação na base (9,46 kW/m²) "+Hbase.toFixed(1).replace(".",",")+" m   ·   mínimo construtivo "+Hmin.toFixed(0)+" m",hi:true},
+    {k:"ALTURA MÍNIMA REQUERIDA  →  GOVERNA: "+govH,v:Hreq.toFixed(1).replace(".",",")+" m   —  é o mínimo que atende à radiação; abaixo disso o projeto reprova",hi:true},
+    {k:"ALTURA ADOTADA DA TORRE",v:Hst.toFixed(1).replace(".",",")+" m"+(Hadot?("   —  informada pelo usuário   ·   mínima requerida "+Hreq.toFixed(1).replace(".",",")+" m   (arredondada para múltiplo de 2 m: "+Hmincalc.toFixed(0)+" m)"):("   —  adotada a mínima calculada, arredondada para múltiplo de 2 m"))+(radOK?("   ✓ atende, com folga de "+folgaH.toFixed(1).replace(".",",")+" m sobre a mínima"):("   ⚠ ABAIXO da mínima de "+Hreq.toFixed(1).replace(".",",")+" m — a radiação no ponto com pessoal ultrapassa o admissível")),hi:true},
+    {k:"Efeito da altura adotada",v:"Todo o dimensionamento estrutural adiante — viroles, chapa, helicoide, plataformas, vento e fundação — decorre desta altura, e não da mínima. Subir a torre reduz a radiação no solo, mas encarece casco, acesso e fundação de forma mais que proporcional: o momento na base cresce com o quadrado da altura."},
+    {k:"Radiação na base da torre",v:Kbase.toFixed(2).replace(".",",")+" kW/m²   vs   9,46 kW/m² (sem pessoal)"+(baseOK?"   ✓":"   ⚠ EXCEDE — a base precisa ser área restrita e sem equipamento sensível"),hi:!baseOK},
+    {k:"Radiação no ponto com pessoal",v:Kpes.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissível"},
+    {k:"RAIO DA ÁREA RESTRITA  (até K = 1,58 kW/m²)",v:(Rlim>0?(Rlim.toFixed(0)+" m a partir da base — dentro deste raio não pode haver posto de trabalho permanente"):"acima de 400 m — revisar a altura ou o K adotado"),hi:true},
+    {k:"Isopletas de radiação (com solar, altura adotada)",v:isop.map(function(p){ return p.R+" m: "+p.K.toFixed(2).replace(".",",")+""; }).join("   ·   ")+"   [kW/m²]"},
+    {sec:"13b — Verificação do posto ocupado mais próximo"},
+    {k:"Por que esta verificação existe",v:"A API 521 não fixa uma distância: ela fixa um NÍVEL DE RADIAÇÃO admissível conforme o tempo de exposição e a proteção do pessoal. Quem transforma isso em geometria é o plot plan — a distância do posto ocupado mais próximo. Informada a distância, o critério vira uma altura mínima de torre; informada a altura, ele vira uma distância mínima de afastamento. As duas leituras estão abaixo.",hi:true},
+    {k:"DISTÂNCIA informada ao posto ocupado",v:Rpes.toFixed(1).replace(".",",")+" m   a partir da base da torre",hi:true},
+    {k:"Critério de radiação adotado",v:Kadm.toFixed(2).replace(".",",")+" kW/m² TOTAIS admissíveis   ("+({1.58:"exposição contínua, pessoal sem proteção",4.73:"ação emergencial de 2 a 3 min",6.31:"ação emergencial até 30 s",9.46:"sem presença de pessoal"}[Kadm]||"critério do usuário")+")   —  dos quais "+Ksol.toFixed(2).replace(".",",")+" kW/m² são a parcela SOLAR, restando "+Knet.toFixed(2).replace(".",",")+" kW/m² para a chama. Ignorar o solar subdimensiona a torre, e o efeito é tanto maior quanto menor o K admissível."},
+    {k:"ALTURA NECESSÁRIA para esta distância",v:HreqDe(Rpes).toFixed(1).replace(".",",")+" m   —  é a altura mínima de torre que faz a radiação no posto ocupado cair ao admissível",hi:true},
+    {k:"ALTURA ADOTADA  ×  necessária",v:Hst.toFixed(1).replace(".",",")+" m   vs   "+HreqDe(Rpes).toFixed(1).replace(".",",")+" m   →   "+(postOK?("✓ APROVADO — folga de "+(Hst-HreqDe(Rpes)).toFixed(1).replace(".",",")+" m"):("⚠ REPROVADO — faltam "+(HreqDe(Rpes)-Hst).toFixed(1).replace(".",",")+" m de torre, ou afastar o posto ocupado")),hi:true},
+    {k:"RADIAÇÃO RESULTANTE no posto ocupado",v:Kpost.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissíveis   "+(postOK?"✓":"⚠ ACIMA DO ADMISSÍVEL"),hi:!postOK},
+    {k:"LEITURA INVERSA — afastamento mínimo com a altura adotada",v:"com "+Hst.toFixed(1).replace(".",",")+" m de torre, nenhum posto ocupado pode ficar a menos de "+RlimAdm.toFixed(0)+" m da base. Levar este raio ao plot plan e verificar o que existe dentro dele.",hi:true},
+    {k:"Sensibilidade — altura necessária por distância",v:sensR.map(function(sr){ return sr.R+" m: "+sr.H.toFixed(0)+" m"; }).join("   ·   ")+"   —  use esta linha para negociar o arranjo: às vezes afastar o posto 10 m custa menos que subir a torre 5 m"},
+    {k:"O que conta como posto ocupado",v:"Sala de controle, laboratório, oficina, refeitório, guarita, escritório, posto fixo de operação e via de circulação regular de pessoas. Não conta área de passagem eventual com procedimento e EPI. Na dúvida, considerar ocupado — a API 521 trata a exposição contínua como a condição mais restritiva justamente porque o pessoal não tem como se afastar."},
+    {k:"⚠ Origem do dado",v:"Este valor tem de vir do PLOT PLAN, que o item 5.1 da folha de dados registra como PENDENTE. Enquanto o desenho não existir, os "+Rpes.toFixed(0)+" m são premissa, e a altura de torre que decorre deles também.",hi:true},
+    {sec:"15 — EFEITO DO VENTO E DISPERSÃO com a tocha apagada"},
+    {k:"Por que verificar",v:"Se o piloto falhar, sai gás não queimado. A nuvem precisa diluir abaixo do limite inferior de inflamabilidade antes de alcançar o solo ou qualquer plataforma. É o critério que mais se esquece — e o único que pode governar a altura acima da radiação.",hi:true},
+    {k:"Limite inferior de inflamabilidade  LII",v:LII.toFixed(1).replace(".",",")+" % vol."},
+    {k:"EXTENSÃO VERTICAL DO ENVELOPE INFLAMÁVEL",v:xLII.toFixed(1).replace(".",",")+" m acima da ponta   —  jato de quantidade de movimento, C/C0 = 5,0·(d/x)·√(ρ_gás/ρ_ar). É a distância no EIXO DO JATO até a concentração cair ao LII. Como o jato sobe, isto não é requisito de altura da torre: é requisito de AFASTAMENTO de plataformas, passarelas e estruturas elevadas.",hi:true},
+    {k:"Afastamento de estruturas elevadas",v:(folgaPlat>0?("estrutura mais próxima a "+folgaPlat.toFixed(1).replace(".",",")+" m acima da ponta"+(dispOK?"   ✓ fora do envelope inflamável":"   ⚠ DENTRO do envelope inflamável — reposicionar a estrutura ou elevar a tocha")):"nenhuma estrutura elevada informada — se houver plataforma, passarela ou torre vizinha acima do nível da ponta, informe a folga para verificar"),hi:(folgaPlat>0&&!dispOK)},
+    {k:"Alcance ao nível do solo",v:"NÃO é calculado aqui. Depende do vento, da estabilidade atmosférica e do relevo, e exige modelo de dispersão dedicado (gaussiano ou CFD). A estimativa de jato acima serve para triagem e para posicionar estruturas elevadas, não para concluir sobre o solo.",hi:true},
+    {k:"Gás ácido",v:(acido?"⚠ Há H2S. O critério passa a ser TOXICOLÓGICO e normalmente governa sobre o de inflamabilidade: verificar a concentração de SO2 ao nível do solo com a tocha acesa, e de H2S com a tocha apagada, por modelo de dispersão atmosférica.":"sem H2S declarado — critério apenas de inflamabilidade"),hi:acido},
+    {sec:"16 — RUÍDO, materiais e requisitos ambientais"},
+    {k:"Materiais",v:"Ponta em liga de alta temperatura — Incoloy 800H/800HT, 253MA ou Hastelloy X, conforme a temperatura de chama e o teor de enxofre. Riser e casco em aço carbono (fy = "+fy.toFixed(0)+" MPa). A transição entre a liga e o carbono é ponto de inspeção obrigatório."},
+    {k:"Ruído",v:"Jato mais rugido de combustão, agravado pela injeção de vapor — passa facilmente de 100 dB junto à ponta. O nível na comunidade costuma ser restrição de licenciamento e às vezes obriga a mudar de assistência a vapor para ar, ou a redesenhar os bicos. Exigir do fabricante a curva de ruído medida, com e sem vapor; correlação genérica não substitui ensaio.",hi:true},
+    {k:"Requisitos ambientais",v:"Eficiência de destruição mínima (usualmente 98 % para compostos orgânicos), monitoramento contínuo de vazão e composição, e limite de luminosidade noturna. No Brasil o licenciamento é estadual e as condicionantes variam — verificar antes de fixar a altura, porque elas podem governar a implantação mais que a engenharia."},
+    {k:"Acesso e manutenção",v:"A ponta é consumível e precisa ser removível: prever davit no topo, torre basculante ou acesso por guindaste, e definir isso ANTES de fechar o arranjo — é decisão de layout, não detalhe."},
+    {sec:"17.1 — ESTRUTURA: ação do vento (NBR 6123)"},
+    {k:"Tipo de torre",v:tipoUso+((tipoFl==="auto")?("   (recomendado pela altura de "+Hst.toFixed(0)+" m: autoportante até cerca de 60 m, estaiada até 120 m, treliçada acima)"):"   (imposto pelo usuário)"),hi:true},
+    {k:"Velocidade característica  Vk = V0·S1·S2·S3",v:Vk.toFixed(1).replace(".",",")+" m/s   (V0 = "+V0.toFixed(0)+" · S1 = "+S1w.toFixed(2).replace(".",",")+" · S2 = "+S2w.toFixed(3).replace(".",",")+" cat. "+catW+" cl. "+clsW+" · S3 = "+S3w.toFixed(2).replace(".",",")+")"},
+    {k:"Pressão dinâmica  q = 0,613·Vk²",v:qv.toFixed(2).replace(".",",")+" kPa"},
+    {k:"Diâmetro do casco  ·  esbeltez",v:Dst.toFixed(2).replace(".",",")+" m   ·   H/D = "+esbeltez.toFixed(0)+(esbeltez>35?"   ⚠ muito esbelta — verificar deslocamento no topo e vibração":"   ✓")},
+    {k:"Força e momento de vento na base",v:"Fw = "+kNkg(Fw)+"   ·   M = "+fmt(Math.round(Mw))+" kN·m"},
+    {k:"Casco a flexão  (Ca = "+Ca.toFixed(2).replace(".",",")+" · γf = 1,4)",v:"W requerido "+fmt(Math.round(Wreq))+" cm³   →   espessura calculada "+tcalc.toFixed(1).replace(".",",")+" mm + "+corr.toFixed(1).replace(".",",")+" mm de sobrespessura   →   COMERCIAL "+tcom.toFixed(1).replace(".",",")+" mm",hi:true},
+    {sec:"17.2 — ESTRUTURA: vibração induzida por vórtices (VIV)"},
+    {k:"Por que verifica",v:"Numa torre esbelta a VIV manda mais que o vento estático. O desprendimento alternado de vórtices excita a estrutura na direção TRANSVERSAL ao vento, e quando a frequência de desprendimento coincide com a natural a amplitude cresce até a falha por fadiga. Tocha é o caso clássico.",hi:true},
+    {k:"Frequência natural do 1º modo",v:fn.toFixed(2).replace(".",",")+" Hz   (viga em balanço: fn = (1,875²/2π)·√(EI/mL⁴))"},
+    {k:"Velocidade crítica  Vcr = fn·D/St   (St = 0,20)",v:Vcr.toFixed(1).replace(".",",")+" m/s   vs   Vk = "+Vk.toFixed(1).replace(".",",")+" m/s"+(vivRisco?"   ⚠ a crítica está DENTRO da faixa de vento de projeto":"   ✓ a crítica está acima do vento de projeto"),hi:vivRisco},
+    {k:"Número de Scruton  Sc = 2·m·δ/(ρ_ar·D²)",v:Sc.toFixed(1).replace(".",",")+"   (δ = 0,01 — aço soldado)"+(Sc<10?"   ⚠ abaixo de 10: amortecimento insuficiente para conter a amplitude":"   ✓ acima de 10")},
+    {k:"MEDIDA REQUERIDA",v:(strakes?"⚠ INSTALAR SUPRESSORES — strakes helicoidais no terço superior (3 hélices, passo 5·D, altura 0,10·D) ou amortecedor de massa sintonizada. Sem isso a torre acumula ciclos de fadiga na solda de base.":"Não é necessário supressor de vórtices com os dados adotados.")+"   —  observação: em torre de tocha nua o número de Scruton é quase sempre inferior a 10 e a velocidade crítica cai bem abaixo do vento de projeto, de modo que o resultado \"requer supressor\" é a regra e não a exceção. A decisão real é sobre QUAL solução adotar (strakes, amortecedor sintonizado ou aumento de espessura), e ela deve ser fechada com análise de fadiga do número de ciclos em lock-in.",hi:strakes},
+    {sec:"17.3 — ESTRUTURA: casco, trechos (viroles) e espessura de chapa"},
+    {k:"Critério",v:"A pressão dinâmica cresce com a cota pelo fator S2 da NBR 6123, então o momento NÃO é o de carga uniforme. A torre é dividida em viroles da largura da chapa e o vento é integrado trecho a trecho, do topo para a base. Cada virole é dimensionada pelo momento na SUA base — por isso a chapa engrossa de cima para baixo.",hi:true},
+    {k:"Diâmetro do casco  ·  largura útil da chapa",v:fmt(Math.round(Dmm))+" mm  ·  "+fmt(Math.round(wPl*1000))+" mm   →   "+nVir+" viroles de "+hVir.toFixed(2).replace(".",",")+" m"},
+    {k:"Aço  ·  tensão admissível  ·  sobrespessura de corrosão",v:"fy = "+fy+" MPa   ·   σadm = 0,90·fy = "+sadmMPa.toFixed(0)+" MPa   ·   c = "+corr.toFixed(0)+" mm"},
+    {k:"Mínimo construtivo  D/200",v:tConstr.toFixed(1).replace(".",",")+" mm   —  esbeltez de parede para montagem e transporte; abaixo disso o casco ovaliza no içamento"},
+    ...viroles.map(function(vv,ii){ return {k:"Virole "+(ii+1)+"  ·  cota "+vv.z0.toFixed(1).replace(".",",")+" a "+vv.z1.toFixed(1).replace(".",",")+" m",
+      v:"F = "+vv.F.toFixed(1).replace(".",",")+" kN  ·  M = "+fmt(Math.round(vv.M))+" kN·m   →   t por flexão "+vv.tFlex.toFixed(2).replace(".",",")+
+        " mm   →   CHAPA "+vv.t.toFixed(1).replace(".",",")+" mm   ·   σ = "+vv.sig.toFixed(1).replace(".",",")+
+        " MPa   ·   σcr,local = "+vv.sigCr.toFixed(0)+" MPa (FS "+vv.fs.toFixed(1).replace(".",",")+")"}; }),
+    {k:"Chapa no topo  /  na base",v:tTopo.toFixed(1).replace(".",",")+" mm  /  "+tBase.toFixed(1).replace(".",",")+" mm",hi:true},
+    {k:"Flambagem local do cilindro  σcr = 0,605·α·E·t/R  (α = 0,50)",v:locOK?"✓ todas as viroles com FS ≥ 1,5 contra flambagem local":"⚠ alguma virole com FS < 1,5 — aumentar a chapa ou prever anéis enrijecedores",hi:!locOK},
+    {k:"Massa do casco",v:kNkg(massaCasco*g/1000)+"   ·   "+(massaCasco/Hst).toFixed(0)+" kg/m médios"},
+    {k:"Soldas e ensaios",v:"Soldas de topo com penetração total nas juntas circunferenciais e longitudinais. Ensaio: 100% visual, 10% de radiografia nas circunferenciais das duas viroles inferiores e 100% de líquido penetrante na junta casco-flange de base. Chanfro e consumível conforme AWS D1.1."},
+    {sec:"17.4 — ESTRUTURA: helicoide supressor de vórtices"},
+    {k:"Por que é necessário",v:"O desprendimento alternado de vórtices excita a torre transversalmente ao vento quando a velocidade crítica cai dentro da faixa de operação. Numa chaminé esbelta e leve o amortecimento estrutural é baixíssimo, e a amplitude cresce até a fadiga da solda de base. O helicoide quebra a correlação dos vórtices ao longo da altura e elimina a excitação — é a solução padrão, e a mais barata.",hi:true},
+    {k:"Frequência natural  f₁ = (1,875²/2π)·√(E·I/(m·H⁴))",v:fnR.toFixed(2).replace(".",",")+" Hz   (I = "+IstR.toFixed(4).replace(".",",")+" m⁴  ·  m = "+massaLreal.toFixed(0)+" kg/m)"},
+    {k:"Velocidade crítica  Vcr = f₁·D/St   (St = 0,20)",v:VcrR.toFixed(1).replace(".",",")+" m/s   vs   Vk de projeto "+Vk.toFixed(1).replace(".",",")+" m/s   "+(vivRiscoR?"⚠ a crítica é ATINGIDA na faixa de operação":"✓ acima da velocidade de projeto"),hi:vivRiscoR},
+    {k:"Número de Scruton  Sc = 2·m·δ/(ρar·D²)",v:ScR.toFixed(1).replace(".",",")+"   (δ = "+deltaLog.toFixed(3).replace(".",",")+")   —  abaixo de 10 a amplitude é inaceitável e o supressor é obrigatório",hi:(ScR<10)},
+    {k:"DECISÃO",v:helOn?("HELICOIDE NECESSÁRIO"+((helSel==="sim")?" (imposto pelo usuário)":" (Sc = "+ScR.toFixed(1).replace(".",",")+" < 10 com Vcr dentro da faixa)")):
+      ((helSel==="nao")?"dispensado por escolha do usuário — verificar fadiga da base se Vcr estiver na faixa":"dispensado — Sc ≥ 10 ou Vcr acima da velocidade de projeto"),hi:true},
+    ...(helOn?[
+    {k:"Número de fitas",v:nFitas+" fitas helicoidais igualmente espaçadas a 120°"},
+    {k:"Altura da aleta  h = 0,10·D",v:fmt(Math.round(hHel*1000))+" mm   (faixa consagrada 0,09 a 0,12·D)"},
+    {k:"Passo  p = 5,0·D",v:fmt(Math.round(passoHel*1000))+" mm   (faixa 4,5 a 5,5·D)"},
+    {k:"Extensão a partir do topo",v:LHel.toFixed(1).replace(".",",")+" m   —  da cota "+zHel.toFixed(1).replace(".",",")+" m ao topo ("+(100*LHel/Hst).toFixed(0)+"% da altura; prática: terço superior)"},
+    {k:"Comprimento desenvolvido de cada fita",v:compFita.toFixed(1).replace(".",",")+" m   ·   total "+(nFitas*compFita).toFixed(1).replace(".",",")+" m"},
+    {k:"Chapa da aleta  ·  massa",v:chapaHel.toFixed(1).replace(".",",")+" mm   ·   "+kNkg(massaHel*g/1000)},
+    {k:"Fixação",v:"solda intermitente dos dois lados, cordão de 6 mm, passo 150 mm alternado. A aleta não pode terminar em degrau — prever rebaixo em rampa nos dois extremos para não criar concentração de tensão."},
+    {k:"⚠ CONSEQUÊNCIA SOBRE O VENTO",v:"O helicoide eleva o arrasto do trecho de Ca = "+Ca.toFixed(2).replace(".",",")+" para "+CaHel.toFixed(2).replace(".",",")+". Acréscimo: ΔF = "+dFwHel.toFixed(1).replace(".",",")+" kN e ΔM = "+fmt(Math.round(dMwHel))+" kN·m na base — já incorporados nas cargas de fundação abaixo. Esquecer esse acréscimo é o erro mais comum ao acrescentar helicoide depois do projeto estrutural fechado.",hi:true}
+    ]:[]),
+    {sec:"17.5 — ESTRUTURA: patamares de acesso, escada e guarda-corpo"},
     {k:"Critério",v:"Escada tipo marinheiro com gaiola de proteção a partir de 2,0 m, patamares de descanso a cada "+espPlat.toFixed(0)+" m e plataforma de manutenção no topo. Guarda-corpo de 1,10 m com travessa a 0,55 m e rodapé de 0,20 m. Trabalho em altura sob NR-35, com pontos de ancoragem de linha de vida ao longo de toda a subida.",hi:true},
     {k:"Altura da torre  ·  patamares de descanso  ·  total de plataformas",v:Hst.toFixed(1).replace(".",",")+" m   ·   "+nDesc+"   ·   "+nPlatTot},
     ...cotasPlat.map(function(cp,ii){ return {k:"Plataforma "+(ii+1)+"  —  cota "+cp.z.toFixed(1).replace(".",",")+" m",
@@ -2945,8 +2936,13 @@ function flareCalc(){
     {k:"Massa de plataformas, guarda-corpos e escada",v:kNkg((massaPlat+massaEsc)*g/1000)+"   (piso em grade "+mGrade+" kg/m², guarda-corpo "+mGC+" kg/m, escada com gaiola "+mEsc+" kg/m)"},
     {k:"⚠ ACRÉSCIMO DE VENTO DOS ACESSÓRIOS",v:"escada, gaiola e guarda-corpos acrescentam ΔF = "+dFwAcs.toFixed(1).replace(".",",")+" kN e ΔM = "+fmt(Math.round(dMwAcs))+" kN·m na base. Numa torre esbelta isso não é detalhe: a gaiola sozinha tem 0,75 m de largura projetada ao longo de toda a altura, e é frequentemente esquecida no cálculo de vento.",hi:true},
     {k:"Segurança do trabalho",v:"NR-35 (altura): linha de vida vertical em toda a escada e pontos de ancoragem em cada plataforma. NR-33 se houver acesso ao interior do riser ou ao KO drum. NR-12 nas proteções. Sinalização de área restrita no raio de "+Rlim.toFixed(0)+" m e bloqueio de acesso à escada com a tocha acesa, salvo procedimento específico."},
-
-    {sec:"Etapa 21 — Anel de base, nervuras e chumbadores"},
+    {sec:"17.6 — ESTRUTURA: sismo, base e chumbadores"},
+    {k:"Massa da torre",v:fmt(Math.round(mTorre))+" kg de casco + "+fmt(Math.round(mAcess))+" kg de ponta, pilotos, escada e plataformas   =   "+fmt(Math.round(mTot))+" kg   ("+kNkg(Wtot)+")",hi:true},
+    {k:"Sismo  Sds = 2,5·ag·Ca   ·   Cs = Sds/R",v:"zona "+zona+" · solo "+solo+"   →   ag = "+ag.toFixed(3).replace(".",",")+"g · Sds = "+Sds.toFixed(3).replace(".",",")+" · Cs = "+Cs.toFixed(3).replace(".",",")+"   →   V = "+kNkg(Vsis)},
+    {k:"AÇÃO LATERAL GOVERNANTE",v:kNkg(Flat)+"   ·   momento na base "+fmt(Math.round(Mlat))+" kN·m   —   "+latGov,hi:true},
+    {k:"Chumbadores",v:nCh.toFixed(0)+" unidades num círculo de "+Dbc.toFixed(2).replace(".",",")+" m   ·   tração por chumbador "+Tanc.toFixed(1).replace(".",",")+" kN   →   Ø"+diaCh.toFixed(0)+" mm (classe "+fub.toFixed(0)+" MPa)",hi:true},
+    {k:"Compressão por ponto e área de apoio",v:Pcomp.toFixed(0)+" kN   ·   área requerida "+Abp.toFixed(0)+" cm²   (fck = "+fck.toFixed(0)+" MPa · fcd = "+fcd.toFixed(1).replace(".",",")+" MPa)"},
+    {sec:"17.7 — ESTRUTURA: anel de base, nervuras e chumbadores"},
     {k:"Anel de base — largura",v:larAnel.toFixed(3).replace(".",",")+" m   (do casco ao bordo externo, incluindo distância de borda do chumbador)"},
     {k:"Pressão de contato no concreto",v:pBaseMPa.toFixed(2).replace(".",",")+" MPa   vs   fcd = 0,85·fck/1,4 = "+(0.85*fck/1.4).toFixed(2).replace(".",",")+" MPa"},
     {k:"Momento na chapa do anel",v:"vão entre nervuras "+espNerv.toFixed(0)+" mm → "+(MvaoAnel/1000).toFixed(1).replace(".",",")+" kN·mm/mm   ·   balanço externo "+balExt.toFixed(0)+" mm → "+(MbalAnel/1000).toFixed(1).replace(".",",")+" kN·mm/mm   —  rege o "+((MvaoAnel>=MbalAnel)?"vão":"balanço")},
@@ -2960,15 +2956,145 @@ function flareCalc(){
     {k:"Geometria da nervura",v:"chapa trapezoidal, base "+fmt(Math.round(exNerv))+" mm no anel e topo recortado em rampa a 30° — o corte reto no topo cria concentração de tensão no casco e é origem clássica de trinca por fadiga."},
     {k:"CHUMBADORES",v:nCh+" × Ø "+diaCh.toFixed(0)+" mm em círculo de "+Dbc.toFixed(2).replace(".",",")+" m   ·   tração de projeto "+Tanc.toFixed(1).replace(".",",")+" kN por chumbador   ·   classe "+fub+" MPa",hi:true},
     {k:"Comprimento de ancoragem",v:"adotar no mínimo 30 diâmetros embutidos no bloco, ou "+fmt(Math.round(30*diaCh))+" mm, com chapa de ancoragem no pé e gabarito metálico de montagem. Prever luva de regulagem e segunda porca de trava."},
-    {k:"Detalhe construtivo",v:"Grout de alta resistência sem retração sob o anel, com respiro central e chanfro de 45° no bordo. Caneleta de drenagem no topo do bloco: água empoçada sob o anel é a causa mais comum de corrosão do pé da torre."},
-    {sec:"Verificação global"},
+    {k:"Detalhe construtivo",v:"Grout de alta resistência sem retração sob o anel, com respiro central e chanfro de 45° no bordo. Caneleta de drenagem no topo do bloco: água empoçada sob o anel é a causa mais comum de corrosão do pé da torre."},    {sec:"17.8 — ESTRUTURA: cargas na fundação e bloco"},
+    {k:"Ação de vento — os dois caminhos",v:"simplificado (q do topo uniforme): F = "+Fw.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(Mw))+" kN·m   ·   integrado (perfil S2 real): F = "+FwInt.toFixed(1).replace(".",",")+" kN · M = "+fmt(Math.round(MwInt))+" kN·m   →   adotado o "+ventoGov+", acrescido do helicoide"},
+    {k:"Massas",v:"casco "+fmt(Math.round(massaCasco))+"   ·   plataformas e guarda-corpos "+fmt(Math.round(massaPlat))+"   ·   escada "+fmt(Math.round(massaEsc))+"   ·   anel de base "+fmt(Math.round(massaAnel))+"   ·   nervuras "+fmt(Math.round(massaNerv))+"   ·   ponta e linhas "+fmt(Math.round(massaPonta))+"   ·   helicoide "+fmt(Math.round(massaHel))+"   =   "+fmt(Math.round(massaTotal))+" kg"},
+    {k:"REAÇÃO VERTICAL característica  Nk",v:kNkg(Nk),hi:true},
+    {k:"REAÇÃO HORIZONTAL característica  Vk",v:kNkg(VkB)+"   —  governa "+govBase,hi:true},
+    {k:"MOMENTO característico na base  Mk",v:fmt(Math.round(MkB))+" kN·m   ("+fmt(Math.round(MkB*101.97))+" kgf·m)",hi:true},
+    {k:"Combinação última (γf = 1,4 na ação lateral · peso não majorado)",v:"Nd = "+Nd.toFixed(1).replace(".",",")+" kN   ·   Vd = "+Vd.toFixed(1).replace(".",",")+" kN   ·   Md = "+fmt(Math.round(Md2))+" kN·m"},
+    {k:"Excentricidade da resultante  e = Mk/Ntot",v:excent.toFixed(2).replace(".",",")+" m   vs   núcleo central D/8 = "+nucleo.toFixed(2).replace(".",",")+" m   "+((excent<=nucleo)?"✓ resultante dentro do núcleo — base toda comprimida":"⚠ fora do núcleo — haveria descolamento; o bloco foi aumentado até eliminá-lo")},
+    {k:"BLOCO DE FUNDAÇÃO adotado",v:"circular Ø "+Dbl.toFixed(1).replace(".",",")+" m  ×  "+Hbl2.toFixed(1).replace(".",",")+" m de altura   ·   "+volConc.toFixed(1).replace(".",",")+" m³ de concreto fck "+fck+" MPa   ·   peso próprio "+kNkg(Pbl),hi:true},
+    {k:"Tensão no solo  σ = N/A ± M/W",v:"σmáx = "+sigMax.toFixed(0)+" kPa   ·   σmín = "+sigMin.toFixed(0)+" kPa   vs   σadm = "+sigSolo.toFixed(0)+" kPa   "+((sigMax<=sigSolo&&sigMin>=0)?"✓":"⚠ REPROVADO — aumentar o bloco ou melhorar o solo"),hi:!(sigMax<=sigSolo&&sigMin>=0)},
+    {k:"Segurança ao TOMBAMENTO  (Ntot·D/2)/Mk",v:FSt.toFixed(2).replace(".",",")+"   ≥ 1,50   "+((FSt>=1.5)?"✓":"⚠ REPROVADO"),hi:!(FSt>=1.5)},
+    {k:"Segurança ao DESLIZAMENTO  (0,40·Ntot)/Vk",v:FSd.toFixed(2).replace(".",",")+"   ≥ 1,50   "+((FSd>=1.5)?"✓":"⚠ REPROVADO — prever dente de cisalhamento ou estacas"),hi:!(FSd>=1.5)},
+    {k:"⚠ Tensão admissível do solo",v:"Adotados "+sigSolo.toFixed(0)+" kPa. O item 5.6 da folha de dados registra a sondagem SPT como PENDENTE — sem ela este bloco é indicativo. Em solo de baixa capacidade a solução passa a ser estaca ou tubulão, e as dimensões acima não se aplicam."},
+    {k:"Armadura e detalhes",v:"Armadura de flexão nas duas direções na face inferior, malha superior de retração, e gaiola de ancoragem dos chumbadores solidarizada à armadura principal. Prever gabarito metálico de chumbadores e caneleta de drenagem no topo do bloco — água empoçada na base é a causa mais comum de corrosão do flange."},    {sec:"17.9 — Tubulações de serviço da torre"},
+    {k:"Critério",v:"Cada linha é dimensionada pela vazão e por velocidade admissível: 10 m/s em gás de piloto, 15 m/s em purga e gás de apoio, 1,0 m/s em condensado. Abaixo do DN calculado prevalece o mínimo de prática (robustez mecânica ao longo do riser e resistência a vibração)."},
+    {k:"Gás de piloto — "+npil+" pilotos × "+pilKg.toFixed(1).replace(".",",")+" kg/h",v:Wpil.toFixed(1).replace(".",",")+" kg/h de "+AP.nome+" a 1,5 kgf/cm²   →   Ø calculado "+tubPil.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubPil.dn,20)+"  (mínimo de prática DN 20; adotar DN 25 se o riser passar de 25 m)",hi:true},
+    {k:"Linha de ignição — gerador de frente de chama (FFG)",v:"DN "+dnFFG+"  ·  linha dedicada de mistura ar/gás até cada piloto, com purga permanente. Percurso o mais reto possível; cada curva atrasa a frente de chama e reduz a confiabilidade do acendimento."},
+    {k:"Purga de N₂",v:Nmpurga.toFixed(0)+" Nm³/h a 3 kgf/cm²   →   Ø calculado "+tubPur.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubPur.dn,20)},
+    {k:"Gás de apoio aos bicos auxiliares",v:Wap.toFixed(0)+" kg/h  ("+fmt(Math.round(Vap))+" Nm³/h) de "+AP.nome+"   →   Ø calculado "+tubAp.dcalc.toFixed(0)+" mm   →   DN "+Math.max(tubAp.dn,25),hi:true},
+    {k:"Dreno de condensado do KO drum",v:Qcond.toFixed(1).replace(".",",")+" m³/h   →   Ø calculado "+tubDre.dcalc.toFixed(0)+" mm   →   DN "+dnDre+"  (mínimo de prática DN 50 — condensado de BFG arrasta finos e entope linha estreita)"},
+    {k:"Dreno do pé do riser",v:"DN 50 com selo, escoando para o mesmo destino do condensado. Obrigatório: água de chuva e condensação acumulam no fundo do riser e, na partida, são arrastadas para a ponta."},
+    {k:"Ar de instrumento",v:"DN "+dnAr+"  ·  10 Nm³/h a 7 kgf/cm² para atuação de válvulas e limpeza de janela dos detectores ópticos"},
+    {k:"Montagem no riser",v:"Todas as linhas de serviço externas ao casco, em suportes deslizantes que acompanhem a dilatação do riser. Juntas de expansão nas linhas de piloto e apoio — o casco alonga vários centímetros entre a partida e o regime."},
+    {sec:"18 — KNOCK-OUT DRUM (vaso separador)"},
+    ...((liqModo==="cond"&&umidIn>0)?[
+    {k:"Origem do líquido",v:"CONDENSAÇÃO do gás saturado ao longo da linha. O gás sai do lavador saturado a "+Tc.toFixed(0)+" °C carregando "+fmt(Math.round(Wagua))+" kg/h de vapor d'água; ao esfriar até "+Tko.toFixed(0)+" °C a água que excede a nova saturação precipita. Não é slug de alívio — é um fluxo contínuo, e o dreno tem de escoar continuamente.",hi:true},
+    {k:"Umidade absoluta  entrada → saída",v:wIn.toFixed(4).replace(".",",")+" → "+wOut.toFixed(4).replace(".",",")+" Nm³ de água por Nm³ de gás seco   (Δ = "+dW.toFixed(4).replace(".",",")+")"},
+    {k:"LÍQUIDO A RETER  (calculado)",v:fmt(Math.round(Wcond))+" kg/h   =   "+(Wcond/1000).toFixed(2).replace(".",",")+" m³/h",hi:true},
+    {k:"⚠ Sensibilidade à temperatura de saída",v:condSens.map(function(c){return c.T+" °C: "+fmt(Math.round(c.kg));}).join("  ·  ")+"  [kg/h]  —  o resultado depende inteiramente do ΔT ao longo da linha, que só se fecha com o traçado e o isolamento definidos. Em noite fria a condensação mais que triplica.",hi:true}
+    ]:[
+    {k:"Vazão de líquido",v:fmt(Math.round(Wliq))+" kg/h   —  informada pelo usuário"}
+    ]),
+    {k:"Função",v:"Reter as gotas que, se chegassem à ponta, cairiam acesas — a chamada chuva de fogo. A API 521 pede a remoção de gotas de 300 a 600 µm.",hi:true},
+    {k:"Gota de projeto  ·  massa específica do líquido",v:dgota.toFixed(0)+" µm   ·   "+rhoL.toFixed(0)+" kg/m³"},
+    {k:"Velocidade terminal da gota",v:vt.toFixed(3).replace(".",",")+" m/s   (Re = "+Re.toFixed(0)+" · Cd = "+Cd.toFixed(3).replace(".",",")+")"},
+    {k:"Vaso horizontal — diâmetro e comprimento",v:"D = "+Dko.toFixed(1).replace(".",",")+" m   ·   L = "+Lko.toFixed(1).replace(".",",")+" m   ·   L/D = "+razLD.toFixed(1).replace(".",",")+(koOK?"   ✓ dentro de 2 a 5":"   ⚠ fora da faixa usual de 2 a 5"),hi:true},
+    {k:"Velocidade do gás na seção livre",v:vgas.toFixed(1).replace(".",",")+" m/s"},
+    {k:"Retenção de líquido",v:(Wliq>0?("vazão de líquido "+fmt(Math.round(Wliq))+" kg/h   ·   "+tret.toFixed(0)+" min   →   "+Vliq.toFixed(1).replace(".",",")+" m³ requeridos   vs   "+Vko.toFixed(1).replace(".",",")+" m³ disponíveis"+(koVolOK?"   ✓":"   ⚠ insuficiente — aumentar D ou L")):"não informada — a API 521 recomenda de 20 a 30 min de retenção para o cenário de emergência"),hi:(Wliq>0&&!koVolOK)},
+    {sec:"20 — INSTRUMENTAÇÃO E SEGURANÇA"},
+    {k:"Detecção de chama",v:npil+" pilotos, cada um com detecção independente — termopar tipo K na ponta do piloto e, em serviço tóxico, ionização ou infravermelho como segunda tecnologia. A falha de UM piloto não pode mascarar a falha dos demais: a lógica é por piloto, não por conjunto."+(toxico?"   ⚠ SERVIÇO TÓXICO ("+teorCO.toFixed(0)+" % de CO): a detecção é a única barreira entre a falha de chama e a liberação de gás letal — exigir redundância 2oo3 e teste de prova documentado.":""),hi:toxico},
+    {k:"Ignição",v:"Painel de chama contínua ou gerador de frente de chama (FFG), com redundância e reacendimento remoto. Em gás de baixo PCI o reacendimento precisa contar com o gás de apoio já disponível na linha — acender com a corrente pobre pura não é confiável."},
+    {k:"Intertravamentos mínimos",v:"1) falha de chama em TODOS os pilotos → abre o gás de apoio e alarma;   2) falha de purga (baixa vazão ou baixa pressão) → alarma imediato, porque entrada de ar no stack forma mistura explosiva;   3) alto nível no KO drum → bloqueia o envio e alarma, sob pena de arraste de líquido para a ponta;   4) baixa pressão do gás de apoio → alarma, com reserva dimensionada para a autonomia informada."},
+    {k:"Instrumentação de processo",v:"Pressão no header (a montante do selo), temperatura do gás, vazão de purga, vazão de gás de apoio, nível no KO drum e temperatura de pele da ponta. Todos com histórico registrado — é o que permite auditar a operação depois de um evento."},
+    {k:"Área classificada",v:"Classificar conforme IEC 60079 / NBR IEC 60079-10-1. A base da torre, o KO drum e o selo são fontes de risco; a instrumentação nessas regiões precisa de certificação compatível (Ex d, Ex i ou Ex e conforme a zona)."},
+    {k:"Alimentação de emergência",v:"Detecção de chama, painel de ignição e intertravamentos não podem cair com a falta de energia. Autonomia mínima de 2 h por no-break, conforme a folha de dados.",hi:true},
+
+    {sec:"21 — VERIFICAÇÃO NORMATIVA FINAL"},
     {k:"Estabilidade de chama",v:(estavel?"✓ PCI de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ acima do limite da API 537":"⚠ PCI de "+LHVvol.toFixed(2).replace(".",",")+" MJ/Nm³ — abaixo do limite de 11,82: EXIGE ponta específica para baixo PCI e pilotos acordados com o fabricante")+(toxico?"   ·   ⚠ serviço tóxico":""),hi:(!estavel||toxico)},
     {k:"Processo",v:(machOK?"✓":"⚠")+" Mach na ponta "+Ma.toFixed(3).replace(".",",")+"   ·   "+(backOK?"✓":"⚠")+" contrapressão "+(PbackMan/Pset*100).toFixed(0)+" % do ajuste   ·   "+(headOK?"✓":"⚠")+" Mach no header "+MaH.toFixed(2).replace(".",","),hi:!(machOK&&backOK&&headOK)},
     {k:"Segurança",v:(radOK?"✓":"⚠")+" radiação com altura de "+Hst.toFixed(0)+" m   ·   "+(baseOK?"✓":"⚠")+" base "+Kbase.toFixed(1).replace(".",",")+" kW/m²   ·   "+(dispOK?"✓":"⚠")+" dispersão com tocha apagada",hi:!(radOK&&baseOK&&dispOK)},
     {k:"Estrutura",v:(strakes?"⚠ requer supressor de vórtices":"✓ sem VIV crítica")+"   ·   casco "+tTopo.toFixed(1).replace(".",",")+" a "+tBase.toFixed(1).replace(".",",")+" mm   ·   ação lateral por "+latGov},
     {k:"Observação de projeto",v:"⚠ PRÉ-DIMENSIONAMENTO conforme API 521 e API 537. O caso de projeto (contingência governante) deve sair de estudo de alívio formal, e a curva de perda de carga da ponta, o consumo de vapor e o ruído devem vir do fabricante. A dispersão com tocha apagada, se governar, exige modelo atmosférico dedicado — a estimativa de jato aqui é de triagem."}
   ];
-  OUT.geo={tipo:"flare",contInuo:contInuo,LHVvol:LHVvol,estavel:estavel,baixoPCI:baixoPCI,razEnr:razEnr,QNm:QNm,teorCO:teorCO,toxico:toxico,poeira:poeira,npilTab:npilTab,W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
+  /* ================= MEMORIAL DE CÁLCULO CONSOLIDADO =========================
+     Uma linha por verificação: o que entra, a equação, o que saiu, o critério de
+     aceitação e o veredito. É a tabela que se assina — o resto do relatório é a
+     justificativa dela. Ordem seguindo o roteiro de 23 itens.                    */
+  function vv(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var somaOK=(Math.abs(somaY-100)<=1.0)||!usaComp;
+  var vTipOK=(Vsai<=vMaxTip+0.01), vMinOK=(VsaiMin<=0)||(VsaiMin>=vLam);
+  var kpesOK=(Kpes<=Kadm+0.005), soloOK=(sigMax<=sigSolo&&sigMin>=0);
+  var MEM=[
+   ["1","Cenário de projeto","pior contingência simultânea",
+    ({fogo:"Incêndio na área",bloq:"Bloqueio de saída",falha:"Falha de utilidade",exp:"Expansão térmica",part:"Partida / parada"})[selv("flCont","fogo")]||selv("flCont","fogo"),
+    "definido em estudo de alívio formal","VERIFICAR"],
+   ["2","Vazão de alívio","Q [Nm³/h] × ρN;  ρN = MW/22,414",
+    fmt(Math.round(QNin))+" Nm³/h = "+fmt(Math.round(W))+" kg/h = "+vv(W/3600)+" kg/s","dado de projeto","—"],
+   ["2","Fechamento da composição","Σ y_i",
+    vv(somaY,1)+" %","100 % ± 1 %",usaComp?st(somaOK):"n/a (MW e PCI informados)"],
+   ["2","Fração combustível × inerte","Σ y_comb  /  Σ y_inerte",
+    vv(yComb,1)+" %  /  "+vv(yInerte,1)+" %","inerte alto derruba o PCI volumétrico","—"],
+   ["3","Massa molecular e densidade relativa","MW;  SG = MW/28,965",
+    vv(MW)+" kg/kmol  ·  SG = "+vv(SGar,3),"SG > 1 = gás mais pesado que o ar",(SGar>1?"ATENÇÃO: acumula no solo":"—")],
+   ["3","Razão de calores específicos","k = Cp/Cv",vv(kg,3),"base para Mach e sônica","—"],
+   ["3","Velocidade do som na ponta","c = √(k·R·T/MW)",vv(son,0)+" m/s","referência para o Mach","—"],
+   ["3","Poder calorífico","PCI mássico e volumétrico",
+    fmt(Math.round(LHV))+" kJ/kg  ·  "+vv(LHVvol)+" MJ/Nm³","conforme folha de dados","—"],
+   ["4","Carga térmica","Q̇ = ṁ·PCI",vv(Qcal/1000,1)+" MW","—","—"],
+   ["5","Diâmetro do riser","D = √(4·Q/(v·π))",
+    vv(Driser_req,3)+" m requerido → "+vv(Driser,1)+" m adotado","velocidade de "+vv(vRiser,0)+" m/s",st(!drAcima)],
+   ["5","Mach no header","Ma = v/c",vv(MaH,3),"≤ "+vv(MaHead,2)+" (API 521)",st(headOK)],
+   ["5","Contrapressão total","Σ Δp da ponta, riser e header",
+    vv(PbackMan,2)+" kPa",vv(PbackAdm,2)+" kPa disponíveis",st(backOK)],
+   ["6","Diâmetro da ponta","A = Q/v;  D = √(4A/π)",
+    vv(dtip,3)+" m ("+dpol+" pol)","por Mach e velocidade admissíveis","—"],
+   ["7","Mach na ponta","Ma = v_saída/c",vv(Ma,3),"≤ "+vv(maAdm,2)+" (API 521)",st(machOK)],
+   ["7","Velocidade de saída","v = Q_real/A",vv(Vsai,1)+" m/s","≤ "+vv(vMaxTip,0)+" m/s",st(vTipOK)],
+   ["8","Estabilidade — PCI volumétrico","PCI·ρN",vv(LHVvol)+" MJ/Nm³","≥ 11,82 MJ/Nm³ (API 537)",st(estavel)],
+   ["8","Retrocesso de chama (flashback)","v_saída mín × velocidade de chama laminar",
+    vv(VsaiMin,2)+" m/s","≥ "+vv(vLam,2)+" m/s",st(vMinOK)],
+   ["9","Gás de purga","v_purga × área da ponta",vv(Nmpurga,1)+" Nm³/h","selo "+selo,"—"],
+   ["10","Pilotos","tabela API 537 por diâmetro de ponta",
+    npil+" pilotos","≥ "+npilTab+" da tabela"+((baixoPCI||toxico)?" (+1 por baixo PCI / tóxico)":""),st(npil>=npilTab)],
+   ["11","Supressão de fumaça","razão de assistência × vazão smokeless",
+    (assist==="vapor"?vv(Wvap,0)+" kg/h de vapor":(assist==="ar"?fmt(Math.round(Qar))+" m³/h de ar":"sem assistência")),
+    "capacidade de "+vv(fracSm,0)+" % do pico","—"],
+   ["12","Comprimento da chama","curva da API 521 (Q em Btu/h)",vv(Lf,1)+" m","—","—"],
+   ["12","Inclinação da chama","trajetória com decaimento do jato",vv(tetaG,1)+"°","≤ "+vv(tetaMax,0)+"°",st(tetaOK)],
+   ["12","Anti-downwash","v_saída / v_vento",vv(razVJ,2)+"×","≥ "+vv(razMin,1)+"×",st(razOK)],
+   ["13","Radiação no posto ocupado","q = τ·F·Q/(4π·R²) + solar",
+    vv(Kpes)+" kW/m² a "+vv(Rpes,0)+" m","≤ "+vv(Kadm)+" kW/m² (API 521)",st(kpesOK)],
+   ["13","Radiação na base","idem, no pé da torre",vv(Kbase)+" kW/m²","≤ 9,46 kW/m² (sem pessoal)",st(baseOK)],
+   ["14","Altura da torre","envelope dos critérios de radiação",
+    vv(Hst,1)+" m adotada","≥ "+vv(Hreq,1)+" m requerida",st(radOK)],
+   ["15","Dispersão com tocha apagada","alcance da nuvem ao LII",
+    vv(xLII,1)+" m","estrutura ocupada a "+vv(folgaPlat,0)+" m",(folgaPlat>0?st(dispOK):"n/a")],
+   ["16","Ruído","correlação genérica não substitui ensaio","—","curva medida do fabricante","VERIFICAR"],
+   ["17","Casco — espessura","flexão pelo vento + local + corrosão",
+    vv(tTopo,1)+" a "+vv(tBase,1)+" mm","σ ≤ 0,90·fy = "+vv(sadmMPa,0)+" MPa","APROVADO"],
+   ["17","Vibração induzida por vórtices","Scruton e velocidade crítica",
+    "Sc = "+vv(Sc)+"  ·  Vcr = "+vv(Vcr,1)+" m/s",(strakes?"exige helicoide supressor":"sem VIV crítica"),(strakes?"COM HELICOIDE":"APROVADO")],
+   ["17","Tensão no solo","σ = N/A ± M/W",
+    "σmáx = "+vv(sigMax,0)+"  ·  σmín = "+vv(sigMin,0)+" kPa","≤ "+vv(sigSolo,0)+" kPa e σmín ≥ 0",st(soloOK)],
+   ["17","Tombamento e deslizamento","(N·D/2)/M  e  0,40·N/V",
+    "FS_t = "+vv(FSt)+"  ·  FS_d = "+vv(FSd),"≥ 1,50",st(FSt>=1.5&&FSd>=1.5)],
+   ["18","Vaso separador (KO drum)","gota de "+vv(dgota,0)+" µm, v_t de Souders-Brown",
+    "D = "+vv(Dko,2)+" m  ·  L = "+vv(Lko,2)+" m","API 521: reter 300 a 600 µm","APROVADO"],
+   ["19","Selo contra entrada de ar","tipo de selo × purga",selo,"purga contínua garantida","APROVADO"],
+   ["20","Instrumentação e segurança","detecção de chama, ignição e intertravamento",
+    npil+" pilotos com detecção"+(toxico?" · serviço tóxico: redundância obrigatória":""),
+    "API 537 · IEC 60079 na área classificada","VERIFICAR"],
+   ["21","Verificação normativa","API 521 · API 537 · NBR 6123 · NBR 15421 · NBR 6118 · NBR 14718 · NR-35 · AWS D1.1",
+    "pré-dimensionamento","cálculo detalhado e dados do fabricante","VERIFICAR"]
+  ];
+  var nRep=0, nVer=0;
+  MEM.forEach(function(m){ if(m[5]==="REPROVADO")nRep++; else if(m[5]==="VERIFICAR")nVer++; });
+  OUT.unshift.apply(OUT,[{sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRep===0?"✓ nenhuma verificação reprovada":"⚠ "+nRep+" verificação(ões) REPROVADA(S)")+
+      "   ·   "+nVer+" item(ns) a confirmar fora desta ferramenta   ·   "+MEM.length+" verificações no total",hi:(nRep>0)}]
+    .concat(MEM.map(function(m){
+      var lbl=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lbl===undefined) lbl=m[5];
+      return {k:m[0]+".  "+m[1],
+        v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lbl,
+        hi:(m[5]==="REPROVADO")};
+    })));
+
+  OUT.geo={tipo:"flare",MEM:MEM,nRep:nRep,nVer:nVer,contInuo:contInuo,LHVvol:LHVvol,estavel:estavel,baixoPCI:baixoPCI,razEnr:razEnr,QNm:QNm,teorCO:teorCO,toxico:toxico,poeira:poeira,npilTab:npilTab,W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
     dHead:dHead,MaH:MaH,PbackMan:PbackMan,PbackAdm:PbackAdm,backOK:backOK,Pset:Pset,
     Lf:Lf,tetaG:tetaG,tetaCalcG:tetaCalcG,tetaTrajG:tetaTrajG,tetaPontaG:tetaPontaG,tetaMax:tetaMax,tetaOK:tetaOK,
     xPonta:xPonta,yPonta:yPonta,razVJ:razVJ,razMin:razMin,razOK:razOK,dxF:dxF,dyF:dyF,uw:uw,Hrad:Hrad,Hbase:Hbase,Hmin:Hmin,govH:govH,Frad:Frad,Kadm:Kadm,Ksol:Ksol,Drad:Drad,
@@ -3354,11 +3480,11 @@ const CALCS={
         {v:"energia",t:"Falha de energia elétrica"},
         {v:"agua",t:"Falha de água de resfriamento"},
         {v:"outro",t:"Outro / envelope de vários cenários"}]},
-      {id:"flW",label:"Vazão de alívio de projeto  W",unidade:"kg/h",tipo:"number",valor:222060,step:"1000"},
+      {id:"flQN",label:"VAZÃO DE ALÍVIO DE PROJETO  Q  (base normal, 0 °C e 1 atm)",unidade:"Nm³/h",tipo:"number",valor:163296,step:"1000"},
       {id:"flTurnModo",label:"Marcha reduzida (turndown)",tipo:"select",valor:"sem",opcoes:[
         {v:"sem",t:"SEM turndown — o flare opera entre o excedente normal e a emergência"},
         {v:"com",t:"COM turndown — há marcha reduzida especificada abaixo"}]},
-      {id:"flWmin",label:"Vazão contínua mínima (turndown; 0 = não informada)",unidade:"kg/h",tipo:"number",valor:9518,step:"50"},
+      {id:"flQNmin",label:"Vazão contínua MÍNIMA (turndown; 0 = não informada)",unidade:"Nm³/h",tipo:"number",valor:7000,step:"50"},
       {id:"flLiqModo",label:"Vazão de líquido a reter",tipo:"select",valor:"cond",opcoes:[
         {v:"cond",t:"Calcular pela CONDENSAÇÃO do gás saturado ao longo da linha"},
         {v:"man",t:"Informar abaixo (slug de alívio, arraste do lavador, etc.)"}]},
@@ -3395,8 +3521,16 @@ const CALCS={
       {id:"flT",label:"Temperatura do gás na ponta",unidade:"°C",tipo:"number",valor:50,step:"5"},
       {id:"flZ",label:"Fator de compressibilidade  Z",tipo:"number",valor:1.0,step:"0.01"},
       {id:"flLII",label:"Limite inferior de inflamabilidade  LII",unidade:"% vol.",tipo:"number",valor:34,step:"0.1"},
-      {id:"flCO",label:"Teor de CO (serviço tóxico acima de 1 %)",unidade:"% mol",tipo:"number",valor:23,step:"1"},
-      {id:"flH2S",label:"Teor de H2S (0 = sem gás ácido)",unidade:"% mol",tipo:"number",valor:0,step:"0.1"},
+      {id:"flCompModo",label:"Base de MW, k e PCI",tipo:"select",valor:"informado",opcoes:[
+        {v:"informado",t:"USAR os valores informados acima (folha de dados / preset)"},
+        {v:"composicao",t:"CALCULAR a partir da composição molar abaixo"}]},
+      {id:"flCO",label:"Composição — CO (combustível; serviço tóxico acima de 1 %)",unidade:"% vol",tipo:"number",valor:23,step:"0.1"},
+      {id:"flH2",label:"Composição — H2 (combustível)",unidade:"% vol",tipo:"number",valor:3.5,step:"0.1"},
+      {id:"flCH4",label:"Composição — CH4 (combustível)",unidade:"% vol",tipo:"number",valor:1.2,step:"0.1"},
+      {id:"flH2S",label:"Composição — H2S (combustível; 0 = sem gás ácido)",unidade:"% vol",tipo:"number",valor:0,step:"0.1"},
+      {id:"flCO2",label:"Composição — CO2 (inerte)",unidade:"% vol",tipo:"number",valor:22,step:"0.1"},
+      {id:"flN2",label:"Composição — N2 (inerte)",unidade:"% vol",tipo:"number",valor:50.3,step:"0.1"},
+      {id:"flH2O",label:"Composição — H2O (inerte; umidade)",unidade:"% vol",tipo:"number",valor:0,step:"0.1"},
       {id:"flPo",label:"Particulado na corrente (0 = gás limpo)",unidade:"mg/Nm³",tipo:"number",valor:10,step:"10"},
       {id:"flPlat",label:"Estrutura elevada mais próxima, acima da ponta (0 = nenhuma)",unidade:"m",tipo:"number",valor:0,step:"5"},
       {tipo:"head",label:"Ponta e sistema de alívio"},
@@ -8670,6 +8804,29 @@ function gerarRelatorio(){
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
     } else if(G.tipo==="flare"){
+      /* ============ MEMORIAL CONSOLIDADO — página própria, 5 colunas ============
+         É a tabela que o projetista assina: dado de entrada, equação, resultado,
+         critério de aceitação e status. Vem antes do croqui de propósito.          */
+      if(G.MEM&&G.MEM.length){
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,16,"F");
+        doc.setTextColor(255,255,255); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,10.5);
+        doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+
+          "   -   "+G.nVer+" item(ns) a confirmar fora desta ferramenta"),14,14.5);
+        doc.autoTable({startY:20,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio de aceitacao"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.2,cellPadding:1.1,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.4},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:32},2:{cellWidth:38},
+                        3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:29,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; }
+          }});
+      }
       /* ============ CROQUI DO FLARE ============
          Elevação com torre, chama inclinada e isopletas de radiação no solo; ao lado, o
          vaso separador. Todo rótulo passa por fx()/fxL(), que o mantém nas margens.       */
