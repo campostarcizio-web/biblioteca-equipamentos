@@ -2509,29 +2509,17 @@ function flareCalc(){
   var razTD=(QminNm>0)?(QNm/QminNm):0;   // emergência ÷ menor condição de queima
   var faixa=vMax/vMin;                                     // faixa que um estágio cobre
   var nEstNec=(razTD>1&&faixa>1)?Math.max(1,Math.ceil(Math.log(razTD)/Math.log(faixa))):1;
-  var estSel2=selv("flEstag","auto");
-  var nEst=(estSel2==="auto")?nEstNec:parseInt(estSel2,10);
+  /* PONTA DE PERFIL ÚNICO por definição de projeto: não há estagiamento em nenhuma
+     hipótese. nEstNec fica apenas como diagnóstico — informa quantos estágios a faixa
+     exigiria se o estagiamento fosse admitido, e serve para dimensionar o esforço que
+     se transfere para a ponta do fabricante.                                          */
   var Atot=Qv/vMax;                                         // área total requerida no pico
   /* dimensiona os estágios: o 1º pela vazão mínima na velocidade alvo, os seguintes
      multiplicando a área acumulada pela faixa, com 15 % de sobreposição.              */
-  var estagios=[], Aac=0, fOv=0.85;
-  var unico=(nEst<=1);
-  for(var e1=0;e1<nEst;e1++){
-    var Aacum;
-    if(unico){ Aacum=Atip; }                                /* perfil único: a própria ponta */
-    else if(e1===0){ Aacum=(Qmin3>0)?(Qmin3/vAlvo):(Atot/Math.pow(faixa,nEst-1)); }
-    else { Aacum=Math.max(Aac*faixa*fOv,(e1===nEst-1)?Atot:0); }
-    var Ae=Math.max(Aacum-Aac,1e-6);
-    estagios.push({n:e1+1,A:Ae,Aac:Aacum,D:Math.sqrt(4*Ae/Math.PI),Dac:Math.sqrt(4*Aacum/Math.PI),
-                   Qmin:Aacum*vMin/fNm3, Qmax:Aacum*vMax/fNm3});
-    Aac=Aacum;
-  }
-  var estOK=true, estGap=[];
-  for(var e2=1;e2<estagios.length;e2++){
-    if(estagios[e2].Qmin>estagios[e2-1].Qmax*1.001){ estOK=false; estGap.push(e2+1); }
-  }
-  var capOK=(estagios.length>0)&&(estagios[estagios.length-1].Qmax>=QNm*0.999);
-  var A1=estagios[0].A;
+  var unico=true;
+  var A1=Atip;                                              /* a ponta inteira, sempre aberta */
+  var QcobMin=Atip*vMin/fNm3, QcobMax=Atip*vMax/fNm3;       /* faixa que a ponta cobre */
+  var capOK=(QcobMax>=QNm*0.999);
   var vTurn1=(Qmin3>0)?(Qmin3/A1):0;                        /* velocidade no E1 no turndown */
   var Qpurga3=vPurga*Atip;                                  /* m³/s de purga (área da ponta) */
   var vPurE1=Qpurga3/A1;
@@ -2544,18 +2532,9 @@ function flareCalc(){
     {n:"C — NORMAL contínuo (excedente) — menor condição de queima",Q:Exced}
   ].concat(semTurn?[]:[{n:"E — TURNDOWN mínimo especificado",Q:(Wmin>0)?(Wmin/rhoN):0}])
   ).map(function(c){
-    var q3=c.Q*fNm3, vU=q3/Atip;
-    /* o operador abre o MENOR conjunto de estágios que traga a velocidade abaixo do
-       máximo; se nem todos abertos bastarem, fica com todos abertos e sinaliza.        */
-    var Aok=null;
-    for(var e3=0;e3<estagios.length;e3++){
-      var vv=q3/estagios[e3].Aac;
-      if(vv<=vMax){ Aok={e:e3+1,v:vv}; break; }
-    }
-    if(!Aok){ var eL=estagios.length-1; Aok={e:eL+1,v:q3/estagios[eL].Aac}; }
-    return {n:c.n,Q:c.Q,vUnico:vU,est:Aok.e,vEst:Aok.v,
-            sitU:(vU>vMax)?"ACIMA do máximo":((vU>=vMin)?"OK":((vU>=vLam)?"BAIXA — risco de downwash":"CRÍTICO — abaixo da chama")),
-            sitE:(Aok.v>vMax)?"ACIMA do máximo":((Aok.v>=vMin)?"OK":((Aok.v>=vLam)?"BAIXA":"CRÍTICO"))};
+    var q3=c.Q*fNm3, vU=q3/Atip;   /* ponta única, sempre aberta: uma velocidade só */
+    return {n:c.n,Q:c.Q,vUnico:vU,
+            sitU:(vU>vMax)?"ACIMA do máximo":((vU>=vMin)?"OK":((vU>=vLam)?"BAIXA — risco de downwash":"CRÍTICO — abaixo da chama"))};
   });
 
   /* ================= (G) PLATAFORMAS, ESCADA E GUARDA-CORPO ================= */
@@ -2699,26 +2678,18 @@ function flareCalc(){
     {k:"EXCEDENTE CONTÍNUO ao flare  (ponto normal de operação)",v:fmt(Math.round(Exced))+" Nm³/h   =   "+(Exced*rhoN/1000).toFixed(1).replace(".",",")+" t/h   ·   aproveitamento do gás gerado "+(aproveit*100).toFixed(0)+"%",hi:true},
     {k:"Marcha reduzida",v:semTurn?("SEM TURNDOWN — o sistema não opera abaixo do excedente contínuo. A menor condição de QUEIMA é "+fmt(Math.round(Exced))+" Nm³/h; abaixo disso a tocha fica em espera, com a purga apenas mantendo o sistema positivo."):("COM turndown especificado de "+fmt(Math.round((Wmin>0)?(Wmin/rhoN):0))+" Nm³/h"),hi:true},
     {k:"FAIXA DE OPERAÇÃO EXIGIDA DA PONTA",v:razTD.toFixed(2).replace(".",",")+" : 1   ("+fmt(Math.round(QNm))+" ÷ "+fmt(Math.round(QminNm))+" Nm³/h)"+((razTD<=faixa)?"   ✓ cabe na faixa geométrica de uma ponta única":"   ⚠ maior que a faixa geométrica de "+faixa.toFixed(2).replace(".",",")+":1"),hi:true},
-    {k:"CONFIGURAÇÃO ADOTADA",v:unico?("PONTA DE PERFIL ÚNICO, Ø "+fmt(Math.round(dtip*1000))+" mm — sem estagiamento, por definição do projeto"):(nEst+" estágios"),hi:true},
+    {k:"CONFIGURAÇÃO ADOTADA",v:"PONTA DE PERFIL ÚNICO, Ø "+fmt(Math.round(dtip*1000))+" mm, sempre aberta — o projeto não admite estagiamento, e a calculadora não o oferece. Toda a faixa de operação é coberta pela mesma área de saída.",hi:true},
     {k:"Critérios de velocidade na ponta",v:"máxima "+vMax.toFixed(0)+" m/s (perda de carga)   ·   mínima sem downwash "+vMin.toFixed(0)+" m/s   ·   chama laminar "+vLam.toFixed(2).replace(".",",")+" m/s (retrocesso)   —  uma ponta geométrica simples cobre apenas "+faixa.toFixed(2).replace(".",",")+":1"},
     {k:"Condições de operação na ponta única",v:"verificação abaixo, condição a condição"},
     ...condOp.map(function(c){ return {k:c.n,
       v:fmt(Math.round(c.Q))+" Nm³/h   →   "+c.vUnico.toFixed(2).replace(".",",")+" m/s   —   "+c.sitU,
       hi:(c.sitU.indexOf("CRÍTICO")>=0||c.sitU.indexOf("ACIMA")>=0||c.sitU.indexOf("BAIXA")>=0)}; }),
-    ...(unico?[
     (razTD<=faixa)?
     {k:"✓ PONTA ÚNICA ATENDE A FAIXA",v:"A razão exigida de "+razTD.toFixed(2).replace(".",",")+":1 é menor que os "+faixa.toFixed(2).replace(".",",")+":1 que uma ponta única cobre por geometria (vmáx/vmín). Todas as condições de queima ficam entre "+vMin.toFixed(0)+" e "+vMax.toFixed(0)+" m/s — sem estagiamento, sem risco de downwash e sem risco de retrocesso. É o resultado que se busca.",hi:true}:
     {k:"⚠ O QUE A PONTA ÚNICA NÃO COBRE",v:"Com "+razTD.toFixed(1).replace(".",",")+":1 exigidos e apenas "+faixa.toFixed(2).replace(".",",")+":1 de faixa geométrica, a ponta única atende a emergência e a marcha normal, mas entra em velocidade baixa na menor condição de queima. Isso NÃO invalida a escolha — significa que a estabilidade passa a depender da ponta do fabricante, e não da geometria.",hi:true},
-    {k:"O que exigir do fabricante mesmo assim",v:"(a) CURVA DE ESTABILIDADE garantida da ponta, cobrindo de "+fmt(Math.round(QminNm))+" a "+fmt(Math.round(QNm))+" Nm³/h com o PCI mínimo de "+PCImin.toFixed(0)+" kcal/Nm³; (b) ponta de baixo PCI com anéis de retenção e cones de estabilização internos, que sustentam chama com velocidade bem abaixo do mínimo geométrico; (c) coroa de bicos de apoio permanentemente disponível em marcha reduzida; (d) proteção contra downwash — saia (wind shield) ou anel deflector no topo, que é o que impede a chama de ser sugada para a esteira do tubo quando a velocidade cai.",hi:true},
-    {k:"Alternativas caso a faixa se abra no futuro",v:"Se um consumidor sair de operação em definitivo, ou se for especificada marcha reduzida, a faixa cresce e a ponta única pode deixar de bastar. Nesse caso: 1) GASÔMETRO entre a geração e os consumidores, que é a solução de raiz; 2) apoio permanente de GLP em marcha baixa; 3) estagiamento da ponta, disponível no campo de entrada acima."},
-    {k:"Proteção contra downwash",v:"O vento de projeto de "+uw.toFixed(1).replace(".",",")+" m/s contra a menor velocidade de queima de "+condOp[condOp.length-1].vUnico.toFixed(2).replace(".",",")+" m/s dá razão vento/saída de "+(uw/Math.max(condOp[condOp.length-1].vUnico,0.01)).toFixed(2).replace(".",",")+":1. "+((uw/Math.max(condOp[condOp.length-1].vUnico,0.01))<=0.5?"✓ folgado — a chama não tomba.":"⚠ prever saia (wind shield) ou anel deflector no topo.")+" Em estado de espera, com só a purga passando, não há chama a proteger: o que importa ali é o selo molecular impedir o ingresso de ar."}
-    ]:[
-    ...estagios.map(function(ee){ return {k:"Estágio "+ee.n+(ee.n===1?"  (sempre aberto)":"  (abre por pressão)"),
-      v:"Ø "+fmt(Math.round(ee.D*1000))+" mm  ·  área "+ee.A.toFixed(3).replace(".",",")+" m²   →   acumulado Ø "+fmt(Math.round(ee.Dac*1000))+
-        " mm   →   cobre de "+fmt(Math.round(ee.Qmin))+" a "+fmt(Math.round(ee.Qmax))+" Nm³/h"}; }),
-    {k:"Continuidade entre estágios",v:estOK?"✓ as faixas se sobrepõem":("⚠ LACUNA na abertura do estágio "+estGap.join(" e ")),hi:!estOK},
-    {k:"Capacidade total no cenário de emergência",v:capOK?"✓ suficiente":"⚠ INSUFICIENTE",hi:!capOK}
-    ]),
+    {k:"O que exigir do fabricante da ponta",v:"Com estágio único, toda a faixa recai sobre a ponta — é dela que passa a depender a estabilidade, e não da geometria de abertura. Exigir: (a) CURVA DE ESTABILIDADE garantida da ponta, cobrindo de "+fmt(Math.round(QminNm))+" a "+fmt(Math.round(QNm))+" Nm³/h com o PCI mínimo de "+PCImin.toFixed(0)+" kcal/Nm³; (b) ponta de baixo PCI com anéis de retenção e cones de estabilização internos, que sustentam chama com velocidade bem abaixo do mínimo geométrico; (c) coroa de bicos de apoio permanentemente disponível em marcha reduzida; (d) proteção contra downwash — saia (wind shield) ou anel deflector no topo, que é o que impede a chama de ser sugada para a esteira do tubo quando a velocidade cai.",hi:true},
+    {k:"Alternativas caso a faixa se abra no futuro",v:"Se um consumidor sair de operação em definitivo, ou se for especificada marcha reduzida, a faixa cresce e a ponta única pode deixar de bastar. Nesse caso: 1) GASÔMETRO entre a geração e os consumidores, que é a solução de raiz; 2) apoio permanente de GLP em marcha baixa; 3) ponta de baixo PCI com estabilizadores internos, especificada para a nova faixa. O estagiamento fica FORA de escopo por decisão de projeto."},
+    {k:"Proteção contra downwash",v:"O vento de projeto de "+uw.toFixed(1).replace(".",",")+" m/s contra a menor velocidade de queima de "+condOp[condOp.length-1].vUnico.toFixed(2).replace(".",",")+" m/s dá razão vento/saída de "+(uw/Math.max(condOp[condOp.length-1].vUnico,0.01)).toFixed(2).replace(".",",")+":1. "+((uw/Math.max(condOp[condOp.length-1].vUnico,0.01))<=0.5?"✓ folgado — a chama não tomba.":"⚠ prever saia (wind shield) ou anel deflector no topo.")+" Em estado de espera, com só a purga passando, não há chama a proteger: o que importa ali é o selo molecular impedir o ingresso de ar."},
     {k:"Oscilação dos consumidores",v:"Não há gasômetro entre a geração e os consumidores, então toda oscilação dos "+fmt(Math.round(Cons))+" Nm³/h de consumo vai direto para o flare. Sem turndown especificado a faixa fecha, mas vale registrar: se a operação real levar a tocha abaixo de "+fmt(Math.round(Exced))+" Nm³/h com alguma frequência, a premissa de \"sem turndown\" precisa ser revista."},
     {sec:"2b — COMPOSIÇÃO DO GÁS: combustíveis, inertes e propriedades derivadas"},
     {k:"Composição molar informada",v:(function(){var t=[];for(var c in COMPQ){if(yPc[c]>0)t.push(COMPQ[c].nome+" "+yPc[c].toFixed(1).replace(".",",")+" %");}return t.join("   ·   ")||"não informada";})()+"   —   soma "+somaY.toFixed(1).replace(".",",")+" %"+((Math.abs(somaY-100)>1)?"   ⚠ não fecha 100 %: o saldo é tratado como \"outros\" e a composição é normalizada":"   ✓ fecha 100 %"),hi:(Math.abs(somaY-100)>1)},
@@ -2930,7 +2901,7 @@ function flareCalc(){
     ...cotasPlat.map(function(cp,ii){ return {k:"Plataforma "+(ii+1)+"  —  cota "+cp.z.toFixed(1).replace(".",",")+" m",
       v:(cp.tipo==="descanso")?("patamar de descanso da escada — setor de "+AplatDesc.toFixed(1).replace(".",",")+" m², largura útil "+larPlat.toFixed(2).replace(".",",")+" m"):
         ("PLATAFORMA DE MANUTENÇÃO — anel completo de "+AplatTopo.toFixed(1).replace(".",",")+" m², largura útil "+larPlat.toFixed(2).replace(".",",")+" m. Atende: "+cp.tipo.replace("topo — ","")),hi:(cp.tipo!=="descanso")}; }),
-    {k:"Instrumentos servidos pela plataforma do topo",v:"detectores de chama dos pilotos (3 termopares + 1 UV-IR, item 7.6), válvulas de bloqueio individuais dos "+nBicos+" bicos de apoio, válvulas de abertura dos estágios "+(nEst>1?("2 a "+nEst):"do bico")+", e o próprio selo molecular. Todos exigem acesso com a tocha em operação — daí o anel completo e não um setor."},
+    {k:"Instrumentos servidos pela plataforma do topo",v:"detectores de chama dos pilotos (3 termopares + 1 UV-IR, item 7.6), válvulas de bloqueio individuais dos "+nBicos+" bicos de apoio, e o próprio selo molecular. Todos exigem acesso com a tocha em operação — daí o anel completo e não um setor."},
     {k:"Sobrecarga de projeto  (NBR 6120)",v:qPlat.toFixed(1).replace(".",",")+" kN/m²   →   "+Fplat.toFixed(1).replace(".",",")+" kN no total, já somados à reação vertical da fundação"},
     {k:"Escada tipo marinheiro",v:"desenvolvimento "+Lesc.toFixed(1).replace(".",",")+" m   ·   largura útil 0,45 m   ·   degraus a cada 0,30 m   ·   gaiola Ø 0,70 m a partir de 2,0 m do piso"},
     {k:"Massa de plataformas, guarda-corpos e escada",v:kNkg((massaPlat+massaEsc)*g/1000)+"   (piso em grade "+mGrade+" kg/m², guarda-corpo "+mGC+" kg/m, escada com gaiola "+mEsc+" kg/m)"},
@@ -3111,7 +3082,7 @@ function flareCalc(){
     Wpil:Wpil,npil:npil,Nmpurga:Nmpurga,Wap:Wap,Vap:Vap,nBicos:nBicos,QbicoKW:QbicoKW,apPc:apPc,reservaAp:reservaAp,reservaPil:reservaPil,viroles:viroles,cotasPlat:cotasPlat,nDesc:nDesc,larPlat:larPlat,Rext:Rext,Lesc:Lesc,
     nNerv:nNerv,hNerv:hNerv,tNerv:tNerv,tAnel:tAnel,larAnel:larAnel,exNerv:exNerv,aNerv:aNerv,
     diaCh:diaCh,nCh:nCh,Dbc:Dbc,Dst:Dst,Hst:Hst,hHel:hHel,passoHel:passoHel,LHel:LHel,zHel:zHel,
-    Exced:Exced,Cons:Cons,razTD:razTD,unico:unico,nEst:nEst,semTurn:semTurn,dFwAcs:dFwAcs,Fplat:Fplat};
+    Exced:Exced,Cons:Cons,razTD:razTD,unico:true,semTurn:semTurn,dFwAcs:dFwAcs,Fplat:Fplat};
   return OUT;
 }
 
@@ -3498,10 +3469,6 @@ const CALCS={
       {id:"flVmin",label:"Velocidade mínima sem downwash de vento",unidade:"m/s",tipo:"number",valor:8,step:"0.5"},
       {id:"flVlam",label:"Velocidade de chama laminar do gás (limite de retrocesso)",unidade:"m/s",tipo:"number",valor:0.4,step:"0.05"},
       {id:"flVturn",label:"Velocidade alvo no estágio 1 na vazão mínima",unidade:"m/s",tipo:"number",valor:18,step:"1"},
-      {id:"flEstag",label:"Estagiamento do bico",tipo:"select",valor:"1",opcoes:[
-        {v:"auto",t:"Automático — nº de estágios pela razão de turndown"},
-        {v:"1",t:"Bico ÚNICO — perfil único (padrão do projeto)"},
-        {v:"2",t:"2 estágios"},{v:"3",t:"3 estágios"},{v:"4",t:"4 estágios"}]},
       {tipo:"head",label:"Gás de alívio"},
       {id:"flGas",label:"Gás (preset — preenche MW, k, PCI, F e LII)",tipo:"select",valor:"bfg_bar_gusa",onchange:"flarePreset()",opcoes:[
         {v:"gas_natural",t:"Gás natural"},{v:"metano",t:"Metano"},
