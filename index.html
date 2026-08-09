@@ -2024,6 +2024,21 @@ function cicloneCalc(){
   var Tpele=Tamb+qReal/he;
   var Aext=Math.PI*Dc*hCil+Math.PI*(Dc+Bpo)/2*Math.sqrt(hCone*hCone+Math.pow((Dc-Bpo)/2,2));
   var Pperda=qReal*Aext/1000;                        // kW dissipados
+  /* ---------- TEMPERATURA DE SAÍDA DO GÁS ----------
+     O gás perde calor pelas paredes enquanto atravessa o ciclone. A queda é
+     ΔT = Q̇/(ṁ·cp). Some-se o efeito da infiltração de ar frio, que entra pela
+     descarga de pó e pelas juntas e mistura-se ao gás: além de destruir a coleta,
+     ela resfria. A queda importa porque o piso é o ORVALHO DO ALCATRÃO — abaixo
+     dele o alcatrão condensa dentro do próprio ciclone e no duto de saída.        */
+  var cpG=num("ciCp");    if(!isFinite(cpG)||cpG<=0)cpG=1.15;
+  var Tmin=num("ciTmin"); if(!isFinite(Tmin)||Tmin<0)Tmin=0;
+  var fuga=num("ciFuga"); if(!isFinite(fuga)||fuga<0)fuga=0;
+  var mDot=Wg/3600;                                   // kg/s
+  var dTpar=(mDot>0)?(Pperda/(mDot*cpG)):0;           // K — perda pelas paredes
+  var mAr=mDot*fuga/100;                              // kg/s de ar infiltrado
+  var dTar=(mDot>0)?(mAr*1.005*(Tg-Tamb)/((mDot+mAr)*cpG)):0;   // K — mistura com ar frio
+  var Tsai=Tg-dTpar-dTar;
+  var TsaiOK=(Tmin<=0)||(Tsai>=Tmin);
   /* metal dusting: 400 a 800 °C com CO alto */
   var Tmd=(Tpele>=400&&Tpele<=800)&&(teorCO>=5);
   var mdCasco=(Tg>=400&&Tg<=800)&&(teorCO>=5);
@@ -2120,6 +2135,9 @@ function cicloneCalc(){
    ["6","Metal dusting no casco","400 a 800 °C com CO ≥ 5 %vol",vc(Tpele,0)+" °C de pele · CO "+vc(teorCO,1)+" %",
     "pele fora da janela 400–800 °C",(Tmd?"REPROVADO":"APROVADO")],
    ["6","Perda térmica pelas paredes","q·A_ext",vc(Pperda,0)+" kW","—","—"],
+   ["6","TEMPERATURA DE SAÍDA do gás","T_ent − Q̇/(ṁ·cp) − mistura com ar infiltrado",
+    vc(Tsai,1)+" °C  (entrada "+vc(Tg,0)+" °C, queda de "+vc(Tg-Tsai,1)+" °C)",
+    (Tmin>0?("≥ "+vc(Tmin,0)+" °C — orvalho do alcatrão"):"informar o orvalho do alcatrão"),(Tmin>0?sc(TsaiOK):"—")],
    ["7","Chapa do casco","esbeltez D/500 + corrosão",vc(tcomC,1)+" mm","≥ "+vc(treqC,1)+" mm",sc(tcomC>=treqC)],
    ["7","Dilatação térmica do corpo","α·ΔT·H",vc(dilat,0)+" mm","juntas de expansão obrigatórias (EJMA)","VERIFICAR"],
    ["8","Duto de entrada e saída","D = √(4Q/(πv))","Ø "+vc(DentC,1)+" m  ·  v = "+vc(vEntR,1)+" m/s","12 a 25 m/s",sc(vEntR>=12&&vEntR<=25)],
@@ -2215,6 +2233,9 @@ function cicloneCalc(){
 
     {sec:"7 — REFRATÁRIO, CASCO E TEMPERATURA"},
     {k:"Espessura de refratário",v:vc(xRef*1000,0)+" mm   de castável com k = "+vc(kRef,2)+" W/m·K   —  calculado para levar a pele do casco a "+vc(TpeleAlvo,0)+" °C, com hi = 25 e he = 12 W/m²K.",hi:true},
+    {k:"TEMPERATURA DE SAÍDA DO GÁS",v:vc(Tsai,1)+" °C   —   entra a "+vc(Tg,0)+" °C e sai "+vc(Tg-Tsai,1)+" °C mais frio: "+vc(dTpar,1)+" °C pela perda nas paredes e "+vc(dTar,1)+" °C pela mistura com o ar infiltrado de "+vc(fuga,1)+" %."+(Tmin>0?("   Orvalho do alcatrão em "+vc(Tmin,0)+" °C"+(TsaiOK?("   ✓ o gás sai com "+vc(Tsai-Tmin,0)+" °C de folga sobre ele"):"   ⚠ ABAIXO DO ORVALHO — o alcatrão condensa dentro do próprio ciclone e no duto de saída, incrusta a parede, sobe a perda de carga e vira risco de incêndio")):""),hi:(Tmin>0&&!TsaiOK)},
+    {k:"Por que a queda é pequena",v:"O tempo de residência é de "+vc(tRes,1)+" s: o gás simplesmente não fica tempo suficiente para trocar calor. Com "+vc(mDot,1)+" kg/s e cp de "+vc(cpG,2)+" kJ/kg·K, é preciso "+vc(mDot*cpG,0)+" kW para baixar 1 °C, e a parede dissipa "+vc(Pperda,0)+" kW. Um ciclone a quente NÃO é um trocador de calor — se o processo precisa resfriar o gás, isso é serviço de outro equipamento."},
+    {k:"⚠ A infiltração de ar aparece duas vezes",v:"Os "+vc(fuga,1)+" % de ar infiltrado custam "+vc(dTar,1)+" °C de temperatura, mas o dano maior é na coleta: ar entrando pela descarga de pó rompe o vórtice e rearrasta o material já separado. É o mesmo defeito construtivo penalizando eficiência e temperatura ao mesmo tempo.",hi:(fuga>0)},
     {k:"Temperatura de pele resultante",v:vc(Tpele,0)+" °C   ·   fluxo de "+vc(qReal,0)+" W/m²   ·   perda total de "+vc(Pperda,0)+" kW pela superfície de "+vc(Aext,0)+" m²"},
     {k:"⚠ METAL DUSTING",v:(mdCasco?("O GÁS está a "+vc(Tg,0)+" °C com CO a "+vc(teorCO,1)+" %vol — dentro da janela de 400 a 800 °C em que o CO se desproporciona (2CO → C + CO₂) sobre a superfície metálica, carbureta o aço e o desintegra em pó. "+(Tmd?"A PELE também está na janela ("+vc(Tpele,0)+" °C): situação crítica, o casco não sobrevive em aço carbono.":"O refratário mantém a pele em "+vc(Tpele,0)+" °C, FORA da janela — é justamente esta a função dele aqui, e não apenas conservar calor.")):"Fora da janela crítica de metal dusting."),hi:mdCasco},
     {k:"Chapa do casco",v:vc(tcomC,1)+" mm comercial   (mínimo por esbeltez D/500 = "+vc(tMin,1)+" mm + "+vc(corr,0)+" mm de corrosão)   ·   aço fy = "+fyC+" MPa"},
@@ -2252,7 +2273,7 @@ function cicloneCalc(){
     fam:G.nome,expT:expT,dilat:dilat,mdCasco:mdCasco,Vtolva:Vtolva,Dvalv:Dvalv,viOK:viOK,saiOK:saiOK,comp:comp,
     DentC:DentC,DsaiC:DsaiC,vEntR:vEntR,vSaiR:vSaiR,Vsalt:Vsalt,Vzenz:Vzenz,saltOK:saltOK,Vsalto:Vsalto,razSalto:razSalto,saltoOK:saltoOK,viOtima:viOtima,tRes:tRes,VrExig:VrExig,VrEnt:VrEnt,gCen:gCen,etaLLg:etaLLg*100,CsaiLL:CsaiLL,d50LL:d50LL,nVort:nVort,Gpar:G.G,Kent:Kent,dPent:dPent,dPsai:dPsai,dPsist:dPsist,
     dilEnt:dilEnt,Vint:Vint,PV:PV,nr13:nr13,limEm:limEm,CsaiMg:CsaiMg,emOK:emOK,Vkc:Vkc,Fwc:Fwc,Mwc:Mwc,
-    gasInfl:gasInfl,esbC:esbC,teorCO:teorCO,Tpele:Tpele,kRef:kRef,rhop:rhop,d50po:d50po,Ptot:Ptot,exc:exc};
+    gasInfl:gasInfl,esbC:esbC,teorCO:teorCO,Tpele:Tpele,kRef:kRef,Tsai:Tsai,dTpar:dTpar,dTar:dTar,TsaiOK:TsaiOK,Tmin:Tmin,rhop:rhop,d50po:d50po,Ptot:Ptot,exc:exc};
   return OUT;
 }
 
@@ -4072,6 +4093,9 @@ const CALCS={
         {v:"0.60",t:"Castável intermediário — k 0,60 W/m·K"},
         {v:"0.30",t:"Castável isolante — k 0,30 W/m·K — baixa abrasão"}]},
       {id:"ciTamb",label:"Temperatura ambiente",unidade:"°C",tipo:"number",valor:30,step:"5"},
+      {id:"ciCp",label:"Calor específico do gás  cp",unidade:"kJ/kg·K",tipo:"number",valor:1.15,step:"0.05"},
+      {id:"ciTmin",label:"Temperatura MÍNIMA admissível na saída (orvalho do alcatrão)",unidade:"°C",tipo:"number",valor:150,step:"10"},
+      {id:"ciFuga",label:"Infiltração de ar prevista (0 = estanque)",unidade:"% da vazão",tipo:"number",valor:1,step:"0.5"},
       {id:"ciCorr",label:"Sobrespessura de corrosão",unidade:"mm",tipo:"number",valor:3,step:"1"},
       {id:"ciFy",label:"Aço do casco",tipo:"select",valor:"250",opcoes:[
         {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
