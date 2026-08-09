@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.86.0",
+    "versao": "1.89.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -545,13 +545,18 @@
       "calculadora": "ciclone_gas",
       "descricao": "Pré-dimensionamento de ciclone de corpo único para limpeza primária de gás de topo de forno, operando a quente. Dimensiona o diâmetro do corpo pela velocidade de entrada de projeto (ou aceita o diâmetro imposto e devolve a velocidade), com as proporções tabeladas de três famílias geométricas — Stairmand alta eficiência, Swift alta eficiência e Lapple uso geral — e devolve boca de entrada, tubo de saída com imersão, altura de cilindro e cone, ângulo do cone e saída de pó. Calcula as propriedades do gás na condição real de operação, com massa específica por gás ideal e viscosidade pela correlação de Sutherland, e explicita o fator de expansão sobre a base normal, porque dimensionar pela vazão normalizada subdimensiona o corpo nessa mesma proporção. O diâmetro de corte sai da formulação de Lapple/Shepherd e a eficiência fracionária da curva de Lapple, integrada sobre a distribuição log-normal do pó para devolver a eficiência global e a concentração na saída, comparada com o alvo especificado. Traz a perda de carga por número de cabeças de velocidade da família, a potência de ventilação associada, e a comparação das três famílias na mesma base. Dimensiona a descarga de pó com tolva-pulmão e válvula estanque, alertando que vazamento de ar pela descarga custa mais eficiência que qualquer refinamento de geometria e forma mistura explosiva em gás com CO. Na parte quente, calcula a espessura de refratário por condução unidimensional para a temperatura de pele alvo, a perda térmica pelas paredes, a dilatação térmica do corpo e a chapa do casco, e verifica metal dusting na janela de 400 a 800 °C com CO elevado — que é a razão de ser do refratário nesse serviço, e não apenas a conservação de calor.",
       "referencia": "Geometrias padronizadas de Stairmand (alta eficiência), Swift (alta eficiência) e Lapple (uso geral), com as proporções clássicas sobre o diâmetro do corpo. Diâmetro de corte pela formulação de Lapple/Shepherd d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))), com Ne = (1/a)·[h+(H−h)/2] voltas efetivas; eficiência fracionária pela curva de Lapple η(d) = 1/(1+(d50/d)²), integrada sobre distribuição log-normal em massa. Perda de carga por número de cabeças de velocidade ΔP = ½·ρ·v²·NH. Propriedades do gás por gás ideal e viscosidade pela correlação de Sutherland. Espessura de refratário por condução unidimensional com resistências convectivas interna e externa. Metal dusting conforme a janela de 400 a 800 °C em atmosfera rica em CO (reação de Boudouard reversa 2CO → C + CO₂).",
-      "resumo": "Ciclone a quente: gás na condição real, geometria por família, corte d50, eficiência, perda de carga, descarga de pó, refratário e metal dusting.",
+      "resumo": "Ciclone a quente: gás na condição real, geometria por família, corte d50, eficiência, dutos, perda de carga do sistema, descarga de pó, refratário, metal dusting e verificações normativas.",
       "normas": [
-        "Stairmand",
-        "Lapple",
-        "Swift",
+        "VDI 3676",
+        "NR-13",
+        "NBR 6123",
         "NBR 8800",
-        "NBR 6123"
+        "NBR 12019",
+        "ISO 9096",
+        "NBR IEC 60079",
+        "API 936",
+        "EJMA",
+        "AWS D1.1"
       ],
       "modelo_en": "Gas Cleaning Cyclone",
       "resumo_en": "Hot cyclone: actual gas conditions, geometry family, d50 cut size, efficiency, pressure drop, dust discharge, refractory and metal dusting.",
