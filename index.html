@@ -1835,6 +1835,239 @@ function flarePreset(){
   if($("#flCO")) $("#flCO").value=(p.CO!==undefined?p.CO:0);
   runCalc("flare");
 }
+/* ============================================================================
+   CICLONE DE LIMPEZA DE GÁS DE TOPO DE FORNO — corpo único, operação a quente
+   ----------------------------------------------------------------------------
+   Famílias geométricas tabeladas (proporções sobre o diâmetro do corpo D):
+   Stairmand alta eficiência, Swift alta eficiência e Lapple uso geral. O corte
+   d50 segue a formulação de Lapple/Shepherd; a eficiência fracionária, a curva
+   de Lapple; a perda de carga, o número de cabeças de velocidade da família.
+   Propriedades do gás na temperatura de operação — a viscosidade quase dobra
+   de 20 para 450 °C, e é ela que degrada o corte.
+   ========================================================================== */
+function cicloneCalc(){
+  var FAMC={
+    stairmand:{a:0.50,b:0.20,De:0.50,S:0.50,h:1.50,H:4.00,B:0.375,NH:6.4,
+               nome:"Stairmand alta eficiência"},
+    swift:    {a:0.44,b:0.21,De:0.40,S:0.50,h:1.40,H:3.90,B:0.400,NH:9.24,
+               nome:"Swift alta eficiência"},
+    lapple:   {a:0.50,b:0.25,De:0.50,S:0.625,h:2.00,H:4.00,B:0.250,NH:8.0,
+               nome:"Lapple uso geral"}
+  };
+  /* ---------- ENTRADAS ---------- */
+  var QN=num("ciQN");     if(!isFinite(QN)||QN<=0)QN=80000;      // Nm³/h
+  var Tg=num("ciT");      if(!isFinite(Tg))Tg=450;               // °C
+  var Pabs=num("ciP");    if(!isFinite(Pabs)||Pabs<=0)Pabs=110;  // kPa abs
+  var MW=num("ciMW");     if(!isFinite(MW)||MW<=0)MW=27.76;
+  var Cpo=num("ciCpo");   if(!isFinite(Cpo)||Cpo<0)Cpo=20;       // g/Nm³
+  var rhop=num("ciRhoP"); if(!isFinite(rhop)||rhop<=0)rhop=3000; // kg/m³
+  var d50po=num("ciD50po");if(!isFinite(d50po)||d50po<=0)d50po=35; // µm
+  var sg=num("ciSg");     if(!isFinite(sg)||sg<=1.01)sg=2.5;
+  var fam=selv("ciFam","stairmand"); var G=FAMC[fam]||FAMC.stairmand;
+  var base=selv("ciBase","vel");
+  var viIn=num("ciVi");   if(!isFinite(viIn)||viIn<=0)viIn=18;   // m/s
+  var Dado=num("ciD");    if(!isFinite(Dado)||Dado<0)Dado=0;     // m
+  var Csaida=num("ciCsai");if(!isFinite(Csaida)||Csaida<=0)Csaida=5; // g/Nm³ alvo
+  var TpeleAlvo=num("ciTpele"); if(!isFinite(TpeleAlvo)||TpeleAlvo<=0)TpeleAlvo=200;
+  var kRef=selvN("ciKref",1.20);                                  // W/m·K
+  var Tamb=num("ciTamb"); if(!isFinite(Tamb))Tamb=30;
+  var teorCO=num("ciCO"); if(!isFinite(teorCO)||teorCO<0)teorCO=25.2;
+  var corr=num("ciCorr"); if(!isFinite(corr)||corr<0)corr=3;
+  var fyC=selvN("ciFy",250);
+
+  /* ---------- ETAPA 1 — GÁS NA CONDIÇÃO DE OPERAÇÃO ---------- */
+  var TK=Tg+273.15, Ru=8314;
+  var rhoN=MW/22.414;
+  var rhoG=Pabs*1000*MW/(Ru*TK);                    // kg/m³ na condição real
+  var Q3=QN*rhoN/rhoG/3600;                         // m³/s reais
+  var Wg=QN*rhoN;                                   // kg/h
+  /* viscosidade por Sutherland, com constantes do N2 (o gás é 52 % N2) */
+  var muG=1.663e-5*Math.pow(TK/273.15,1.5)*(273.15+107)/(TK+107);
+  var mu20=1.663e-5*Math.pow(293.15/273.15,1.5)*(380)/(293.15+107);
+  var expT=rhoN/rhoG;                               // fator de expansão
+
+  /* ---------- ETAPA 2 — GEOMETRIA ---------- */
+  var Dc, vi;
+  if(base==="diam"&&Dado>0){ Dc=Dado; vi=Q3/(G.a*G.b*Dc*Dc); }
+  else { vi=viIn; Dc=Math.sqrt(Q3/(vi*G.a*G.b)); }
+  var Ain=G.a*Dc*G.b*Dc;
+  var aE=G.a*Dc, bE=G.b*Dc, DeS=G.De*Dc, Scy=G.S*Dc;
+  var hCil=G.h*Dc, Htot=G.H*Dc, Bpo=G.B*Dc, hCone=Htot-hCil;
+  /* meio-ângulo medido a partir do EIXO: cateto oposto é o recuo radial (D−B)/2 */
+  var angCone=Math.atan(((Dc-Bpo)/2)/Math.max(hCone,1e-6))*180/Math.PI;
+  var Ne=(1/G.a)*(G.h+(G.H-G.h)/2);                        // voltas efetivas
+  var viOK=(vi>=12&&vi<=25);
+
+  /* ---------- ETAPA 3 — CORTE E EFICIÊNCIA ---------- */
+  var d50=Math.sqrt(9*muG*bE/(2*Math.PI*Ne*vi*Math.max(rhop-rhoG,1)));   // m
+  var d50um=d50*1e6;
+  function etaD(dum){ var r=d50um/Math.max(dum,1e-9); return 1/(1+r*r); }
+  /* integra a curva sobre a distribuição log-normal em massa do pó */
+  var lnsg=Math.log(sg), lnd=Math.log(d50po), somaM=0, somaC=0, faixas=[];
+  for(var i=0;i<400;i++){
+    var d=0.5*Math.exp(i*0.02); if(d>800) break;
+    var dd=d*0.02;
+    var fm=1/(d*lnsg*Math.sqrt(2*Math.PI))*Math.exp(-Math.pow(Math.log(d)-lnd,2)/(2*lnsg*lnsg));
+    somaM+=fm*dd; somaC+=fm*dd*etaD(d);
+  }
+  var etaG=(somaM>0)?(somaC/somaM):0;
+  var CsaiCalc=Cpo*(1-etaG);
+  var saiOK=(CsaiCalc<=Csaida);
+  [2,5,10,20,30,50,75,100].forEach(function(d){ faixas.push({d:d,e:etaD(d)*100}); });
+
+  /* ---------- ETAPA 4 — PERDA DE CARGA ---------- */
+  var dP=0.5*rhoG*vi*vi*G.NH;                       // Pa
+  var dPmm=dP/9.80665;                              // mmH2O
+  /* comparação entre as três famílias na mesma base */
+  var comp=[];
+  for(var fk in FAMC){ var f2=FAMC[fk];
+    var D2,v2;
+    if(base==="diam"&&Dado>0){ D2=Dado; v2=Q3/(f2.a*f2.b*D2*D2); }
+    else { v2=viIn; D2=Math.sqrt(Q3/(v2*f2.a*f2.b)); }
+    var Ne2=(1/f2.a)*(f2.h+(f2.H-f2.h)/2);
+    var d502=Math.sqrt(9*muG*(f2.b*D2)/(2*Math.PI*Ne2*v2*Math.max(rhop-rhoG,1)))*1e6;
+    var s1=0,s2=0;
+    for(var j=0;j<400;j++){ var dj=0.5*Math.exp(j*0.02); if(dj>800)break; var ddj=dj*0.02;
+      var fmj=1/(dj*lnsg*Math.sqrt(2*Math.PI))*Math.exp(-Math.pow(Math.log(dj)-lnd,2)/(2*lnsg*lnsg));
+      s1+=fmj*ddj; s2+=fmj*ddj/(1+Math.pow(d502/dj,2)); }
+    comp.push({n:f2.nome,D:D2,v:v2,d50:d502,eta:(s1>0?s2/s1*100:0),dP:0.5*rhoG*v2*v2*f2.NH,H:f2.H*D2});
+  }
+
+  /* ---------- ETAPA 5 — PÓ COLETADO ---------- */
+  var Wpo=Cpo*QN/1000;                              // kg/h que entra
+  var WpoCol=Wpo*etaG/1000;                         // t/h coletado
+  var WpoSai=Wpo*(1-etaG);                          // kg/h que passa
+  var rhoAp=rhop*0.35;                              // massa específica aparente do pó
+  var Vtolva=WpoCol*1000/rhoAp*4;                   // m³ para 4 h de acúmulo
+  var Dvalv=Math.sqrt(4*(WpoCol*1000/rhoAp)/(Math.PI*3600*0.25));  // m — válvula rotativa a 25 % de enchimento, 1 rpm equiv.
+
+  /* ---------- ETAPA 6 — REFRATÁRIO E CASCO ---------- */
+  var hi=25, he=12;                                  // W/m²K — interno e externo
+  /* resolve a espessura que leva a pele à temperatura alvo */
+  var qAlvo=he*(TpeleAlvo-Tamb);                     // W/m² dissipados
+  var xRef=(qAlvo>0)?kRef*((Tg-TpeleAlvo)/qAlvo-1/hi):0.30;
+  if(!(xRef>0.03)) xRef=0.03;
+  xRef=Math.ceil(xRef*100)/100;                      // arredonda para cm
+  var qReal=(Tg-Tamb)/(1/hi+xRef/kRef+1/he);
+  var Tpele=Tamb+qReal/he;
+  var Aext=Math.PI*Dc*hCil+Math.PI*(Dc+Bpo)/2*Math.sqrt(hCone*hCone+Math.pow((Dc-Bpo)/2,2));
+  var Pperda=qReal*Aext/1000;                        // kW dissipados
+  /* metal dusting: 400 a 800 °C com CO alto */
+  var Tmd=(Tpele>=400&&Tpele<=800)&&(teorCO>=5);
+  var mdCasco=(Tg>=400&&Tg<=800)&&(teorCO>=5);
+  /* chapa do casco: pressão interna baixa; governa rigidez e corrosão */
+  var tMin=Math.max(6.3,Dc*1000/500);                // esbeltez construtiva
+  var CHAPc=[6.3,8.0,9.5,12.5,16.0,19.0,22.4,25.0];
+  var treqC=tMin+corr, tcomC=CHAPc[CHAPc.length-1];
+  for(var m3=0;m3<CHAPc.length;m3++){ if(CHAPc[m3]>=treqC){ tcomC=CHAPc[m3]; break; } }
+  /* dilatação térmica do casco */
+  var alfa=12e-6, dilat=alfa*(Tpele-20)*Htot*1000;   // mm
+  /* massas */
+  var Acasco=Math.PI*Dc*hCil+Math.PI*(Dc+Bpo)/2*Math.sqrt(hCone*hCone+Math.pow((Dc-Bpo)/2,2));
+  var mCasco=Acasco*tcomC/1000*7850;
+  var mRef=Acasco*xRef*2200;                          // castável denso
+  var mTotC=mCasco+mRef+WpoCol*1000;
+
+  /* ---------- MEMORIAL ---------- */
+  function vc(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function sc(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEMC=[
+   ["1","Vazão na condição de operação","Q_N·ρN/ρ",vc(Q3,1)+" m³/s ("+fmt(Math.round(Q3*3600))+" m³/h)","expansão de "+vc(expT)+"× sobre a normal","—"],
+   ["2","Velocidade de entrada","v = Q/(a·b)",vc(vi,1)+" m/s","12 a 25 m/s",sc(viOK)],
+   ["2","Diâmetro do corpo","D = √(Q/(v·a·b))",vc(Dc,2)+" m","—","—"],
+   ["3","Diâmetro de corte d50","Lapple: √(9μb/(2π·Ne·v·Δρ))",vc(d50um,1)+" µm","—","—"],
+   ["3","Eficiência global de coleta","∫η(d)·f(d)dd sobre a log-normal",vc(etaG*100,1)+" %","—","—"],
+   ["3","Concentração na saída","C_ent·(1−η)",vc(CsaiCalc,2)+" g/Nm³","≤ "+vc(Csaida,1)+" g/Nm³",sc(saiOK)],
+   ["4","Perda de carga","ΔP = ½·ρ·v²·NH",vc(dP,0)+" Pa ("+vc(dPmm,0)+" mmH₂O)","—","—"],
+   ["5","Pó coletado","C·Q·η",vc(WpoCol,2)+" t/h","descarga contínua obrigatória","—"],
+   ["6","Espessura de refratário","1-D: (Tg−Tamb)/(1/hi + x/k + 1/he)",vc(xRef*1000,0)+" mm","pele ≤ "+vc(TpeleAlvo,0)+" °C","—"],
+   ["6","Temperatura de pele do casco","Tamb + q/he",vc(Tpele,0)+" °C","≤ "+vc(TpeleAlvo,0)+" °C",sc(Tpele<=TpeleAlvo+5)],
+   ["6","Metal dusting no casco","400 a 800 °C com CO ≥ 5 %vol",vc(Tpele,0)+" °C de pele · CO "+vc(teorCO,1)+" %",
+    "pele fora da janela 400–800 °C",(Tmd?"REPROVADO":"APROVADO")],
+   ["6","Perda térmica pelas paredes","q·A_ext",vc(Pperda,0)+" kW","—","—"],
+   ["7","Chapa do casco","esbeltez D/500 + corrosão",vc(tcomC,1)+" mm","≥ "+vc(treqC,1)+" mm",sc(tcomC>=treqC)],
+   ["7","Dilatação térmica do corpo","α·ΔT·H",vc(dilat,0)+" mm","juntas de expansão obrigatórias","VERIFICAR"]
+  ];
+  var nRc=0,nVc=0; MEMC.forEach(function(m){ if(m[5]==="REPROVADO")nRc++; else if(m[5]==="VERIFICAR")nVc++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRc===0?"✓ nenhuma verificação reprovada":"⚠ "+nRc+" verificação(ões) REPROVADA(S)")+"   ·   "+nVc+" a confirmar   ·   "+MEMC.length+" verificações",hi:(nRc>0)}
+  ].concat(MEMC.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+
+    {sec:"1 — GÁS NA CONDIÇÃO DE OPERAÇÃO"},
+    {k:"Vazão normalizada e mássica",v:fmt(Math.round(QN))+" Nm³/h   =   "+fmt(Math.round(Wg))+" kg/h   ·   ρN = "+vc(rhoN,4)+" kg/Nm³"},
+    {k:"Condição de operação",v:vc(Tg,0)+" °C   ·   "+vc(Pabs,0)+" kPa abs   →   ρ = "+vc(rhoG,4)+" kg/m³",hi:true},
+    {k:"VAZÃO REAL — a que dimensiona o ciclone",v:fmt(Math.round(Q3*3600))+" m³/h   =   "+vc(Q3,1)+" m³/s   —  o gás expande "+vc(expT)+"× em relação à base normal. Dimensionar pela vazão normalizada subdimensiona o corpo nessa mesma proporção.",hi:true},
+    {k:"Viscosidade dinâmica  (Sutherland)",v:(muG*1e6).toFixed(2).replace(".",",")+" µPa·s a "+vc(Tg,0)+" °C   vs   "+(mu20*1e6).toFixed(2).replace(".",",")+" µPa·s a 20 °C   —  aumento de "+vc((muG/mu20-1)*100,0)+" %. É este o principal motivo pelo qual um ciclone a quente corta pior: o d50 cresce com √µ.",hi:true},
+    {k:"Poeira na entrada",v:vc(Cpo,1)+" g/Nm³   =   "+vc(Wpo/1000,2)+" t/h   ·   ρ_partícula "+fmt(Math.round(rhop))+" kg/m³   ·   d50 do pó "+vc(d50po,0)+" µm com σg = "+vc(sg,1)},
+
+    {sec:"2 — GEOMETRIA DO CORPO"},
+    {k:"Família geométrica adotada",v:G.nome+"   —  proporções sobre D: entrada "+vc(G.a,3)+"×"+vc(G.b,3)+" · saída "+vc(G.De,3)+" · cilindro "+vc(G.h,2)+" · total "+vc(G.H,2)+" · pó "+vc(G.B,3),hi:true},
+    {k:"Base de dimensionamento",v:(base==="diam"&&Dado>0)?("DIÂMETRO IMPOSTO de "+vc(Dado,2)+" m — a velocidade de entrada é consequência"):("VELOCIDADE DE ENTRADA de "+vc(viIn,1)+" m/s — o diâmetro é consequência")},
+    {k:"DIÂMETRO DO CORPO  D",v:vc(Dc,2)+" m",hi:true},
+    {k:"Velocidade de entrada resultante",v:vc(vi,2)+" m/s"+(viOK?"   ✓ dentro da faixa usual de 12 a 25 m/s":(vi<12?"   ⚠ BAIXA — abaixo de 12 m/s a força centrífuga cai e o corte piora rapidamente":"   ⚠ ALTA — acima de 25 m/s a perda de carga dispara, a erosão acelera e há reentrainment do pó já coletado")),hi:!viOK},
+    {k:"Boca de entrada  a × b",v:vc(aE,2)+" × "+vc(bE,2)+" m   =   "+vc(Ain,3)+" m²   (entrada tangencial retangular)"},
+    {k:"Tubo de saída  (vortex finder)",v:"Ø "+vc(DeS,2)+" m   ·   imersão S = "+vc(Scy,2)+" m abaixo do teto"},
+    {k:"Altura do cilindro  ·  altura total",v:vc(hCil,2)+" m   ·   "+vc(Htot,2)+" m   —  cone de "+vc(hCone,2)+" m com meio-ângulo de "+vc(angCone,1)+"° em relação ao eixo (abertura total "+vc(2*angCone,1)+"°)"},
+    {k:"Saída de pó",v:"Ø "+vc(Bpo,2)+" m"},
+    {k:"Voltas efetivas do gás  Ne",v:vc(Ne,2)+"   —  Ne = (1/a)·[h + (H−h)/2]. Quanto mais voltas, mais tempo a partícula tem para migrar até a parede."},
+    {k:"⚠ Ordem de grandeza do equipamento",v:"Um corpo único de "+vc(Dc,1)+" m de diâmetro e "+vc(Htot,1)+" m de altura é um vaso de grande porte, com o peso e a fundação de uma torre. É a consequência direta de tratar "+fmt(Math.round(Q3*3600))+" m³/h num só ciclone. Se o arranjo não comportar, a alternativa é multiciclone — vários corpos pequenos em paralelo, que cortam bem mais fino pelo mesmo princípio (d50 cresce com √D).",hi:true},
+
+    {sec:"3 — CORTE E EFICIÊNCIA DE COLETA"},
+    {k:"DIÂMETRO DE CORTE  d50",v:vc(d50um,1)+" µm   —  Lapple: d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))). É o diâmetro coletado com 50 % de eficiência.",hi:true},
+    {k:"Eficiência fracionária  η(d) = 1/(1+(d50/d)²)",v:faixas.map(function(f){ return f.d+" µm: "+f.e.toFixed(0)+"%"; }).join("   ·   ")},
+    {k:"EFICIÊNCIA GLOBAL sobre a distribuição do pó",v:vc(etaG*100,1)+" %   —  integrada sobre a log-normal de d50 = "+vc(d50po,0)+" µm e σg = "+vc(sg,1)+". Não confundir com a eficiência no d50, que é sempre 50 % por definição.",hi:true},
+    {k:"CONCENTRAÇÃO NA SAÍDA",v:vc(CsaiCalc,2)+" g/Nm³   vs   "+vc(Csaida,1)+" g/Nm³ especificados"+(saiOK?"   ✓ ATENDE":"   ⚠ NÃO ATENDE — o ciclone sozinho não entrega esta saída. Ciclone é limpeza PRIMÁRIA: para chegar a poucos mg/Nm³ é preciso lavador, filtro ou precipitador a jusante."),hi:!saiOK},
+    {k:"Massa retida e massa que passa",v:vc(WpoCol,2)+" t/h coletados   ·   "+fmt(Math.round(WpoSai))+" kg/h seguem no gás"},
+    {k:"⚠ O que a curva de Lapple não captura",v:"A formulação é de projeto conceitual e superestima a eficiência real quando há: reentrainment do pó da parede em velocidade alta, vazamento de ar pela descarga de pó (uma válvula rotativa gasta pode derrubar a eficiência em dezenas de pontos), aglomeração de finos, e carga de pó alta, que na verdade AJUDA por arraste conjunto. Ensaio em escala ou dado do fabricante é o que fecha o número."},
+
+    {sec:"4 — PERDA DE CARGA"},
+    {k:"PERDA DE CARGA",v:vc(dP,0)+" Pa   =   "+vc(dPmm,0)+" mmH₂O   —  ΔP = ½·ρ·v²·NH, com NH = "+vc(G.NH,2)+" cabeças de velocidade da família adotada.",hi:true},
+    {k:"Efeito da temperatura sobre a perda de carga",v:"A "+vc(Tg,0)+" °C o gás está "+vc(expT,2)+"× menos denso, e ΔP é proporcional a ρ. O mesmo ciclone a frio custaria cerca de "+vc(dP*expT,0)+" Pa. Ou seja: operar a quente é barato em pressão e caro em eficiência — exatamente o oposto do que a intuição sugere."},
+    {k:"Potência de ventilação associada",v:vc(dP*Q3/1000,1)+" kW no eixo (rendimento 100 %)   ·   cerca de "+vc(dP*Q3/1000/0.65,1)+" kW reais com ventilador de 65 %"},
+
+    {sec:"5 — COMPARAÇÃO ENTRE AS TRÊS FAMÍLIAS"},
+    {k:"Base da comparação",v:(base==="diam"&&Dado>0)?("mesmo diâmetro de "+vc(Dado,2)+" m para as três"):("mesma velocidade de entrada de "+vc(viIn,1)+" m/s para as três")}
+  ]).concat(comp.map(function(c){
+    return {k:"     · "+c.n,v:"D = "+vc(c.D,2)+" m   ·   H = "+vc(c.H,1)+" m   ·   v = "+vc(c.v,1)+" m/s   ·   d50 = "+vc(c.d50,1)+" µm   ·   η = "+vc(c.eta,1)+" %   ·   ΔP = "+vc(c.dP,0)+" Pa",
+            hi:(c.n===G.nome)};
+  })).concat([
+    {k:"Como ler a comparação",v:(base==="diam"&&Dado>0)?"Fixado o diâmetro, a família muda o corte de verdade: Stairmand corta mais fino porque tem entrada estreita (b = 0,20·D) e mais voltas efetivas.":"Fixada a VELOCIDADE, as três famílias dão d50 muito parecido — o diâmetro se ajusta e compensa a geometria. O que realmente muda é o tamanho do corpo e a perda de carga. A vantagem de corte do Stairmand só aparece quando se fixa o DIÂMETRO, não a velocidade. Vale rodar as duas bases antes de escolher.",hi:true},
+
+    {sec:"6 — DESCARGA DE PÓ"},
+    {k:"Massa coletada",v:vc(WpoCol,2)+" t/h   ·   massa específica aparente estimada "+fmt(Math.round(rhoAp))+" kg/m³   →   "+vc(WpoCol*1000/rhoAp,1)+" m³/h de pó"},
+    {k:"Volume da tolva para 4 h",v:vc(Vtolva,1)+" m³   —  a tolva NÃO é armazenagem: é pulmão. Pó acumulado no cone reentra no vórtice e derruba a eficiência."},
+    {k:"Válvula de descarga",v:"Ø nominal da ordem de "+vc(Dvalv*1000,0)+" mm. Em gás com CO a "+vc(teorCO,1)+" %vol a descarga tem de ser ESTANQUE — válvula rotativa com selagem, dupla comporta ou rosca com selo de pó. Vazamento de ar para dentro faz duas coisas ruins ao mesmo tempo: destrói a eficiência do ciclone e forma mistura explosiva com o CO.",hi:true},
+    {k:"⚠ Estanqueidade é critério de projeto, não detalhe",v:"Uma entrada de ar de 1 % da vazão pela descarga de pó pode custar mais eficiência que qualquer refinamento de geometria. Especificar a válvula com vazamento máximo garantido e prever purga de gás inerte no selo."},
+
+    {sec:"7 — REFRATÁRIO, CASCO E TEMPERATURA"},
+    {k:"Espessura de refratário",v:vc(xRef*1000,0)+" mm   de castável com k = "+vc(kRef,2)+" W/m·K   —  calculado para levar a pele do casco a "+vc(TpeleAlvo,0)+" °C, com hi = 25 e he = 12 W/m²K.",hi:true},
+    {k:"Temperatura de pele resultante",v:vc(Tpele,0)+" °C   ·   fluxo de "+vc(qReal,0)+" W/m²   ·   perda total de "+vc(Pperda,0)+" kW pela superfície de "+vc(Aext,0)+" m²"},
+    {k:"⚠ METAL DUSTING",v:(mdCasco?("O GÁS está a "+vc(Tg,0)+" °C com CO a "+vc(teorCO,1)+" %vol — dentro da janela de 400 a 800 °C em que o CO se desproporciona (2CO → C + CO₂) sobre a superfície metálica, carbureta o aço e o desintegra em pó. "+(Tmd?"A PELE também está na janela ("+vc(Tpele,0)+" °C): situação crítica, o casco não sobrevive em aço carbono.":"O refratário mantém a pele em "+vc(Tpele,0)+" °C, FORA da janela — é justamente esta a função dele aqui, e não apenas conservar calor.")):"Fora da janela crítica de metal dusting."),hi:mdCasco},
+    {k:"Chapa do casco",v:vc(tcomC,1)+" mm comercial   (mínimo por esbeltez D/500 = "+vc(tMin,1)+" mm + "+vc(corr,0)+" mm de corrosão)   ·   aço fy = "+fyC+" MPa"},
+    {k:"Dilatação térmica do corpo",v:vc(dilat,0)+" mm sobre "+vc(Htot,1)+" m de altura   —  juntas de expansão e apoios deslizantes são obrigatórios. Ancorar o corpo em dois pontos rígidos rasga a chapa.",hi:true},
+    {k:"Massas estimadas",v:"casco "+fmt(Math.round(mCasco))+" kg   ·   refratário "+fmt(Math.round(mRef))+" kg   ·   pó em operação "+fmt(Math.round(WpoCol*1000))+" kg   →   TOTAL "+fmt(Math.round(mTotC))+" kg",hi:true},
+    {k:"⚠ O refratário domina o peso",v:"Castável denso pesa 2.200 kg/m³ e, com "+vc(xRef*1000,0)+" mm em "+vc(Aext,0)+" m², responde por "+vc(mRef/mTotC*100,0)+" % do peso total. Se a fundação apertar, castável isolante (k ≈ 0,3) permite parede mais fina para a mesma pele, ao custo de menor resistência à abrasão — e abrasão é exatamente o que há aqui.",hi:true},
+
+    {sec:"8 — VERIFICAÇÃO NORMATIVA E LIMITES"},
+    {k:"Base do cálculo",v:"Geometrias de Stairmand, Swift e Lapple; corte pela formulação de Lapple/Shepherd; eficiência fracionária de Lapple; perda de carga por número de cabeças de velocidade. Propriedades do gás por gás ideal e viscosidade por Sutherland."},
+    {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"Este cálculo define porte, corte esperado e perda de carga para consulta a fornecedor e verificação de arranjo. Não substitui ensaio em escala nem a curva garantida do fabricante. A eficiência real depende de reentrainment, estanqueidade da descarga e aglomeração — nenhum deles capturado pela curva de Lapple.",hi:true},
+    {k:"O que exigir do fornecedor",v:"(a) curva de eficiência fracionária GARANTIDA para a distribuição real do pó; (b) perda de carga garantida na vazão máxima; (c) vazamento máximo da válvula de descarga; (d) espessura e tipo de refratário com resistência à abrasão declarada; (e) plano de dilatação com posição dos apoios fixos e deslizantes."}
+  ]);
+
+  OUT.geo={tipo:"ciclone",MEM:MEMC,nRep:nRc,nVer:nVc,Dc:Dc,Htot:Htot,hCil:hCil,hCone:hCone,
+    aE:aE,bE:bE,DeS:DeS,Scy:Scy,Bpo:Bpo,angCone:angCone,vi:vi,Ne:Ne,d50:d50um,etaG:etaG*100,
+    dP:dP,dPmm:dPmm,Q3:Q3,QN:QN,rhoG:rhoG,Tg:Tg,muG:muG,Cpo:Cpo,Csai:CsaiCalc,CsaiAlvo:Csaida,
+    WpoCol:WpoCol,xRef:xRef,Tpele:Tpele,tcomC:tcomC,mCasco:mCasco,mRef:mRef,mTot:mTotC,
+    fam:G.nome,expT:expT,dilat:dilat,mdCasco:mdCasco,Vtolva:Vtolva,Dvalv:Dvalv,viOK:viOK,saiOK:saiOK,comp:comp};
+  return OUT;
+}
+
 function flareCalc(){
   var g=9.80665, Ru=8314;                       // J/(kmol·K)
   /* ---------- ENTRADAS ---------- */
@@ -3599,6 +3832,46 @@ function flexowellCalc(){
 }
 
 const CALCS={
+  ciclone_gas:{
+    titulo:"Ciclone de limpeza de gás — corpo único, operação a quente",
+    referencia:"Geometrias padronizadas de Stairmand (alta eficiência), Swift (alta eficiência) e Lapple (uso geral), com as proporções clássicas sobre o diâmetro do corpo. Diâmetro de corte pela formulação de Lapple/Shepherd d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))) e eficiência fracionária pela curva de Lapple η(d) = 1/(1+(d50/d)²), integrada sobre distribuição log-normal do pó. Perda de carga por número de cabeças de velocidade da família. Propriedades do gás por gás ideal, com viscosidade pela correlação de Sutherland — decisiva em operação a quente, porque o corte cresce com a raiz da viscosidade. Verificação de metal dusting na janela de 400 a 800 °C com CO elevado, espessura de refratário por condução unidimensional para temperatura de pele alvo, e dilatação térmica do corpo.",
+    campos:[
+      {tipo:"head",label:"Gás na entrada do ciclone"},
+      {id:"ciQN",label:"VAZÃO DE GÁS (base normal, 0 °C e 1 atm)",unidade:"Nm³/h",tipo:"number",valor:80000,step:"1000"},
+      {id:"ciT",label:"TEMPERATURA do gás no ciclone",unidade:"°C",tipo:"number",valor:450,step:"10"},
+      {id:"ciP",label:"Pressão absoluta",unidade:"kPa abs",tipo:"number",valor:110,step:"1"},
+      {id:"ciMW",label:"Massa molecular do gás",unidade:"kg/kmol",tipo:"number",valor:27.76,step:"0.1"},
+      {id:"ciCO",label:"Teor de CO (janela de metal dusting)",unidade:"%vol",tipo:"number",valor:25.2,step:"0.1"},
+      {tipo:"head",label:"Poeira a coletar"},
+      {id:"ciCpo",label:"CONCENTRAÇÃO de particulado na entrada",unidade:"g/Nm³",tipo:"number",valor:20,step:"1"},
+      {id:"ciRhoP",label:"Massa específica REAL das partículas",unidade:"kg/m³",tipo:"number",valor:3000,step:"100"},
+      {id:"ciD50po",label:"d50 da distribuição do pó",unidade:"µm",tipo:"number",valor:35,step:"5"},
+      {id:"ciSg",label:"Desvio geométrico da distribuição  σg",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"ciCsai",label:"Concentração ALVO na saída",unidade:"g/Nm³",tipo:"number",valor:5,step:"0.5"},
+      {tipo:"head",label:"Geometria e base de dimensionamento"},
+      {id:"ciFam",label:"Família geométrica",tipo:"select",valor:"stairmand",opcoes:[
+        {v:"stairmand",t:"Stairmand alta eficiência — entrada estreita, corte mais fino"},
+        {v:"swift",t:"Swift alta eficiência"},
+        {v:"lapple",t:"Lapple uso geral — menor perda de carga, corte mais grosso"}]},
+      {id:"ciBase",label:"Base de dimensionamento",tipo:"select",valor:"vel",opcoes:[
+        {v:"vel",t:"Pela VELOCIDADE de entrada — o diâmetro é consequência"},
+        {v:"diam",t:"Pelo DIÂMETRO adotado — a velocidade é consequência"}]},
+      {id:"ciVi",label:"Velocidade de entrada de projeto",unidade:"m/s",tipo:"number",valor:18,step:"1"},
+      {id:"ciD",label:"Diâmetro ADOTADO do corpo (só na base por diâmetro)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {tipo:"head",label:"Refratário, casco e ambiente"},
+      {id:"ciTpele",label:"Temperatura de PELE alvo do casco",unidade:"°C",tipo:"number",valor:200,step:"10"},
+      {id:"ciKref",label:"Refratário",tipo:"select",valor:"1.20",opcoes:[
+        {v:"1.20",t:"Castável denso — k 1,20 W/m·K — resistente à abrasão"},
+        {v:"0.60",t:"Castável intermediário — k 0,60 W/m·K"},
+        {v:"0.30",t:"Castável isolante — k 0,30 W/m·K — baixa abrasão"}]},
+      {id:"ciTamb",label:"Temperatura ambiente",unidade:"°C",tipo:"number",valor:30,step:"5"},
+      {id:"ciCorr",label:"Sobrespessura de corrosão",unidade:"mm",tipo:"number",valor:3,step:"1"},
+      {id:"ciFy",label:"Aço do casco",tipo:"select",valor:"250",opcoes:[
+        {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]}
+    ],
+    calcular:cicloneCalc
+  },
   flare:{
     titulo:"Flare (tocha de queima) — dimensionamento executivo",
     referencia:"API STD 521 — Pressure-relieving and Depressuring Systems: contingências de alívio, velocidade de saída na ponta (Mach 0,2 contínuo · 0,5 em emergência), Mach ≤ 0,2 no header coletor, contrapressão admissível por tipo de válvula de segurança, comprimento de chama (Figura 8, ajuste de Beychok L = 0,0059·Q^0,478 com Q em Btu/h), inclinação da chama pelo vento, radiação térmica D = √(τ·F·Q/(4π·K)) com os níveis admissíveis de 1,58 kW/m² (exposição contínua), 4,73 kW/m² (ação emergencial de 2 a 3 min), 6,31 kW/m² (até 30 s) e 9,46 kW/m² (sem pessoal), acrescida da parcela solar de 0,79 a 1,04 kW/m², e vaso separador com remoção de gotas de 300 a 600 µm com 20 a 30 min de retenção. API STD 537 — Flare Details: número de pilotos por diâmetro de ponta, sistemas de ignição e detecção de chama, selos de velocidade e molecular. VENTO: ABNT NBR 6123 (S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). VÓRTICES: velocidade crítica pelo número de Strouhal (St = 0,20) e número de Scruton para decisão de supressores helicoidais. SISMO: ABNT NBR 15421. ESTRUTURA: ABNT NBR 8800 — casco a flexão, placa de base e chumbadores",
@@ -9004,6 +9277,148 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="ciclone"){
+      /* ============ MEMORIAL + CROQUI DO CICLONE ============ */
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+
+          "   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:38},
+                        3:{cellWidth:37},4:{cellWidth:37},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; }
+          }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      function cotaV(x,y1,y2,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        var xc=Math.max(XL+2,Math.min(XR-2,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.4,y1,xc+1.4,y1); doc.line(xc-1.4,y2,xc+1.4,y2);
+        nt(xc+2,(y1+y2)/2,t,30,155,196,5.8); }
+      function cotaH(x1,x2,y,t){ doc.setDrawColor(30,155,196); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.4,x1,y+1.4); doc.line(x2,y-1.4,x2,y+1.4);
+        ntc((x1+x2)/2,y-1.8,t,30,155,196,5.8); }
+
+      ntc(105,28,"CICLONE  ·  "+G.fam+"  ·  D "+G.Dc.toFixed(2)+" m  ·  H "+G.Htot.toFixed(1)+" m",20,60,100,9.0);
+      ntc(105,33,"d50 "+G.d50.toFixed(1)+" um  ·  eficiencia "+G.etaG.toFixed(1)+" %  ·  dP "+G.dP.toFixed(0)+" Pa",90,110,135,7.0);
+
+      /* escala */
+      var yT=44, yB=250, esc=Math.min((yB-yT)/Math.max(G.Htot,1), 150/Math.max(G.Dc,1));
+      if(esc>14) esc=14;
+      var cx=78;
+      /* geometria degenerada (cone invertido, cilindro nulo, diâmetro enorme) jogaria o
+         desenho para fora da folha: cada dimensão do croqui é limitada à área útil.   */
+      var rC=Math.max(6,Math.min(G.Dc*esc/2,52));
+      var rB=Math.max(2,Math.min(G.Bpo*esc/2,rC-1));
+      var hC=Math.max(6,Math.min(G.hCil*esc,150));
+      var hK=Math.max(6,Math.min(G.hCone*esc,150));
+      var yTopo=yT+6, yTrans=yTopo+hC, yFundo=yTrans+hK;
+      if(yFundo>236){ var fEsc=(236-yTopo)/Math.max(yFundo-yTopo,1);
+        hC*=fEsc; hK*=fEsc; yTrans=yTopo+hC; yFundo=yTrans+hK; }
+
+      /* cilindro */
+      doc.setFillColor(214,228,240); doc.setDrawColor(20,60,100); doc.setLineWidth(0.7);
+      doc.rect(cx-rC,yTopo,2*rC,hC,"FD");
+      /* cone */
+      doc.setFillColor(214,228,240);
+      doc.triangle(cx-rC,yTrans,cx+rC,yTrans,cx,yFundo+(rB*0),"F");
+      doc.setDrawColor(20,60,100);
+      doc.line(cx-rC,yTrans,cx-rB,yFundo); doc.line(cx+rC,yTrans,cx+rB,yFundo);
+      doc.line(cx-rB,yFundo,cx+rB,yFundo);
+      doc.setFillColor(255,255,255); doc.setDrawColor(255,255,255);
+      doc.triangle(cx-rB-0.4,yFundo+0.5,cx+rB+0.4,yFundo+0.5,cx,yFundo+8,"F");
+      doc.setDrawColor(20,60,100); doc.setLineWidth(0.7);
+      doc.line(cx-rC,yTrans,cx-rB,yFundo); doc.line(cx+rC,yTrans,cx+rB,yFundo);
+      doc.line(cx-rB,yFundo,cx+rB,yFundo);
+
+      /* refratario: linha interna */
+      /* a linha do refratário é indicativa: espessura desenhada nunca maior que a parede */
+      var eR=Math.max(1.2,Math.min(G.xRef*esc,rC*0.35,hC*0.25));
+      doc.setDrawColor(190,120,60); doc.setLineWidth(0.4); doc.setLineDashPattern([1,1],0);
+      doc.line(cx-rC+eR,yTopo+eR,cx-rC+eR,yTrans); doc.line(cx+rC-eR,yTopo+eR,cx+rC-eR,yTrans);
+      doc.setLineDashPattern([],0);
+      nt(cx+rC+3,yTopo+hC*0.62,"refratario "+Math.round(G.xRef*1000)+" mm  ·  pele "+G.Tpele.toFixed(0)+" C",190,120,60,5.8);
+      nt(cx+rC+3,yTopo+hC*0.62+3.2,"chapa "+G.tcomC.toFixed(1)+" mm  ·  dilatacao "+G.dilat.toFixed(0)+" mm",190,120,60,5.8);
+
+      /* tubo de saida */
+      var rE=Math.max(3,Math.min(G.DeS*esc/2,rC-1)), hS=Math.max(4,Math.min(G.Scy*esc,hC-2));
+      doc.setFillColor(255,255,255); doc.setDrawColor(20,60,100); doc.setLineWidth(0.6);
+      doc.rect(cx-rE,yTopo-10,2*rE,10+hS,"FD");
+      nt(cx+rE+2,yTopo-6,"saida De "+G.DeS.toFixed(2)+" m",20,60,100,6.0);
+      nt(cx+rE+2,yTopo-2.6,"imersao S "+G.Scy.toFixed(2)+" m",20,60,100,5.8);
+
+      /* entrada tangencial */
+      var hA=Math.max(3,Math.min(G.aE*esc,hC-4));
+      doc.setFillColor(232,240,246); doc.setDrawColor(20,60,100);
+      doc.rect(cx-rC-16,yTopo+2,16,hA,"FD");
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.8);
+      doc.line(cx-rC-20,yTopo+2+hA/2,cx-rC-17,yTopo+2+hA/2);
+      doc.line(cx-rC-18.4,yTopo+1+hA/2,cx-rC-17,yTopo+2+hA/2);
+      doc.line(cx-rC-18.4,yTopo+3+hA/2,cx-rC-17,yTopo+2+hA/2);
+      nt(cx-rC-38,yTopo-1,"entrada tangencial",40,140,90,6.0);
+      nt(cx-rC-38,yTopo+2.4,G.aE.toFixed(2)+" x "+G.bE.toFixed(2)+" m",40,140,90,5.8);
+      nt(cx-rC-38,yTopo+5.8,"v = "+G.vi.toFixed(1)+" m/s",40,140,90,5.8);
+      nt(cx-rC-38,yTopo+9.2,G.QN.toFixed(0)+" Nm3/h",40,140,90,5.8);
+      nt(cx-rC-38,yTopo+12.6,Math.round(G.Q3*3600)+" m3/h a "+G.Tg.toFixed(0)+" C",40,140,90,5.8);
+
+      /* descarga de po */
+      doc.setDrawColor(150,90,50); doc.setLineWidth(0.6);
+      doc.rect(cx-rB,yFundo,2*rB,6,"D");
+      doc.circle(cx,yFundo+9,2.6,"D");
+      doc.line(cx-2.6,yFundo+9,cx+2.6,yFundo+9); doc.line(cx,yFundo+6.4,cx,yFundo+11.6);
+      nt(cx+rB+3,yFundo+4,"saida de po B "+G.Bpo.toFixed(2)+" m",150,90,50,5.8);
+      nt(cx+rB+3,yFundo+9,"valvula estanque ~"+Math.round(G.Dvalv*1000)+" mm",150,90,50,5.8);
+      nt(cx+rB+3,yFundo+12.4,G.WpoCol.toFixed(2)+" t/h  ·  tolva "+G.Vtolva.toFixed(1)+" m3",150,90,50,5.8);
+
+      /* cotas */
+      cotaV(cx-rC-4,yTopo,yTrans,"h "+G.hCil.toFixed(2)+" m");
+      cotaV(cx-rC-10,yTopo,yFundo,"H "+G.Htot.toFixed(2)+" m");
+      cotaV(cx+rC+30,yTrans,yFundo,"cone "+G.hCone.toFixed(2)+" m  ("+G.angCone.toFixed(1)+" graus)");
+      cotaH(cx-rC,cx+rC,yTopo-13,"D "+G.Dc.toFixed(2)+" m");
+
+      /* quadro-resumo */
+      doc.autoTable({startY:Math.min(yFundo+18,232),theme:"grid",margin:{left:120,right:14},
+        head:[[san("Resumo do ciclone"),san("Valor")]],
+        body:[
+          [san("Vazao real / normal"),Math.round(G.Q3*3600)+" m3/h / "+Math.round(G.QN)+" Nm3/h"],
+          [san("Expansao termica do gas"),san(G.expT.toFixed(2))+"x"],
+          [san("Massa especifica do gas"),san(G.rhoG.toFixed(4))+" kg/m3"],
+          [san("Viscosidade"),san((G.muG*1e6).toFixed(2))+" uPa.s"],
+          [san("Velocidade de entrada"),san(G.vi.toFixed(1))+" m/s"+(G.viOK?" OK":" FORA")],
+          [san("Diametro de corte d50"),san(G.d50.toFixed(1))+" um"],
+          [san("Eficiencia global"),san(G.etaG.toFixed(1))+" %"],
+          [san("Poeira entrada / saida"),san(G.Cpo.toFixed(1))+" / "+san(G.Csai.toFixed(2))+" g/Nm3"+(G.saiOK?" OK":" NAO ATENDE")],
+          [san("Po coletado"),san(G.WpoCol.toFixed(2))+" t/h"],
+          [san("Perda de carga"),san(G.dP.toFixed(0))+" Pa ("+san(G.dPmm.toFixed(0))+" mmH2O)"],
+          [san("Refratario / pele"),Math.round(G.xRef*1000)+" mm / "+san(G.Tpele.toFixed(0))+" C"],
+          [san("Massa total estimada"),Math.round(G.mTot)+" kg"]
+        ],
+        styles:{fontSize:6.6,cellPadding:1.1,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.8},
+        columnStyles:{0:{cellWidth:38},1:{cellWidth:38,halign:"right"}}});
+
+      nt(XL,268,"Pre-dimensionamento: geometrias de Stairmand / Swift / Lapple, corte por Lapple-Shepherd e eficiencia fracionaria de Lapple.",120,130,150,5.6);
+      nt(XL,271.5,"A eficiencia real depende de reentrainment, estanqueidade da descarga de po e aglomeracao - exigir curva garantida do fabricante.",120,130,150,5.6);
+
     } else if(G.tipo==="flare"){
       /* ============ MEMORIAL CONSOLIDADO — página própria, 5 colunas ============
          É a tabela que o projetista assina: dado de entrada, equação, resultado,
