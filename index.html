@@ -1432,13 +1432,16 @@ function moegaCalc(){
     var Ffl=1-0.2/(1+Math.tan(bRl)/Math.max(muHe,0.01));
     var Sf=cunha?1:2;
     var nl=Sf*(Ffl*muHe/Math.max(Math.tan(bRl),0.01)+Ffl)-2;
+    /* expoente fora de faixa (geometria degenerada) faz r^n explodir: limita-se. */
+    if(!isFinite(nl)) nl=1.5; nl=Math.max(-4,Math.min(60,nl));
     var hh=(t>0.001)?(H*(dimTopo/2)/t):(H*50);               // vértice → transição
     var x0=Math.max(hh-H,0.001);                             // vértice → boca
     var pvMax=0,pvT=0;
     for(var q=0;q<=20;q++){
-      var x=x0+(hh-x0)*q/20, r=x/hh, pvx;
+      var x=x0+(hh-x0)*q/20, r=Math.min(Math.max(x/Math.max(hh,1e-6),1e-6),1), pvx;
       if(Math.abs(nl-1)<0.02){ pvx=gamma*hh*r*Math.log(1/Math.max(r,1e-6))+pvD*r; }
       else { pvx=(gamma*hh/(nl-1))*(r-Math.pow(r,nl))+pvD*Math.pow(r,nl); }
+      if(!isFinite(pvx)) pvx=0;
       if(pvx>pvMax)pvMax=pvx;
       if(q===20)pvT=pvx;
     }
@@ -1949,7 +1952,8 @@ function flareCalc(){
   var Areq=Qv/Vadm;
   var dcalc=Math.sqrt(4*Areq/Math.PI)*1000;           // mm
   var DPOL=[2,3,4,6,8,10,12,14,16,18,20,24,30,36,42,48,54,60,72];
-  var dUser=num("flDtip");
+  var dTipSel=selv("flDtip","auto");
+  var dUser=(dTipSel==="auto")?0:(parseFloat(dTipSel)/0.0254);   // polegadas equivalentes
   var Ktip0=num("flKtip"); if(!isFinite(Ktip0)||Ktip0<=0)Ktip0=1.5;
   /* Em gás de BAIXA PRESSÃO — BFG dispõe de 50 a 250 mmH2O — não é o Mach que governa o
      diâmetro, e sim a PERDA DE CARGA. Dimensiona-se primeiro pelo Mach e, em serviço
@@ -1957,6 +1961,9 @@ function flareCalc(){
      reservando 60 % dela para a ponta e 40 % para o header e o selo.                    */
   var Pdisp0=num("flPdisp"); if(!isFinite(Pdisp0)||Pdisp0<=0)Pdisp0=20;
   var dpTipAdm=contInuo?(0.60*Pdisp0):1e9;                       // kPa
+  /* a velocidade máxima admissível na ponta precisa existir fora do ramo automático:
+     com o diâmetro imposto pelo usuário o else não roda, e a verificação usaria undefined. */
+  var vMaxTip=num("flVmax"); if(!isFinite(vMaxTip)||vMaxTip<=0)vMaxTip=1e9;
   var dpol, dpGov=false;
   if(isFinite(dUser)&&dUser>0){ dpol=dUser; }
   else {
@@ -1965,7 +1972,6 @@ function flareCalc(){
     var dpolMach=dpol;
     /* além da perda de carga, a velocidade de saída tem de respeitar o máximo admissível
        adotado para o gás (30 m/s em BFG) — é ele que limita a erosão e o ruído na ponta. */
-    var vMaxTip=num("flVmax"); if(!isFinite(vMaxTip)||vMaxTip<=0)vMaxTip=1e9;
     for(var i2=0;i2<DPOL.length;i2++){
       if(DPOL[i2]<dpolMach) continue;
       var At=Math.PI*Math.pow(DPOL[i2]*0.0254,2)/4;
@@ -1977,7 +1983,22 @@ function flareCalc(){
     }
     dpGov=(dpol>dpolMach);
   }
-  var dtip=dpol*25.4/1000;                            // m
+  /* ---------- DIÂMETRO DA PONTA: NECESSÁRIO × ADOTADO ----------
+     O necessário é o menor diâmetro que atende SIMULTANEAMENTE ao Mach admissível, à
+     velocidade máxima adotada e — em serviço contínuo — à perda de carga disponível.
+     O adotado é escolha do projetista, em passo de 0,1 m; "auto" pega o comercial mais
+     próximo do necessário. Com o adotado em mãos, verificam-se as velocidades.        */
+  var dTipReq=dpol*25.4/1000;                         // m — o que o cálculo exige
+  var dtip, dTipAuto=(dTipSel==="auto");
+  /* No automático arredonda-se PARA CIMA, e não para o mais próximo: o requerido da
+     ponta é um MÍNIMO — é o menor diâmetro que ainda cabe no Mach, na velocidade e na
+     perda de carga. Descer dele reprova por construção. O passo abaixo é manual: o
+     projetista pode impor qualquer valor e a verificação diz o que isso custa.       */
+  if(dTipAuto){ dtip=Math.ceil(dTipReq*10)/10; }
+  else { dtip=parseFloat(dTipSel); }
+  if(!isFinite(dtip)||dtip<=0) dtip=dTipReq;
+  dpol=dtip/0.0254;                                   // polegadas equivalentes, p/ tabelas
+  var dTipAbaixo=(dtip<dTipReq-1e-6);                 // adotado menor que o necessário
   var Atip=Math.PI*dtip*dtip/4;
   var Vsai=Qv/Atip, Ma=Vsai/son;
   var machOK=(Ma<=maAdm+0.005);
@@ -2270,10 +2291,19 @@ function flareCalc(){
   var S2w=pw2[0]*FR[clsW]*Math.pow(Math.max(Hst,5)/10,pw2[1]);
   var Vk=V0*S1w*S2w*S3w, qv=0.613*Vk*Vk/1000;           // kPa
   /* diâmetro do casco: por esbeltez construtiva se não informado */
-  var Dst=num("flDst");
-  /* o casco autoportante É o riser: adota-se o diâmetro do riser, respeitando a ponta
-     e um mínimo de esbeltez construtiva.                                            */
-  if(!isFinite(Dst)||Dst<=0){ Dst=Math.max(Driser, dtip, Hst/40); Dst=Math.ceil(Dst*10)/10; }
+  /* ---------- DIÂMETRO DO CASCO: NECESSÁRIO × ADOTADO ----------
+     O casco autoportante É o tubo de subida, então ele tem de acomodar, ao mesmo tempo,
+     o diâmetro hidráulico do riser, o diâmetro da ponta que sustenta, e um piso de
+     esbeltez construtiva de H/40. O necessário é o maior dos três.                    */
+  var DstRiser=Driser, DstPonta=dtip, DstEsb=Hst/40;
+  var DstReq=Math.max(DstRiser,DstPonta,DstEsb);
+  var DstGov=(DstReq<=DstEsb+1e-9)?"esbeltez construtiva H/40":((DstReq<=DstRiser+1e-9)?"diâmetro hidráulico do riser":"diâmetro da ponta");
+  var dStSel=selv("flDst","auto");
+  var Dst, DstAuto=(dStSel==="auto");
+  if(DstAuto){ Dst=Math.ceil(DstReq*10)/10; }         /* para cima: não se pode faltar */
+  else { Dst=parseFloat(dStSel); }
+  if(!isFinite(Dst)||Dst<=0) Dst=Math.ceil(DstReq*10)/10;
+  var DstAbaixo=(Dst<DstReq-1e-6);
   var Ca=num("flCa"); if(!isFinite(Ca)||Ca<=0)Ca=0.7;   // cilindro circular, regime supercrítico
   var Fw=qv*Ca*Dst*Hst;                                  // kN
   var Mw=Fw*Hst/2;                                       // kN·m na base
@@ -2739,7 +2769,23 @@ function flareCalc(){
     {sec:"6 e 7 — FLARE TIP: área, diâmetro, velocidade e Mach"},
     {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
     {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
-    {k:"DIÂMETRO DA PONTA ADOTADO",v:dpol+"\" ("+(dtip*1000).toFixed(0)+" mm)"+((isFinite(dUser)&&dUser>0)?"   (imposto pelo usuário)":(dpGov?("   —  ABERTO além do requerido por Mach ("+dcalc.toFixed(0)+" mm) para respeitar a velocidade máxima de "+vMaxTip.toFixed(0)+" m/s e a perda de carga admissível"):"   (comercial imediatamente superior ao requerido por Mach)")),hi:true},
+    {k:"DIÂMETRO NECESSÁRIO da ponta",v:(dTipReq*1000).toFixed(0)+" mm   =   "+dTipReq.toFixed(3).replace(".",",")+" m   —  é o menor diâmetro que atende ao mesmo tempo ao Mach admissível ("+dcalc.toFixed(0)+" mm), à velocidade máxima de "+vMaxTip.toFixed(0)+" m/s"+(contInuo?(" e à perda de carga disponível de "+dpTipAdm.toFixed(2).replace(".",",")+" kPa"):"")+(dpGov?"   —  aqui QUEM ABRIU o diâmetro foi a perda de carga / velocidade, não o Mach":""),hi:true},
+    {k:"DIÂMETRO ADOTADO da ponta",v:dtip.toFixed(1).replace(".",",")+" m   (DN "+(dtip*1000).toFixed(0)+"  ·  "+dpol.toFixed(0)+"\" equivalentes)"+(dTipAuto?("   —  comercial de 0,1 m mais próximo do necessário"):"   —  imposto pelo usuário")+"   ·   diferença "+((dtip-dTipReq)>=0?"+":"")+((dtip-dTipReq)*1000).toFixed(0)+" mm"+(dTipAbaixo?"   ⚠ ABAIXO DO NECESSÁRIO — as velocidades abaixo vão estourar":"   ✓ atende ao necessário"),hi:true},
+    {k:"VERIFICAÇÃO — envelope de velocidades no diâmetro adotado",v:(function(){
+        var vs=condOp.map(function(c){return c.vUnico;});
+        var vmaxOp=Math.max.apply(null,vs), vminOp=Math.min.apply(null,vs);
+        var okMax=(vmaxOp<=vMaxTip+0.01), okMin=(vminOp>=vMin-0.01), okLam=(vminOp>=vLam);
+        return "MÁXIMA "+vmaxOp.toFixed(2).replace(".",",")+" m/s   vs   "+vMaxTip.toFixed(0)+" m/s admissíveis "+(okMax?"✓":"⚠ EXCEDE")+
+               "      ·      MÍNIMA "+vminOp.toFixed(2).replace(".",",")+" m/s   vs   "+vMin.toFixed(0)+" m/s sem downwash "+(okMin?"✓":"⚠ ABAIXO")+
+               "   e   "+vLam.toFixed(2).replace(".",",")+" m/s de chama laminar "+(okLam?"✓":"⚠ RISCO DE RETROCESSO")+
+               "   —  faixa varrida "+(vmaxOp/Math.max(vminOp,0.001)).toFixed(2).replace(".",",")+":1";})(),hi:true},
+    ...condOp.map(function(c){ var ok=(c.vUnico<=vMaxTip+0.01)&&(c.vUnico>=vMin-0.01);
+      return {k:"     · "+c.n,v:fmt(Math.round(c.Q))+" Nm³/h   →   "+c.vUnico.toFixed(2).replace(".",",")+" m/s   ·   Ma = "+(c.vUnico/son).toFixed(4).replace(".",",")+"   —   "+c.sitU,hi:!ok}; }),
+    {k:"Velocidade por diâmetro comercial (vazão de projeto)",v:(function(){var t=[];
+        for(var d9=Math.max(0.3,Math.round((dTipReq-0.4)*10)/10);d9<=dTipReq+0.5;d9=Math.round((d9+0.1)*10)/10){
+          var a9=Math.PI*d9*d9/4, v9=Qv/a9;
+          t.push(d9.toFixed(1).replace(".",",")+" m: "+v9.toFixed(1).replace(".",",")+" m/s"+((v9>vMaxTip)?" ⚠":""));}
+        return t.join("   ·   ");})()+"   —  o ⚠ marca quem estoura a velocidade máxima de "+vMaxTip.toFixed(0)+" m/s"},
     {k:"Velocidade e Mach na vazão de projeto",v:Vsai.toFixed(0)+" m/s   ·   Ma = "+Ma.toFixed(3).replace(".",",")+(machOK?"   ✓ dentro do limite":"   ⚠ ACIMA do limite adotado — aumentar o diâmetro"),hi:!machOK},
     {k:"Velocidade e Mach na vazão mínima contínua",v:(Wmin>0?(VsaiMin.toFixed(1).replace(".",",")+" m/s   ·   Ma = "+MaMin.toFixed(4).replace(".",",")+"   —  verificar com o fabricante a estabilidade de chama e o limite de retrocesso nesta condição"):"não informada — informar a vazão contínua mínima para verificar a estabilidade de chama em turndown")},
     {k:"Perda de carga na ponta  ΔP = K·ρV²/2",v:dPtip.toFixed(2).replace(".",",")+" kPa   (K = "+Ktip.toFixed(1).replace(".",",")+" — 1,5 típico de ponta tubular, 2 a 3 em ponta proprietária; confirmar com a curva do fabricante)"},
@@ -2856,6 +2902,17 @@ function flareCalc(){
     {k:"Tipo de torre",v:tipoUso+((tipoFl==="auto")?("   (recomendado pela altura de "+Hst.toFixed(0)+" m: autoportante até cerca de 60 m, estaiada até 120 m, treliçada acima)"):"   (imposto pelo usuário)"),hi:true},
     {k:"Velocidade característica  Vk = V0·S1·S2·S3",v:Vk.toFixed(1).replace(".",",")+" m/s   (V0 = "+V0.toFixed(0)+" · S1 = "+S1w.toFixed(2).replace(".",",")+" · S2 = "+S2w.toFixed(3).replace(".",",")+" cat. "+catW+" cl. "+clsW+" · S3 = "+S3w.toFixed(2).replace(".",",")+")"},
     {k:"Pressão dinâmica  q = 0,613·Vk²",v:qv.toFixed(2).replace(".",",")+" kPa"},
+    {k:"DIÂMETRO NECESSÁRIO do casco",v:DstReq.toFixed(3).replace(".",",")+" m   —   GOVERNA: "+DstGov+"   ·   riser "+DstRiser.toFixed(3).replace(".",",")+" m   ·   ponta "+DstPonta.toFixed(3).replace(".",",")+" m   ·   esbeltez H/40 "+DstEsb.toFixed(3).replace(".",",")+" m.  O casco autoportante É o tubo de subida: precisa acomodar o diâmetro hidráulico do riser, o diâmetro da ponta que sustenta e o piso construtivo de esbeltez.",hi:true},
+    {k:"DIÂMETRO ADOTADO do casco",v:Dst.toFixed(1).replace(".",",")+" m   (DN "+(Dst*1000).toFixed(0)+")"+(DstAuto?"   —  arredondado para cima ao passo de 0,1 m":"   —  imposto pelo usuário")+"   ·   diferença "+((Dst-DstReq)>=0?"+":"")+((Dst-DstReq)*1000).toFixed(0)+" mm"+(DstAbaixo?"   ⚠ ABAIXO DO NECESSÁRIO — o casco não comporta "+DstGov:"   ✓ atende ao necessário"),hi:true},
+    {k:"VERIFICAÇÃO — velocidade do gás no casco (é o riser)",v:(function(){
+        var Ac=Math.PI*Dst*Dst/4;
+        var vs=condOp.map(function(c){ return (c.Q*fNm3)/Ac; });
+        var vmx=Math.max.apply(null,vs), vmn=Math.min.apply(null,vs);
+        var okc=(vmx<=vMaxRis+0.01);
+        return "MÁXIMA "+vmx.toFixed(2).replace(".",",")+" m/s   vs   "+vMaxRis.toFixed(0)+" m/s de projeto do riser "+(okc?"✓":"⚠ EXCEDE — abrir o casco")+
+               "      ·      MÍNIMA "+vmn.toFixed(2).replace(".",",")+" m/s   ·   Mach máximo "+(vmx/son).toFixed(4).replace(".",",")+
+               "   —  velocidade baixa no casco não é problema de estabilidade (a chama está na ponta), mas aumenta o tempo de residência e o risco de condensado no fundo";})(),hi:true},
+    {k:"Efeito de abrir ou fechar o casco",v:"Abrir o casco reduz a velocidade e a perda de carga, mas aumenta a área de vento (Fw = q·Ca·D·H, hoje "+Fw.toFixed(1).replace(".",",")+" kN), o peso e a fundação. Também sobe a velocidade crítica de vórtices, Vcr = f₁·D/St = "+Vcr.toFixed(1).replace(".",",")+" m/s — ou seja, mexe direto na necessidade de helicoide."},
     {k:"Diâmetro do casco  ·  esbeltez",v:Dst.toFixed(2).replace(".",",")+" m   ·   H/D = "+esbeltez.toFixed(0)+(esbeltez>35?"   ⚠ muito esbelta — verificar deslocamento no topo e vibração":"   ✓")},
     {k:"Força e momento de vento na base",v:"Fw = "+kNkg(Fw)+"   ·   M = "+fmt(Math.round(Mw))+" kN·m"},
     {k:"Casco a flexão  (Ca = "+Ca.toFixed(2).replace(".",",")+" · γf = 1,4)",v:"W requerido "+fmt(Math.round(Wreq))+" cm³   →   espessura calculada "+tcalc.toFixed(1).replace(".",",")+" mm + "+corr.toFixed(1).replace(".",",")+" mm de sobrespessura   →   COMERCIAL "+tcom.toFixed(1).replace(".",",")+" mm",hi:true},
@@ -3011,8 +3068,24 @@ function flareCalc(){
    ["5","Mach no header","Ma = v/c",vv(MaH,3),"≤ "+vv(MaHead,2)+" (API 521)",st(headOK)],
    ["5","Contrapressão total","Σ Δp da ponta, riser e header",
     vv(PbackMan,2)+" kPa",vv(PbackAdm,2)+" kPa disponíveis",st(backOK)],
-   ["6","Diâmetro da ponta","A = Q/v;  D = √(4A/π)",
-    vv(dtip,3)+" m ("+dpol+" pol)","por Mach e velocidade admissíveis","—"],
+   ["6","Diâmetro da ponta — necessário × adotado","A = Q/v;  D = √(4A/π)",
+    "requerido "+vv(dTipReq,3)+" m  →  adotado "+vv(dtip,1)+" m ("+vv(dpol,0)+" pol)",
+    "adotado ≥ requerido  (dif. "+((dtip-dTipReq)>=0?"+":"")+vv((dtip-dTipReq)*1000,0)+" mm)",st(!dTipAbaixo)],
+   ["7","Envelope de velocidades na ponta","v = Q/A em cada condição de operação",
+    (function(){var vs=condOp.map(function(c){return c.vUnico;});
+      return "máx "+vv(Math.max.apply(null,vs))+"  ·  mín "+vv(Math.min.apply(null,vs))+" m/s";})(),
+    "entre "+vv(vMin,0)+" e "+vv(vMax,0)+" m/s",
+    (function(){var vs=condOp.map(function(c){return c.vUnico;});
+      return st(Math.max.apply(null,vs)<=vMax+0.01&&Math.min.apply(null,vs)>=vMin-0.01);})()],
+   ["17","Diâmetro do casco — necessário × adotado","máx(riser; ponta; H/40)",
+    "requerido "+vv(DstReq,3)+" m ("+DstGov+")  →  adotado "+vv(Dst,1)+" m",
+    "adotado ≥ requerido  (dif. "+((Dst-DstReq)>=0?"+":"")+vv((Dst-DstReq)*1000,0)+" mm)",st(!DstAbaixo)],
+   ["17","Velocidade do gás no casco","v = Q/A do casco",
+    (function(){var Ac=Math.PI*Dst*Dst/4, vs=condOp.map(function(c){return (c.Q*fNm3)/Ac;});
+      return "máx "+vv(Math.max.apply(null,vs))+"  ·  mín "+vv(Math.min.apply(null,vs))+" m/s";})(),
+    "≤ "+vv(vMaxRis,0)+" m/s de projeto do riser",
+    (function(){var Ac=Math.PI*Dst*Dst/4, vs=condOp.map(function(c){return (c.Q*fNm3)/Ac;});
+      return st(Math.max.apply(null,vs)<=vMaxRis+0.01);})()],
    ["7","Mach na ponta","Ma = v_saída/c",vv(Ma,3),"≤ "+vv(maAdm,2)+" (API 521)",st(machOK)],
    ["7","Velocidade de saída","v = Q_real/A",vv(Vsai,1)+" m/s","≤ "+vv(vMaxTip,0)+" m/s",st(vTipOK)],
    ["8","Estabilidade — PCI volumétrico","PCI·ρN",vv(LHVvol)+" MJ/Nm³","≥ 11,82 MJ/Nm³ (API 537)",st(estavel)],
@@ -3545,7 +3618,36 @@ const CALCS={
         {v:"3.9",t:"3.9 m  (DN 3900)"},
         {v:"4.0",t:"4.0 m  (DN 4000)"},
         ]},
-      {id:"flDtip",label:"Diâmetro da ponta (0 = calcular)",unidade:"pol",tipo:"number",valor:0,step:"2"},
+      {id:"flDtip",label:"Diâmetro ADOTADO da PONTA",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — comercial de 0,1 m MAIS PRÓXIMO do requerido"},
+        {v:"0.3",t:"0.3 m  (DN 300)"},
+        {v:"0.4",t:"0.4 m  (DN 400)"},
+        {v:"0.5",t:"0.5 m  (DN 500)"},
+        {v:"0.6",t:"0.6 m  (DN 600)"},
+        {v:"0.7",t:"0.7 m  (DN 700)"},
+        {v:"0.8",t:"0.8 m  (DN 800)"},
+        {v:"0.9",t:"0.9 m  (DN 900)"},
+        {v:"1.0",t:"1.0 m  (DN 1000)"},
+        {v:"1.1",t:"1.1 m  (DN 1100)"},
+        {v:"1.2",t:"1.2 m  (DN 1200)"},
+        {v:"1.3",t:"1.3 m  (DN 1300)"},
+        {v:"1.4",t:"1.4 m  (DN 1400)"},
+        {v:"1.5",t:"1.5 m  (DN 1500)"},
+        {v:"1.6",t:"1.6 m  (DN 1600)"},
+        {v:"1.7",t:"1.7 m  (DN 1700)"},
+        {v:"1.8",t:"1.8 m  (DN 1800)"},
+        {v:"1.9",t:"1.9 m  (DN 1900)"},
+        {v:"2.0",t:"2.0 m  (DN 2000)"},
+        {v:"2.1",t:"2.1 m  (DN 2100)"},
+        {v:"2.2",t:"2.2 m  (DN 2200)"},
+        {v:"2.3",t:"2.3 m  (DN 2300)"},
+        {v:"2.4",t:"2.4 m  (DN 2400)"},
+        {v:"2.5",t:"2.5 m  (DN 2500)"},
+        {v:"2.6",t:"2.6 m  (DN 2600)"},
+        {v:"2.7",t:"2.7 m  (DN 2700)"},
+        {v:"2.8",t:"2.8 m  (DN 2800)"},
+        {v:"2.9",t:"2.9 m  (DN 2900)"},
+        {v:"3.0",t:"3.0 m  (DN 3000)"}]},
       {id:"flKtip",label:"Coeficiente de perda de carga da ponta  K",tipo:"number",valor:1.5,step:"0.1"},
       {id:"flPset",label:"Pressão de ajuste da PSV mais crítica",unidade:"kPa man.",tipo:"number",valor:1000,step:"50"},
       {id:"flPdisp",label:"Pressão disponível na fonte (só em serviço contínuo)",unidade:"kPa man.",tipo:"number",valor:0.98,step:"0.01"},
@@ -3652,7 +3754,44 @@ const CALCS={
         {v:"autoportante",t:"Autoportante"},
         {v:"estaiada",t:"Estaiada"},
         {v:"em torre treliçada",t:"Em torre treliçada"}]},
-      {id:"flDst",label:"Diâmetro do casco (0 = por esbeltez)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"flDst",label:"Diâmetro ADOTADO do CASCO (torre)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"Automático — comercial de 0,1 m MAIS PRÓXIMO do requerido"},
+        {v:"0.5",t:"0.5 m  (DN 500)"},
+        {v:"0.6",t:"0.6 m  (DN 600)"},
+        {v:"0.7",t:"0.7 m  (DN 700)"},
+        {v:"0.8",t:"0.8 m  (DN 800)"},
+        {v:"0.9",t:"0.9 m  (DN 900)"},
+        {v:"1.0",t:"1.0 m  (DN 1000)"},
+        {v:"1.1",t:"1.1 m  (DN 1100)"},
+        {v:"1.2",t:"1.2 m  (DN 1200)"},
+        {v:"1.3",t:"1.3 m  (DN 1300)"},
+        {v:"1.4",t:"1.4 m  (DN 1400)"},
+        {v:"1.5",t:"1.5 m  (DN 1500)"},
+        {v:"1.6",t:"1.6 m  (DN 1600)"},
+        {v:"1.7",t:"1.7 m  (DN 1700)"},
+        {v:"1.8",t:"1.8 m  (DN 1800)"},
+        {v:"1.9",t:"1.9 m  (DN 1900)"},
+        {v:"2.0",t:"2.0 m  (DN 2000)"},
+        {v:"2.1",t:"2.1 m  (DN 2100)"},
+        {v:"2.2",t:"2.2 m  (DN 2200)"},
+        {v:"2.3",t:"2.3 m  (DN 2300)"},
+        {v:"2.4",t:"2.4 m  (DN 2400)"},
+        {v:"2.5",t:"2.5 m  (DN 2500)"},
+        {v:"2.6",t:"2.6 m  (DN 2600)"},
+        {v:"2.7",t:"2.7 m  (DN 2700)"},
+        {v:"2.8",t:"2.8 m  (DN 2800)"},
+        {v:"2.9",t:"2.9 m  (DN 2900)"},
+        {v:"3.0",t:"3.0 m  (DN 3000)"},
+        {v:"3.1",t:"3.1 m  (DN 3100)"},
+        {v:"3.2",t:"3.2 m  (DN 3200)"},
+        {v:"3.3",t:"3.3 m  (DN 3300)"},
+        {v:"3.4",t:"3.4 m  (DN 3400)"},
+        {v:"3.5",t:"3.5 m  (DN 3500)"},
+        {v:"3.6",t:"3.6 m  (DN 3600)"},
+        {v:"3.7",t:"3.7 m  (DN 3700)"},
+        {v:"3.8",t:"3.8 m  (DN 3800)"},
+        {v:"3.9",t:"3.9 m  (DN 3900)"},
+        {v:"4.0",t:"4.0 m  (DN 4000)"}]},
       {id:"flFy",label:"Aço do casco",tipo:"select",valor:"250",opcoes:[
         {v:"250",t:"ASTM A36 / MR250  (fy 250 MPa)"},
         {v:"345",t:"ASTM A572 Gr.50  (fy 345 MPa)"}]},
