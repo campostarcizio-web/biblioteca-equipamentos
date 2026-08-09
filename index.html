@@ -2158,6 +2158,16 @@ function flareCalc(){
   var radOK=(Hst>=Hreq-0.05);
   var folgaH=Hst-Hreq;
   var dPriser=0.02*(Hst/Driser)*rho*vRiserReal*vRiserReal/2/1000;   // kPa — atrito na subida
+  /* ---------- CONTRAPRESSÃO TOTAL, agora que a altura é conhecida ----------
+     O caminho do gás é header → riser → ponta, e a perda nos três conta. O riser ficava
+     de fora porque só podia ser calculado depois da altura; recompõe-se aqui. Entra
+     também o termo estático da coluna: com o gás na torre mais leve que o ar ambiente há
+     efeito chaminé, que ALIVIA a contrapressão; mais pesado, penaliza.               */
+  var dPestat=(rho-rhoAr)*g*Hst/1000;                  // kPa — negativo = chaminé ajuda
+  var dPtotal=dPtip+dPhead+dPriser+dPestat;
+  Pback=Patm+dPtotal;
+  PbackMan=Pback-Patm;
+  backOK=(PbackMan<=PbackAdm);
   /* radiação resultante em pontos de interesse */
   function Krad(R,H){
     var dx=R-dxF, dy=H+dyF;
@@ -2764,8 +2774,9 @@ function flareCalc(){
       return d.toFixed(1).replace(".",",")+" m: "+vv.toFixed(1).replace(".",",")+" m/s / "+dp.toFixed(2).replace(".",",")+" kPa"+((dp<=dpHeadAdm)?"":" ⚠");
       }).join("   ·   ")+"   —  velocidade e perda de carga em cada diâmetro; o ⚠ marca quem estoura a perda admissível de "+dpHeadAdm.toFixed(2).replace(".",",")+" kPa"},
     {k:"Perda de carga no header  (Darcy, f = 0,015)",v:dPhead.toFixed(2).replace(".",",")+" kPa   em "+Lhead.toFixed(0)+" m equivalentes"},
-    {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(1).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
-    {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(1).replace(".",",")+" kPa man. disponíveis"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
+    {k:"Composição da contrapressão",v:"ponta "+dPtip.toFixed(3).replace(".",",")+"   +   header "+dPhead.toFixed(3).replace(".",",")+"   +   riser "+dPriser.toFixed(3).replace(".",",")+"   "+((dPestat<0)?"−":"+")+"   coluna estática "+Math.abs(dPestat).toFixed(3).replace(".",",")+"   =   "+dPtotal.toFixed(3).replace(".",",")+" kPa"+((dPestat<0)?"   —  o termo estático é NEGATIVO: o gás na torre está mais leve que o ar ambiente e o efeito chaminé alivia a contrapressão":"   —  o termo estático PENALIZA: o gás na torre está mais pesado que o ar ambiente"),hi:true},
+    {k:"CONTRAPRESSÃO TOTAL no bocal da PSV",v:PbackMan.toFixed(2).replace(".",",")+" kPa man.   ("+(PbackMan/Pset*100).toFixed(1).replace(".",",")+" % da pressão de ajuste)",hi:true},
+    {k:(contInuo?"Pressão DISPONÍVEL na fonte":"Limite do tipo de válvula adotado"),v:(contInuo?("gás de processo ou soprador: "+Pdisp.toFixed(2).replace(".",",")+" kPa man. disponíveis   ·   consumidos "+(PbackMan/Math.max(PbackAdm,1e-9)*100).toFixed(0)+" %   ·   folga "+(PbackAdm-PbackMan).toFixed(3).replace(".",",")+" kPa"):(({conv:"Convencional — 10 % da pressão de ajuste",balanc:"Balanceada com fole — 50 %",pilot:"Operada por piloto — 80 %"})[tipoPSV]+"   →   "+PbackAdm.toFixed(0)+" kPa"))+(backOK?"   ✓ ATENDE":"   ⚠ EXCEDE — "+(contInuo?"a perda de carga supera a pressão disponível: aumentar a ponta e o header, ou prever soprador":"aumentar a ponta ou o header, ou trocar o tipo de válvula")),hi:!backOK},
     {sec:"6 e 7 — FLARE TIP: área, diâmetro, velocidade e Mach"},
     {k:"Critério de velocidade adotado",v:"Mach "+maAdm.toFixed(2).replace(".",",")+"   —  a API 521 limita a 0,2 em operação contínua e a 0,5 em alívio de emergência; acima disso há descolamento de chama, e muito abaixo há risco de retrocesso"},
     {k:"Área e diâmetro requeridos",v:Areq.toFixed(3).replace(".",",")+" m²   →   "+dcalc.toFixed(0)+" mm"},
