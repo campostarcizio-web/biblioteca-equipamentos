@@ -2131,16 +2131,43 @@ function flareCalc(){
   var Ksol=num("flKsol"); if(!isFinite(Ksol)||Ksol<0)Ksol=1.0;   // kW/m² — solar
   var Kadm=selvN("flKadm",4.73);
   var Knet=Math.max(Kadm-Ksol,0.1);
+  /* ---------- RADIAÇÃO COM MAIS DE UMA TORRE ----------
+     Radiação é grandeza ADITIVA no receptor: se duas tochas queimam ao mesmo tempo, o
+     ponto ocupado recebe a soma das duas, e a parcela solar entra UMA vez só. Dimensionar
+     cada torre isoladamente é o erro clássico de arranjo com bateria de flares — cada uma
+     passa sozinha e o conjunto reprova. As torres são tomadas alinhadas e igualmente
+     espaçadas, com o posto ocupado sobre essa linha, que é a orientação mais severa.  */
+  var nTor=selvN("flNtor",1); if(!isFinite(nTor)||nTor<1)nTor=1; nTor=Math.min(Math.round(nTor),4);
+  var sepTor=num("flSepTor"); if(!isFinite(sepTor)||sepTor<0)sepTor=0;
+  function qUma(dh,H){                                   // parcela de UMA tocha, sem solar
+    var dx=dh-dxF, dy=H+dyF;
+    return tau*Frad*Qcal/(4*Math.PI*Math.max(dx*dx+dy*dy,0.01));
+  }
   var Drad=Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Knet));  // m — distância mínima ao centro da chama
   var Rpes=num("flRpes"); if(!isFinite(Rpes)||Rpes<0)Rpes=50;    // m — distância ao ponto com pessoal
   /* (a) radiação no ponto com pessoal */
   var arg=Drad*Drad-Math.pow(Math.max(Rpes-dxF,0),2);
   var Hrad=(arg>0)?(Math.sqrt(arg)-dyF):0; if(Hrad<0)Hrad=0;
+  var Hrad1=Hrad;                                      // a que uma torre sozinha pediria
+  /* com mais de uma tocha a inversão não é analítica: varre-se a altura até a soma das
+     contribuições no posto ocupado cair ao admissível.                                */
+  function KpostH(H){ var k=qUma(Rpes,H);
+    for(var it2=1;it2<nTor;it2++) k+=qUma(Math.abs(Rpes-it2*sepTor),H);
+    return k+Ksol; }
+  if(nTor>1){ var Hb=0;
+    for(Hb=0;Hb<=300;Hb+=0.1){ if(KpostH(Hb)<=Kadm){ break; } }
+    Hrad=Math.min(Hb,300); }
   /* (b) radiação na BASE da torre — nunca pode passar de 9,46 kW/m² */
   var Kb946=Math.max(9.46-Ksol,0.1);
   var D946=Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Kb946));
   var arg2=D946*D946-dxF*dxF;
   var Hbase=(arg2>0)?(Math.sqrt(arg2)-dyF):0; if(Hbase<0)Hbase=0;
+  if(nTor>1){ var Hb2=0;
+    function KbaseH(H){ var k=qUma(0,H);
+      for(var it3=1;it3<nTor;it3++) k+=qUma(it3*sepTor,H);
+      return k+Ksol; }
+    for(Hb2=0;Hb2<=300;Hb2+=0.1){ if(KbaseH(Hb2)<=9.46){ break; } }
+    Hbase=Math.min(Hb2,300); }
   /* (c) mínimo construtivo.
      OBSERVAÇÃO: o alcance do LII do jato NÃO entra aqui. Ele mede a extensão do envelope
      inflamável ACIMA da ponta, no eixo do jato — o jato sobe, e essa distância não é um
@@ -2168,27 +2195,35 @@ function flareCalc(){
   Pback=Patm+dPtotal;
   PbackMan=Pback-Patm;
   backOK=(PbackMan<=PbackAdm);
-  /* radiação resultante em pontos de interesse */
+  /* radiação no receptor: soma das tochas simultâneas, com o solar somado uma vez só */
   function Krad(R,H){
-    var dx=R-dxF, dy=H+dyF;
-    var d2=dx*dx+dy*dy;
-    return tau*Frad*Qcal/(4*Math.PI*Math.max(d2,0.01))+Ksol;
+    var k=qUma(R,H);
+    for(var it=1;it<nTor;it++) k+=qUma(Math.abs(R-it*sepTor),H);
+    return k+Ksol;
   }
+  var Krad1=function(R,H){ return qUma(R,H)+Ksol; };   // uma torre só, para comparação
   var Kbase=Krad(0,Hst), Kpes=Krad(Rpes,Hst);
   var baseOK=(Kbase<=9.46);
   var isop=[0,15,30,50,75,100,150].map(function(R){ return {R:R,K:Krad(R,Hst)}; });
   /* raio da área restrita: onde K cai a 1,58 kW/m² (exposição contínua) */
-  var Rlim=0;
-  for(var R=0;R<=400;R+=0.5){ if(Krad(R,Hst)<=1.58){ Rlim=R; break; } }
+  /* A radiação no solo NÃO é monotônica: com a chama inclinada ela cresce até a
+     projeção do centro emissor e só então cai. Tomar o primeiro raio abaixo do limite
+     devolve zero sempre que a base já está abaixo — e esconde o anel crítico adiante.
+     O raio restrito é o MAIOR raio em que ainda se excede o limite.                  */
+  var Rlim=0, RlimFora=false, RlimHa=false;
+  for(var R=400;R>=0;R-=0.5){ if(Krad(R,Hst)>1.58){ Rlim=R+0.5; RlimHa=true; RlimFora=(R>=399.5); break; } }
   /* ---- verificação do posto ocupado: altura exigida por uma dada distância, e o
      inverso — a distância mínima que a altura adotada libera para o critério K ---- */
   function HreqDe(Rp){
-    var ar=Drad*Drad-Math.pow(Math.max(Rp-dxF,0),2);
-    var h=(ar>0)?(Math.sqrt(ar)-dyF):0; if(h<0)h=0;
+    var h;
+    if(nTor>1){ h=300;
+      for(var hh=0;hh<=300;hh+=0.5){ if(Krad(Rp,hh)<=Kadm){ h=hh; break; } } }
+    else { var ar=Drad*Drad-Math.pow(Math.max(Rp-dxF,0),2);
+      h=(ar>0)?(Math.sqrt(ar)-dyF):0; if(h<0)h=0; }
     return Math.max(h,Hbase,Hmin);
   }
-  var RlimAdm=0;
-  for(var R2=0;R2<=600;R2+=0.5){ if(Krad(R2,Hst)<=Kadm){ RlimAdm=R2; break; } }
+  var RlimAdm=0, RlimAdmHa=false;
+  for(var R2=600;R2>=0;R2-=0.5){ if(Krad(R2,Hst)>Kadm){ RlimAdm=R2+0.5; RlimAdmHa=true; break; } }
   var Kpost=Krad(Rpes,Hst);
   var postOK=(Kpost<=Kadm+1e-6);
   var sensR=[10,15,20,25,30,40,50,75,100,150].map(function(Rp){ return {R:Rp,H:HreqDe(Rp)}; });
@@ -2878,13 +2913,20 @@ function flareCalc(){
     {k:"Distância ao centro da chama — COM e SEM deduzir o solar",v:"deduzindo o solar (correto): "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Knet)).toFixed(1).replace(".",",")+" m   ·   sem deduzir: "+Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Math.max(Kadm,0.1))).toFixed(1).replace(".",",")+" m   →   diferença de "+((Math.sqrt(Kadm/Knet)-1)*100).toFixed(0)+"%. Para reproduzir uma planilha que ignora o solar, zerar o campo de radiação solar.",hi:true},
     {k:"DISTÂNCIA MÍNIMA ao centro da chama  D = √(τ·F·Q/(4π·K))",v:Drad.toFixed(1).replace(".",",")+" m",hi:true},
     {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
+    {k:"TORRES SIMULTÂNEAS — superposição de radiação",v:(nTor<=1?("1 torre — sem superposição"):(nTor+" torres queimando ao mesmo tempo, separadas de "+sepTor.toFixed(0)+" m. A radiação é ADITIVA no receptor: o posto ocupado recebe a soma das "+nTor+" tochas, e a parcela solar entra uma vez só. Dimensionar cada torre isolada é o erro clássico de bateria de flares — cada uma passa sozinha e o conjunto reprova."))+(nTor>1?("   ·   altura que UMA torre sozinha pediria: "+Hrad1.toFixed(1).replace(".",",")+" m   →   com "+nTor+" torres: "+Hrad.toFixed(1).replace(".",",")+" m   (+"+(Hrad-Hrad1).toFixed(1).replace(".",",")+" m)"):""),hi:(nTor>1)},
+    {k:"Sensibilidade — altura por separação entre torres",v:(nTor<=1?"não se aplica com torre única":(function(){var t=[];
+        var sepG=sepTor;
+        [20,30,40,50,75,100,150].forEach(function(sp){ sepTor=sp;
+          var h=300; for(var hh=0;hh<=300;hh+=0.5){ if(Krad(Rpes,hh)<=Kadm){h=hh;break;} }
+          t.push(sp+" m: "+h.toFixed(1).replace(".",",")+" m"); });
+        sepTor=sepG; return t.join("   ·   ");})()),hi:(nTor>1)},
     {k:"ALTURA REQUERIDA — ENVELOPE DOS CRITÉRIOS",v:"radiação no ponto com pessoal "+Hrad.toFixed(1).replace(".",",")+" m   ·   radiação na base (9,46 kW/m²) "+Hbase.toFixed(1).replace(".",",")+" m   ·   mínimo construtivo "+Hmin.toFixed(0)+" m",hi:true},
     {k:"ALTURA MÍNIMA REQUERIDA  →  GOVERNA: "+govH,v:Hreq.toFixed(1).replace(".",",")+" m   —  é o mínimo que atende à radiação; abaixo disso o projeto reprova",hi:true},
     {k:"ALTURA ADOTADA DA TORRE",v:Hst.toFixed(1).replace(".",",")+" m"+(Hadot?("   —  informada pelo usuário   ·   mínima requerida "+Hreq.toFixed(1).replace(".",",")+" m   (arredondada para múltiplo de 2 m: "+Hmincalc.toFixed(0)+" m)"):("   —  adotada a mínima calculada, arredondada para múltiplo de 2 m"))+(radOK?("   ✓ atende, com folga de "+folgaH.toFixed(1).replace(".",",")+" m sobre a mínima"):("   ⚠ ABAIXO da mínima de "+Hreq.toFixed(1).replace(".",",")+" m — a radiação no ponto com pessoal ultrapassa o admissível")),hi:true},
     {k:"Efeito da altura adotada",v:"Todo o dimensionamento estrutural adiante — viroles, chapa, helicoide, plataformas, vento e fundação — decorre desta altura, e não da mínima. Subir a torre reduz a radiação no solo, mas encarece casco, acesso e fundação de forma mais que proporcional: o momento na base cresce com o quadrado da altura."},
     {k:"Radiação na base da torre",v:Kbase.toFixed(2).replace(".",",")+" kW/m²   vs   9,46 kW/m² (sem pessoal)"+(baseOK?"   ✓":"   ⚠ EXCEDE — a base precisa ser área restrita e sem equipamento sensível"),hi:!baseOK},
     {k:"Radiação no ponto com pessoal",v:Kpes.toFixed(2).replace(".",",")+" kW/m²   vs   "+Kadm.toFixed(2).replace(".",",")+" kW/m² admissível"},
-    {k:"RAIO DA ÁREA RESTRITA  (até K = 1,58 kW/m²)",v:(Rlim>0?(Rlim.toFixed(0)+" m a partir da base — dentro deste raio não pode haver posto de trabalho permanente"):"acima de 400 m — revisar a altura ou o K adotado"),hi:true},
+    {k:"RAIO DA ÁREA RESTRITA  (até K = 1,58 kW/m²)",v:(!RlimHa?("NENHUM — a radiação já fica abaixo de 1,58 kW/m² na própria base da torre ("+Krad(0,Hst).toFixed(2).replace(".",",")+" kW/m²). Note que isso NÃO libera permanência: com a parcela solar de "+Ksol.toFixed(2).replace(".",",")+" kW/m² somada, todo o entorno opera muito perto do limite."):(RlimFora?"acima de 400 m — revisar a altura ou o K adotado":(Rlim.toFixed(0)+" m a partir da base — dentro deste raio não pode haver posto de trabalho permanente"))),hi:true},
     {k:"Isopletas de radiação (com solar, altura adotada)",v:isop.map(function(p){ return p.R+" m: "+p.K.toFixed(2).replace(".",",")+""; }).join("   ·   ")+"   [kW/m²]"},
     {sec:"13b — Verificação do posto ocupado mais próximo"},
     {k:"Por que esta verificação existe",v:"A API 521 não fixa uma distância: ela fixa um NÍVEL DE RADIAÇÃO admissível conforme o tempo de exposição e a proteção do pessoal. Quem transforma isso em geometria é o plot plan — a distância do posto ocupado mais próximo. Informada a distância, o critério vira uma altura mínima de torre; informada a altura, ele vira uma distância mínima de afastamento. As duas leituras estão abaixo.",hi:true},
@@ -3529,27 +3571,27 @@ const CALCS={
       {id:"flServico",label:"Tipo de serviço da tocha",tipo:"select",valor:"cont",opcoes:[
         {v:"emerg",t:"Alívio de emergência (refinaria, petroquímica)"},
         {v:"cont",t:"Queima CONTÍNUA de gás de processo (guseira, siderurgia, gaseificação)"}]},
-      {id:"flCont",label:"Cenário de alívio adotado",tipo:"select",valor:"fogo",opcoes:[
+      {id:"flCont",label:"Cenário de alívio adotado",tipo:"select",valor:"outro",opcoes:[
         {v:"fogo",t:"Incêndio na área (fire case)"},
         {v:"bloq",t:"Bloqueio de saída"},
         {v:"energia",t:"Falha de energia elétrica"},
         {v:"agua",t:"Falha de água de resfriamento"},
         {v:"outro",t:"Outro / envelope de vários cenários"}]},
-      {id:"flQN",label:"VAZÃO DE ALÍVIO DE PROJETO  Q  (base normal, 0 °C e 1 atm)",unidade:"Nm³/h",tipo:"number",valor:163296,step:"1000"},
+      {id:"flQN",label:"VAZÃO DE ALÍVIO DE PROJETO  Q  (base normal, 0 °C e 1 atm)",unidade:"Nm³/h",tipo:"number",valor:80000,step:"1000"},
       {id:"flTurnModo",label:"Marcha reduzida (turndown)",tipo:"select",valor:"sem",opcoes:[
         {v:"sem",t:"SEM turndown — o flare opera entre o excedente normal e a emergência"},
         {v:"com",t:"COM turndown — há marcha reduzida especificada abaixo"}]},
-      {id:"flQNmin",label:"Vazão contínua MÍNIMA (turndown; 0 = não informada)",unidade:"Nm³/h",tipo:"number",valor:7000,step:"50"},
+      {id:"flQNmin",label:"Vazão contínua MÍNIMA (turndown; 0 = não informada)",unidade:"Nm³/h",tipo:"number",valor:40000,step:"50"},
       {id:"flLiqModo",label:"Vazão de líquido a reter",tipo:"select",valor:"cond",opcoes:[
         {v:"cond",t:"Calcular pela CONDENSAÇÃO do gás saturado ao longo da linha"},
         {v:"man",t:"Informar abaixo (slug de alívio, arraste do lavador, etc.)"}]},
-      {id:"flUmid",label:"Saturação do gás na entrada (item 1.6 da folha de dados)",unidade:"% vol",tipo:"number",valor:12.1,step:"0.1"},
+      {id:"flUmid",label:"Saturação do gás na entrada (item 1.6 da folha de dados)",unidade:"% vol",tipo:"number",valor:10,step:"0.1"},
       {id:"flTko",label:"Temperatura do gás na saída da linha / no KO drum",unidade:"°C",tipo:"number",valor:35,step:"1"},
-      {id:"flWliq",label:"Vazão de líquido no alívio (0 = sem líquido)",unidade:"kg/h",tipo:"number",valor:3500,step:"100"},
+      {id:"flWliq",label:"Vazão de líquido no alívio (0 = sem líquido)",unidade:"kg/h",tipo:"number",valor:3376,step:"100"},
       {tipo:"head",label:"Balanço da planta e turndown"},
-      {id:"flCons",label:"Consumo de processo (soma dos consumidores)",unidade:"Nm³/h",tipo:"number",valor:72360,step:"1000"},
-      {id:"flGer",label:"Geração total de gás no cenário NORMAL (base)",unidade:"Nm³/h",tipo:"number",valor:139254,step:"1000"},
-      {id:"flVmax",label:"Velocidade máxima admissível no bico",unidade:"m/s",tipo:"number",valor:30,step:"1"},
+      {id:"flCons",label:"Consumo de processo (soma dos consumidores)",unidade:"Nm³/h",tipo:"number",valor:35000,step:"1000"},
+      {id:"flGer",label:"Geração total de gás no cenário NORMAL (base)",unidade:"Nm³/h",tipo:"number",valor:80000,step:"1000"},
+      {id:"flVmax",label:"Velocidade máxima admissível no bico",unidade:"m/s",tipo:"number",valor:45,step:"1"},
       {id:"flVmin",label:"Velocidade mínima sem downwash de vento",unidade:"m/s",tipo:"number",valor:8,step:"0.5"},
       {id:"flVlam",label:"Velocidade de chama laminar do gás (limite de retrocesso)",unidade:"m/s",tipo:"number",valor:0.4,step:"0.05"},
       {id:"flVturn",label:"Velocidade alvo no estágio 1 na vazão mínima",unidade:"m/s",tipo:"number",valor:18,step:"1"},
@@ -3575,12 +3617,12 @@ const CALCS={
       {id:"flCompModo",label:"Base de MW, k e PCI",tipo:"select",valor:"informado",opcoes:[
         {v:"informado",t:"USAR os valores informados acima (folha de dados / preset)"},
         {v:"composicao",t:"CALCULAR a partir da composição molar abaixo"}]},
-      {id:"flCO",label:"Composição — CO (combustível; serviço tóxico acima de 1 %)",unidade:"% vol",tipo:"number",valor:23,step:"0.1"},
-      {id:"flH2",label:"Composição — H2 (combustível)",unidade:"% vol",tipo:"number",valor:3.5,step:"0.1"},
-      {id:"flCH4",label:"Composição — CH4 (combustível)",unidade:"% vol",tipo:"number",valor:1.2,step:"0.1"},
+      {id:"flCO",label:"Composição — CO (combustível; serviço tóxico acima de 1 %)",unidade:"% vol",tipo:"number",valor:25.2,step:"0.1"},
+      {id:"flH2",label:"Composição — H2 (combustível)",unidade:"% vol",tipo:"number",valor:3.0,step:"0.1"},
+      {id:"flCH4",label:"Composição — CH4 (combustível)",unidade:"% vol",tipo:"number",valor:0,step:"0.1"},
       {id:"flH2S",label:"Composição — H2S (combustível; 0 = sem gás ácido)",unidade:"% vol",tipo:"number",valor:0,step:"0.1"},
-      {id:"flCO2",label:"Composição — CO2 (inerte)",unidade:"% vol",tipo:"number",valor:22,step:"0.1"},
-      {id:"flN2",label:"Composição — N2 (inerte)",unidade:"% vol",tipo:"number",valor:50.3,step:"0.1"},
+      {id:"flCO2",label:"Composição — CO2 (inerte)",unidade:"% vol",tipo:"number",valor:9.8,step:"0.1"},
+      {id:"flN2",label:"Composição — N2 (inerte)",unidade:"% vol",tipo:"number",valor:51.6,step:"0.1"},
       {id:"flH2O",label:"Composição — H2O (inerte; umidade)",unidade:"% vol",tipo:"number",valor:0,step:"0.1"},
       {id:"flPo",label:"Particulado na corrente (0 = gás limpo)",unidade:"mg/Nm³",tipo:"number",valor:10,step:"10"},
       {id:"flPlat",label:"Estrutura elevada mais próxima, acima da ponta (0 = nenhuma)",unidade:"m",tipo:"number",valor:0,step:"5"},
@@ -3589,8 +3631,8 @@ const CALCS={
         {v:"0.2",t:"Mach 0,20 — operação contínua"},
         {v:"0.5",t:"Mach 0,50 — alívio de emergência"},
         {v:"0.8",t:"Mach 0,80 — ponta de alta velocidade (exige projeto do fabricante)"}]},
-      {id:"flVriser",label:"Velocidade de projeto no RISER",unidade:"m/s",tipo:"number",valor:25,step:"1"},
-      {id:"flDriser",label:"Diâmetro ADOTADO do riser",tipo:"select",valor:"auto",opcoes:[
+      {id:"flVriser",label:"Velocidade de projeto no RISER",unidade:"m/s",tipo:"number",valor:44,step:"1"},
+      {id:"flDriser",label:"Diâmetro ADOTADO do riser",tipo:"select",valor:"1.1",opcoes:[
         {v:"auto",t:"Automático — comercial de 0,1 m MAIS PRÓXIMO do requerido"},
         {v:"0.5",t:"0.5 m  (DN 500)"},
         {v:"0.6",t:"0.6 m  (DN 600)"},
@@ -3629,7 +3671,7 @@ const CALCS={
         {v:"3.9",t:"3.9 m  (DN 3900)"},
         {v:"4.0",t:"4.0 m  (DN 4000)"},
         ]},
-      {id:"flDtip",label:"Diâmetro ADOTADO da PONTA",tipo:"select",valor:"auto",opcoes:[
+      {id:"flDtip",label:"Diâmetro ADOTADO da PONTA",tipo:"select",valor:"1.2",opcoes:[
         {v:"auto",t:"Automático — comercial de 0,1 m MAIS PRÓXIMO do requerido"},
         {v:"0.3",t:"0.3 m  (DN 300)"},
         {v:"0.4",t:"0.4 m  (DN 400)"},
@@ -3662,12 +3704,12 @@ const CALCS={
       {id:"flKtip",label:"Coeficiente de perda de carga da ponta  K",tipo:"number",valor:1.5,step:"0.1"},
       {id:"flPset",label:"Pressão de ajuste da PSV mais crítica",unidade:"kPa man.",tipo:"number",valor:1000,step:"50"},
       {id:"flPdisp",label:"Pressão disponível na fonte (só em serviço contínuo)",unidade:"kPa man.",tipo:"number",valor:0.98,step:"0.01"},
-      {id:"flPSV",label:"Tipo de válvula de segurança (só em alívio de emergência)",tipo:"select",valor:"balanc",opcoes:[
+      {id:"flPSV",label:"Tipo de válvula de segurança (só em alívio de emergência)",tipo:"select",valor:"conv",opcoes:[
         {v:"conv",t:"Convencional — contrapressão até 10 % do ajuste"},
         {v:"balanc",t:"Balanceada com fole — até 50 %"},
         {v:"pilot",t:"Operada por piloto — até 80 %"}]},
-      {id:"flLhead",label:"Comprimento equivalente do header coletor",unidade:"m",tipo:"number",valor:200,step:"10"},
-      {id:"flDhead",label:"Diâmetro ADOTADO do header",tipo:"select",valor:"auto",opcoes:[
+      {id:"flLhead",label:"Comprimento equivalente do header coletor",unidade:"m",tipo:"number",valor:50,step:"10"},
+      {id:"flDhead",label:"Diâmetro ADOTADO do header",tipo:"select",valor:"1.2",opcoes:[
         {v:"auto",t:"Automático — 0,1 m MAIS PRÓXIMO, respeitando Mach ≤ 0,2 e a pressão disponível"},
         {v:"0.3",t:"0.3 m  (DN 300)"},
         {v:"0.4",t:"0.4 m  (DN 400)"},
@@ -3717,13 +3759,19 @@ const CALCS={
         {v:"6.31",t:"6,31 kW/m² — ação emergencial até 30 s, sem blindagem"},
         {v:"9.46",t:"9,46 kW/m² — sem presença de pessoal"}]},
       {id:"flKsol",label:"Parcela de radiação solar somada",unidade:"kW/m²",tipo:"number",valor:1.0,step:"0.05"},
-      {id:"flRpes",label:"DISTÂNCIA da base ao POSTO OCUPADO mais próximo (do plot plan)",unidade:"m",tipo:"number",valor:30,step:"5"},
+      {id:"flNtor",label:"TORRES que podem queimar SIMULTANEAMENTE (radiação soma no receptor)",tipo:"select",valor:"2",opcoes:[
+        {v:"1",t:"1 torre — operação isolada"},
+        {v:"2",t:"2 torres simultâneas"},
+        {v:"3",t:"3 torres simultâneas"},
+        {v:"4",t:"4 torres simultâneas"}]},
+      {id:"flSepTor",label:"Separação entre eixos das torres (0 se torre única)",unidade:"m",tipo:"number",valor:50,step:"5"},
+      {id:"flRpes",label:"DISTÂNCIA da base ao POSTO OCUPADO mais próximo (do plot plan)",unidade:"m",tipo:"number",valor:20,step:"5"},
       {id:"flUw",label:"VENTO DE PROJETO para inclinação da chama e downwash",unidade:"m/s",tipo:"number",valor:30,step:"1"},
       {id:"flTeta",label:"Inclinação MÍNIMA imposta à chama (0 = só a calculada; adota-se sempre a maior)",unidade:"°",tipo:"number",valor:45,step:"5"},
       {id:"flTetaMax",label:"Inclinação MÁXIMA admissível da chama (critério de verificação)",unidade:"°",tipo:"number",valor:75,step:"5"},
       {id:"flRazMin",label:"Razão mínima velocidade de saída ÷ vento (anti-downwash)",unidade:"×",tipo:"number",valor:2,step:"0.5"},
-      {id:"flH",label:"ALTURA ADOTADA da torre (0 = adotar a mínima calculada)",unidade:"m",tipo:"number",valor:40,step:"1"},
-      {id:"flHmin",label:"Altura mínima construtiva",tipo:"select",valor:"10",opcoes:[
+      {id:"flH",label:"ALTURA ADOTADA da torre (0 = adotar a mínima calculada)",unidade:"m",tipo:"number",valor:0,step:"1"},
+      {id:"flHmin",label:"Altura mínima construtiva",tipo:"select",valor:"30",opcoes:[
         {v:"10",t:"10 m"},{v:"15",t:"15 m"},{v:"20",t:"20 m"},{v:"30",t:"30 m"}]},
       {tipo:"head",label:"Vaso separador (knockout drum)"},
       {id:"flDgota",label:"Gota de projeto a reter (API 521: 300 a 600 µm)",unidade:"µm",tipo:"number",valor:400,step:"50"},
@@ -3755,7 +3803,7 @@ const CALCS={
       {id:"flApPc",label:"Capacidade dos bicos de apoio (% da base escolhida)",unidade:"%",tipo:"number",valor:3,step:"0.5"},
       {id:"flApPer",label:"Carga por metro de perímetro (base \"por perímetro\")",unidade:"kW/m",tipo:"number",valor:150,step:"10"},
       {id:"flApAbs",label:"Capacidade absoluta (base \"absoluta\")",unidade:"MW",tipo:"number",valor:2,step:"0.5"},
-      {id:"flPCImin",label:"PCI MÍNIMO GARANTIDO do gás (item 1.7 — dado crítico)",unidade:"kcal/Nm³",tipo:"number",valor:840,step:"10"},
+      {id:"flPCImin",label:"PCI MÍNIMO GARANTIDO do gás (item 1.7 — dado crítico)",unidade:"kcal/Nm³",tipo:"number",valor:900,step:"10"},
       {id:"flApAlvo",label:"PCI volumétrico alvo na ponta para chama estável",unidade:"MJ/Nm³",tipo:"number",valor:3.5,step:"0.1"},
       {id:"flApHrs",label:"Autonomia da reserva de gás de apoio (blow-in)",unidade:"h",tipo:"number",valor:8,step:"1"},
       {id:"flPilKg",label:"Consumo de GLP por piloto",unidade:"kg/h",tipo:"number",valor:3,step:"0.5"},
@@ -3829,10 +3877,10 @@ const CALCS={
       {id:"flTanel",label:"Espessura do anel de base (0 = dimensionar)",unidade:"mm",tipo:"number",valor:0,step:"1"},
       {id:"flTnerv",label:"Espessura das nervuras (0 = igual à virole da base)",unidade:"mm",tipo:"number",valor:0,step:"1"},
       {tipo:"head",label:"Ações — vento (NBR 6123)"},
-      {id:"flV0",label:"Velocidade básica do vento  V0",unidade:"m/s",tipo:"number",valor:40,step:"1"},
+      {id:"flV0",label:"Velocidade básica do vento  V0",unidade:"m/s",tipo:"number",valor:30,step:"1"},
       {id:"flS1",label:"S1 — fator topográfico",tipo:"select",valor:"1.0",opcoes:[
         {v:"1.0",t:"1,00 — terreno plano"},{v:"1.1",t:"1,10 — talude / morro"},{v:"0.9",t:"0,90 — vale protegido"}]},
-      {id:"flCat",label:"Categoria de rugosidade",tipo:"select",valor:"II",opcoes:[
+      {id:"flCat",label:"Categoria de rugosidade",tipo:"select",valor:"IV",opcoes:[
         {v:"I",t:"I — mar, lagos"},{v:"II",t:"II — campo aberto"},
         {v:"III",t:"III — terreno com obstáculos"},{v:"IV",t:"IV — zona industrial"},
         {v:"V",t:"V — obstáculos altos e numerosos"}]},
@@ -3856,7 +3904,7 @@ const CALCS={
       {id:"flFck",label:"Resistência do concreto da fundação  fck",unidade:"MPa",tipo:"number",valor:30,step:"5"},
       {id:"flSigSolo",label:"Tensão admissível do solo (SPT — item 5.6 da folha de dados)",unidade:"kPa",tipo:"number",valor:200,step:"10"},
       {id:"flHbloco",label:"Altura do bloco de fundação (0 = dimensionar)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
-      {id:"flNch",label:"Número de chumbadores",tipo:"select",valor:"12",opcoes:[
+      {id:"flNch",label:"Número de chumbadores",tipo:"select",valor:"16",opcoes:[
         {v:"8",t:"8 chumbadores"},{v:"12",t:"12 chumbadores"},
         {v:"16",t:"16 chumbadores"},{v:"20",t:"20 chumbadores"},{v:"24",t:"24 chumbadores"}]},
       {id:"flFub",label:"Classe do chumbador",tipo:"select",valor:"400",opcoes:[
@@ -8099,7 +8147,7 @@ function openItem(i){
     $("#modal").classList.add("open");
     return;
   }
-  if(!calc.campos[0]||calc.campos[0].id!=="eqTag"){ calc.campos.unshift({id:"eqTag",label:"TAG (identificação do equipamento)",tipo:"text",valor:"",placeholder:"ex.: PN-101 / TC-201"}); }
+  if(!calc.campos[0]||calc.campos[0].id!=="eqTag"){ calc.campos.unshift({id:"eqTag",label:"TAG (identificação do equipamento)",tipo:"text",valor:"CW-0304MB-001/002",placeholder:"ex.: PN-101 / TC-201"}); }
   const campos=calc.campos.map(f=>{
     if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
     if(f.tipo==="text"){
@@ -8970,17 +9018,19 @@ function gerarRelatorio(){
         doc.line(x1,y,x2,y); doc.line(x1,y-1.4,x1,y+1.4); doc.line(x2,y-1.4,x2,y+1.4);
         ntc((x1+x2)/2,y-1.3,t,30,120,150,6.2); }
 
-      ntc(105,28,"FLARE "+G.tipoUso.toUpperCase()+"  ·  "+(G.Qcal/1000).toFixed(0)+" MW  ·  ponta "+G.dpol+
+      ntc(105,28,"FLARE "+G.tipoUso.toUpperCase()+"  ·  "+(G.Qcal/1000).toFixed(0)+" MW  ·  ponta "+G.dpol.toFixed(0)+
         "\"  ·  altura "+G.Hst.toFixed(0)+" m",20,60,100,8.0);
       ntc(105,34,"governa a altura: "+G.govH,120,90,40,6.6);
 
       /* escala: torre + chama na metade esquerda */
       var yG=170;                                        // linha do solo
-      var Htot=G.Hst+G.Lf*Math.cos(G.tetaG*Math.PI/180);
+      /* inclinação acima de 90° devolveria contribuição NEGATIVA da chama e encolheria
+         a altura total, estourando a escala para cima. A chama nunca reduz a altura.  */
+      var Htot=G.Hst+Math.max(0,G.Lf*Math.cos(G.tetaG*Math.PI/180));
       var esc=Math.min(110/Math.max(Htot,1), 60/Math.max(G.Rlim*0.5,1));
       if(esc>3.2) esc=3.2;
       var cx=62;
-      var yTip=yG-G.Hst*esc;
+      var yTip=Math.max(24,yG-G.Hst*esc);
 
       /* terreno */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.6);
@@ -9037,7 +9087,7 @@ function gerarRelatorio(){
 
       /* cotas da torre */
       cotaV(cx-wSt-5,yTip,yG,"H = "+G.Hst.toFixed(0)+" m");
-      nt(cx+wSt*1.6,yTip-4.5,"ponta "+G.dpol+"\" · Ma "+G.Ma.toFixed(2),110,60,30,6.2);
+      nt(cx+wSt*1.6,yTip-4.5,"ponta "+G.dpol.toFixed(0)+"\" · Ma "+G.Ma.toFixed(2),110,60,30,6.2);
       nt(cx-wSt-5,yG+7,"casco D "+G.Dst.toFixed(2)+" m · esp. "+G.tcom.toFixed(1)+" mm",70,92,122,6.2);
       nt(cx-wSt-5,yG+10.5,G.nCh+" chumbadores D"+G.diaCh.toFixed(0)+" mm",70,92,122,6.2);
 
@@ -9112,6 +9162,7 @@ function gerarRelatorio(){
       for(var vv2=0;vv2<G.viroles.length;vv2++){
         var vr=G.viroles[vv2];
         var y1v=eyG-vr.z1*esc2, y2v=eyG-vr.z0*esc2;
+        if(!isFinite(y1v)||!isFinite(y2v)||y1v<10||y2v>288) continue;
         doc.setFillColor((vv2%2===0)?78:66,(vv2%2===0)?100:88,(vv2%2===0)?130:116);
         doc.setDrawColor(40,58,80);
         doc.rect(ecx-ewS,y1v,2*ewS,y2v-y1v,"FD");
@@ -9122,7 +9173,10 @@ function gerarRelatorio(){
       if(G.helOn){
         doc.setDrawColor(210,130,45); doc.setLineWidth(0.55);
         var yH0=eyG-G.zHel*esc2, yH1=eyG-G.Hst*esc2;
-        var nH=Math.max(6,Math.round((yH0-yH1)/2.6));
+        /* geometria degenerada (cota do helicoide fora da torre) jogaria as fitas para
+           fora da folha: limita-se aos limites da vista antes de desenhar.            */
+        yH0=Math.max(14,Math.min(eyG,yH0)); yH1=Math.max(14,Math.min(eyG,yH1));
+        var nH=Math.max(6,Math.min(200,Math.round(Math.abs(yH0-yH1)/2.6)));
         for(var hk=0;hk<nH;hk++){
           var yh1=yH0-(yH0-yH1)*hk/nH, yh2=yH0-(yH0-yH1)*(hk+1)/nH;
           doc.line(ecx-ewS,yh1,ecx+ewS,yh2);
@@ -9134,7 +9188,7 @@ function gerarRelatorio(){
       doc.setFillColor(150,90,50); doc.setDrawColor(110,60,30); doc.setLineWidth(0.4);
       var ewP=Math.min(ewS*1.35,(ecx-MXL-3));
       doc.rect(ecx-ewP,eyT-4,2*ewP,4,"FD");
-      mt(ecx+ewS*1.5,eyT-1.5,"ponta unica "+G.dpol+"\" ("+Math.round(G.dtip*1000)+" mm)",110,60,30,5.8);
+      mt(ecx+ewS*1.5,eyT-1.5,"ponta unica "+G.dpol.toFixed(0)+"\" ("+Math.round(G.dtip*1000)+" mm)",110,60,30,5.8);
       /* plataformas */
       for(var pk=0;pk<G.cotasPlat.length;pk++){
         var cp2=G.cotasPlat[pk], ypl=eyG-cp2.z*esc2;
@@ -9259,7 +9313,7 @@ function gerarRelatorio(){
         body:[
           [san("Vazao de alivio de projeto"),san(fmt(Math.round(G.W)))+" kg/h"],
           [san("Massa molecular / liberacao de calor"),san(G.MW.toFixed(1))+" kg/kmol / "+san((G.Qcal/1000).toFixed(1))+" MW"],
-          [san("DIAMETRO DA PONTA"),san(String(G.dpol))+'" ('+san(String(Math.round(G.dtip*1000)))+" mm)"],
+          [san("DIAMETRO DA PONTA"),san(G.dpol.toFixed(0))+'" ('+san(String(Math.round(G.dtip*1000)))+" mm)"],
           [san("Velocidade de saida / Mach"),san(G.Vsai.toFixed(0))+" m/s / "+san(G.Ma.toFixed(3))+(G.machOK?" OK":" EXCEDE")],
           [san("Header coletor"),"DN "+san(String(G.dHead))+" · Ma "+san(G.MaH.toFixed(3))+(G.headOK?" OK":" EXCEDE")],
           [san("CONTRAPRESSAO na PSV"),san(G.PbackMan.toFixed(1))+" kPa = "+san((G.PbackMan/G.Pset*100).toFixed(1))+"% "+(G.backOK?"OK":"EXCEDE")]
