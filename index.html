@@ -8775,14 +8775,16 @@ function gerarRelatorio(){
          É a tabela que o projetista assina: dado de entrada, equação, resultado,
          critério de aceitação e status. Vem antes do croqui de propósito.          */
       if(G.MEM&&G.MEM.length){
-        doc.addPage();
-        doc.setFillColor(14,27,46); doc.rect(0,0,210,16,"F");
-        doc.setTextColor(255,255,255); doc.setFontSize(11);
-        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,10.5);
-        doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        /* NÃO se abre página aqui: o relatório já abriu uma para o croqui logo acima.
+           O memorial ocupa essa página — a faixa opaca cobre o título do croqui — e no
+           fim abre-se uma folha limpa, com o título refeito, para o desenho.          */
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
         doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+
-          "   -   "+G.nVer+" item(ns) a confirmar fora desta ferramenta"),14,14.5);
-        doc.autoTable({startY:20,theme:"grid",margin:{left:14,right:14},
+          "   -   "+G.nVer+" item(ns) a confirmar fora desta ferramenta"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
           head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio de aceitacao"),san("Status")]],
           body:G.MEM.map(function(m){ return m.map(san); }),
           styles:{fontSize:6.2,cellPadding:1.1,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
@@ -8793,6 +8795,13 @@ function gerarRelatorio(){
             if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
             else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; }
           }});
+        /* folha limpa para o desenho, com o cabeçalho do croqui refeito */
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
       }
       /* ============ CROQUI DO FLARE ============
          Elevação com torre, chama inclinada e isopletas de radiação no solo; ao lado, o
