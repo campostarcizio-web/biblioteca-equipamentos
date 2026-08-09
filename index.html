@@ -2749,6 +2749,17 @@ function flareCalc(){
     dPriser=dPriserHid; dPtotal=dPtip+dPhead+dPriser+dPestat;
     Pback=Patm+dPtotal; PbackMan=Pback-Patm; backOK=(PbackMan<=PbackAdm);
   }
+  /* ---------- AFASTAMENTO MÍNIMO ENTRE TORRES PARA PERMANÊNCIA ----------
+     Critério: com uma tocha queimando, a outra torre tem de poder receber pessoal em
+     PERMANÊNCIA — inspeção, manutenção, troca de piloto. O receptor crítico é a
+     plataforma do TOPO da vizinha, que é o ponto mais próximo da chama. Exige-se ali
+     o mesmo K de exposição contínua da API 521, já descontada a parcela solar.
+     Toma-se o vento soprando de uma torre para a outra, que é a orientação mais severa. */
+  var Kperm=1.58;                                        // kW/m² — exposição contínua
+  var DpermC=Math.sqrt(tau*Frad*Qcal/(4*Math.PI*Math.max(Kperm-Ksol,0.01)));  // do centro da chama
+  var dhPerm=Math.sqrt(Math.max(DpermC*DpermC-dyF*dyF,0));
+  var sepMinPerm=dxF+dhPerm+Dst/2;                       // entre EIXOS das torres
+  var sepPermOK=(nTor<=1)||(sepTor>=sepMinPerm-1e-6);
   var esbeltez=Hst/Dst;
 
   /* ================= RESULTADOS ================= */
@@ -2928,6 +2939,11 @@ function flareCalc(){
     {k:"DISTÂNCIA MÍNIMA ao centro da chama  D = √(τ·F·Q/(4π·K))",v:Drad.toFixed(1).replace(".",",")+" m"+(nTor>1?("   ⚠ POR CHAMA, uma tocha só. Com "+nTor+" torres simultâneas esta distância NÃO é o critério: a soma no receptor não tem inversão fechada, e a altura e o afastamento saem da busca numérica das linhas seguintes."):"   —  do centro emissor até o receptor, não da base da torre"),hi:true},
     {k:"Distância ao ponto com pessoal (dado de entrada)",v:Rpes.toFixed(1).replace(".",",")+" m a partir da base da torre"},
     {k:"TORRES SIMULTÂNEAS — superposição de radiação",v:(nTor<=1?("1 torre — sem superposição"):(nTor+" torres queimando ao mesmo tempo, separadas de "+sepTor.toFixed(0)+" m. A radiação é ADITIVA no receptor: o posto ocupado recebe a soma das "+nTor+" tochas, e a parcela solar entra uma vez só. Dimensionar cada torre isolada é o erro clássico de bateria de flares — cada uma passa sozinha e o conjunto reprova."))+(nTor>1?("   ·   altura que UMA torre sozinha pediria: "+Hrad1.toFixed(1).replace(".",",")+" m   →   com "+nTor+" torres: "+Hrad.toFixed(1).replace(".",",")+" m   (+"+(Hrad-Hrad1).toFixed(1).replace(".",",")+" m)"):""),hi:(nTor>1)},
+    {k:"AFASTAMENTO MÍNIMO ENTRE TORRES — permanência de pessoal",v:(nTor<=1?"não se aplica com torre única":(
+        sepMinPerm.toFixed(1).replace(".",",")+" m entre eixos   ·   adotado "+sepTor.toFixed(1).replace(".",",")+" m   "+
+        (sepPermOK?("✓ ATENDE — com uma tocha queimando, a plataforma do topo da outra torre recebe no máximo "+Kperm.toFixed(2).replace(".",",")+" kW/m², e pode ser ocupada em permanência")
+                  :("⚠ NÃO ATENDE — faltam "+(sepMinPerm-sepTor).toFixed(1).replace(".",",")+" m. Com esta separação NÃO se pode subir numa torre enquanto a outra queima: seria preciso parar as duas para qualquer inspeção ou manutenção"))+
+        "   —  receptor no topo da vizinha, vento soprando de uma para a outra (orientação mais severa): centro da chama a "+DpermC.toFixed(1).replace(".",",")+" m, deslocado "+dxF.toFixed(1).replace(".",",")+" m à frente e "+dyF.toFixed(1).replace(".",",")+" m acima do topo, mais o raio do casco de "+(Dst/2).toFixed(2).replace(".",",")+" m")),hi:!sepPermOK},
     {k:"Sensibilidade — altura por separação entre torres",v:(nTor<=1?"não se aplica com torre única":(function(){var t=[];
         var sepG=sepTor;
         [20,30,40,50,75,100,150].forEach(function(sp){ sepTor=sp;
@@ -3146,6 +3162,9 @@ function flareCalc(){
     "entre "+vv(vMin,0)+" e "+vv(vMax,0)+" m/s",
     (function(){var vs=condOp.map(function(c){return c.vUnico;});
       return st(Math.max.apply(null,vs)<=vMax+0.01&&Math.min.apply(null,vs)>=vMin-0.01);})()],
+   ["13","Afastamento entre torres — permanência","K = 1,58 kW/m² no topo da torre vizinha",
+    (nTor<=1?"torre única":(vv(sepTor,1)+" m adotados")),
+    (nTor<=1?"n/a":("≥ "+vv(sepMinPerm,1)+" m entre eixos")),(nTor<=1?"—":st(sepPermOK))],
    ["17","Diâmetro do casco — necessário × adotado","máx(riser; ponta; H/40)",
     "requerido "+vv(DstReq,3)+" m ("+DstGov+")  →  adotado "+vv(Dst,1)+" m",
     "adotado ≥ requerido  (dif. "+((Dst-DstReq)>=0?"+":"")+vv((Dst-DstReq)*1000,0)+" mm)",st(!DstAbaixo)],
