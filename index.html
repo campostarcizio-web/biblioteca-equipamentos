@@ -2735,6 +2735,20 @@ function flareCalc(){
   /* ---------- ESTRUTURA: TIPO RECOMENDADO ---------- */
   var tipoRec=(Hst<=60)?"autoportante":((Hst<=120)?"estaiada":"em torre treliçada");
   var tipoUso=(tipoFl==="auto")?tipoRec:tipoFl;
+  /* ---------- RISER × CASCO: numa torre AUTOPORTANTE são o MESMO tubo ----------
+     O gás não escoa num riser de 1,1 m dentro de um casco de 1,2 m — escoa no casco.
+     Se o casco precisou abrir (pela ponta ou pela esbeltez), a hidráulica tem de seguir
+     o casco, senão a velocidade e a perda de carga saem de um tubo que não existe.
+     Em torre estaiada ou em treliça o riser é peça independente e a distinção vale.  */
+  var autoP=(tipoUso.toLowerCase().indexOf("autoport")>=0);
+  var Dhid=autoP?Dst:Driser;                             // diâmetro que o gás realmente vê
+  var vHid=Qv/(Math.PI*Dhid*Dhid/4);
+  var dPriserHid=0.02*(Hst/Dhid)*rho*vHid*vHid/2/1000;
+  var riserCascoDif=(Math.abs(Dhid-Driser)>1e-6);
+  if(autoP&&riserCascoDif){                              // refaz a contrapressão no tubo certo
+    dPriser=dPriserHid; dPtotal=dPtip+dPhead+dPriser+dPestat;
+    Pback=Patm+dPtotal; PbackMan=Pback-Patm; backOK=(PbackMan<=PbackAdm);
+  }
   var esbeltez=Hst/Dst;
 
   /* ================= RESULTADOS ================= */
@@ -2955,6 +2969,7 @@ function flareCalc(){
     {k:"Tipo de torre",v:tipoUso+((tipoFl==="auto")?("   (recomendado pela altura de "+Hst.toFixed(0)+" m: autoportante até cerca de 60 m, estaiada até 120 m, treliçada acima)"):"   (imposto pelo usuário)"),hi:true},
     {k:"Velocidade característica  Vk = V0·S1·S2·S3",v:Vk.toFixed(1).replace(".",",")+" m/s   (V0 = "+V0.toFixed(0)+" · S1 = "+S1w.toFixed(2).replace(".",",")+" · S2 = "+S2w.toFixed(3).replace(".",",")+" cat. "+catW+" cl. "+clsW+" · S3 = "+S3w.toFixed(2).replace(".",",")+")"},
     {k:"Pressão dinâmica  q = 0,613·Vk²",v:qv.toFixed(2).replace(".",",")+" kPa"},
+    {k:"RISER × CASCO — são o mesmo tubo?",v:(autoP?("TORRE AUTOPORTANTE: o casco É o tubo de subida. O gás escoa no diâmetro do CASCO, "+Dst.toFixed(1).replace(".",",")+" m"+(riserCascoDif?(", e não nos "+Driser.toFixed(1).replace(".",",")+" m escolhidos para o riser — o casco teve de abrir e a hidráulica acompanha. Velocidade recalculada "+vHid.toFixed(2).replace(".",",")+" m/s e perda no trecho vertical "+dPriserHid.toFixed(3).replace(".",",")+" kPa."):". O diâmetro escolhido para o riser coincide com o casco.")):("TORRE "+tipoUso.toUpperCase()+": o riser é tubo independente da estrutura, então os "+Driser.toFixed(1).replace(".",",")+" m escolhidos valem para a hidráulica e o casco de "+Dst.toFixed(1).replace(".",",")+" m é só estrutura.")),hi:(autoP&&riserCascoDif)},
     {k:"DIÂMETRO NECESSÁRIO do casco",v:DstReq.toFixed(3).replace(".",",")+" m   —   GOVERNA: "+DstGov+"   ·   riser "+DstRiser.toFixed(3).replace(".",",")+" m   ·   ponta "+DstPonta.toFixed(3).replace(".",",")+" m   ·   esbeltez H/40 "+DstEsb.toFixed(3).replace(".",",")+" m.  O casco autoportante É o tubo de subida: precisa acomodar o diâmetro hidráulico do riser, o diâmetro da ponta que sustenta e o piso construtivo de esbeltez.",hi:true},
     {k:"DIÂMETRO ADOTADO do casco",v:Dst.toFixed(1).replace(".",",")+" m   (DN "+(Dst*1000).toFixed(0)+")"+(DstAuto?"   —  arredondado para cima ao passo de 0,1 m":"   —  imposto pelo usuário")+"   ·   diferença "+((Dst-DstReq)>=0?"+":"")+((Dst-DstReq)*1000).toFixed(0)+" mm"+(DstAbaixo?"   ⚠ ABAIXO DO NECESSÁRIO — o casco não comporta "+DstGov:"   ✓ atende ao necessário"),hi:true},
     {k:"VERIFICAÇÃO — velocidade do gás no casco (é o riser)",v:(function(){
@@ -3193,6 +3208,7 @@ function flareCalc(){
 
   OUT.geo={tipo:"flare",MEM:MEM,nRep:nRep,nVer:nVer,contInuo:contInuo,LHVvol:LHVvol,estavel:estavel,baixoPCI:baixoPCI,razEnr:razEnr,QNm:QNm,teorCO:teorCO,toxico:toxico,poeira:poeira,npilTab:npilTab,W:W,MW:MW,Qcal:Qcal,dtip:dtip,dpol:dpol,Ma:Ma,Vsai:Vsai,son:son,
     dHead:dHead,MaH:MaH,PbackMan:PbackMan,PbackAdm:PbackAdm,backOK:backOK,Pset:Pset,
+    Driser:Driser,Dhid:Dhid,vHid:vHid,autoP:autoP,riserCascoDif:riserCascoDif,dPtip:dPtip,dPhead:dPhead,dPriser:dPriser,dPtotal:dPtotal,
     Lf:Lf,tetaG:tetaG,tetaCalcG:tetaCalcG,tetaTrajG:tetaTrajG,tetaPontaG:tetaPontaG,tetaMax:tetaMax,tetaOK:tetaOK,
     xPonta:xPonta,yPonta:yPonta,razVJ:razVJ,razMin:razMin,razOK:razOK,dxF:dxF,dyF:dyF,uw:uw,Hrad:Hrad,Hbase:Hbase,Hmin:Hmin,govH:govH,Frad:Frad,Kadm:Kadm,Ksol:Ksol,Drad:Drad,
     Hreq:Hreq,Hst:Hst,Rpes:Rpes,Kbase:Kbase,Kpes:Kpes,Rlim:Rlim,isop:isop,radOK:radOK,
@@ -9089,6 +9105,11 @@ function gerarRelatorio(){
       cotaV(cx-wSt-5,yTip,yG,"H = "+G.Hst.toFixed(0)+" m");
       nt(cx+wSt*1.6,yTip-4.5,"ponta "+G.dpol.toFixed(0)+"\" · Ma "+G.Ma.toFixed(2),110,60,30,6.2);
       nt(cx-wSt-5,yG+7,"casco D "+G.Dst.toFixed(2)+" m · esp. "+G.tcom.toFixed(1)+" mm",70,92,122,6.2);
+      nt(cx-wSt-5,yG+10.5,(G.autoP?("riser = o proprio casco · D "+G.Dhid.toFixed(2)+" m · v "+G.vHid.toFixed(1)+" m/s"
+        +(G.riserCascoDif?("  (escolhido "+G.Driser.toFixed(2)+" m)"):""))
+        :("riser D "+G.Driser.toFixed(2)+" m · v "+G.vHid.toFixed(1)+" m/s")),70,92,122,6.2);
+      nt(cx-wSt-5,yG+14,"contrapressao "+G.dPtotal.toFixed(2)+" kPa de "+G.PbackAdm.toFixed(2)+" kPa"+(G.backOK?" OK":" EXCEDE"),
+        G.backOK?70:170,G.backOK?92:50,G.backOK?122:40,6.2);
       nt(cx-wSt-5,yG+10.5,G.nCh+" chumbadores D"+G.diaCh.toFixed(0)+" mm",70,92,122,6.2);
 
       /* isopletas de radiação no solo */
@@ -9314,6 +9335,7 @@ function gerarRelatorio(){
           [san("Vazao de alivio de projeto"),san(fmt(Math.round(G.W)))+" kg/h"],
           [san("Massa molecular / liberacao de calor"),san(G.MW.toFixed(1))+" kg/kmol / "+san((G.Qcal/1000).toFixed(1))+" MW"],
           [san("DIAMETRO DA PONTA"),san(G.dpol.toFixed(0))+'" ('+san(String(Math.round(G.dtip*1000)))+" mm)"],
+          [san("DIAMETRO DO RISER / CASCO"),san(G.Dhid.toFixed(2))+" m"+(G.autoP?" (mesmo tubo)":" (riser independente)")],
           [san("Velocidade de saida / Mach"),san(G.Vsai.toFixed(0))+" m/s / "+san(G.Ma.toFixed(3))+(G.machOK?" OK":" EXCEDE")],
           [san("Header coletor"),"DN "+san(String(G.dHead))+" · Ma "+san(G.MaH.toFixed(3))+(G.headOK?" OK":" EXCEDE")],
           [san("CONTRAPRESSAO na PSV"),san(G.PbackMan.toFixed(1))+" kPa = "+san((G.PbackMan/G.Pset*100).toFixed(1))+"% "+(G.backOK?"OK":"EXCEDE")]
