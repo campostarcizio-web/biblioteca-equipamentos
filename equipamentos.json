@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.93.0",
+    "versao": "1.94.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -77,7 +77,8 @@
           "Tanque de Recirculação / Coleta",
           "Tanque de Lama Espessada",
           "Tanque de Filtrado",
-          "Espessador"
+          "Espessador",
+          "Filtro Prensa"
         ]
       }
     ],
@@ -119,7 +120,8 @@
         "Espessador": "Thickener",
         "Tanque de Recirculação / Coleta": "Recirculation / Collection Tank",
         "Tanque de Lama Espessada": "Thickened Sludge Tank",
-        "Tanque de Filtrado": "Filtrate Tank"
+        "Tanque de Filtrado": "Filtrate Tank",
+        "Filtro Prensa": "Filter Press"
       }
     }
   },
@@ -677,6 +679,30 @@
       "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
       "grupo_en": "Sludge Treatment",
       "subgrupo_en": "Filtrate Tank"
+    },
+    {
+      "id": "filtro-prensa",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Filtro Prensa",
+      "subtipo": "Filtro prensa de placas e câmaras, com ou sem membrana de prensagem",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Filtro Prensa de Placas",
+      "calculadora": "filtro_prensa",
+      "descricao": "Pré-dimensionamento de filtro prensa de placas para desaguamento de lama espessada. É o único equipamento de batelada num trem contínuo, e é essa incompatibilidade que define o projeto: o volume de câmaras sai do ciclo e não da vazão instantânea, e o tanque de lama espessada existe para absorver a diferença — a calculadora devolve o volume mínimo desse pulmão. Fecha o balanço entre lama espessada, torta e filtrado, calcula o volume de câmaras, o número de placas e a área filtrante pela geometria adotada, e decompõe o ciclo em enchimento, filtração, prensagem, sopro e descarga, verificando se ele cabe no ciclo adotado e se a capacidade diária atende. O tempo de filtração sai da equação de Ruth com a resistência específica da torta, que é grandeza de ensaio de folha. Dimensiona a bomba de alimentação de deslocamento positivo, as utilidades por batelada, a força de fechamento, a massa de torta por descarga, o espaço de abertura e a carga no piso, e trata a reserva como item de disponibilidade, porque o filtro parado interrompe todo o desaguamento.",
+      "referencia": "Balanço de massa entre lama espessada, torta e filtrado. Volume de câmaras pelo ciclo de batelada; número de câmaras e área filtrante pela geometria de placa e espessura adotadas. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Bomba de alimentação de deslocamento positivo com curva pressão × vazão declinante. NR-12 para proteções, comandos bimanuais e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico de manuseio de panos; ABNT NBR 10004 para a classificação da torta; NR-35 para trabalho em altura.",
+      "resumo": "Filtro prensa: balanço, câmaras e área, ciclo completo, bomba, pulmão mínimo, fechamento e arranjo.",
+      "normas": [
+        "NR-12",
+        "NBR 6118",
+        "NBR 8800",
+        "NBR 10004",
+        "NR-35",
+        "Ruth/Darcy"
+      ],
+      "modelo_en": "Plate Filter Press",
+      "resumo_en": "Filter press: mass balance, chambers and area, full cycle, feed pump, minimum buffer, closing force and layout.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Filter Press"
     }
   ]
 }

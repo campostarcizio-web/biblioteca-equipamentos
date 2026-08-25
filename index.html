@@ -1866,6 +1866,177 @@ function flarePreset(){
    sai com a mesma concentração do tanque. Manter o sólido em suspensão é a
    função, e a rotação mínima vem da correlação de Zwietering.
    ========================================================================== */
+/* ============================================================================
+   FILTRO PRENSA DE PLACAS — desaguamento de lama espessada
+   ----------------------------------------------------------------------------
+   O equipamento é de BATELADA num trem contínuo, e é essa incompatibilidade que
+   define o projeto: o volume de câmaras sai do ciclo, não da vazão instantânea.
+   O tempo de filtração vem da equação de Ruth/Darcy com a resistência específica
+   da torta, que é grandeza de ENSAIO — sem teste de folha, o ciclo é estimativa.
+   ========================================================================== */
+function filtroPrensaCalc(){
+  /* ---------- ENTRADAS ---------- */
+  var S=num("fpS");        if(!isFinite(S)||S<=0)S=2067;        // kg/h de sólidos
+  var rhos=num("fpRhoS");  if(!isFinite(rhos)||rhos<=0)rhos=2936;
+  var Cu=num("fpCu");      if(!isFinite(Cu)||Cu<=0||Cu>=100)Cu=30;
+  var Ct=num("fpCt");      if(!isFinite(Ct)||Ct<=0||Ct>=100)Ct=65;
+  var hDia=num("fpH");     if(!isFinite(hDia)||hDia<=0||hDia>24)hDia=24;
+  var tCiclo=num("fpCiclo");if(!isFinite(tCiclo)||tCiclo<=0)tCiclo=3;  // h
+  var lado=selvN("fpPlaca",2.0);                                  // m
+  var espCam=selvN("fpEsp",32);                                   // mm
+  var Pfilt=num("fpPfilt"); if(!isFinite(Pfilt)||Pfilt<=0)Pfilt=7; // bar
+  var memb=selv("fpMemb","sim");
+  var Pmemb=num("fpPmemb"); if(!isFinite(Pmemb)||Pmemb<=0)Pmemb=15;
+  var alfa=num("fpAlfa");  if(!isFinite(alfa)||alfa<=0)alfa=1e12;  // m/kg
+  var muF=num("fpMu");     if(!isFinite(muF)||muF<=0)muF=0.000547; // Pa·s
+  var tDesc=num("fpTdesc");if(!isFinite(tDesc)||tDesc<0)tDesc=25;  // min
+  var nRes=selvN("fpRes",1);                                       // unidades reserva
+  var Tf=num("fpT");       if(!isFinite(Tf))Tf=50;
+
+  /* ---------- ETAPA 1 — BALANÇO DE MASSA ---------- */
+  var Wu=S/(Cu/100);                                   // kg/h de lama espessada
+  var rhoU=1/((Cu/100/rhos)+((1-Cu/100)/1000));
+  var Vu=Wu/rhoU;                                      // m³/h
+  var Wt=S/(Ct/100);                                   // kg/h de torta
+  var rhoT=1/((Ct/100/rhos)+((1-Ct/100)/1000));
+  var Vt=Wt/rhoT;                                      // m³/h de torta
+  var Wfil=Wu-Wt;                                      // kg/h de filtrado
+  var Vfil=Wfil/1000;                                  // m³/h
+  var umTorta=100-Ct;                                  // % de umidade
+  var tortaOK=(Ct>=55);
+
+  /* ---------- ETAPA 2 — VOLUME DE CÂMARAS E NÚMERO DE PLACAS ---------- */
+  var Vcam=Vt*tCiclo;                                  // m³ por batelada
+  var Apl=lado*lado;                                   // m² por face
+  var vUmaCam=Apl*espCam/1000;                         // m³ por câmara
+  var nCam=Math.ceil(Vcam/vUmaCam);
+  var Afilt=2*Apl*nCam;                                // m² de área filtrante
+  var Vinst=nCam*vUmaCam;                              // m³ instalados
+  var compPack=nCam*(espCam+30)/1000;                  // m — placa + espessura de quadro
+  var compTotal=compPack+2.5;                          // com cabeçote e prato móvel
+
+  /* ---------- ETAPA 3 — CICLO ---------- */
+  /* Ruth: t = µ·α·w·V²/(2·A²·ΔP), com w = massa de sólido por volume de filtrado */
+  var wS=(Vfil>0)?(S/Vfil):0;                          // kg de sólido por m³ de filtrado
+  var Vf1=Vfil*tCiclo;                                 // m³ de filtrado por batelada
+  var tFiltS=muF*alfa*wS*Math.pow(Vf1,2)/(2*Math.pow(Afilt,2)*Pfilt*1e5);  // s
+  var tFilt=tFiltS/60;                                 // min
+  /* O enchimento NAO deve ser limitado pela producao do espessador: e para isso que
+     existe o tanque-pulmao. E variavel de projeto, e define a bomba de alimentacao.  */
+  var tEnch=num("fpTench"); if(!isFinite(tEnch)||tEnch<=0)tEnch=30;   // min
+  var VpulNec=Vu*(tCiclo-tEnch/60);                    // m³ que o pulmão acumula enquanto o filtro não enche
+  if(VpulNec<0) VpulNec=0;
+  var tPress=(memb==="sim")?20:0;
+  var tSopro=8;
+  var tCicloCalc=(tEnch+tFilt+tPress+tSopro+tDesc)/60; // h
+  var cicloOK=(tCicloCalc<=tCiclo+0.01);
+  var nBat=hDia/tCiclo;                                // bateladas por dia
+  var capDia=nBat*Vcam*rhoT*(Ct/100)/1000;             // t/dia de sólidos processados
+  var capOK=(capDia>=S*hDia/1000*0.999);
+
+  /* ---------- ETAPA 4 — BOMBA DE ALIMENTAÇÃO ---------- */
+  var Qbomba=Vcam/(tEnch/60);                          // m³/h no enchimento
+  var Pbomba=Pfilt*1e5*(Qbomba/3600)/0.55/1000;        // kW no pico de pressão
+  var dnAlim=Math.sqrt(4*(Qbomba/3600)/(Math.PI*1.8))*1000;
+
+  /* ---------- ETAPA 5 — UTILIDADES ---------- */
+  var Vmemb=(memb==="sim")?(Vinst*0.25):0;             // m³ de água de prensagem por batelada
+  var Qar=(nCam*Apl*0.05);                             // Nm³ de ar por batelada, sopro
+  var Vlav=Afilt*0.004;                                // m³ de água por lavagem de panos
+
+  /* ---------- ETAPA 6 — ESTRUTURA E MANUSEIO ---------- */
+  var mTortaBat=Vcam*rhoT;                             // kg por batelada
+  var Fecho=Pfilt*1e5*Apl/1000;                        // kN de força de fechamento
+  var mFiltro=nCam*Apl*95+4000;                        // kg — estimativa de placas e estrutura
+  var cargaPiso=(mFiltro+mTortaBat)*9.80665/1000/(compTotal*(lado+1.5));  // kPa
+
+  function vf(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function sf(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEMF=[
+   ["1","Sólidos a desaguar","do espessador",vf(S,0)+" kg/h = "+vf(S*hDia/1000,1)+" t/dia","balanço do trem","—"],
+   ["1","Lama espessada (alimentação)","S/C_u",vf(Wu,0)+" kg/h = "+vf(Vu,2)+" m³/h a "+vf(Cu,0)+" %","—","—"],
+   ["1","Torta produzida","S/C_torta",vf(Wt,0)+" kg/h = "+vf(Vt,2)+" m³/h a "+vf(Ct,0)+" %","≥ 55 % para empilhar e transportar",sf(tortaOK)],
+   ["1","Filtrado","alimentação − torta",vf(Wfil,0)+" kg/h = "+vf(Vfil,2)+" m³/h","retorna ao espessador","—"],
+   ["2","Volume de câmaras","V_torta · t_ciclo",vf(Vcam,2)+" m³ por batelada","—","—"],
+   ["2","Número de câmaras","V_câmaras / (A_placa · esp)",nCam+" câmaras de "+vf(lado,1)+"×"+vf(lado,1)+" m e "+vf(espCam,0)+" mm","—","—"],
+   ["2","Área filtrante","2 · A_placa · n",vf(Afilt,0)+" m²","—","—"],
+   ["3","Tempo de filtração","Ruth: µ·α·w·V²/(2·A²·ΔP)",vf(tFilt,0)+" min (α = "+alfa.toExponential(1)+" m/kg)","α vem de ENSAIO DE FOLHA","VERIFICAR"],
+   ["3","Ciclo total calculado","enchimento+filtração+prensagem+sopro+descarga",
+    vf(tCicloCalc,2)+" h","≤ "+vf(tCiclo,2)+" h adotado",sf(cicloOK)],
+   ["3","Capacidade diária","n_bateladas · massa por batelada",vf(capDia,2)+" t/dia","≥ "+vf(S*hDia/1000,2)+" t/dia",sf(capOK)],
+   ["4","Bomba de alimentação","V_câmaras / t_enchimento",vf(Qbomba,1)+" m³/h a "+vf(Pfilt,0)+" bar","deslocamento positivo","—"],
+   ["4","Volume mínimo do tanque-pulmão","Q_espessador · (ciclo − enchimento)",vf(VpulNec,2)+" m³","dimensionar o tanque de lama espessada por este valor","VERIFICAR"],
+   ["4","Potência da bomba","ΔP·Q/η",vf(Pbomba,1)+" kW","no pico de pressão","—"],
+   ["5","Força de fechamento","P · A_placa",vf(Fecho,0)+" kN","estrutura do fabricante","VERIFICAR"],
+   ["6","Carga no piso","(filtro + torta)/área ocupada",vf(cargaPiso,0)+" kPa","comparar com a laje ou fundação","VERIFICAR"],
+   ["6","Unidades de reserva","—",nRes+" reserva","filtro parado interrompe o trem",(nRes>=1?"APROVADO":"REPROVADO")]
+  ];
+  var nRf=0,nVf=0; MEMF.forEach(function(m){ if(m[5]==="REPROVADO")nRf++; else if(m[5]==="VERIFICAR")nVf++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRf===0?"✓ nenhuma verificação reprovada":"⚠ "+nRf+" verificação(ões) REPROVADA(S)")+"   ·   "+nVf+" a confirmar   ·   "+MEMF.length+" verificações",hi:(nRf>0)}
+  ].concat(MEMF.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+
+    {sec:"1 — BALANÇO DE MASSA DO DESAGUAMENTO"},
+    {k:"⚠ Equipamento de BATELADA num trem contínuo",v:"O filtro prensa é a única máquina descontínua da linha, e é isso que define o projeto: o volume de câmaras sai do CICLO, não da vazão instantânea. É também por isso que existe o tanque de lama espessada — ele absorve a diferença entre o espessador, que produz sem parar, e o filtro, que enche, prensa e descarrega.",hi:true},
+    {k:"Alimentação — lama espessada",v:vf(Wu,0)+" kg/h   =   "+vf(Vu,2)+" m³/h   a "+vf(Cu,0)+" % de sólidos   ·   ρ = "+vf(rhoU,0)+" kg/m³"},
+    {k:"TORTA PRODUZIDA",v:vf(Wt,0)+" kg/h   =   "+vf(Vt,2)+" m³/h   a "+vf(Ct,0)+" % de sólidos   ·   ρ = "+vf(rhoT,0)+" kg/m³   ·   umidade "+vf(umTorta,0)+" %"+(tortaOK?"   ✓ empilha e transporta":"   ⚠ ABAIXO DE 55 % — torta não empilha, escorre na caçamba e é recusada em aterro"),hi:true},
+    {k:"FILTRADO",v:vf(Wfil,0)+" kg/h   =   "+vf(Vfil,2)+" m³/h   —  sai em GOLPES, acompanhando o ciclo, e por isso o tanque de filtrado precisa de volume de amortecimento. Não é água limpa: carrega finos que passam pelo pano no início do ciclo, então o retorno é ao espessador.",hi:true},
+    {k:"Redução de volume",v:"de "+vf(Vu,2)+" para "+vf(Vt,2)+" m³/h   =   "+vf((1-Vt/Vu)*100,0)+" % de redução   —  é isso que o filtro compra: transporte e disposição de "+vf(Vt*24,1)+" m³/dia em vez de "+vf(Vu*24,1)+"."},
+
+    {sec:"2 — CÂMARAS, PLACAS E ÁREA FILTRANTE"},
+    {k:"VOLUME DE CÂMARAS necessário",v:vf(Vcam,2)+" m³ por batelada   =   "+vf(Vt,2)+" m³/h × "+vf(tCiclo,2)+" h de ciclo",hi:true},
+    {k:"Placa adotada",v:vf(lado,1)+" × "+vf(lado,1)+" m   ·   área por face "+vf(Apl,2)+" m²   ·   espessura de câmara "+vf(espCam,0)+" mm   →   "+vf(vUmaCam,4)+" m³ por câmara"},
+    {k:"NÚMERO DE CÂMARAS",v:nCam+" câmaras   →   volume instalado "+vf(Vinst,2)+" m³   ("+vf((Vinst/Vcam-1)*100,0)+" % de folga sobre o necessário)",hi:true},
+    {k:"ÁREA FILTRANTE",v:vf(Afilt,0)+" m²   —  duas faces por câmara",hi:true},
+    {k:"Comprimento do pacote",v:vf(compPack,2)+" m de placas   →   cerca de "+vf(compTotal,2)+" m com cabeçote e prato móvel   —  prever esse comprimento MAIS o curso de abertura para descarga, e circulação em volta.",hi:true},
+    {k:"⚠ Espessura da câmara é decisão de projeto",v:"Câmara mais espessa reduz o número de placas e o custo, mas a torta fica mais espessa e o tempo de filtração cresce com o QUADRADO do volume filtrado. Câmara fina filtra rápido e descarrega mais vezes. O ótimo depende da resistência específica da torta, que é ensaio."},
+
+    {sec:"3 — CICLO DE OPERAÇÃO"},
+    {k:"Enchimento",v:vf(tEnch,0)+" min   —  "+vf(Vcam,2)+" m³ a "+vf(Qbomba,1)+" m³/h. É variável de projeto, e não a vazão do espessador: encher devagar só alonga o ciclo. O tanque-pulmão existe justamente para permitir encher rápido.",hi:true},
+    {k:"Volume mínimo do tanque-pulmão",v:vf(VpulNec,2)+" m³   —  é o que o espessador produz enquanto o filtro está prensando, soprando e descarregando. Abaixo disso o espessador precisa parar, e ele não para.",hi:true},
+    {k:"FILTRAÇÃO",v:vf(tFilt,0)+" min   —  equação de Ruth: t = µ·α·w·V²/(2·A²·ΔP), com α = "+alfa.toExponential(1)+" m/kg, w = "+vf(wS,0)+" kg de sólido por m³ de filtrado e ΔP = "+vf(Pfilt,0)+" bar",hi:true},
+    {k:"Prensagem por membrana",v:(memb==="sim")?(vf(tPress,0)+" min a "+vf(Pmemb,0)+" bar   —  é o que leva a torta de cerca de 55 % a "+vf(Ct,0)+ " % de sólidos"):"sem membrana — torta mais úmida e ciclo mais longo"},
+    {k:"Sopro e descarga",v:vf(tSopro,0)+" min de sopro   ·   "+vf(tDesc,0)+" min de abertura e descarga"},
+    {k:"CICLO TOTAL",v:vf(tCicloCalc,2)+" h   vs   "+vf(tCiclo,2)+" h adotados"+(cicloOK?"   ✓ o ciclo cabe":"   ⚠ NÃO CABE — o ciclo real é maior que o adotado. Aumentar a área filtrante, a pressão, ou aceitar ciclo mais longo e recalcular o volume de câmaras."),hi:!cicloOK},
+    {k:"Bateladas e capacidade",v:vf(nBat,1)+" bateladas por dia   →   "+vf(capDia,2)+" t/dia de sólidos   vs   "+vf(S*hDia/1000,2)+" t/dia necessários"+(capOK?"   ✓":"   ⚠ INSUFICIENTE"),hi:!capOK},
+    {k:"⚠ O erro clássico do ciclo",v:"Dimensionar o ciclo só com enchimento e filtração, esquecendo abertura e descarga. Esses "+vf(tDesc,0)+" min são "+vf(tDesc/(tCicloCalc*60)*100,0)+" % do ciclo e não produzem nada. Ignorá-los derruba a capacidade real em quase um terço.",hi:true},
+    {k:"⚠ O pano cega com o tempo",v:"Com alcatrão na lama, o meio filtrante colmata e o ciclo cresce mês a mês até parar. Prever lavagem química programada, estoque de panos e registrar o tempo de ciclo como indicador — a subida dele é o aviso antecipado.",hi:true},
+
+    {sec:"4 — BOMBA DE ALIMENTAÇÃO"},
+    {k:"Vazão e pressão",v:vf(Qbomba,1)+" m³/h no enchimento   ·   pressão final "+vf(Pfilt,0)+" bar   →   potência de pico "+vf(Pbomba,1)+" kW   ·   bocal DN "+vf(dnAlim,0)},
+    {k:"Tipo",v:"Deslocamento positivo, com curva de pressão × vazão DECLINANTE: no início do ciclo a vazão é alta e a pressão baixa; no fim, o inverso. Bomba centrífuga não faz isso e trava o ciclo. Duplo diafragma ou pistão de membrana são as escolhas usuais.",hi:true},
+
+    {sec:"5 — UTILIDADES POR BATELADA"},
+    {k:"Água de prensagem",v:(memb==="sim")?(vf(Vmemb,2)+" m³ por batelada a "+vf(Pmemb,0)+" bar"):"não se aplica"},
+    {k:"Ar de sopro",v:vf(Qar,0)+" Nm³ por batelada"},
+    {k:"Água de lavagem de panos",v:vf(Vlav,2)+" m³ por lavagem completa   —  programar por número de ciclos, não por sintoma"},
+
+    {sec:"6 — ARRANJO, ESTRUTURA E SEGURANÇA"},
+    {k:"Massa de torta por batelada",v:fmt(Math.round(mTortaBat))+" kg   —  a caçamba sob o filtro precisa receber isso de uma vez"},
+    {k:"Força de fechamento",v:vf(Fecho,0)+" kN   —  P × área da placa. É a estrutura do fabricante, mas define a fundação e o pórtico.",hi:true},
+    {k:"Carga no piso",v:vf(cargaPiso,0)+" kPa   com o filtro cheio   —  verificar a laje ou dimensionar fundação própria"},
+    {k:"Espaço necessário",v:"comprimento do pacote "+vf(compTotal,2)+" m   MAIS o curso de abertura, que é da ordem de "+vf(compPack*0.35,2)+" m, e circulação de 1,0 m em volta para troca de panos"},
+    {k:"⚠ Reserva",v:(nRes>=1?(nRes+" unidade(s) de reserva prevista(s)   —  correto: o filtro é o único equipamento descontínuo do trem, e a parada dele para o desaguamento inteiro em poucas horas de pulmão."):"⚠ SEM RESERVA — o filtro parado interrompe todo o desaguamento assim que o tanque de lama espessada enche. Avaliar segunda unidade ou rota alternativa de contingência."),hi:(nRes<1)},
+    {k:"Normas aplicáveis",v:"NR-12 para proteções, comandos bimanuais e intertravamento de abertura   ·   ABNT NBR 6118 para a fundação   ·   ABNT NBR 8800 para o pórtico de manuseio   ·   ABNT NBR 10004 para a classificação da torta, que decide o destino e o custo   ·   NR-35 para trabalho em altura no manuseio de panos"},
+    {k:"⚠ Classificação da torta",v:"Ensaiar a torta pela NBR 10004 antes de assumir reciclo ao processo. Lama de gás com metais e alcatrão pode ser Classe I, e isso muda o custo de disposição em ordem de grandeza.",hi:true},
+    {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"A resistência específica da torta α é o parâmetro que comanda o tempo de filtração, e varia em várias ordens de grandeza conforme o material e a floculação. O valor adotado aqui é referência. ENSAIO DE FOLHA com a lama real é o que fecha o ciclo, a área e o número de placas.",hi:true}
+  ]);
+
+  OUT.geo={tipo:"filtroprensa",MEM:MEMF,nRep:nRf,nVer:nVf,S:S,Wu:Wu,Vu:Vu,Wt:Wt,Vt:Vt,Wfil:Wfil,Vfil:Vfil,
+    Cu:Cu,Ct:Ct,umTorta:umTorta,rhoT:rhoT,rhoU:rhoU,Vcam:Vcam,lado:lado,espCam:espCam,nCam:nCam,Afilt:Afilt,
+    Vinst:Vinst,compPack:compPack,compTotal:compTotal,tEnch:tEnch,tFilt:tFilt,tPress:tPress,tSopro:tSopro,
+    tDesc:tDesc,tCiclo:tCiclo,tCicloCalc:tCicloCalc,cicloOK:cicloOK,nBat:nBat,capDia:capDia,capOK:capOK,
+    Qbomba:Qbomba,VpulNec:VpulNec,tEnchIn:tEnch,Pbomba:Pbomba,dnAlim:dnAlim,Fecho:Fecho,mTortaBat:mTortaBat,cargaPiso:cargaPiso,
+    memb:(memb==="sim"),Pmemb:Pmemb,alfa:alfa,tortaOK:tortaOK,nRes:nRes,Apl:Apl};
+  return OUT;
+}
+
 function tanqueLamaCalc(){
   var SERV={
     recirc:{nome:"Tanque de recirculação / coleta",t:4,C:1.88,Q:550,pv:0.10,
@@ -4436,6 +4607,43 @@ function flexowellCalc(){
 }
 
 const CALCS={
+  filtro_prensa:{
+    titulo:"Filtro prensa de placas — desaguamento de lama",
+    referencia:"Volume de câmaras pelo ciclo de batelada, com número de placas e área filtrante pela geometria adotada. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Balanço de massa entre lama espessada, torta e filtrado. Bomba de alimentação de deslocamento positivo com curva declinante. Verificações de capacidade diária, ciclo total incluindo abertura e descarga, força de fechamento, carga no piso e arranjo. NR-12 para proteções e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico; ABNT NBR 10004 para a classificação da torta.",
+    campos:[
+      {tipo:"head",label:"Alimentação"},
+      {id:"fpS",label:"SÓLIDOS a desaguar",unidade:"kg/h",tipo:"number",valor:2067,step:"50"},
+      {id:"fpRhoS",label:"Massa específica real do sólido",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
+      {id:"fpCu",label:"Concentração da LAMA ESPESSADA (underflow)",unidade:"% massa",tipo:"number",valor:30,step:"1"},
+      {id:"fpCt",label:"Concentração alvo da TORTA",unidade:"% massa",tipo:"number",valor:65,step:"1"},
+      {id:"fpT",label:"Temperatura",unidade:"°C",tipo:"number",valor:50,step:"5"},
+      {id:"fpH",label:"Horas de operação por dia",unidade:"h/dia",tipo:"number",valor:24,step:"1"},
+      {tipo:"head",label:"Ciclo e geometria"},
+      {id:"fpCiclo",label:"CICLO ADOTADO",unidade:"h",tipo:"number",valor:3,step:"0.5"},
+      {id:"fpPlaca",label:"Tamanho da placa",tipo:"select",valor:"2.0",opcoes:[
+        {v:"1.0",t:"1,0 × 1,0 m"},{v:"1.2",t:"1,2 × 1,2 m"},
+        {v:"1.5",t:"1,5 × 1,5 m"},{v:"2.0",t:"2,0 × 2,0 m"}]},
+      {id:"fpEsp",label:"Espessura da câmara",tipo:"select",valor:"32",opcoes:[
+        {v:"25",t:"25 mm — filtra rápido, mais placas"},
+        {v:"32",t:"32 mm — usual"},
+        {v:"40",t:"40 mm — menos placas, ciclo mais longo"},
+        {v:"50",t:"50 mm"}]},
+      {id:"fpTench",label:"Tempo de ENCHIMENTO alvo (define a bomba)",unidade:"min",tipo:"number",valor:30,step:"5"},
+      {id:"fpTdesc",label:"Tempo de abertura e descarga",unidade:"min",tipo:"number",valor:25,step:"5"},
+      {tipo:"head",label:"Pressões e filtrabilidade"},
+      {id:"fpPfilt",label:"Pressão de FILTRAÇÃO",unidade:"bar",tipo:"number",valor:7,step:"0.5"},
+      {id:"fpMemb",label:"Prensagem por membrana",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"COM membrana — torta mais seca"},
+        {v:"nao",t:"SEM membrana — câmara simples"}]},
+      {id:"fpPmemb",label:"Pressão de PRENSAGEM",unidade:"bar",tipo:"number",valor:15,step:"1"},
+      {id:"fpAlfa",label:"Resistência específica da torta  α  (ensaio de folha)",unidade:"m/kg",tipo:"number",valor:1e12,step:"1e11"},
+      {id:"fpMu",label:"Viscosidade do filtrado",unidade:"Pa·s",tipo:"number",valor:0.000547,step:"0.00001"},
+      {tipo:"head",label:"Disponibilidade"},
+      {id:"fpRes",label:"Unidades de reserva",tipo:"select",valor:"1",opcoes:[
+        {v:"0",t:"sem reserva"},{v:"1",t:"1 unidade reserva"},{v:"2",t:"2 unidades reserva"}]}
+    ],
+    calcular:filtroPrensaCalc
+  },
   tanque_lama:{
     titulo:"Tanque agitado de lama — recirculação, lama espessada ou filtrado",
     referencia:"Volume útil por tempo de retenção; rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o tipo de impelidor, e potência por P = Np·ρ·N³·D_imp⁵, adotando-se o maior entre esse critério e a potência específica de prática. Sedimentação em parada verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123 com verificação de tombamento no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
@@ -9986,6 +10194,151 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="filtroprensa"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195, ZR1=118;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      function cH(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntc((x1+x2)/2,y-1.6,t,30,90,170,5.8); }
+      function cV(x,y1,y2,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        var xc=Math.max(XL+2,Math.min(XR-2,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
+        doc.setTextColor(30,90,170); doc.setFontSize(5.8);
+        var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
+        if(alt>=cmp+3) doc.text(san(t),xc-1.2,(y1+y2)/2,{angle:90,align:"center"});
+        else doc.text(san(t),Math.max(XL,Math.min(XR-cmp,xc-cmp-2)),Math.min(y1,y2)-1.5); }
+
+      ntc(105,27,"FILTRO PRENSA  ·  "+G.nCam+" camaras de "+G.lado.toFixed(1)+"x"+G.lado.toFixed(1)+" m  ·  "+G.espCam.toFixed(0)+" mm",20,60,100,9.0);
+      ntc(105,32,"area "+G.Afilt.toFixed(0)+" m2  ·  ciclo "+G.tCicloCalc.toFixed(2)+" h  ·  torta "+G.Ct.toFixed(0)+" %  ·  "+G.capDia.toFixed(1)+" t/dia",90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,35.5,XR,35.5);
+
+      /* ---- vista lateral do pacote de placas ---- */
+      var x0=XL+8, escF=Math.min(88/Math.max(G.compTotal,1), 46/Math.max(G.lado,1));
+      if(escF>16) escF=16;
+      var hPl=Math.max(20,Math.min(G.lado*escF,46));
+      var yPl=62, yBase=yPl+hPl;
+      var Lpack=Math.min(G.compPack*escF,64);
+      var xCab=x0+10;
+      /* cabecote fixo */
+      doc.setFillColor(150,160,175); doc.setDrawColor(40,40,40); doc.setLineWidth(0.5);
+      doc.rect(x0,yPl-4,10,hPl+8,"FD");
+      /* pacote de placas */
+      var nDes=Math.min(G.nCam,26), passo=Lpack/nDes;
+      doc.setFillColor(214,228,240);
+      for(var q=0;q<nDes;q++){
+        doc.rect(xCab+q*passo,yPl,passo*0.72,hPl,"FD");
+      }
+      /* prato movel e cilindro */
+      var xMov=xCab+Lpack;
+      doc.setFillColor(150,160,175); doc.setDrawColor(40,40,40);
+      doc.rect(xMov,yPl-4,9,hPl+8,"FD");
+      doc.setFillColor(120,120,120); doc.rect(xMov+9,yPl+hPl/2-4,16,8,"FD");
+      doc.setLineWidth(0.8); doc.line(xMov+25,yPl+hPl/2,xMov+31,yPl+hPl/2);
+      /* barras laterais */
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.9);
+      doc.line(x0+10,yPl-2,xMov,yPl-2); doc.line(x0+10,yBase+2,xMov,yBase+2);
+      /* alimentacao e filtrado */
+      doc.setDrawColor(150,90,50); doc.setLineWidth(0.7);
+      doc.line(x0-6,yPl+hPl/2,x0,yPl+hPl/2);
+      doc.line(x0-2.6,yPl+hPl/2-1.4,x0,yPl+hPl/2); doc.line(x0-2.6,yPl+hPl/2+1.4,x0,yPl+hPl/2);
+      doc.setDrawColor(40,140,190); doc.setLineWidth(0.6);
+      doc.line(xCab,yBase+6,xMov,yBase+6);
+      doc.line(xMov,yBase+6,xMov,yBase+11);
+      /* cacamba */
+      doc.setDrawColor(90,70,50); doc.setLineWidth(0.6);
+      doc.line(xCab+2,yBase+16,xMov-2,yBase+16);
+      doc.line(xCab+2,yBase+16,xCab+6,yBase+30); doc.line(xMov-2,yBase+16,xMov-6,yBase+30);
+      doc.line(xCab+6,yBase+30,xMov-6,yBase+30);
+      /* cotas */
+      cH(x0,xMov+9,yPl-12,"comprimento "+G.compTotal.toFixed(2)+" m");
+      cV(xMov+34,yPl,yBase,"placa "+G.lado.toFixed(1)+" m");
+      nt(XL,yBase+38,"alimentacao "+G.Qbomba.toFixed(1)+" m3/h a "+G.Ct.toFixed(0)+"%  ·  DN "+G.dnAlim.toFixed(0),150,90,50,5.6);
+      nt(XL,yBase+42,"filtrado "+G.Vfil.toFixed(2)+" m3/h  ·  em golpes",40,140,190,5.6);
+      nt(XL,yBase+46,"torta "+G.mTortaBat.toFixed(0)+" kg por batelada",90,70,50,5.6);
+      nt(XL,yBase+50,"curso de abertura ~"+(G.compPack*0.35).toFixed(2)+" m",90,90,90,5.6);
+      ntc((x0+xMov)/2,yBase+58,"VISTA LATERAL DO PACOTE",20,60,100,7.0);
+
+      /* ---- barra do ciclo ---- */
+      var yC=178, xC=XL+8, LC=90;
+      ntc(XL+53,yC-6,"CICLO  "+G.tCicloCalc.toFixed(2)+" h",20,60,100,7.5);
+      var fases=[["enchimento",G.tEnchIn,[40,140,90]],["filtracao",G.tFilt,[30,90,170]],
+                 ["prensagem",G.tPress,[150,90,180]],["sopro",G.tSopro,[190,150,60]],
+                 ["descarga",G.tDesc,[190,70,60]]];
+      var tot=0; fases.forEach(function(f){ tot+=f[1]; });
+      var xa=xC;
+      fases.forEach(function(f){
+        var w3=(tot>0)?(LC*f[1]/tot):0;
+        if(w3>0.4){ doc.setFillColor(f[2][0],f[2][1],f[2][2]); doc.rect(xa,yC,w3,7,"F"); }
+        xa+=w3; });
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3); doc.rect(xC,yC,LC,7,"S");
+      var yl2=yC+13;
+      fases.forEach(function(f){
+        doc.setFillColor(f[2][0],f[2][1],f[2][2]); doc.rect(xC,yl2-2.6,3,3,"F");
+        nt(xC+5,yl2,san(f[0])+"  "+f[1].toFixed(0)+" min  ("+(tot>0?(f[1]/tot*100).toFixed(0):"0")+" %)",60,60,60,5.6);
+        yl2+=4.2; });
+
+      /* ---- tabela ---- */
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Solidos a desaguar"),san(G.S.toFixed(0))+" kg/h"],
+          [san("Lama espessada"),san(G.Vu.toFixed(2))+" m3/h a "+san(G.Cu.toFixed(0))+" %"],
+          [san("TORTA"),san(G.Vt.toFixed(2))+" m3/h a "+san(G.Ct.toFixed(0))+" %"],
+          [san("Umidade da torta"),san(G.umTorta.toFixed(0))+" %"],
+          [san("Filtrado"),san(G.Vfil.toFixed(2))+" m3/h"],
+          [san("Reducao de volume"),san(((1-G.Vt/G.Vu)*100).toFixed(0))+" %"],
+          [san("Volume de camaras"),san(G.Vcam.toFixed(2))+" m3"],
+          [san("N de camaras"),String(G.nCam)],
+          [san("AREA FILTRANTE"),san(G.Afilt.toFixed(0))+" m2"],
+          [san("Volume instalado"),san(G.Vinst.toFixed(2))+" m3"],
+          [san("Comprimento do pacote"),san(G.compTotal.toFixed(2))+" m"],
+          [san("Enchimento"),san(G.tEnchIn.toFixed(0))+" min"],
+          [san("Filtracao"),san(G.tFilt.toFixed(0))+" min"],
+          [san("Descarga"),san(G.tDesc.toFixed(0))+" min"],
+          [san("CICLO TOTAL"),san(G.tCicloCalc.toFixed(2))+" h "+(G.cicloOK?"OK":"NAO CABE")],
+          [san("Bateladas por dia"),san(G.nBat.toFixed(1))],
+          [san("Capacidade"),san(G.capDia.toFixed(1))+" t/dia "+(G.capOK?"OK":"BAIXA")],
+          [san("Bomba de alimentacao"),san(G.Qbomba.toFixed(1))+" m3/h / "+san(G.Pbomba.toFixed(1))+" kW"],
+          [san("Tanque-pulmao minimo"),san(G.VpulNec.toFixed(1))+" m3"],
+          [san("Forca de fechamento"),san(G.Fecho.toFixed(0))+" kN"],
+          [san("Torta por batelada"),Math.round(G.mTortaBat)+" kg"],
+          [san("Carga no piso"),san(G.cargaPiso.toFixed(0))+" kPa"]
+        ],
+        styles:{fontSize:6.2,cellPadding:0.9,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.4},
+        columnStyles:{0:{cellWidth:44},1:{cellWidth:34,halign:"right"}}});
+
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,254,XR,254);
+      nt(XL,258,"Volume de camaras pelo CICLO, nao pela vazao instantanea. Tempo de filtracao por Ruth, com a resistencia especifica da torta,",120,130,150,5.6);
+      nt(XL,261.5,"que e grandeza de ENSAIO DE FOLHA. Sem esse ensaio, o ciclo, a area e o numero de placas sao estimativa.",120,130,150,5.6);
+      nt(XL,265,"NR-12 (protecoes e intertravamento de abertura)  ·  NBR 6118 (fundacao)  ·  NBR 8800 (portico)  ·  NBR 10004 (classe da torta).",120,130,150,5.6);
+
     } else if(G.tipo==="tanquelama"){
       if(G.MEM&&G.MEM.length){
         doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
