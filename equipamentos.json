@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.92.0",
+    "versao": "1.93.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -74,6 +74,9 @@
       {
         "grupo": "Tratamento de Lama",
         "subgrupos": [
+          "Tanque de Recirculação / Coleta",
+          "Tanque de Lama Espessada",
+          "Tanque de Filtrado",
           "Espessador"
         ]
       }
@@ -113,7 +116,10 @@
         "Cone Vibratório Retangular": "Rectangular Bin Activator",
         "Flare (tocha de queima)": "Flare Stack",
         "Ciclone de Gás de Topo de Forno": "Furnace Top-Gas Cyclone",
-        "Espessador": "Thickener"
+        "Espessador": "Thickener",
+        "Tanque de Recirculação / Coleta": "Recirculation / Collection Tank",
+        "Tanque de Lama Espessada": "Thickened Sludge Tank",
+        "Tanque de Filtrado": "Filtrate Tank"
       }
     }
   },
@@ -596,6 +602,81 @@
       "resumo_en": "Thickener: scrubber balance, bleed vs recirculation, area by three criteria, underflow, rake, flocculant, shell and foundation.",
       "grupo_en": "Sludge Treatment",
       "subgrupo_en": "Thickener"
+    },
+    {
+      "id": "tanque-recirculacao",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Tanque de Recirculação / Coleta",
+      "subtipo": "Tanque agitado de mistura completa que recebe o dreno do separador do lavador",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Tanque de Recirculação / Coleta",
+      "calculadora": "tanque_lama",
+      "descricao": "Tanque agitado de mistura completa a jusante do separador do lavador Venturi. Recebe o dreno, alimenta a recirculação ao lavador e a purga ao tratamento. NÃO pré-adensa e NÃO separa: a retirada sai com a mesma concentração do interior, e é assim que o balanço de sólidos fecha em regime. Dimensiona o volume útil pelo tempo de retenção, a rotação mínima de suspensão pela correlação de Zwietering e a potência de agitação pelo maior entre esse critério e a potência específica de prática, verificando a velocidade de ponta do impelidor. Calcula o tempo até a formação de leito com o agitador parado, que é a janela operacional para religar antes de compactar, e dimensiona o declive do fundo, o poço de sucção e os bocais. Fecha com a chapa do costado por pressão hidrostática, as massas, a pressão no solo, e a verificação de vento e tombamento com o tanque vazio.",
+      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+      "resumo": "Tanque de recirculação: volume, agitação por Zwietering, sedimentação em parada, bocais, costado, vento e ancoragem.",
+      "normas": [
+        "NBR 7821",
+        "API 650",
+        "NBR 6123",
+        "NBR 8800",
+        "NBR 6118",
+        "NR-12",
+        "Zwietering"
+      ],
+      "modelo_en": "Recirculation Tank",
+      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Recirculation / Collection Tank"
+    },
+    {
+      "id": "tanque-lama-espessada",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Tanque de Lama Espessada",
+      "subtipo": "Pulmão entre o espessador contínuo e o filtro prensa em batelada",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Tanque de Lama Espessada",
+      "calculadora": "tanque_lama",
+      "descricao": "Tanque agitado que funciona como pulmão entre o espessador, que opera de forma contínua, e o filtro prensa, que opera em batelada. Existe por causa dessa incompatibilidade: subdimensioná-lo obriga o espessador a acompanhar o ciclo do filtro, o que ele não faz. Opera com lama de 20 a 40 % de sólidos, e por isso a exigência de agitação é bem maior que a do tanque de recirculação. Dimensiona volume pelo tempo de pulmão, rotação de suspensão por Zwietering, potência de agitação, sedimentação em parada, fundo, poço de sucção, bocais, costado, massas, fundação, vento e ancoragem.",
+      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+      "resumo": "Tanque de lama espessada: pulmão para o ciclo do filtro, agitação intensa, costado e fundação.",
+      "normas": [
+        "NBR 7821",
+        "API 650",
+        "NBR 6123",
+        "NBR 8800",
+        "NBR 6118",
+        "NR-12",
+        "Zwietering"
+      ],
+      "modelo_en": "Thickened Sludge Tank",
+      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Thickened Sludge Tank"
+    },
+    {
+      "id": "tanque-filtrado",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Tanque de Filtrado",
+      "subtipo": "Recebe o filtrado do filtro prensa, que sai em golpes, e devolve ao circuito",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Tanque de Filtrado",
+      "calculadora": "tanque_lama",
+      "descricao": "Tanque que recebe o filtrado do filtro prensa. O filtrado sai em golpes, acompanhando o ciclo do filtro, e por isso o tanque precisa de volume de amortecimento equivalente a um a dois ciclos completos. O filtrado não é água limpa: carrega finos que passaram pelo pano, sobretudo no início do ciclo, e por isso o retorno recomendado é ao espessador e não direto ao circuito de água limpa. Dimensiona volume, agitação leve, sedimentação em parada, fundo com dreno, bocais, costado, massas, fundação, vento e ancoragem.",
+      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+      "resumo": "Tanque de filtrado: amortecimento do ciclo do filtro, agitação leve, costado e fundação.",
+      "normas": [
+        "NBR 7821",
+        "API 650",
+        "NBR 6123",
+        "NBR 8800",
+        "NBR 6118",
+        "NR-12",
+        "Zwietering"
+      ],
+      "modelo_en": "Filtrate Tank",
+      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Filtrate Tank"
     }
   ]
 }

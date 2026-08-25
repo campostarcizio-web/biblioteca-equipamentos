@@ -1857,6 +1857,196 @@ function flarePreset(){
    encolhe o espessador pelo critério hidráulico, mas concentra o tanque de
    recirculação e ataca os bicos do lavador. É o compromisso central do projeto.
    ========================================================================== */
+/* ============================================================================
+   TANQUE AGITADO DE LAMA — recirculação/coleta · lama espessada · filtrado
+   ----------------------------------------------------------------------------
+   Um só motor, três serviços. O que muda entre eles é o tempo de retenção, a
+   concentração de sólidos e a exigência de agitação — a engenharia é a mesma.
+   O tanque é de MISTURA COMPLETA por definição: ele não pré-adensa, e a purga
+   sai com a mesma concentração do tanque. Manter o sólido em suspensão é a
+   função, e a rotação mínima vem da correlação de Zwietering.
+   ========================================================================== */
+function tanqueLamaCalc(){
+  var SERV={
+    recirc:{nome:"Tanque de recirculação / coleta",t:4,C:1.88,Q:550,pv:0.10,
+            obs:"Recebe o dreno do separador do Venturi, alimenta a recirculação e a purga."},
+    espes: {nome:"Tanque de lama espessada",t:360,C:30,Q:5.5,pv:0.25,
+            obs:"Pulmão entre o espessador, que é contínuo, e o filtro prensa, que é batelada."},
+    filtr: {nome:"Tanque de filtrado",t:120,C:0.3,Q:1.7,pv:0.05,
+            obs:"Recebe o filtrado em golpes e devolve ao circuito. Carrega finos que passaram pelo pano."}
+  };
+  var sv=selv("tqServ","recirc"); var SV=SERV[sv]||SERV.recirc;
+  /* ---------- ENTRADAS ---------- */
+  var Qt=num("tqQ");     if(!isFinite(Qt)||Qt<=0)Qt=SV.Q;
+  var tRet=num("tqT");   if(!isFinite(tRet)||tRet<=0)tRet=SV.t;      // min
+  var Ct=num("tqC");     if(!isFinite(Ct)||Ct<0)Ct=SV.C;             // % massa
+  var rhos=num("tqRhoS");if(!isFinite(rhos)||rhos<=0)rhos=2936;
+  var dp=num("tqDp");    if(!isFinite(dp)||dp<=0)dp=50;              // µm
+  var Tt=num("tqTemp");  if(!isFinite(Tt))Tt=50;
+  var hd=num("tqHD");    if(!isFinite(hd)||hd<=0)hd=1.0;             // H/D
+  var bl=num("tqBL");    if(!isFinite(bl)||bl<0)bl=0.30;             // m
+  var decl=selvN("tqDecl",10);                                        // 1:n do fundo
+  var tipoImp=selv("tqImp","pbt");
+  var pvAlvo=num("tqPV"); if(!isFinite(pvAlvo)||pvAlvo<=0)pvAlvo=SV.pv;
+  var fyT=selvN("tqFy",250); var corrT=num("tqCorr");
+  if(!isFinite(corrT)||corrT<0)corrT=3;
+  var V0=num("tqV0");    if(!isFinite(V0)||V0<0)V0=30;               // m/s vento
+  var extern=selv("tqExt","sim");
+
+  /* ---------- ETAPA 1 — VOLUME E GEOMETRIA ---------- */
+  var Vutil=Qt*tRet/60;                                   // m³
+  var Dt=Math.pow(4*Vutil/(Math.PI*hd),1/3);              // m
+  Dt=Math.ceil(Dt*10)/10;
+  var Hutil=Vutil/(Math.PI*Dt*Dt/4);
+  var hFundo=(Dt/2)/decl;
+  var Htot=Hutil+bl+hFundo;
+  var Vtot=Math.PI*Dt*Dt/4*(Hutil+bl)+Math.PI*Dt*Dt/4*hFundo/3;
+  var rhoP=1/((Ct/100/rhos)+((1-Ct/100)/1000));           // kg/m³ da polpa
+  var mPolpa=Vutil*rhoP;
+
+  /* ---------- ETAPA 2 — AGITAÇÃO (Zwietering) ---------- */
+  var IMP={pbt:{Np:1.30,S:6.0,nome:"turbina de pás inclinadas 45° (axial)"},
+           rushton:{Np:5.00,S:8.0,nome:"turbina Rushton (radial) — alto cisalhamento"},
+           helice:{Np:0.35,S:4.5,nome:"hélice marítima (axial) — baixo cisalhamento"}};
+  var IM=IMP[tipoImp]||IMP.pbt;
+  var Dimp=Dt/3;
+  var muL=0.001*Math.exp(1.3272*(20-Tt)/(Tt+105));        // Pa·s — água
+  var nuL=muL/1000;                                       // m²/s
+  var X=(Ct<100)?(Ct/(100-Ct)*100):0;                     // massa sólido / massa líquido × 100
+  var Njs=IM.S*Math.pow(nuL,0.1)*Math.pow(dp*1e-6,0.2)*
+          Math.pow(9.80665*Math.max(rhos-1000,1)/1000,0.45)*Math.pow(Math.max(X,0.01),0.13)/
+          Math.pow(Dimp,0.85);                            // rev/s
+  var rpmJs=Njs*60;
+  var Pjs=IM.Np*rhoP*Math.pow(Njs,3)*Math.pow(Dimp,5)/1000;   // kW
+  var Ppv=pvAlvo*Vutil;                                        // kW pela regra de bolso
+  var Pag=Math.max(Pjs,Ppv);
+  var Pmot=Pag/0.85;
+  var govAg=(Pag<=Pjs+1e-9)?"suspensão de sólidos (Zwietering)":"potência específica de prática";
+  var vTip=Math.PI*Dimp*Njs;
+  var tipOK=(vTip<=4.5);
+  var pvReal=Pag/Vutil;
+
+  /* ---------- ETAPA 3 — FUNDO, SUCÇÃO E DECANTAÇÃO EM PARADA ---------- */
+  var muA=muL;
+  function vStokes(dum){ return 9.80665*Math.pow(dum*1e-6,2)*Math.max(rhos-1000,1)/(18*muA)*3600; }
+  var vSed=vStokes(dp);
+  var tSed=(vSed>0)?(Hutil/vSed*60):0;                    // min para o leito assentar
+  var Dsuc=Math.sqrt(4*(Qt/3600)/(Math.PI*1.8));          // m — 1,8 m/s na sucção
+  var hPoco=Math.max(0.30,2.5*Dsuc);
+
+  /* ---------- ETAPA 4 — COSTADO, FUNDO E TETO ---------- */
+  var sadmT=0.60*fyT;
+  var tCalc=rhoP*9.80665*(Hutil+hFundo)*(Dt/2)/(sadmT*1e6)*1000+corrT;
+  var CH=[4.75,6.3,8.0,9.5,12.5,16.0,19.0,22.4];
+  var tCom=CH[CH.length-1];
+  for(var i=0;i<CH.length;i++){ if(CH[i]>=Math.max(tCalc,4.75)){ tCom=CH[i]; break; } }
+  var tFundo=Math.max(tCom,6.3);
+  var mCost=Math.PI*Dt*(Hutil+bl)*tCom/1000*7850;
+  var mFun=Math.PI*Dt*Dt/4*1.1*tFundo/1000*7850;
+  var mTeto=Math.PI*Dt*Dt/4*1.05*4.75/1000*7850;
+  var mVazio=mCost+mFun+mTeto;
+  var Ntot=(mVazio+mPolpa)*9.80665/1000;                  // kN
+  var pSolo=Ntot/(Math.PI*Dt*Dt/4);                       // kPa
+
+  /* ---------- ETAPA 5 — VENTO E ANCORAGEM (NBR 6123) ---------- */
+  var ext=(extern==="sim");
+  var S2t=0.86*Math.pow(Math.max(Htot,5)/10,0.12);
+  var Vk=V0*1.0*S2t*1.0, qvT=0.613*Vk*Vk/1000;
+  var FwT=ext?(qvT*0.7*Dt*Htot):0;
+  var MwT=FwT*Htot/2;
+  var Wvazio=mVazio*9.80665/1000;                          // kN
+  var Mest=Wvazio*Dt/2;
+  var FStomb=(MwT>0)?(Mest/MwT):99;
+  var tombOK=(FStomb>=1.5);
+  var nChT=Math.max(4,Math.ceil(Dt*2));
+  var Tanc=(MwT>0)?Math.max(4*MwT/(nChT*Dt)-Wvazio/nChT,0):0;   // kN por chumbador
+
+  /* ---------- ETAPA 6 — BOCAIS ---------- */
+  function dnBocal(Q,v){ return Math.sqrt(4*(Q/3600)/(Math.PI*v))*1000; }
+  var dnEnt=dnBocal(Qt,2.0), dnSai=dnBocal(Qt,1.8), dnExtr=dnBocal(Qt*1.5,1.2);
+
+  function vt(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEMT=[
+   ["1","Volume útil","Q · t_retenção",vt(Vutil,1)+" m³ ("+vt(tRet,0)+" min)","conforme o serviço","—"],
+   ["1","Diâmetro e altura útil","V = π·D²/4·H, com H/D = "+vt(hd,2),"D = "+vt(Dt,1)+" m · H = "+vt(Hutil,2)+" m","H/D entre 0,8 e 1,5",st(hd>=0.8&&hd<=1.5)],
+   ["1","Altura total","H_útil + borda livre + fundo",vt(Htot,2)+" m","borda livre ≥ 0,30 m",st(bl>=0.30)],
+   ["2","Rotação mínima de suspensão","Zwietering N_js",vt(rpmJs,1)+" rpm","toda a partícula suspensa","—"],
+   ["2","Potência de agitação","maior entre Zwietering e P/V de prática",
+    vt(Pag,2)+" kW (motor "+vt(Pmot,2)+" kW)","governa: "+govAg,"—"],
+   ["2","Potência específica real","P/V",vt(pvReal,3)+" kW/m³","0,05 a 0,30 kW/m³",st(pvReal>=0.03)],
+   ["2","Velocidade de ponta do impelidor","π·D·N",vt(vTip,2)+" m/s","≤ 4,5 m/s (cisalhamento)",st(tipOK)],
+   ["3","Sedimentação em parada","Stokes no d50 do sólido",
+    vt(vSed,2)+" m/h → leito em "+vt(tSed,0)+" min","tempo para reagir a uma parada","VERIFICAR"],
+   ["3","Declive do fundo","1:"+decl,vt(hFundo,2)+" m de queda","≥ 1:10","—"],
+   ["4","Chapa do costado","ρ·g·H·R/σ_adm + c",vt(tCom,2)+" mm","≥ "+vt(tCalc,2)+" mm",st(tCom>=tCalc)],
+   ["4","Pressão média no solo","N/A",vt(pSolo,0)+" kPa","comparar com a admissível do terreno","VERIFICAR"],
+   ["5","Vento — NBR 6123",(ext?"q = 0,613·Vk²; F = q·Ca·D·H":"tanque abrigado"),
+    (ext?("Vk = "+vt(Vk,1)+" m/s · F = "+vt(FwT,1)+" kN"):"não se aplica"),(ext?"—":"—"),"—"],
+   ["5","Tombamento com tanque VAZIO",(ext?"M_estabilizante / M_vento":"—"),
+    (ext?vt(FStomb,2):"n/a"),(ext?"≥ 1,50":"n/a"),(ext?st(tombOK):"—")],
+   ["6","Bocal de entrada / saída","v = 2,0 / 1,8 m/s","DN "+vt(dnEnt,0)+" / DN "+vt(dnSai,0)+" mm","—","—"]
+  ];
+  var nRt=0,nVt=0; MEMT.forEach(function(m){ if(m[5]==="REPROVADO")nRt++; else if(m[5]==="VERIFICAR")nVt++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRt===0?"✓ nenhuma verificação reprovada":"⚠ "+nRt+" verificação(ões) REPROVADA(S)")+"   ·   "+nVt+" a confirmar   ·   "+MEMT.length+" verificações",hi:(nRt>0)}
+  ].concat(MEMT.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+
+    {sec:"1 — SERVIÇO E VOLUME"},
+    {k:"SERVIÇO",v:SV.nome+"   —  "+SV.obs,hi:true},
+    {k:"⚠ Este tanque é de MISTURA COMPLETA",v:"Ele NÃO pré-adensa e NÃO separa nada. A retirada sai com a mesma concentração do interior, e é assim que o balanço fecha. Quem separa é o espessador, e só com floculante. Tentar decantar aqui é contraproducente: a função da agitação é justamente impedir que isso aconteça.",hi:true},
+    {k:"Vazão e tempo de retenção",v:vt(Qt,1)+" m³/h   ·   "+vt(tRet,0)+" min   →   VOLUME ÚTIL "+vt(Vutil,1)+" m³",hi:true},
+    {k:"Geometria",v:"D = "+vt(Dt,1)+" m   ·   altura útil "+vt(Hutil,2)+" m   ·   borda livre "+vt(bl,2)+" m   ·   fundo 1:"+decl+" com "+vt(hFundo,2)+" m de queda   →   altura total "+vt(Htot,2)+" m"},
+    {k:"Volume total do tanque",v:vt(Vtot,1)+" m³   (útil + borda livre + fundo)"},
+    {k:"Polpa",v:vt(Ct,2)+" % de sólidos   ·   ρ = "+vt(rhoP,1)+" kg/m³   ·   massa contida "+fmt(Math.round(mPolpa))+" kg"},
+
+    {sec:"2 — AGITAÇÃO: manter o sólido em suspensão"},
+    {k:"Impelidor",v:IM.nome+"   ·   D_imp = D/3 = "+vt(Dimp,2)+" m   ·   Np = "+vt(IM.Np,2)+"   ·   S de Zwietering = "+vt(IM.S,1)},
+    {k:"ROTAÇÃO MÍNIMA DE SUSPENSÃO  N_js",v:vt(rpmJs,1)+" rpm   —  N_js = S·ν^0,1·d_p^0,2·[g·Δρ/ρ_L]^0,45·X^0,13 / D_imp^0,85, com d_p = "+vt(dp,0)+" µm e X = "+vt(X,2)+". Abaixo disso há sólido parado no fundo.",hi:true},
+    {k:"Potência por Zwietering",v:vt(Pjs,3)+" kW   —  P = Np·ρ·N³·D_imp⁵ na rotação de suspensão"},
+    {k:"Potência pela regra de prática",v:vt(Ppv,2)+" kW   —  "+vt(pvAlvo,2)+" kW/m³ × "+vt(Vutil,1)+" m³"},
+    {k:"POTÊNCIA ADOTADA",v:vt(Pag,2)+" kW no eixo   →   motor de "+vt(Pmot,2)+" kW   —   governa: "+govAg+"   ·   P/V real "+vt(pvReal,3)+" kW/m³",hi:true},
+    {k:"Velocidade de ponta",v:vt(vTip,2)+" m/s"+(tipOK?"   ✓ abaixo de 4,5 m/s":"   ⚠ ACIMA de 4,5 m/s — cisalhamento alto. Em tanque a jusante de floculação isso quebra o floco; aqui, antes da floculação, o problema é desgaste e consumo."),hi:!tipOK},
+    {k:"⚠ Zwietering dá o MÍNIMO, não o recomendado",v:"A correlação devolve a rotação em que o último sólido deixa o fundo — condição limite. Projeto usual adota de 1,1 a 1,3 vezes N_js, e é por isso que a regra de potência específica costuma governar. Quando a diferença entre os dois critérios é grande, vale rever o diâmetro do impelidor antes de aceitar o motor maior.",hi:true},
+
+    {sec:"3 — FUNDO, SUCÇÃO E O QUE ACONTECE NUMA PARADA"},
+    {k:"Velocidade de sedimentação do d50",v:vt(vSed,2)+" m/h   —  Stokes com "+vt(dp,0)+" µm, ρ_s = "+fmt(Math.round(rhos))+" kg/m³ e água a "+vt(Tt,0)+" °C"},
+    {k:"TEMPO ATÉ FORMAR LEITO com o agitador parado",v:vt(tSed,0)+" min   —  é a janela para religar antes de compactar. Este número deveria estar no procedimento operacional, e raramente está.",hi:true},
+    {k:"Declive do fundo",v:"1:"+decl+"   →   "+vt(hFundo,2)+" m de queda até o poço   —  mínimo de 1:10 para lama; abaixo disso o material fica retido no perímetro."},
+    {k:"Poço de sucção",v:"profundidade mínima "+vt(hPoco,2)+" m   ·   bocal de saída DN "+vt(dnSai,0)+" mm a 1,8 m/s   —  poço raso puxa vórtice e a bomba cavita."},
+    {k:"Bocais",v:"entrada DN "+vt(dnEnt,0)+" (2,0 m/s)   ·   saída DN "+vt(dnSai,0)+" (1,8 m/s)   ·   extravasor DN "+vt(dnExtr,0)+" (1,5× a vazão)   ·   dreno de fundo e respiro obrigatórios"},
+
+    {sec:"4 — COSTADO, FUNDO E FUNDAÇÃO"},
+    {k:"Chapa do costado",v:vt(tCom,2)+" mm comercial   (calculado "+vt(tCalc,2)+" mm com "+vt(corrT,0)+" mm de corrosão)   ·   aço fy = "+fyT+" MPa   ·   σ_adm = "+vt(sadmT,0)+" MPa"},
+    {k:"⚠ Corrosão não é detalhe aqui",v:"A lama é abrasiva e o pH de operação fica entre 7 e 8, mas oscila. Sobrespessura de 3 mm é o mínimo; em serviço com cloretos, considerar revestimento interno ou aço inoxidável no terço inferior, que é onde a abrasão concentra.",hi:true},
+    {k:"Massas",v:"costado "+fmt(Math.round(mCost))+" kg   ·   fundo "+fmt(Math.round(mFun))+" kg   ·   teto "+fmt(Math.round(mTeto))+" kg   →   vazio "+fmt(Math.round(mVazio))+" kg   ·   cheio "+fmt(Math.round(mVazio+mPolpa))+" kg"},
+    {k:"Pressão média no solo",v:vt(pSolo,0)+" kPa   com o tanque cheio"},
+
+    {sec:"5 — VENTO E ANCORAGEM"},
+    {k:"Situação",v:ext?"Tanque EXTERNO — verificação de vento obrigatória":"Tanque abrigado — vento não verificado"},
+    {k:"Vento característico (NBR 6123)",v:ext?("V0 = "+vt(V0,0)+" m/s   ·   S2 = "+vt(S2t,3)+"   ·   Vk = "+vt(Vk,1)+" m/s   ·   q = "+vt(qvT,3)+" kPa   →   força "+vt(FwT,1)+" kN e momento "+vt(MwT,1)+" kN·m"):"—"},
+    {k:"TOMBAMENTO COM O TANQUE VAZIO",v:ext?(vt(FStomb,2)+"   ≥ 1,50"+(tombOK?"   ✓":"   ⚠ REPROVADO — o caso crítico é o tanque VAZIO, não cheio: é quando o peso estabilizante é mínimo e o vento é o mesmo. Chumbadores são obrigatórios.")):"n/a",hi:(ext&&!tombOK)},
+    {k:"Ancoragem",v:ext?(nChT+" chumbadores   ·   tração de "+vt(Tanc,1)+" kN por chumbador no caso vazio"):"conforme montagem"},
+
+    {sec:"6 — NORMAS E OBSERVAÇÕES"},
+    {k:"Normas aplicáveis",v:"ABNT NBR 7821 para tanque soldado de aço   ·   API 650 quando aplicável   ·   ABNT NBR 8800 para estrutura e suportes   ·   ABNT NBR 6123 para vento   ·   ABNT NBR 6118 para a fundação   ·   NR-12 para o acionamento do agitador   ·   NR-35 e NBR 14718 para acesso ao topo"},
+    {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"O fator S de Zwietering depende do tipo de impelidor, da relação D_imp/T e da altura de instalação, e varia de 4 a 8 na literatura. Para projeto executivo, confirmar com o fabricante do agitador, que trabalha com dados próprios de bancada.",hi:true}
+  ]);
+
+  OUT.geo={tipo:"tanquelama",MEM:MEMT,nRep:nRt,nVer:nVt,serv:SV.nome,Qt:Qt,tRet:tRet,Ct:Ct,Vutil:Vutil,Vtot:Vtot,
+    Dt:Dt,Hutil:Hutil,Htot:Htot,bl:bl,hFundo:hFundo,decl:decl,rhoP:rhoP,mPolpa:mPolpa,Dimp:Dimp,rpmJs:rpmJs,
+    Pag:Pag,Pmot:Pmot,pvReal:pvReal,vTip:vTip,tipOK:tipOK,govAg:govAg,vSed:vSed,tSed:tSed,hPoco:hPoco,
+    dnEnt:dnEnt,dnSai:dnSai,dnExtr:dnExtr,tCom:tCom,mVazio:mVazio,pSolo:pSolo,ext:ext,FwT:FwT,FStomb:FStomb,
+    tombOK:tombOK,nChT:nChT,Tanc:Tanc,impNome:IM.nome,dp:dp,rhos:rhos};
+  return OUT;
+}
+
 function espessadorCalc(){
   /* ---------- ENTRADAS ---------- */
   var QG=num("epQG");   if(!isFinite(QG)||QG<=0)QG=174000;      // Nm³/h
@@ -4246,6 +4436,47 @@ function flexowellCalc(){
 }
 
 const CALCS={
+  tanque_lama:{
+    titulo:"Tanque agitado de lama — recirculação, lama espessada ou filtrado",
+    referencia:"Volume útil por tempo de retenção; rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o tipo de impelidor, e potência por P = Np·ρ·N³·D_imp⁵, adotando-se o maior entre esse critério e a potência específica de prática. Sedimentação em parada verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123 com verificação de tombamento no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+    campos:[
+      {tipo:"head",label:"Serviço"},
+      {id:"tqServ",label:"SERVIÇO do tanque",tipo:"select",valor:"recirc",opcoes:[
+        {v:"recirc",t:"Recirculação / coleta — dreno do separador do lavador"},
+        {v:"espes",t:"Lama espessada — pulmão entre espessador e filtro prensa"},
+        {v:"filtr",t:"Filtrado — recebe o filtrado do filtro prensa"}]},
+      {id:"tqQ",label:"VAZÃO de entrada",unidade:"m³/h",tipo:"number",valor:550,step:"10"},
+      {id:"tqT",label:"TEMPO DE RETENÇÃO",unidade:"min",tipo:"number",valor:4,step:"1"},
+      {id:"tqC",label:"Concentração de sólidos",unidade:"% massa",tipo:"number",valor:1.88,step:"0.1"},
+      {tipo:"head",label:"Sólido e fluido"},
+      {id:"tqRhoS",label:"Massa específica real do sólido",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
+      {id:"tqDp",label:"Diâmetro característico da partícula  d50",unidade:"µm",tipo:"number",valor:50,step:"5"},
+      {id:"tqTemp",label:"Temperatura",unidade:"°C",tipo:"number",valor:50,step:"5"},
+      {tipo:"head",label:"Geometria"},
+      {id:"tqHD",label:"Relação altura útil / diâmetro  H/D",tipo:"number",valor:1.0,step:"0.1"},
+      {id:"tqBL",label:"Borda livre",unidade:"m",tipo:"number",valor:0.3,step:"0.05"},
+      {id:"tqDecl",label:"Declive do fundo",tipo:"select",valor:"10",opcoes:[
+        {v:"6",t:"1:6 — cônico, lama difícil"},
+        {v:"10",t:"1:10 — mínimo para lama"},
+        {v:"20",t:"1:20 — apenas para líquido limpo"}]},
+      {tipo:"head",label:"Agitação"},
+      {id:"tqImp",label:"Tipo de impelidor",tipo:"select",valor:"pbt",opcoes:[
+        {v:"pbt",t:"Turbina de pás inclinadas 45° — axial, uso geral"},
+        {v:"helice",t:"Hélice marítima — axial, baixo cisalhamento"},
+        {v:"rushton",t:"Turbina Rushton — radial, alto cisalhamento"}]},
+      {id:"tqPV",label:"Potência específica de prática",unidade:"kW/m³",tipo:"number",valor:0.10,step:"0.01"},
+      {tipo:"head",label:"Estrutura e ambiente"},
+      {id:"tqFy",label:"Aço do costado",tipo:"select",valor:"250",opcoes:[
+        {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]},
+      {id:"tqCorr",label:"Sobrespessura de corrosão",unidade:"mm",tipo:"number",valor:3,step:"1"},
+      {id:"tqExt",label:"Instalação",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"EXTERNO — verificar vento e tombamento"},
+        {v:"nao",t:"Abrigado — sem verificação de vento"}]},
+      {id:"tqV0",label:"Velocidade básica do vento  V0",unidade:"m/s",tipo:"number",valor:30,step:"1"}
+    ],
+    calcular:tanqueLamaCalc
+  },
   espessador:{
     titulo:"Espessador de lama de lavador úmido",
     referencia:"Área por três critérios, adotando-se o maior: carga de sólidos A = S/Cs; hidráulico A = Q_overflow/v_ascensional; e área unitária de ensaio de sedimentação pelos métodos de Coe-Clevenger ou Talmage-Fitch. Balanço de sólidos do lavador com Q_G·C_ent·η, e balanço do circuito com a fração purgada definindo simultaneamente a carga do espessador e a concentração de sólidos na recirculação do lavador. Underflow e overflow por balanço de massa; torque do rake por K·D²; consumo de floculante por dose específica sobre os sólidos. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; estrutura pela NBR 8800; passarela e guarda-corpo pela NBR 14718 e NR-12.",
@@ -9755,6 +9986,127 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="tanquelama"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195, ZR1=118;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      function cH(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntc((x1+x2)/2,y-1.6,t,30,90,170,5.8); }
+      function cV(x,y1,y2,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        var xc=Math.max(XL+2,Math.min(XR-2,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
+        doc.setTextColor(30,90,170); doc.setFontSize(5.8);
+        var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
+        if(alt>=cmp+3) doc.text(san(t),xc-1.2,(y1+y2)/2,{angle:90,align:"center"});
+        else doc.text(san(t),Math.max(XL,Math.min(XR-cmp,xc-cmp-2)),Math.min(y1,y2)-1.5); }
+
+      ntc(105,27,san(G.serv),20,60,100,9.0);
+      ntc(105,32,"D "+G.Dt.toFixed(1)+" m  ·  V util "+G.Vutil.toFixed(1)+" m3  ·  agitador "+G.Pmot.toFixed(1)+" kW",90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,35.5,XR,35.5);
+
+      var cxT=64, escT=Math.min(150/Math.max(G.Htot,1), 60/Math.max(G.Dt,1));
+      if(escT>16) escT=16;
+      var rT=Math.max(14,Math.min(G.Dt*escT/2,32));
+      var hU=Math.max(20,Math.min(G.Hutil*escT,110)), hB=Math.max(4,Math.min(G.bl*escT,14));
+      var hF=Math.max(4,Math.min(G.hFundo*escT,20));
+      var yTopT=58, yNiv=yTopT+hB, yTrT=yNiv+hU, yFuT=yTrT+hF;
+      doc.setFillColor(255,255,255); doc.setDrawColor(35,35,35); doc.setLineWidth(0.6);
+      doc.rect(cxT-rT,yTopT,2*rT,hB+hU,"S");
+      doc.line(cxT-rT,yTrT,cxT,yFuT); doc.line(cxT+rT,yTrT,cxT,yFuT);
+      doc.setFillColor(214,228,240); doc.setDrawColor(214,228,240);
+      doc.rect(cxT-rT+0.6,yNiv,2*rT-1.2,hU-0.6,"F");
+      doc.triangle(cxT-rT,yTrT,cxT+rT,yTrT,cxT,yFuT,"F");
+      doc.setDrawColor(35,35,35); doc.setLineWidth(0.6);
+      doc.rect(cxT-rT,yTopT,2*rT,hB+hU,"S");
+      doc.line(cxT-rT,yTrT,cxT,yFuT); doc.line(cxT+rT,yTrT,cxT,yFuT);
+      doc.setDrawColor(70,120,170); doc.setLineWidth(0.4); doc.setLineDashPattern([1.4,1.4],0);
+      doc.line(cxT-rT,yNiv,cxT+rT,yNiv); doc.setLineDashPattern([],0);
+      /* agitador */
+      var rI=Math.max(4,Math.min(G.Dimp*escT/2,rT*0.42));
+      doc.setDrawColor(60,60,60); doc.setLineWidth(0.7);
+      doc.line(cxT,yTopT-11,cxT,yTrT-3);
+      doc.setFillColor(120,120,120); doc.rect(cxT-7,yTopT-17,14,6,"FD");
+      doc.setLineWidth(0.9);
+      doc.line(cxT-rI,yTrT-6,cxT+rI,yTrT-9); doc.line(cxT-rI,yNiv+hU*0.42+2,cxT+rI,yNiv+hU*0.42-1);
+      /* bocais */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      doc.line(cxT-rT-12,yTopT+3,cxT-rT,yTopT+3);
+      doc.line(cxT-rT-4,yTopT+1.6,cxT-rT,yTopT+3); doc.line(cxT-rT-4,yTopT+4.4,cxT-rT,yTopT+3);
+      doc.setDrawColor(150,90,50); doc.setLineWidth(0.7);
+      doc.line(cxT,yFuT,cxT,yFuT+9);
+      doc.setDrawColor(190,120,60); doc.setLineWidth(0.5);
+      doc.line(cxT+rT,yNiv+2,cxT+rT+9,yNiv+2);
+      /* cotas */
+      cH(cxT-rT,cxT+rT,yTopT-6,"D "+G.Dt.toFixed(2)+" m");
+      cV(cxT-rT-6,yNiv,yTrT,"H util "+G.Hutil.toFixed(2)+" m");
+      cV(cxT-rT-15,yTopT,yFuT,"H tot "+G.Htot.toFixed(2)+" m");
+      cV(cxT+rT+16,yTopT,yNiv,"borda "+G.bl.toFixed(2));
+      cH(cxT-rI,cxT+rI,yTrT+4,"D imp "+G.Dimp.toFixed(2)+" m");
+      nt(XL,yFuT+16,"entrada DN "+G.dnEnt.toFixed(0)+"  ·  saida DN "+G.dnSai.toFixed(0),40,140,90,5.4);
+      nt(XL,yFuT+19.6,"extravasor DN "+G.dnExtr.toFixed(0)+"  ·  dreno e respiro",40,140,90,5.4);
+      nt(XL,yFuT+23.2,"fundo 1:"+G.decl+"  ·  poco "+G.hPoco.toFixed(2)+" m",150,90,50,5.4);
+      nt(XL,yFuT+26.8,"agitador "+G.rpmJs.toFixed(0)+" rpm  ·  ponta "+G.vTip.toFixed(2)+" m/s",60,60,60,5.4);
+      nt(XL,yFuT+30.4,"parado, forma leito em "+G.tSed.toFixed(0)+" min",190,70,60,5.4);
+      ntc(cxT,yFuT+38,"ELEVACAO",20,60,100,7.0);
+
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Servico"),san(G.serv).slice(0,26)],
+          [san("Vazao / retencao"),san(G.Qt.toFixed(1))+" m3/h / "+san(G.tRet.toFixed(0))+" min"],
+          [san("VOLUME UTIL"),san(G.Vutil.toFixed(1))+" m3"],
+          [san("Volume total"),san(G.Vtot.toFixed(1))+" m3"],
+          [san("Diametro"),san(G.Dt.toFixed(1))+" m"],
+          [san("Altura util / total"),san(G.Hutil.toFixed(2))+" / "+san(G.Htot.toFixed(2))+" m"],
+          [san("Solidos / densidade"),san(G.Ct.toFixed(2))+" % / "+san(G.rhoP.toFixed(0))+" kg/m3"],
+          [san("Massa contida"),Math.round(G.mPolpa)+" kg"],
+          [san("Impelidor"),"D "+san(G.Dimp.toFixed(2))+" m"],
+          [san("Rotacao minima Njs"),san(G.rpmJs.toFixed(1))+" rpm"],
+          [san("POTENCIA no eixo"),san(G.Pag.toFixed(2))+" kW"],
+          [san("Motor"),san(G.Pmot.toFixed(2))+" kW"],
+          [san("P/V real"),san(G.pvReal.toFixed(3))+" kW/m3"],
+          [san("Vel. de ponta"),san(G.vTip.toFixed(2))+" m/s "+(G.tipOK?"OK":"ALTA")],
+          [san("Sedimenta em"),san(G.tSed.toFixed(0))+" min parado"],
+          [san("Chapa do costado"),san(G.tCom.toFixed(2))+" mm"],
+          [san("Massa vazio"),Math.round(G.mVazio)+" kg"],
+          [san("Pressao no solo"),san(G.pSolo.toFixed(0))+" kPa"],
+          [san("Vento / tombamento"),G.ext?(san(G.FwT.toFixed(1))+" kN / FS "+san(G.FStomb.toFixed(1))):"abrigado"]
+        ],
+        styles:{fontSize:6.2,cellPadding:0.9,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.4},
+        columnStyles:{0:{cellWidth:44},1:{cellWidth:34,halign:"right"}}});
+
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,254,XR,254);
+      nt(XL,258,"Tanque de MISTURA COMPLETA: nao pre-adensa e nao separa. A retirada sai com a mesma concentracao do interior.",120,130,150,5.6);
+      nt(XL,261.5,"Rotacao minima por Zwietering; potencia adotada e o maior entre esse criterio e a potencia especifica de pratica.",120,130,150,5.6);
+      nt(XL,265,"NBR 7821 / API 650 (costado)  ·  NBR 6123 (vento, critico com o tanque VAZIO)  ·  NBR 6118 (fundacao)  ·  NR-12 (agitador).",120,130,150,5.6);
+
     } else if(G.tipo==="espessador"){
       /* ============ MEMORIAL + CROQUI DO ESPESSADOR ============ */
       if(G.MEM&&G.MEM.length){
