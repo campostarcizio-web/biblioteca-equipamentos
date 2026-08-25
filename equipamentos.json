@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.94.0",
+    "versao": "1.95.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -77,6 +77,7 @@
           "Tanque de Recirculação / Coleta",
           "Tanque de Lama Espessada",
           "Tanque de Filtrado",
+          "Dosagem Química e Floculador",
           "Espessador",
           "Filtro Prensa"
         ]
@@ -121,7 +122,8 @@
         "Tanque de Recirculação / Coleta": "Recirculation / Collection Tank",
         "Tanque de Lama Espessada": "Thickened Sludge Tank",
         "Tanque de Filtrado": "Filtrate Tank",
-        "Filtro Prensa": "Filter Press"
+        "Filtro Prensa": "Filter Press",
+        "Dosagem Química e Floculador": "Chemical Dosing and Flocculator"
       }
     }
   },
@@ -703,6 +705,31 @@
       "resumo_en": "Filter press: mass balance, chambers and area, full cycle, feed pump, minimum buffer, closing force and layout.",
       "grupo_en": "Sludge Treatment",
       "subgrupo_en": "Filter Press"
+    },
+    {
+      "id": "floculador",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Dosagem Química e Floculador",
+      "subtipo": "Floculador mecanizado de câmaras em série, com preparo e dosagem de floculante",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Floculador e Dosagem Química",
+      "calculadora": "floculador",
+      "descricao": "Pré-dimensionamento do floculador mecanizado e do conjunto de preparo e dosagem química que o alimenta. O parâmetro de projeto é o gradiente de velocidade G, e o que se especifica é o produto de Camp G·t: abaixo de 20.000 o floco não cresce, acima de 100.000 ele é destruído tanto quanto formado. As câmaras são dimensionadas em série com gradiente DECRESCENTE, porque a primeira precisa formar núcleos pequenos e resistentes e as seguintes precisam deixá-los crescer — o inverso produz floco grande e frágil que é quebrado adiante. Para cada câmara devolve o gradiente, a potência, a rotação, a velocidade de ponta e o motoredutor SEW selecionado, com inversor em todas porque a dose e o G ótimos mudam com a concentração da lama. No lado químico, calcula o consumo de floculante ativo, a solução de preparo, o volume dos tanques em paralelo, o tempo de maturação e a água de diluição em linha, alertando que superdosagem reestabiliza o coloide e piora a sedimentação. Fecha com a estrutura das câmaras, a pressão no solo e o plano de cargas do conjunto, com carga instalada, carga absorvida e fator de demanda.",
+      "referencia": "Gradiente de velocidade G = √(P/(µ·V)) e produto de Camp G·t entre 20.000 e 100.000, com câmaras em série e gradiente decrescente. Potência por câmara P = G²·µ·V; rotação por P = Np·ρ·N³·D⁵ e verificação da velocidade de ponta abaixo de 1,0 m/s nas câmaras finais. Dosagem por dose específica sobre a massa de sólidos, preparo entre 0,1 e 0,5 %, maturação de 30 a 60 min e diluição em linha para 0,05 a 0,1 % no ponto de aplicação. Motores DRN e redutores da série R de catálogo SEW-EURODRIVE, com redutor industrial MC/X quando o torque excede a série, verificação da relação de transmissão e da necessidade de inversor. ABNT NBR 12216 como referência de projeto de floculação; NBR 7821, NBR 8800 e NBR 6118 para estrutura e fundação; NR-12 para acionamentos; NR-20 e FISPQ para os químicos.",
+      "resumo": "Floculador: câmaras em série com G decrescente, G·t, motoredutores SEW por câmara, preparo e dosagem, estrutura e plano de cargas.",
+      "normas": [
+        "NBR 12216",
+        "NBR 7821",
+        "NBR 8800",
+        "NBR 6118",
+        "NR-12",
+        "NR-20",
+        "SEW"
+      ],
+      "modelo_en": "Flocculator and Chemical Dosing",
+      "resumo_en": "Flocculator: tapered-G chambers in series, Camp number, SEW gearmotors per chamber, preparation and dosing, structure and load list.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Chemical Dosing and Flocculator"
     }
   ]
 }

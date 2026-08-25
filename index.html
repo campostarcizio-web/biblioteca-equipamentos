@@ -695,6 +695,91 @@ function sewDrive(sew,Pmaj){
        ") — prever redução primária (motor de 6/8 polos, acoplamento por correias/corrente ou inversor com redução de rotação)");
 }
 
+/* ============================================================================
+   ACIONAMENTO COMPLETO — torque, motor e redutor SEW, inversor e carga elétrica
+   ----------------------------------------------------------------------------
+   Devolve tudo o que um plano de cargas precisa: potência no eixo, potência
+   instalada, motor DRN, redutor da série R (ou industrial MC/X quando o torque
+   sai da série), relação de transmissão, necessidade de inversor e a massa do
+   conjunto. O critério de inversor separa três motivos distintos, porque eles
+   levam a soluções diferentes: variação de processo, torque de partida e
+   limitação de corrente de partida.
+   ========================================================================== */
+function acionaSEW(Peixo,nSaida,op){
+  op=op||{};
+  var rend=op.rend||0.95;                       // rendimento do redutor
+  var fs=op.fs||1.25;                           // fator de serviço sobre a potência
+  var Pnec=Peixo/rend*fs;                       // kW exigidos do motor
+  var mot=null;
+  for(var i=0;i<SEW_MOTORS.length;i++){ if(SEW_MOTORS[i].kw>=Pnec){ mot=SEW_MOTORS[i]; break; } }
+  if(!mot) mot=SEW_MOTORS[SEW_MOTORS.length-1];
+  var acimaMot=(Pnec>SEW_MOTORS[SEW_MOTORS.length-1].kw);
+  var n2=Math.max(nSaida,0.001);
+  var T=9550*Peixo/n2;                          // N·m no eixo de saída
+  var kPart=op.kPart||1.0;                      // multiplicador de torque na partida
+  var Tsel=T*Math.max(FB,kPart);                // torque de seleção
+  var red=null;
+  for(var j=0;j<SEW_R.length;j++){ if(SEW_R[j].t>=Tsel){ red=SEW_R[j]; break; } }
+  var foraR=(!red);
+  if(!red) red=SEW_R[SEW_R.length-1];
+  var ind=foraR?selInd(Tsel,N_MOTOR/n2):null;
+  var irel=N_MOTOR/n2;
+  /* --- inversor: três motivos, cada um com sua consequência --- */
+  var mProc=!!op.varia;                          // processo exige variar a rotação
+  var mPart=(kPart>=1.5);                        // torque de partida elevado
+  var mCorr=(mot.kw>=7.5);                       // corrente de partida relevante
+  var inv=(mProc||mPart);
+  var invTxt = mProc?"OBRIGATÓRIO — o processo exige variar a rotação em operação"
+             : mPart?("OBRIGATÓRIO — torque de partida de "+kPart.toFixed(1).replace(".",",")+"× o nominal exige partida controlada")
+             : mCorr?"RECOMENDADO — motor de "+mot.kw+" kW em partida direta provoca queda de tensão; soft-starter é a alternativa"
+             : "DISPENSÁVEL — partida direta atende";
+  var mMot=(typeof massaMotor==="function")?massaMotor(mot.kw):0;
+  var mRed=foraR?(ind?ind.tam*8:600):red.m;
+  /* Relação de transmissão: um motoredutor de série vai até cerca de 300:1. Acima
+     disso o acionamento deixa de ser um catálogo e passa a ser arranjo — redução em
+     dois estágios, coroa e pinhão abertos, ou cabeçote dedicado. Rake de espessador
+     e mesas de baixa rotação caem sempre nesse caso, e ignorar isso leva a uma
+     especificação que não existe para comprar.                                     */
+  var iOK=(irel<=300);
+  var iTxt=iOK?"dentro da faixa de um motoredutor de série"
+              :("i = "+irel.toFixed(0)+" EXCEDE o limite prático de cerca de 300:1 de um motoredutor único — "+
+                "prever redução em dois estágios (motoredutor + coroa e pinhão abertos) ou cabeçote dedicado de baixa rotação. "+
+                "Com "+(irel/60).toFixed(0)+":1 no estágio aberto, o motoredutor ficaria em "+
+                (irel/(irel/60)).toFixed(0)+":1, que é viável.");
+  return {Peixo:Peixo,Pnec:Pnec,Pinst:mot.kw,mot:mot,red:red,foraR:foraR,ind:ind,T:T,Tsel:Tsel,
+          i:irel,iOK:iOK,iTxt:iTxt,nSaida:n2,inv:inv,invTxt:invTxt,invRec:(mCorr&&!inv),massa:mMot+mRed,
+          mMot:mMot,mRed:mRed,acimaMot:acimaMot,fs:fs,rend:rend,kPart:kPart};
+}
+/* Texto de uma linha com o acionamento selecionado */
+function txtAciona(a){
+  var base=a.foraR?((a.ind?a.ind.nome:"redutor industrial")+"  ·  motor "+a.mot.d)
+                  :(a.red.s+"  ·  motor "+a.mot.d);
+  return base+"  ("+a.Pinst+" kW)"+(a.acimaMot?"   ⚠ potência acima do maior motor DRN tabelado":"");
+}
+/* Bloco de linhas de resultado com o acionamento — usado por várias calculadoras */
+function linhasAciona(nome,a,fm){
+  var v=function(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); };
+  return [
+    {k:nome+" — potência no eixo",v:v(a.Peixo,2)+" kW   ·   rendimento do redutor "+v(a.rend,2)+"   ·   fator de serviço "+v(a.fs,2)+"   →   exigidos "+v(a.Pnec,2)+" kW"},
+    {k:nome+" — MOTOR E REDUTOR SEW",v:txtAciona(a)+"   ·   rotação de saída "+v(a.nSaida,2)+" rpm   ·   relação i = "+v(a.i,1)+"   ·   torque de saída "+v(a.T,0)+" N·m (seleção "+v(a.Tsel,0)+" N·m)",hi:true},
+    {k:nome+" — relação de transmissão",v:"i = "+v(a.i,1)+"   ·   "+a.iTxt,hi:!a.iOK},
+    {k:nome+" — INVERSOR DE FREQUÊNCIA",v:a.invTxt,hi:a.inv},
+    {k:nome+" — massa do conjunto",v:v(a.massa,0)+" kg   (motor "+v(a.mMot,0)+" + redutor "+v(a.mRed,0)+")"}
+  ];
+}
+/* Plano de cargas: recebe [{nome, Pinst, Pabs, inv, n}] e devolve linhas + totais */
+function planoCargas(itens){
+  var v=function(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); };
+  var sIn=0,sAb=0,nInv=0;
+  itens.forEach(function(it){ var n=it.n||1; sIn+=it.Pinst*n; sAb+=(it.Pabs||it.Pinst*0.85)*n; if(it.inv)nInv+=n; });
+  var linhas=itens.map(function(it){ var n=it.n||1;
+    return {k:"     "+(n>1?(n+" × "):"")+it.nome,
+            v:"instalada "+v(it.Pinst*n,2)+" kW   ·   absorvida "+v((it.Pabs||it.Pinst*0.85)*n,2)+" kW   ·   "+(it.inv?"COM inversor":"partida direta")};
+  });
+  return {linhas:linhas,Pinst:sIn,Pabs:sAb,nInv:nInv,
+          fd:(sIn>0?sAb/sIn:0)};
+}
+
 function coneVibCalc(CVCIRC){
       var g=9.80665;
       var A=num("cvA")/1000, B=num("cvB")/1000, H=num("cvH")/1000, C=num("cvC")/1000, D=num("cvD")/1000;
@@ -1874,6 +1959,175 @@ function flarePreset(){
    O tempo de filtração vem da equação de Ruth/Darcy com a resistência específica
    da torta, que é grandeza de ENSAIO — sem teste de folha, o ciclo é estimativa.
    ========================================================================== */
+/* ============================================================================
+   FLOCULADOR MECANIZADO + DOSAGEM QUÍMICA
+   ----------------------------------------------------------------------------
+   Dá tempo e gradiente para o floco crescer sem quebrar. O parâmetro é o
+   gradiente de velocidade G = √(P/(µ·V)), e o produto G·t é o que se especifica.
+   Câmaras em série com G DECRESCENTE: forma-se floco pequeno e resistente na
+   primeira, e deixa-se crescer nas seguintes. Agitador rápido demais é o erro
+   mais comum — o floco cresce e é destruído no mesmo tanque.
+   ========================================================================== */
+function floculadorCalc(){
+  /* ---------- ENTRADAS ---------- */
+  var Qf=num("flQ");      if(!isFinite(Qf)||Qf<=0)Qf=110;         // m³/h
+  var Sf=num("flS");      if(!isFinite(Sf)||Sf<=0)Sf=2067;        // kg/h de sólidos
+  var tDet=num("flTdet"); if(!isFinite(tDet)||tDet<=0)tDet=15;    // min
+  var nCam=selvN("flNcam",3);
+  var G1=num("flG1");     if(!isFinite(G1)||G1<=0)G1=60;          // s⁻¹ primeira câmara
+  var Gn=num("flGn");     if(!isFinite(Gn)||Gn<=0)Gn=25;          // s⁻¹ última câmara
+  var Tf=num("flTemp");   if(!isFinite(Tf))Tf=50;
+  var doseF=num("flDose");if(!isFinite(doseF)||doseF<0)doseF=5;   // g/t
+  var concSol=num("flConc");if(!isFinite(concSol)||concSol<=0)concSol=0.3;  // %
+  var tMat=num("flMat");  if(!isFinite(tMat)||tMat<=0)tMat=45;    // min de maturação
+  var doseCo=num("flCoag");if(!isFinite(doseCo)||doseCo<0)doseCo=0;// mg/L de coagulante
+  var tipoImp=selv("flImp","pad");
+  var hdF=num("flHD");    if(!isFinite(hdF)||hdF<=0)hdF=1.1;
+  var fyF=selvN("flFy",250); var corrF=num("flCorr");
+  if(!isFinite(corrF)||corrF<0)corrF=3;
+
+  /* ---------- ETAPA 1 — VOLUME E CÂMARAS ---------- */
+  var Vtot=Qf*tDet/60;                                  // m³
+  var Vcam=Vtot/nCam;
+  var tCam=tDet/nCam;                                   // min por câmara
+  var muF=0.001*Math.exp(1.3272*(20-Tf)/(Tf+105));      // Pa·s
+  var Lcam=Math.pow(Vcam/hdF,1/3);                      // câmara quadrada em planta
+  var Hcam=hdF*Lcam;
+  var borda=0.30;
+
+  /* ---------- ETAPA 2 — GRADIENTE POR CÂMARA ---------- */
+  var IMPF={pad:{Np:0.35,nome:"paletas de eixo horizontal — baixo cisalhamento"},
+            axi:{Np:1.30,nome:"turbina axial de pás inclinadas"},
+            hel:{Np:0.35,nome:"hélice marítima"}};
+  var IMF=IMPF[tipoImp]||IMPF.pad;
+  var cams=[], Gtot=0, Ptot=0;
+  for(var i=0;i<nCam;i++){
+    var Gi=(nCam>1)?(G1+(Gn-G1)*i/(nCam-1)):G1;
+    var Pi=Gi*Gi*muF*Vcam/1000;                         // kW por câmara
+    var Dimp=Lcam*0.45;
+    var Ni=Math.pow(Pi*1000/(IMF.Np*1000*Math.pow(Dimp,5)),1/3);   // rev/s
+    var ac=acionaSEW(Pi,Ni*60,{varia:true,kPart:1.2,fs:1.20,rend:0.92});
+    cams.push({n:i+1,G:Gi,P:Pi,D:Dimp,rpm:Ni*60,vtip:Math.PI*Dimp*Ni,ac:ac});
+    Gtot+=Gi*tCam*60; Ptot+=Pi;
+  }
+  var Gmed=(nCam>0)?(cams.reduce(function(a,c){return a+c.G;},0)/nCam):0;
+  var Gt=Gmed*tDet*60;                                  // produto de Camp
+  var gtOK=(Gt>=20000&&Gt<=100000);
+  var gOK=(G1<=70&&Gn>=15);
+  var decOK=(G1>Gn);
+
+  /* ---------- ETAPA 3 — DOSAGEM DE FLOCULANTE ---------- */
+  var WfG=doseF*(Sf/1000);                              // g/h de ativo
+  var Wf=WfG/1000;                                      // kg/h
+  var Qsol=(Wf/(concSol/100*1000))*1000;                // L/h de solução
+  var Vprep=Qsol*tMat/60/1000;                          // m³ por batelada de preparo
+  var Vtq=Math.max(Vprep*1.3,0.5);
+  var Qdil=Qsol*(concSol/0.08-1);                       // L/h de água de diluição em linha p/ 0,08 %
+  var Wco=doseCo*Qf/1000;                               // kg/h de coagulante
+  var relPunt=(Qf>0)?(Qsol/1000/Qf*100):0;              // % de diluição no ponto
+
+  /* ---------- ETAPA 4 — ESTRUTURA ---------- */
+  var rhoF=1010;
+  var sadmF=0.60*fyF;
+  var tPar=rhoF*9.80665*Hcam*(Lcam/2)/(sadmF*1e6)*1000+corrF;
+  var CHF=[4.75,6.3,8.0,9.5,12.5];
+  var tParC=CHF[CHF.length-1];
+  for(var k=0;k<CHF.length;k++){ if(CHF[k]>=Math.max(tPar,4.75)){ tParC=CHF[k]; break; } }
+  var Apar=2*(Lcam*Hcam)*2*nCam;
+  var mEst=Apar*tParC/1000*7850+Lcam*Lcam*nCam*tParC/1000*7850;
+  var mAgua=Vtot*rhoF;
+  var pSoloF=(mEst+mAgua)*9.80665/1000/(Lcam*Lcam*nCam);
+
+  /* ---------- ETAPA 5 — PLANO DE CARGAS ---------- */
+  var itens=cams.map(function(c){ return {nome:"Agitador da câmara "+c.n,Pinst:c.ac.Pinst,Pabs:c.P/0.92,inv:true}; });
+  itens.push({nome:"Dosadora de floculante",Pinst:0.37,Pabs:0.22,inv:true});
+  itens.push({nome:"Agitador do tanque de preparo",Pinst:0.75,Pabs:0.55,inv:false});
+  itens.push({nome:"Bomba de diluição em linha",Pinst:0.55,Pabs:0.38,inv:false});
+  if(doseCo>0) itens.push({nome:"Dosadora de coagulante",Pinst:0.25,Pabs:0.15,inv:true});
+  var PCF=planoCargas(itens);
+
+  function vfl(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function sfl(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEMFL=[
+   ["1","Volume total","Q · t_detenção",vfl(Vtot,2)+" m³ em "+vfl(tDet,0)+" min","10 a 20 min",sfl(tDet>=10&&tDet<=20)],
+   ["1","Câmaras em série","V/n",nCam+" câmaras de "+vfl(Vcam,2)+" m³","mínimo 3 em série",sfl(nCam>=3)],
+   ["2","Gradiente na 1ª e na última","G = √(P/(µ·V))",
+    vfl(G1,0)+" → "+vfl(Gn,0)+" s⁻¹","decrescente, 20 a 70 s⁻¹",sfl(gOK&&decOK)],
+   ["2","Produto de Camp","G · t",vfl(Gt,0),"20.000 a 100.000",sfl(gtOK)],
+   ["2","Potência total de agitação","Σ G²·µ·V",vfl(Ptot,3)+" kW","—","—"],
+   ["3","Floculante","dose × sólidos",vfl(WfG,1)+" g/h = "+vfl(Wf*24,2)+" kg/dia","2 a 8 g/t — ensaio de jarro","VERIFICAR"],
+   ["3","Solução de preparo","W/concentração",vfl(Qsol,1)+" L/h a "+vfl(concSol,2)+" %","0,1 a 0,5 %",sfl(concSol>=0.1&&concSol<=0.5)],
+   ["3","Maturação","tempo sob agitação lenta",vfl(tMat,0)+" min","30 a 60 min",sfl(tMat>=30)],
+   ["3","Diluição em linha","até 0,05 a 0,1 % no ponto",vfl(Qdil,0)+" L/h de água","reduz o cisalhamento na injeção","VERIFICAR"],
+   ["4","Parede das câmaras","ρ·g·H·L/2/σ_adm + c",vfl(tParC,2)+" mm","≥ "+vfl(tPar,2)+" mm",sfl(tParC>=tPar)],
+   ["4","Pressão no solo","N/A",vfl(pSoloF,0)+" kPa","comparar com a admissível","VERIFICAR"],
+   ["5","CARGA ELÉTRICA","soma dos acionamentos",
+    vfl(PCF.Pinst,2)+" kW instalados · "+vfl(PCF.Pabs,2)+" kW absorvidos","para o plano de cargas","—"]
+  ];
+  var nRfl=0,nVfl=0; MEMFL.forEach(function(m){ if(m[5]==="REPROVADO")nRfl++; else if(m[5]==="VERIFICAR")nVfl++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRfl===0?"✓ nenhuma verificação reprovada":"⚠ "+nRfl+" verificação(ões) REPROVADA(S)")+"   ·   "+nVfl+" a confirmar   ·   "+MEMFL.length+" verificações",hi:(nRfl>0)}
+  ].concat(MEMFL.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+
+    {sec:"1 — VOLUME E CÂMARAS"},
+    {k:"Vazão e tempo de detenção",v:vfl(Qf,1)+" m³/h   ·   "+vfl(tDet,0)+" min   →   VOLUME TOTAL "+vfl(Vtot,2)+" m³",hi:true},
+    {k:"Câmaras em série",v:nCam+" câmaras de "+vfl(Vcam,2)+" m³   ·   "+vfl(tCam,1)+" min cada   ·   "+vfl(Lcam,2)+" × "+vfl(Lcam,2)+" m em planta   ·   altura útil "+vfl(Hcam,2)+" m   +   "+vfl(borda,2)+" m de borda"},
+    {k:"⚠ Por que série e não câmara única",v:"Numa câmara só, parte do fluido sai antes de completar o tempo e parte fica além dele — curto-circuito hidráulico. Três câmaras em série aproximam o escoamento pistonado e entregam a mesma floculação com menos volume. E permitem o que interessa mais: gradiente DECRESCENTE.",hi:true},
+    {k:"Passagem entre câmaras",v:"Submersa, com velocidade abaixo de 0,3 m/s. Vertedouro alto entre câmaras quebra o floco que a câmara anterior formou — é erro construtivo comum e invisível no papel.",hi:true},
+
+    {sec:"2 — GRADIENTE DE VELOCIDADE"},
+    {k:"Impelidor",v:IMF.nome+"   ·   Np = "+vfl(IMF.Np,2)+"   ·   D_imp = 0,45 × lado = "+vfl(Lcam*0.45,2)+" m"},
+    {k:"Viscosidade a "+vfl(Tf,0)+" °C",v:vfl(muF*1000,3)+" mPa·s   —  o gradiente depende dela: água quente exige mais potência para o mesmo G"}
+  ]).concat(cams.map(function(c){
+    return {k:"     Câmara "+c.n,v:"G = "+vfl(c.G,0)+" s⁻¹   ·   P = "+vfl(c.P,3)+" kW   ·   "+vfl(c.rpm,1)+" rpm   ·   ponta "+vfl(c.vtip,2)+" m/s   ·   "+txtAciona(c.ac),
+            hi:(c.vtip>1.0)};
+  })).concat([
+    {k:"PRODUTO DE CAMP  G·t",v:vfl(Gt,0)+"   —  G médio de "+vfl(Gmed,0)+" s⁻¹ por "+vfl(tDet,0)+" min"+(gtOK?"   ✓ dentro de 20.000 a 100.000":"   ⚠ FORA da faixa — abaixo de 20.000 o floco não cresce; acima de 100.000 ele é destruído tanto quanto formado"),hi:!gtOK},
+    {k:"Gradiente decrescente",v:vfl(G1,0)+" → "+vfl(Gn,0)+" s⁻¹"+(decOK?"   ✓ decrescente, como deve ser":"   ⚠ NÃO DECRESCENTE — inverter. A primeira câmara forma núcleos pequenos e resistentes com G alto; as seguintes deixam crescer com G baixo. Ao contrário, forma-se floco grande e frágil que é quebrado adiante."),hi:!decOK},
+    {k:"POTÊNCIA TOTAL DE AGITAÇÃO",v:vfl(Ptot,3)+" kW   —  P = G²·µ·V somado nas câmaras. Repare na ordem de grandeza: é MUITO menor que a de um tanque de mistura. Potência instalada muito acima disso não é margem, é floco quebrado.",hi:true},
+    {k:"⚠ Velocidade de ponta é o limite real",v:"Mantê-la abaixo de 1,0 m/s nas câmaras finais. Acima disso o cisalhamento local supera a resistência do floco, mesmo com G médio correto. O G é uma média espacial e esconde o que acontece na ponta da pá.",hi:true},
+
+    {sec:"2b — ACIONAMENTO SEW POR CÂMARA"},
+    {k:"Por que inversor em todas",v:"A dose ótima de floculante e o G ótimo mudam com a concentração da lama, que varia com a operação do lavador. Sem inversor, o floculador só funciona no ponto de projeto — e o ponto de projeto quase nunca é o ponto de operação.",hi:true}
+  ]).concat(cams.length?linhasAciona("Câmara 1",cams[0].ac,fmt):[]).concat([
+    {k:"Demais câmaras",v:cams.slice(1).map(function(c){ return "câmara "+c.n+": "+txtAciona(c.ac); }).join("   ·   ")||"—"},
+
+    {sec:"3 — DOSAGEM DE FLOCULANTE"},
+    {k:"CONSUMO",v:vfl(WfG,1)+" g/h de produto ativo   =   "+vfl(Wf*24,2)+" kg/dia   ("+vfl(doseF,1)+" g/t sobre "+vfl(Sf/1000,3)+" t/h de sólidos)",hi:true},
+    {k:"Solução de preparo",v:vfl(Qsol,1)+" L/h a "+vfl(concSol,2)+" %"+((concSol>=0.1&&concSol<=0.5)?"   ✓ dentro de 0,1 a 0,5 %":"   ⚠ FORA — acima de 0,5 % o polímero não dissolve e forma grumos que não floculam e ainda entopem a linha"),hi:!(concSol>=0.1&&concSol<=0.5)},
+    {k:"Maturação",v:vfl(tMat,0)+" min sob agitação lenta   →   tanque de preparo de "+vfl(Vtq,2)+" m³"+((tMat>=30)?"   ✓":"   ⚠ ABAIXO de 30 min — polímero não hidratado não flocula, e o produto é desperdiçado sem que ninguém perceba"),hi:(tMat<30)},
+    {k:"Dois tanques em paralelo",v:"Um preparando e um em uso. Com maturação de "+vfl(tMat,0)+" min e consumo de "+vfl(Qsol,1)+" L/h, um tanque de "+vfl(Vtq,2)+" m³ dura "+vfl(Vtq*1000/Math.max(Qsol,0.01),1)+" h — o preparo tem de estar pronto antes disso."},
+    {k:"Diluição em linha",v:vfl(Qdil,0)+" L/h de água para levar de "+vfl(concSol,2)+" % a 0,08 % no ponto de aplicação   —  solução mais diluída dispersa melhor e sofre menos cisalhamento na injeção",hi:true},
+    {k:"Ponto de aplicação",v:"Na linha de alimentação do floculador ou diretamente no poço de alimentação do espessador, com o menor percurso possível até a sedimentação. Cada bomba, curva ou válvula depois da injeção destrói floco.",hi:true},
+    {k:"⚠ Superdosagem PIORA",v:"Floculante em excesso reestabiliza o coloide e a sedimentação piora. A curva dose × velocidade de sedimentação tem máximo, e ele é estreito. A dose ótima sai de ensaio de jarro com a lama real, e deve ser reavaliada quando a operação do lavador mudar.",hi:true},
+    {k:"Coagulante",v:(doseCo>0)?(vfl(doseCo,0)+" mg/L   →   "+vfl(Wco,2)+" kg/h   —  aplicar ANTES do floculante, com mistura rápida (G de 300 a 1.000 s⁻¹ por 30 a 60 s), e corrigir o pH antes dos dois"):"não previsto — usar apenas se o ensaio de jarro mostrar coloide que o floculante sozinho não captura"},
+
+    {sec:"4 — ESTRUTURA"},
+    {k:"Parede das câmaras",v:vfl(tParC,2)+" mm comercial   (calculado "+vfl(tPar,2)+" mm com "+vfl(corrF,0)+" mm de corrosão)   ·   aço fy = "+fyF+" MPa"},
+    {k:"Massas",v:"estrutura "+fmt(Math.round(mEst))+" kg   ·   água contida "+fmt(Math.round(mAgua))+" kg   →   pressão no solo "+vfl(pSoloF,0)+" kPa"},
+    {k:"Normas aplicáveis",v:"ABNT NBR 12216 como referência de projeto de floculação   ·   ABNT NBR 7821 e NBR 8800 para a estrutura   ·   ABNT NBR 6118 para a fundação   ·   NR-12 para os acionamentos   ·   NR-20 e FISPQ para o armazenamento e manuseio dos químicos   ·   NBR 14718 para guarda-corpos nas passarelas entre câmaras"},
+
+    {sec:"5 — PLANO DE CARGAS DO CONJUNTO"}
+  ]).concat(PCF.linhas).concat([
+    {k:"CARGA TOTAL INSTALADA",v:vfl(PCF.Pinst,2)+" kW",hi:true},
+    {k:"CARGA ABSORVIDA em operação",v:vfl(PCF.Pabs,2)+" kW   ·   fator de demanda "+vfl(PCF.fd,2),hi:true},
+    {k:"Acionamentos com inversor",v:PCF.nInv+" de "+itens.length},
+    {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"O gradiente ótimo, a dose e o tempo de detenção saem de ENSAIO DE JARRO com a lama real. As faixas usadas aqui são de projeto conceitual e servem para dimensionar o equipamento, não para operá-lo.",hi:true}
+  ]);
+
+  OUT.geo={tipo:"floculador",MEM:MEMFL,nRep:nRfl,nVer:nVfl,Qf:Qf,Sf:Sf,tDet:tDet,nCam:nCam,Vtot:Vtot,Vcam:Vcam,
+    Lcam:Lcam,Hcam:Hcam,G1:G1,Gn:Gn,Gt:Gt,Gmed:Gmed,gtOK:gtOK,decOK:decOK,Ptot:Ptot,cams:cams,
+    WfG:WfG,Qsol:Qsol,concSol:concSol,tMat:tMat,Vtq:Vtq,Qdil:Qdil,doseF:doseF,doseCo:doseCo,Wco:Wco,
+    tParC:tParC,mEst:mEst,pSoloF:pSoloF,PCFi:PCF.Pinst,PCFa:PCF.Pabs,PCFn:PCF.nInv,muF:muF,Tf:Tf};
+  return OUT;
+}
+
 function filtroPrensaCalc(){
   /* ---------- ENTRADAS ---------- */
   var S=num("fpS");        if(!isFinite(S)||S<=0)S=2067;        // kg/h de sólidos
@@ -2091,7 +2345,11 @@ function tanqueLamaCalc(){
   var Pjs=IM.Np*rhoP*Math.pow(Njs,3)*Math.pow(Dimp,5)/1000;   // kW
   var Ppv=pvAlvo*Vutil;                                        // kW pela regra de bolso
   var Pag=Math.max(Pjs,Ppv);
-  var Pmot=Pag/0.85;
+  /* rotação de operação adotada: 1,15·N_js, prática usual sobre a condição limite */
+  var rpmOp=rpmJs*1.15;
+  var acT=acionaSEW(Pag,rpmOp,{varia:(Ct>=15),kPart:1.6,fs:1.25,rend:0.95});
+  var Pmot=acT.Pinst;
+  var PCT=planoCargas([{nome:"Agitador do tanque",Pinst:acT.Pinst,Pabs:Pag/0.95,inv:acT.inv}]);
   var govAg=(Pag<=Pjs+1e-9)?"suspensão de sólidos (Zwietering)":"potência específica de prática";
   var vTip=Math.PI*Dimp*Njs;
   var tipOK=(vTip<=4.5);
@@ -2144,7 +2402,13 @@ function tanqueLamaCalc(){
    ["1","Altura total","H_útil + borda livre + fundo",vt(Htot,2)+" m","borda livre ≥ 0,30 m",st(bl>=0.30)],
    ["2","Rotação mínima de suspensão","Zwietering N_js",vt(rpmJs,1)+" rpm","toda a partícula suspensa","—"],
    ["2","Potência de agitação","maior entre Zwietering e P/V de prática",
-    vt(Pag,2)+" kW (motor "+vt(Pmot,2)+" kW)","governa: "+govAg,"—"],
+    vt(Pag,2)+" kW no eixo","governa: "+govAg,"—"],
+   ["2","Acionamento SEW",(acT.foraR?"redutor industrial":"série R")+" + motor DRN",
+    txtAciona(acT),"torque de saída "+vt(acT.T,0)+" N·m","—"],
+   ["2","Inversor de frequência","variação de processo · torque de partida · corrente",
+    (acT.inv?"NECESSÁRIO":"dispensável"),acT.invTxt.split(" — ")[0],(acT.inv?"COM INVERSOR":"partida direta")],
+   ["2","CARGA ELÉTRICA do tanque","soma das cargas",
+    vt(PCT.Pinst,2)+" kW instalados · "+vt(PCT.Pabs,2)+" kW absorvidos","para o plano de cargas","—"],
    ["2","Potência específica real","P/V",vt(pvReal,3)+" kW/m³","0,05 a 0,30 kW/m³",st(pvReal>=0.03)],
    ["2","Velocidade de ponta do impelidor","π·D·N",vt(vTip,2)+" m/s","≤ 4,5 m/s (cisalhamento)",st(tipOK)],
    ["3","Sedimentação em parada","Stokes no d50 do sólido",
@@ -2182,9 +2446,15 @@ function tanqueLamaCalc(){
     {k:"ROTAÇÃO MÍNIMA DE SUSPENSÃO  N_js",v:vt(rpmJs,1)+" rpm   —  N_js = S·ν^0,1·d_p^0,2·[g·Δρ/ρ_L]^0,45·X^0,13 / D_imp^0,85, com d_p = "+vt(dp,0)+" µm e X = "+vt(X,2)+". Abaixo disso há sólido parado no fundo.",hi:true},
     {k:"Potência por Zwietering",v:vt(Pjs,3)+" kW   —  P = Np·ρ·N³·D_imp⁵ na rotação de suspensão"},
     {k:"Potência pela regra de prática",v:vt(Ppv,2)+" kW   —  "+vt(pvAlvo,2)+" kW/m³ × "+vt(Vutil,1)+" m³"},
-    {k:"POTÊNCIA ADOTADA",v:vt(Pag,2)+" kW no eixo   →   motor de "+vt(Pmot,2)+" kW   —   governa: "+govAg+"   ·   P/V real "+vt(pvReal,3)+" kW/m³",hi:true},
+    {k:"POTÊNCIA ADOTADA",v:vt(Pag,2)+" kW no eixo   —   governa: "+govAg+"   ·   P/V real "+vt(pvReal,3)+" kW/m³",hi:true},
+    {k:"Rotação de operação adotada",v:vt(rpmOp,1)+" rpm   =   1,15 × N_js   —  a correlação dá a condição limite; a prática opera de 1,1 a 1,3 vezes acima dela"},
     {k:"Velocidade de ponta",v:vt(vTip,2)+" m/s"+(tipOK?"   ✓ abaixo de 4,5 m/s":"   ⚠ ACIMA de 4,5 m/s — cisalhamento alto. Em tanque a jusante de floculação isso quebra o floco; aqui, antes da floculação, o problema é desgaste e consumo."),hi:!tipOK},
     {k:"⚠ Zwietering dá o MÍNIMO, não o recomendado",v:"A correlação devolve a rotação em que o último sólido deixa o fundo — condição limite. Projeto usual adota de 1,1 a 1,3 vezes N_js, e é por isso que a regra de potência específica costuma governar. Quando a diferença entre os dois critérios é grande, vale rever o diâmetro do impelidor antes de aceitar o motor maior.",hi:true},
+
+    {sec:"2b — ACIONAMENTO SEW E CARGA ELÉTRICA"}
+  ]).concat(linhasAciona("Agitador",acT,fmt)).concat([
+    {k:"Torque de partida considerado",v:vt(acT.kPart,1)+"× o nominal   —  o agitador pode partir com o tanque decantado, e essa é a condição que dimensiona o redutor. Partir contra leito compactado sem previsão quebra o eixo ou o redutor.",hi:true},
+    {k:"PLANO DE CARGAS — este equipamento",v:vt(PCT.Pinst,2)+" kW INSTALADOS   ·   "+vt(PCT.Pabs,2)+" kW absorvidos em operação   ·   fator de demanda "+vt(PCT.fd,2)+"   ·   "+PCT.nInv+" acionamento(s) com inversor",hi:true},
 
     {sec:"3 — FUNDO, SUCÇÃO E O QUE ACONTECE NUMA PARADA"},
     {k:"Velocidade de sedimentação do d50",v:vt(vSed,2)+" m/h   —  Stokes com "+vt(dp,0)+" µm, ρ_s = "+fmt(Math.round(rhos))+" kg/m³ e água a "+vt(Tt,0)+" °C"},
@@ -2212,7 +2482,7 @@ function tanqueLamaCalc(){
 
   OUT.geo={tipo:"tanquelama",MEM:MEMT,nRep:nRt,nVer:nVt,serv:SV.nome,Qt:Qt,tRet:tRet,Ct:Ct,Vutil:Vutil,Vtot:Vtot,
     Dt:Dt,Hutil:Hutil,Htot:Htot,bl:bl,hFundo:hFundo,decl:decl,rhoP:rhoP,mPolpa:mPolpa,Dimp:Dimp,rpmJs:rpmJs,
-    Pag:Pag,Pmot:Pmot,pvReal:pvReal,vTip:vTip,tipOK:tipOK,govAg:govAg,vSed:vSed,tSed:tSed,hPoco:hPoco,
+    Pag:Pag,Pmot:Pmot,acT:acT,PCTi:PCT.Pinst,PCTa:PCT.Pabs,invT:acT.inv,motT:acT.mot.d,redT:txtAciona(acT),rpmOp:rpmOp,pvReal:pvReal,vTip:vTip,tipOK:tipOK,govAg:govAg,vSed:vSed,tSed:tSed,hPoco:hPoco,
     dnEnt:dnEnt,dnSai:dnSai,dnExtr:dnExtr,tCom:tCom,mVazio:mVazio,pSolo:pSolo,ext:ext,FwT:FwT,FStomb:FStomb,
     tombOK:tombOK,nChT:nChT,Tanc:Tanc,impNome:IM.nome,dp:dp,rhos:rhos};
   return OUT;
@@ -2288,8 +2558,23 @@ function espessadorCalc(){
   var rpmRake=nRake/(Math.PI*Desp);         // rpm
   var Kt=(Cu>=35)?45:((Cu>=25)?30:20);      // N·m/m² — lama fina, faixa usual
   var Tq=Kt*Desp*Desp;                      // N·m — torque de projeto
-  var Ppar=Tq*2*Math.PI*rpmRake/60/1000;    // kW no eixo, com 2x de partida
-  var Pmot=Ppar*2/0.7;
+  var Ppar=Tq*2*Math.PI*rpmRake/60/1000;    // kW no eixo, no torque nominal
+  /* O rake pode partir contra leito compactado: a prática adota 2× o torque nominal
+     como torque de partida, e é ele que dimensiona o redutor e exige partida suave. */
+  var acE=acionaSEW(Ppar,rpmRake,{varia:false,kPart:2.0,fs:1.25,rend:0.90});
+  var Pmot=acE.Pinst;
+  /* bombas do trem que o espessador comanda, para o plano de cargas */
+  var Pbu=rhoU*9.80665*(Vu/3600)*18/0.45/1000;      // kW — bomba de underflow, 18 m de altura
+  var Pbo=1000*9.80665*(Qov/3600)*20/0.70/1000;     // kW — bomba de overflow, 20 m
+  var acBu=acionaSEW(Pbu,1750,{varia:true,kPart:1.2,fs:1.15,rend:1.0});
+  var acBo=acionaSEW(Pbo,1750,{varia:true,kPart:1.2,fs:1.15,rend:1.0});
+  var PCE=planoCargas([
+    {nome:"Acionamento do rake",Pinst:acE.Pinst,Pabs:Ppar/0.90,inv:acE.inv},
+    {nome:"Bomba de underflow",Pinst:acBu.Pinst,Pabs:Pbu,inv:true},
+    {nome:"Bomba de overflow / água recuperada",Pinst:acBo.Pinst,Pabs:Pbo,inv:true},
+    {nome:"Dosadora de floculante",Pinst:0.37,Pabs:0.25,inv:true},
+    {nome:"Agitador do preparo de floculante",Pinst:0.75,Pabs:0.55,inv:false}
+  ]);
 
   /* ---------- ETAPA 6 — FLOCULANTE ---------- */
   /* dose em g por TONELADA de sólidos; S vem em kg/h, entao S/1000 e t/h */
@@ -2329,7 +2614,15 @@ function espessadorCalc(){
    ["5","Underflow","S/C_u",ve(Wu,0)+" kg/h = "+ve(Vu,2)+" m³/h a "+ve(Cu,0)+" %","—","—"],
    ["5","Overflow clarificado","Q_purga − Q_underflow",ve(Qov,1)+" m³/h","retorna ao circuito","—"],
    ["6","Torque do rake","K·D²",ve(Tq/1000,1)+" kN·m (K = "+Kt+" N·m/m²)","alarme e desarme obrigatórios","VERIFICAR"],
-   ["6","Potência do acionamento","T·ω, com 2× na partida",ve(Pmot,1)+" kW","—","—"],
+   ["6","Potência no eixo do rake","T·ω",ve(Ppar,3)+" kW","—","—"],
+   ["6","Acionamento SEW do rake",(acE.foraR?"redutor industrial":"série R")+" + motor DRN",
+    txtAciona(acE),"torque de partida 2× o nominal","—"],
+   ["6","Relação de transmissão do rake","N_motor / N_rake",
+    "i = "+ve(acE.i,0),"≤ 300 num motoredutor de série",(acE.iOK?"APROVADO":"ARRANJO ESPECIAL")],
+   ["6","Inversor / partida suave","torque de partida contra leito compactado",
+    (acE.inv?"NECESSÁRIO":"dispensável"),acE.invTxt.split(" — ")[0],(acE.inv?"COM INVERSOR":"partida direta")],
+   ["9","CARGA ELÉTRICA do conjunto","soma dos acionamentos",
+    ve(PCE.Pinst,2)+" kW instalados · "+ve(PCE.Pabs,2)+" kW absorvidos","para o plano de cargas","—"],
    ["7","Floculante","dose × massa de sólidos",ve(WflocG,1)+" g/h de ativo = "+ve(Wfloc*24,2)+" kg/dia","2 a 8 g/t — confirmar em ensaio de jarro","VERIFICAR"],
    ["8","Chapa do costado","ρ·g·h·R/σ_adm + c",ve(tCostC,1)+" mm","≥ "+ve(tCost,1)+" mm",se(tCostC>=tCost)],
    ["8","Pressão no solo","N/A",ve(pSolo,0)+" kPa","comparar com a tensão admissível","VERIFICAR"]
@@ -2386,8 +2679,12 @@ function espessadorCalc(){
     {sec:"6 — RAKE E ACIONAMENTO"},
     {k:"Velocidade periférica  ·  rotação",v:ve(nRake,1)+" m/min   →   "+ve(rpmRake,3)+" rpm   (faixa usual 3 a 9 m/min)"},
     {k:"TORQUE DE PROJETO",v:ve(Tq/1000,1)+" kN·m   —  K·D² com K = "+Kt+" N·m/m² para underflow de "+ve(Cu,0)+" %. Exigir do fabricante o torque garantido e a curva de partida.",hi:true},
-    {k:"Potência do acionamento",v:ve(Pmot,1)+" kW   (2× o torque nominal na partida, rendimento 0,70)"},
+    {k:"Potência no eixo",v:ve(Ppar,3)+" kW   —  T·ω na rotação de "+ve(rpmRake,3)+" rpm. Rake é acionamento de torque, não de potência: o número pequeno aqui não deve enganar, quem dimensiona o redutor é o torque de "+ve(Tq/1000,1)+" kN·m."},
     {k:"⚠ Proteção de torque",v:"Alarme e desarme por torque são OBRIGATÓRIOS, com sistema de levantamento do rake. Sem eles, uma compactação por parada de energia quebra o mecanismo — e o conserto exige esvaziar o espessador.",hi:true},
+
+    {sec:"6b — ACIONAMENTO SEW DO RAKE"}
+  ]).concat(linhasAciona("Rake",acE,fmt)).concat([
+    {k:"Por que o torque de partida é 2×",v:"Numa parada de energia o leito compacta sobre as pás. Na religada o rake precisa vencer isso, e é essa condição que dimensiona o redutor — não a operação normal. Redutor escolhido pelo torque de regime quebra na primeira religada.",hi:true},
 
     {sec:"7 — FLOCULAÇÃO"},
     {k:"Consumo de floculante",v:ve(WflocG,1)+" g/h de produto ativo   =   "+ve(Wfloc*24,2)+" kg/dia   ("+ve(doseFloc,1)+" g por tonelada de sólidos, sobre "+ve(S/1000,3)+" t/h)   →   "+ve(Vsol,1)+" L/h de solução a 0,3 %",hi:true},
@@ -2400,13 +2697,21 @@ function espessadorCalc(){
     {k:"Massas",v:"costado "+fmt(Math.round(mCost))+" kg   ·   fundo "+fmt(Math.round(mFundo))+" kg   ·   lama "+fmt(Math.round(mLama))+" kg   →   carga total "+ve(Ncarga,0)+" kN"},
     {k:"Pressão média no solo",v:ve(pSolo,0)+" kPa   —  comparar com a tensão admissível do terreno. Espessador cheio é uma das maiores cargas distribuídas de uma planta.",hi:true},
     {k:"Normas aplicáveis",v:"ABNT NBR 7821 e API 650 para o tanque soldado   ·   NBR 8800 para a ponte e a estrutura   ·   NBR 6118 se em concreto   ·   NBR 6123 para vento   ·   NBR 14718 e NR-12 para passarela e guarda-corpo   ·   NR-12 para o acionamento do rake"},
+    {sec:"9 — PLANO DE CARGAS DO CONJUNTO"},
+    {k:"Acionamentos previstos",v:"rake, bomba de underflow, bomba de overflow, dosadora de floculante e agitador do preparo — todos os motores que este equipamento traz consigo"}
+  ]).concat(PCE.linhas).concat([
+    {k:"CARGA TOTAL INSTALADA",v:ve(PCE.Pinst,2)+" kW",hi:true},
+    {k:"CARGA ABSORVIDA em operação",v:ve(PCE.Pabs,2)+" kW   ·   fator de demanda "+ve(PCE.fd,2),hi:true},
+    {k:"Acionamentos com inversor",v:PCE.nInv+" de "+5+"   —  bombas de polpa nunca se controlam por estrangulamento, e a dosadora precisa acompanhar a vazão de lama"},
+    {k:"⚠ O que NÃO está nesta carga",v:"Iluminação, tomadas, instrumentação, aquecimento de painéis e o sistema de ar comprimido, se houver. E a reserva: se o projeto exigir bomba reserva, some a instalada dela, que entra no plano de cargas mesmo sem operar simultaneamente.",hi:true},
+
     {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"A área por carga de sólidos e por velocidade ascensional são regras de projeto consagradas, mas o ensaio de sedimentação com a lama real é o que fecha o diâmetro. O torque do rake e a curva de floculação vêm do fabricante e do ensaio de jarro.",hi:true}
   ]);
 
   OUT.geo={tipo:"espessador",MEM:MEME,nRep:nRe,nVer:nVe,S:S,Sd:Sd,QG:QG,Cin:Cin,eta:eta,QL:QL,pPur:pPur,Qp:Qp,Qrec:Qrec,
     Ctq:Ctq,ctqOK:ctqOK,rhos:rhos,pFino:pFino,A1:A1,A2:A2,A3:A3,Areq:Areq,gov:gov,Dreq:Dreq,Desp:Desp,Aesp:Aesp,
     CsReal:CsReal,vAscReal:vAscReal,vVert:vVert,Cu:Cu,Wu:Wu,Vu:Vu,rhoU:rhoU,Qov:Qov,hLat:hLat,hCone:hCone,hTot:hTot,
-    Vesp:Vesp,tRet:tRetE,Dfeed:Dfeed,Tq:Tq,Pmot:Pmot,rpmRake:rpmRake,Wfloc:Wfloc,WflocG:WflocG,Vsol:Vsol,tCost:tCostC,pSolo:pSolo,
+    Vesp:Vesp,tRet:tRetE,Dfeed:Dfeed,Tq:Tq,Pmot:Pmot,rpmRake:rpmRake,Ppar:Ppar,acE:acE,PCEi:PCE.Pinst,PCEa:PCE.Pabs,PCEn:PCE.nInv,motE:txtAciona(acE),invE:acE.inv,Wfloc:Wfloc,WflocG:WflocG,Vsol:Vsol,tCost:tCostC,pSolo:pSolo,
     rhoLam:rhoLam,Ncarga:Ncarga,espOK:espOK,incCone:incCone,Cs:Cs,vAsc:vAsc};
   return OUT;
 }
@@ -4607,6 +4912,38 @@ function flexowellCalc(){
 }
 
 const CALCS={
+  floculador:{
+    titulo:"Floculador mecanizado e dosagem química",
+    referencia:"Gradiente de velocidade G = √(P/(µ·V)) e produto de Camp G·t entre 20.000 e 100.000, com câmaras em série e gradiente DECRESCENTE. Potência por câmara P = G²·µ·V; rotação por P = Np·ρ·N³·D⁵ e verificação da velocidade de ponta, que é o limite real do cisalhamento. Dosagem de floculante por dose específica sobre a massa de sólidos, com preparo entre 0,1 e 0,5 %, maturação de 30 a 60 min e diluição em linha para 0,05 a 0,1 % no ponto de aplicação. Motores e redutores selecionados nos catálogos SEW (motores DRN e redutores da série R, com industrial MC/X quando o torque excede a série), com verificação da relação de transmissão e da necessidade de inversor. ABNT NBR 12216 como referência de projeto; NBR 7821, NBR 8800 e NBR 6118 para estrutura e fundação; NR-12 para acionamentos; NR-20 para químicos.",
+    campos:[
+      {tipo:"head",label:"Alimentação"},
+      {id:"flQ",label:"VAZÃO a flocular (purga ao espessador)",unidade:"m³/h",tipo:"number",valor:110,step:"5"},
+      {id:"flS",label:"SÓLIDOS na corrente",unidade:"kg/h",tipo:"number",valor:2067,step:"50"},
+      {id:"flTemp",label:"Temperatura",unidade:"°C",tipo:"number",valor:50,step:"5"},
+      {tipo:"head",label:"Floculação"},
+      {id:"flTdet",label:"TEMPO DE DETENÇÃO total",unidade:"min",tipo:"number",valor:15,step:"1"},
+      {id:"flNcam",label:"Número de câmaras em série",tipo:"select",valor:"3",opcoes:[
+        {v:"2",t:"2 câmaras"},{v:"3",t:"3 câmaras — usual"},{v:"4",t:"4 câmaras"}]},
+      {id:"flG1",label:"Gradiente na PRIMEIRA câmara",unidade:"s⁻¹",tipo:"number",valor:60,step:"5"},
+      {id:"flGn",label:"Gradiente na ÚLTIMA câmara",unidade:"s⁻¹",tipo:"number",valor:25,step:"5"},
+      {id:"flImp",label:"Tipo de impelidor",tipo:"select",valor:"pad",opcoes:[
+        {v:"pad",t:"Paletas de eixo horizontal — baixo cisalhamento"},
+        {v:"hel",t:"Hélice marítima"},
+        {v:"axi",t:"Turbina axial de pás inclinadas"}]},
+      {id:"flHD",label:"Relação altura / lado da câmara",tipo:"number",valor:1.1,step:"0.1"},
+      {tipo:"head",label:"Dosagem química"},
+      {id:"flDose",label:"DOSE de floculante",unidade:"g/t de sólidos",tipo:"number",valor:5,step:"0.5"},
+      {id:"flConc",label:"Concentração da solução de preparo",unidade:"%",tipo:"number",valor:0.3,step:"0.05"},
+      {id:"flMat",label:"Tempo de maturação",unidade:"min",tipo:"number",valor:45,step:"5"},
+      {id:"flCoag",label:"Dose de COAGULANTE (0 = não usar)",unidade:"mg/L",tipo:"number",valor:0,step:"5"},
+      {tipo:"head",label:"Estrutura"},
+      {id:"flFy",label:"Aço das câmaras",tipo:"select",valor:"250",opcoes:[
+        {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]},
+      {id:"flCorr",label:"Sobrespessura de corrosão",unidade:"mm",tipo:"number",valor:3,step:"1"}
+    ],
+    calcular:floculadorCalc
+  },
   filtro_prensa:{
     titulo:"Filtro prensa de placas — desaguamento de lama",
     referencia:"Volume de câmaras pelo ciclo de batelada, com número de placas e área filtrante pela geometria adotada. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Balanço de massa entre lama espessada, torta e filtrado. Bomba de alimentação de deslocamento positivo com curva declinante. Verificações de capacidade diária, ciclo total incluindo abertura e descarga, força de fechamento, carga no piso e arranjo. NR-12 para proteções e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico; ABNT NBR 10004 para a classificação da torta.",
@@ -10194,6 +10531,123 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="floculador"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195, ZR1=118;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      function cH(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntc((x1+x2)/2,y-1.6,t,30,90,170,5.8); }
+
+      ntc(105,27,"FLOCULADOR  ·  "+G.nCam+" camaras  ·  V "+G.Vtot.toFixed(1)+" m3  ·  t "+G.tDet.toFixed(0)+" min",20,60,100,9.0);
+      ntc(105,32,"G "+G.G1.toFixed(0)+" -> "+G.Gn.toFixed(0)+" s-1  ·  G.t "+G.Gt.toFixed(0)+"  ·  carga "+G.PCFi.toFixed(2)+" kW",90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,35.5,XR,35.5);
+
+      var x0=XL+14, yT2=64, escFL=Math.min(92/(G.nCam*Math.max(G.Lcam,0.5)), 40/Math.max(G.Hcam,0.5));
+      if(escFL>16) escFL=16;
+      /* o conjunto de camaras tem de caber entre a seta de entrada (x0-8) e a coluna
+         da tabela (x = 118), com a seta de saida ocupando mais 8 mm.                 */
+      var Lmax=(112-x0-8)/Math.max(G.nCam,1);
+      var Lc=Math.max(12,Math.min(G.Lcam*escFL,Lmax,30));
+      var Hc=Math.max(14,Math.min(G.Hcam*escFL,38));
+      var yB2=yT2+Hc;
+      for(var q=0;q<G.nCam;q++){
+        var xa=x0+q*Lc;
+        doc.setFillColor(226,238,248); doc.setDrawColor(35,35,35); doc.setLineWidth(0.55);
+        doc.rect(xa,yT2,Lc,Hc,"FD");
+        var c=G.cams[q];
+        /* eixo e paletas */
+        doc.setDrawColor(60,60,60); doc.setLineWidth(0.6);
+        doc.line(xa+Lc/2,yT2-9,xa+Lc/2,yT2+Hc*0.72);
+        doc.setFillColor(120,120,120); doc.rect(xa+Lc/2-4,yT2-14,8,5,"FD");
+        var rI2=Math.max(3,Math.min(c.D*escFL/2,Lc*0.34));
+        doc.setLineWidth(0.9);
+        doc.line(xa+Lc/2-rI2,yT2+Hc*0.42,xa+Lc/2+rI2,yT2+Hc*0.42);
+        doc.line(xa+Lc/2-rI2,yT2+Hc*0.66,xa+Lc/2+rI2,yT2+Hc*0.66);
+        /* passagem submersa */
+        if(q<G.nCam-1){ doc.setDrawColor(70,120,170); doc.setLineWidth(0.5);
+          doc.line(xa+Lc,yB2-5,xa+Lc,yB2-1); }
+        ntc(xa+Lc/2,yB2+5,"C"+(q+1),20,60,100,6.2);
+        ntc(xa+Lc/2,yB2+9,"G "+c.G.toFixed(0),30,90,170,5.6);
+        ntc(xa+Lc/2,yB2+13,c.rpm.toFixed(0)+" rpm",60,60,60,5.4);
+        ntc(xa+Lc/2,yB2+17,c.ac.mot.d,150,90,50,5.0);
+      }
+      /* entrada, dosagem e saida */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      doc.line(x0-8,yT2+Hc*0.3,x0,yT2+Hc*0.3);
+      doc.line(x0-3.4,yT2+Hc*0.3-1.4,x0,yT2+Hc*0.3); doc.line(x0-3.4,yT2+Hc*0.3+1.4,x0,yT2+Hc*0.3);
+      doc.setDrawColor(180,80,160); doc.setLineWidth(0.6);
+      doc.line(x0-4,yT2-8,x0-4,yT2+Hc*0.3-2); doc.circle(x0-4,yT2-11,2.4,"S");
+      var xF=x0+G.nCam*Lc;
+      doc.setDrawColor(40,140,190); doc.setLineWidth(0.7);
+      doc.line(xF,yT2+Hc*0.3,xF+8,yT2+Hc*0.3);
+      cH(x0,xF,yT2-20,"comprimento "+(G.nCam*G.Lcam).toFixed(2)+" m");
+      nt(XL,yB2+26,"entrada "+G.Qf.toFixed(1)+" m3/h",40,140,90,5.4);
+      nt(XL,yB2+29.6,"floculante "+G.WfG.toFixed(1)+" g/h",40,140,90,5.4);
+      nt(XL,yB2+33.2,"solucao "+G.Qsol.toFixed(1)+" L/h a "+G.concSol.toFixed(2)+"%",180,80,160,5.4);
+      nt(XL,yB2+36.8,"diluicao "+G.Qdil.toFixed(0)+" L/h",180,80,160,5.4);
+      nt(XL,yB2+40.4,"camara "+G.Lcam.toFixed(2)+"x"+G.Lcam.toFixed(2)+" m  h "+G.Hcam.toFixed(2)+" m",60,60,60,5.4);
+      nt(XL,yB2+44,"passagem SUBMERSA, v < 0,3 m/s",70,120,170,5.4);
+      ntc((x0+xF)/2,yB2+52,"PLANTA ESQUEMATICA DAS CAMARAS",20,60,100,7.0);
+
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Vazao"),san(G.Qf.toFixed(1))+" m3/h"],
+          [san("Solidos"),san(G.Sf.toFixed(0))+" kg/h"],
+          [san("Tempo de detencao"),san(G.tDet.toFixed(0))+" min"],
+          [san("VOLUME TOTAL"),san(G.Vtot.toFixed(2))+" m3"],
+          [san("Camaras"),String(G.nCam)+" de "+san(G.Vcam.toFixed(2))+" m3"],
+          [san("Lado / altura util"),san(G.Lcam.toFixed(2))+" / "+san(G.Hcam.toFixed(2))+" m"],
+          [san("G primeira / ultima"),san(G.G1.toFixed(0))+" / "+san(G.Gn.toFixed(0))+" s-1"],
+          [san("Produto de Camp G.t"),san(G.Gt.toFixed(0))+" "+(G.gtOK?"OK":"FORA")],
+          [san("Potencia de agitacao"),san(G.Ptot.toFixed(3))+" kW"],
+          [san("FLOCULANTE"),san(G.WfG.toFixed(1))+" g/h"],
+          [san("Solucao de preparo"),san(G.Qsol.toFixed(1))+" L/h a "+san(G.concSol.toFixed(2))+" %"],
+          [san("Tanque de preparo"),san(G.Vtq.toFixed(2))+" m3 (2 un.)"],
+          [san("Maturacao"),san(G.tMat.toFixed(0))+" min"],
+          [san("Diluicao em linha"),san(G.Qdil.toFixed(0))+" L/h"],
+          [san("Coagulante"),(G.doseCo>0?san(G.Wco.toFixed(2))+" kg/h":"nao previsto")],
+          [san("Parede"),san(G.tParC.toFixed(2))+" mm"],
+          [san("Pressao no solo"),san(G.pSoloF.toFixed(0))+" kPa"],
+          [san("CARGA INSTALADA"),san(G.PCFi.toFixed(2))+" kW"],
+          [san("Carga absorvida"),san(G.PCFa.toFixed(2))+" kW"],
+          [san("Com inversor"),String(G.PCFn)+" acionamentos"]
+        ],
+        styles:{fontSize:6.2,cellPadding:0.9,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.4},
+        columnStyles:{0:{cellWidth:44},1:{cellWidth:34,halign:"right"}}});
+
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,254,XR,254);
+      nt(XL,258,"Gradiente DECRESCENTE em serie: a primeira camara forma nucleos resistentes, as seguintes deixam crescer. Velocidade de ponta",120,130,150,5.6);
+      nt(XL,261.5,"abaixo de 1,0 m/s nas camaras finais: o G e uma media espacial e esconde o cisalhamento na ponta da pa.",120,130,150,5.6);
+      nt(XL,265,"Dose, G e tempo saem de ENSAIO DE JARRO. NBR 12216 (referencia)  ·  NBR 8800 e 6118 (estrutura)  ·  NR-12  ·  NR-20 (quimicos).",120,130,150,5.6);
+
     } else if(G.tipo==="filtroprensa"){
       if(G.MEM&&G.MEM.length){
         doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
