@@ -1845,6 +1845,211 @@ function flarePreset(){
    Propriedades do gás na temperatura de operação — a viscosidade quase dobra
    de 20 para 450 °C, e é ela que degrada o corte.
    ========================================================================== */
+/* ============================================================================
+   ESPESSADOR DE LAMA DE LAVADOR ÚMIDO
+   ----------------------------------------------------------------------------
+   A área sai do MAIOR entre três critérios, e eles costumam divergir muito:
+     (a) carga de sólidos   A = S/Cs
+     (b) hidráulico         A = Q_overflow / v_ascensional   ← em lama diluída
+                                é este que governa, e ninguém espera
+     (c) área unitária de ensaio (Coe-Clevenger / Talmage-Fitch), quando houver
+   A fração da recirculação que vai como PURGA é dado de entrada: purgar menos
+   encolhe o espessador pelo critério hidráulico, mas concentra o tanque de
+   recirculação e ataca os bicos do lavador. É o compromisso central do projeto.
+   ========================================================================== */
+function espessadorCalc(){
+  /* ---------- ENTRADAS ---------- */
+  var QG=num("epQG");   if(!isFinite(QG)||QG<=0)QG=174000;      // Nm³/h
+  var Cin=num("epCin"); if(!isFinite(Cin)||Cin<0)Cin=12;         // g/Nm³
+  var eta=num("epEta"); if(!isFinite(eta)||eta<=0||eta>100)eta=99;
+  var QL=num("epQL");   if(!isFinite(QL)||QL<=0)QL=550;          // m³/h recirculação
+  var pPur=num("epPurga"); if(!isFinite(pPur)||pPur<=0||pPur>100)pPur=20;
+  var rhos=num("epRhoS");if(!isFinite(rhos)||rhos<=0)rhos=2936;  // kg/m³
+  var pFino=num("epFino");if(!isFinite(pFino)||pFino<0)pFino=79.27;
+  var Tl=num("epT");    if(!isFinite(Tl))Tl=50;                  // °C
+  var pHl=num("epPH");  if(!isFinite(pHl))pHl=7.5;
+  var hDia=num("epH");  if(!isFinite(hDia)||hDia<=0||hDia>24)hDia=24;
+  var Cs=selvN("epCs",0.15);                                     // t/(m²·h)
+  var vAsc=num("epVasc");if(!isFinite(vAsc)||vAsc<=0)vAsc=1.5;   // m/h
+  var Cu=num("epCu");   if(!isFinite(Cu)||Cu<=0||Cu>=100)Cu=30;  // % underflow
+  var Au=num("epAu");   if(!isFinite(Au)||Au<0)Au=0;             // m²/(t/d) de ensaio
+  var Cmax=num("epCmax");if(!isFinite(Cmax)||Cmax<=0)Cmax=2.0;   // % máx na recirculação
+  var Dado=num("epD");  if(!isFinite(Dado)||Dado<0)Dado=0;       // m
+  var hLat=num("epHlat");if(!isFinite(hLat)||hLat<=0)hLat=3.2;   // m
+  var incCone=selvN("epCone",6);                                  // 1:n
+  var fyE=selvN("epFy",250), corrE=num("epCorr");
+  if(!isFinite(corrE)||corrE<0)corrE=3;
+  var doseFloc=num("epFloc"); if(!isFinite(doseFloc)||doseFloc<0)doseFloc=5;
+
+  /* ---------- ETAPA 1 — BALANÇO DE SÓLIDOS ---------- */
+  var S=QG*Cin*(eta/100)/1000;              // kg/h capturados
+  var Sesc=QG*Cin*(1-eta/100)/1000;         // kg/h que escapam no gás
+  var Sd=S*hDia/1000;                       // t/dia
+  var Qp=QL*pPur/100;                       // m³/h de purga ao espessador
+  var Qrec=QL-Qp;                           // m³/h que retorna ao lavador
+  /* concentração no tanque de recirculação: em regime, todo o sólido sai pela purga */
+  var Ctq=(Qp>0)?(S/(Qp*1000)*100):0;       // % em massa (aprox., ρ água 1000)
+  var ctqOK=(Ctq<=Cmax);
+  var Cfeed=Ctq;                            // a alimentação do espessador é a purga
+
+  /* ---------- ETAPA 2 — UNDERFLOW ---------- */
+  var Wu=S/(Cu/100);                        // kg/h de polpa de underflow
+  var rhoU=1/((Cu/100/rhos)+((1-Cu/100)/1000));
+  var Vu=Wu/rhoU;                           // m³/h
+  var Qov=Math.max(Qp-Vu,0.1);              // m³/h de overflow clarificado
+
+  /* ---------- ETAPA 3 — ÁREA POR TRÊS CRITÉRIOS ---------- */
+  var A1=(S/1000)/Cs;                       // carga de sólidos
+  var A2=Qov/vAsc;                          // hidráulico
+  var A3=(Au>0)?(Sd*Au):0;                  // ensaio
+  var Areq=Math.max(A1,A2,A3);
+  var gov=(Areq<=A1+1e-9)?"carga de sólidos":((Areq<=A2+1e-9)?"HIDRÁULICO — velocidade ascensional":"ensaio de sedimentação");
+  if(A3>0&&A3>=Areq-1e-9) gov="ensaio de sedimentação";
+  else if(A2>=Areq-1e-9) gov="HIDRÁULICO — velocidade ascensional";
+  else gov="carga de sólidos";
+  var Dreq=Math.sqrt(4*Areq/Math.PI);
+  var Desp=(Dado>0)?Dado:Math.ceil(Dreq*2)/2;   // adotado, múltiplo de 0,5 m
+  var Aesp=Math.PI*Desp*Desp/4;
+  var espOK=(Aesp>=Areq-1e-6);
+  var CsReal=(S/1000)/Aesp, vAscReal=Qov/Aesp;
+
+  /* ---------- ETAPA 4 — GEOMETRIA ---------- */
+  var hCone=(Desp/2)/incCone;
+  var hTot=hLat+hCone;
+  var Vesp=Math.PI*Desp*Desp/4*hLat+Math.PI*hCone/3*(Desp*Desp/4);
+  var tRetE=Vesp/Math.max(Qp,0.01);         // h
+  var Dfeed=0.22*Desp;                      // poço de alimentação
+  var vVert=Qov/(Math.PI*Desp);             // m³/(m·h) no vertedouro
+  var vertOK=(vVert<=10);
+
+  /* ---------- ETAPA 5 — RAKE ---------- */
+  var nRake=Math.min(9,Math.max(3,6));      // m/min periférico alvo
+  var rpmRake=nRake/(Math.PI*Desp);         // rpm
+  var Kt=(Cu>=35)?45:((Cu>=25)?30:20);      // N·m/m² — lama fina, faixa usual
+  var Tq=Kt*Desp*Desp;                      // N·m — torque de projeto
+  var Ppar=Tq*2*Math.PI*rpmRake/60/1000;    // kW no eixo, com 2x de partida
+  var Pmot=Ppar*2/0.7;
+
+  /* ---------- ETAPA 6 — FLOCULANTE ---------- */
+  /* dose em g por TONELADA de sólidos; S vem em kg/h, entao S/1000 e t/h */
+  var WflocG=doseFloc*(S/1000);             // g/h de produto ativo
+  var Wfloc=WflocG/1000;                    // kg/h
+  var Vsol=(Wfloc/3)*1000;                  // L/h de solução a 0,3 % (3 kg/m³)
+
+  /* ---------- ETAPA 7 — ESTRUTURA ---------- */
+  var rhoLam=1/((Cfeed/100/rhos)+((1-Cfeed/100)/1000));
+  var pFundo=rhoLam*9.80665*hTot/1000;      // kPa
+  var sadmE=0.60*fyE;
+  var tCost=rhoLam*9.80665*hLat*(Desp/2)/(sadmE*1e6)*1000+corrE;
+  var CHAPE=[6.3,8.0,9.5,12.5,16.0,19.0,22.4,25.0];
+  var tCostC=CHAPE[CHAPE.length-1];
+  for(var i=0;i<CHAPE.length;i++){ if(CHAPE[i]>=Math.max(tCost,6.3)){ tCostC=CHAPE[i]; break; } }
+  var mCost=Math.PI*Desp*hLat*tCostC/1000*7850;
+  var mFundo=Math.PI*Desp*Desp/4*1.15*tCostC/1000*7850;
+  var mLama=Vesp*rhoLam;
+  var Ncarga=(mCost+mFundo+mLama)*9.80665/1000;   // kN
+  var pSolo=Ncarga/(Math.PI*Desp*Desp/4);          // kPa
+
+  function ve(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function se(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEME=[
+   ["1","Sólidos capturados","Q_G·C_ent·η",ve(S,0)+" kg/h = "+ve(S/1000,3)+" t/h","balanço do lavador","—"],
+   ["1","Sólidos que escapam","Q_G·C_ent·(1−η)",ve(Sesc,1)+" kg/h","vão ao gás limpo","—"],
+   ["2","Purga ao espessador","Q_L·%purga",ve(Qp,1)+" m³/h de "+ve(QL,0)+" recirculados","dado de projeto","—"],
+   ["2","Concentração no tanque de recirculação","S/Q_purga",ve(Ctq,2)+" % em massa","≤ "+ve(Cmax,1)+" % (bicos do lavador)",se(ctqOK)],
+   ["3","Área por CARGA DE SÓLIDOS","A = S/Cs",ve(A1,1)+" m² (Cs = "+ve(Cs,2)+" t/m²h)","—","—"],
+   ["3","Área HIDRÁULICA","A = Q_overflow/v_asc",ve(A2,1)+" m² (v = "+ve(vAsc,2)+" m/h)","—","—"],
+   ["3","Área por ENSAIO","A = S_dia·A_unitária",(Au>0?ve(A3,1)+" m²":"sem ensaio"),(Au>0?"—":"ENSAIO DE PROVETA OBRIGATÓRIO"),(Au>0?"—":"VERIFICAR")],
+   ["3","ÁREA REQUERIDA","maior dos três",ve(Areq,1)+" m² → D = "+ve(Dreq,2)+" m","governa: "+gov,"—"],
+   ["3","Diâmetro adotado","—",ve(Desp,1)+" m ("+ve(Aesp,1)+" m²)","≥ "+ve(Dreq,2)+" m",se(espOK)],
+   ["4","Carga de sólidos real","S/A",ve(CsReal,3)+" t/(m²·h)","≤ "+ve(Cs,2),se(CsReal<=Cs+1e-6)],
+   ["4","Velocidade ascensional real","Q_ov/A",ve(vAscReal,2)+" m/h","≤ "+ve(vAsc,2)+" m/h",se(vAscReal<=vAsc+1e-6)],
+   ["4","Carga no vertedouro","Q_ov/(π·D)",ve(vVert,2)+" m³/(m·h)","≤ 10",se(vertOK)],
+   ["5","Underflow","S/C_u",ve(Wu,0)+" kg/h = "+ve(Vu,2)+" m³/h a "+ve(Cu,0)+" %","—","—"],
+   ["5","Overflow clarificado","Q_purga − Q_underflow",ve(Qov,1)+" m³/h","retorna ao circuito","—"],
+   ["6","Torque do rake","K·D²",ve(Tq/1000,1)+" kN·m (K = "+Kt+" N·m/m²)","alarme e desarme obrigatórios","VERIFICAR"],
+   ["6","Potência do acionamento","T·ω, com 2× na partida",ve(Pmot,1)+" kW","—","—"],
+   ["7","Floculante","dose × massa de sólidos",ve(WflocG,1)+" g/h de ativo = "+ve(Wfloc*24,2)+" kg/dia","2 a 8 g/t — confirmar em ensaio de jarro","VERIFICAR"],
+   ["8","Chapa do costado","ρ·g·h·R/σ_adm + c",ve(tCostC,1)+" mm","≥ "+ve(tCost,1)+" mm",se(tCostC>=tCost)],
+   ["8","Pressão no solo","N/A",ve(pSolo,0)+" kPa","comparar com a tensão admissível","VERIFICAR"]
+  ];
+  var nRe=0,nVe=0; MEME.forEach(function(m){ if(m[5]==="REPROVADO")nRe++; else if(m[5]==="VERIFICAR")nVe++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nRe===0?"✓ nenhuma verificação reprovada":"⚠ "+nRe+" verificação(ões) REPROVADA(S)")+"   ·   "+nVe+" a confirmar   ·   "+MEME.length+" verificações",hi:(nRe>0)}
+  ].concat(MEME.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+
+    {sec:"1 — BALANÇO DE SÓLIDOS DO LAVADOR"},
+    {k:"Gás tratado e poeira na entrada",v:fmt(Math.round(QG))+" Nm³/h   ·   "+ve(Cin,1)+" g/Nm³   ·   eficiência de captura "+ve(eta,1)+" %"},
+    {k:"SÓLIDOS CAPTURADOS",v:ve(S,0)+" kg/h   =   "+ve(S/1000,3)+" t/h   =   "+ve(Sd,1)+" t/dia em "+ve(hDia,0)+" h de operação   —  é a única vazão mássica que atravessa todo o trem de lama. Espessador, filtro e destinação final trabalham sobre ela.",hi:true},
+    {k:"Sólidos que escapam no gás limpo",v:ve(Sesc,1)+" kg/h   =   "+ve(Cin*(1-eta/100)*1000,0)+" mg/Nm³   —  com η = "+ve(eta,1)+" %. Esta eficiência é PREMISSA PROVISÓRIA: precisa vir da curva garantida do lavador, e cada ponto percentual muda a carga do espessador em "+ve(QG*Cin/1000/100,1)+" kg/h.",hi:true},
+    {k:"Caracterização do sólido",v:"massa específica real "+fmt(Math.round(rhos))+" kg/m³   ·   "+ve(pFino,2)+" % abaixo de 0,106 mm   ·   pH "+ve(pHl,1)+"   ·   "+ve(Tl,0)+" °C"},
+    {k:"⚠ O que "+ve(pFino,1)+" % abaixo de 106 µm significa aqui",v:"É um sólido FINO. Sedimentação livre por Stokes de uma partícula de 20 µm com "+fmt(Math.round(rhos))+" kg/m³ a "+ve(Tl,0)+" °C dá cerca de "+ve(9.80665*Math.pow(20e-6,2)*(rhos-1000)/(18*0.00055)*3600,2)+" m/h. É a ordem de grandeza da velocidade ascensional adotada — ou seja, SEM FLOCULANTE este espessador não funciona. O floculante não é otimização, é condição de funcionamento.",hi:true},
+
+    {sec:"2 — PURGA × RECIRCULAÇÃO  (o compromisso central)"},
+    {k:"Recirculação total do lavador",v:ve(QL,0)+" m³/h"},
+    {k:"FRAÇÃO PURGADA ao espessador",v:ve(pPur,1)+" %   →   "+ve(Qp,1)+" m³/h ao espessador   ·   "+ve(Qrec,1)+" m³/h retornam ao lavador",hi:true},
+    {k:"CONCENTRAÇÃO no tanque de recirculação",v:ve(Ctq,2)+" % em massa   =   "+fmt(Math.round(Ctq*10000))+" mg/L   vs   "+ve(Cmax,1)+" % admitidos"+(ctqOK?"   ✓ dentro do limite dos bicos":"   ⚠ ACIMA — em regime todo o sólido sai pela purga, então purgar menos concentra o circuito na mesma proporção. Nesta concentração há abrasão acelerada nos bicos, nas bombas e no próprio Venturi, e a gota já chega carregada, o que degrada a captura."),hi:!ctqOK},
+    {k:"Por que purgar menos encolhe o espessador",v:"O critério que governa a área em lama diluída é o HIDRÁULICO: A = Q_overflow/v_asc. Metade da purga é metade do overflow e metade da área. O critério de carga de sólidos quase não se move, porque a massa de sólidos é a mesma. Daí o ganho — e daí também o limite, que é a concentração no circuito.",hi:true},
+    {k:"Sensibilidade da área à fração purgada",v:(function(){var t=[];
+        [5,10,15,20,30,50,100].forEach(function(pc){
+          var q=QL*pc/100, c=(q>0)?(S/(q*1000)*100):0;
+          var ov=Math.max(q-Vu,0.1), a=Math.max(A1,ov/vAsc);
+          t.push(pc+"%: D "+Math.sqrt(4*a/Math.PI).toFixed(1).replace(".",",")+" m / "+c.toFixed(2).replace(".",",")+"% no circuito"); });
+        return t.join("   ·   ");})()+"   —  leia as duas colunas juntas: o diâmetro cai e a concentração sobe.",hi:true},
+
+    {sec:"3 — ÁREA DO ESPESSADOR: TRÊS CRITÉRIOS"},
+    {k:"(a) Carga de sólidos",v:"A = S/Cs = "+ve(S/1000,3)+"/"+ve(Cs,2)+" = "+ve(A1,1)+" m²   →   D = "+ve(Math.sqrt(4*A1/Math.PI),2)+" m"},
+    {k:"(b) HIDRÁULICO — velocidade ascensional",v:"A = Q_ov/v = "+ve(Qov,1)+"/"+ve(vAsc,2)+" = "+ve(A2,1)+" m²   →   D = "+ve(Math.sqrt(4*A2/Math.PI),2)+" m",hi:true},
+    {k:"(c) Ensaio de sedimentação",v:(Au>0?("A = "+ve(Sd,1)+" t/d × "+ve(Au,2)+" m²/(t/d) = "+ve(A3,1)+" m²   →   D = "+ve(Math.sqrt(4*A3/Math.PI),2)+" m"):"⚠ NÃO INFORMADO — o ensaio de proveta com a lama real é o ÚNICO critério que não é regra de bolso. Sem ele, o diâmetro tem incerteza de fator 2. Fazer ensaio de Coe-Clevenger ou Talmage-Fitch e informar a área unitária."),hi:(Au<=0)},
+    {k:"ÁREA REQUERIDA  →  GOVERNA: "+gov,v:ve(Areq,1)+" m²   →   diâmetro mínimo "+ve(Dreq,2)+" m",hi:true},
+    {k:"DIÂMETRO ADOTADO",v:ve(Desp,1)+" m   ·   área "+ve(Aesp,1)+" m²"+(Dado>0?"   (imposto pelo usuário)":"   (arredondado para múltiplo de 0,5 m)")+(espOK?"   ✓ atende":"   ⚠ ABAIXO da área requerida"),hi:true},
+    {k:"Verificação no diâmetro adotado",v:"carga de sólidos "+ve(CsReal,3)+" t/(m²·h) vs "+ve(Cs,2)+"   ·   velocidade ascensional "+ve(vAscReal,2)+" m/h vs "+ve(vAsc,2)+"   ·   vertedouro "+ve(vVert,2)+" m³/(m·h) vs 10"},
+
+    {sec:"4 — GEOMETRIA E VOLUMES"},
+    {k:"Profundidade lateral  ·  cone  ·  total",v:ve(hLat,2)+" m   +   "+ve(hCone,2)+" m (1:"+incCone+")   =   "+ve(hTot,2)+" m"},
+    {k:"Volume e tempo de retenção",v:ve(Vesp,1)+" m³   →   "+ve(tRetE,1)+" h na vazão de purga"},
+    {k:"Poço de alimentação (feedwell)",v:"Ø "+ve(Dfeed,2)+" m   (0,22·D)   —  dissipa a energia do jato sem quebrar o floco. Feedwell subdimensionado destrói o floco que a floculação custou a formar, e é causa comum de espessador que 'não funciona' sem motivo aparente.",hi:true},
+    {k:"Massa específica da lama alimentada",v:ve(rhoLam,0)+" kg/m³   a "+ve(Cfeed,2)+" % de sólidos"},
+
+    {sec:"5 — UNDERFLOW E OVERFLOW"},
+    {k:"UNDERFLOW",v:ve(Cu,0)+" % de sólidos   →   "+ve(Wu,0)+" kg/h de polpa   ·   ρ = "+ve(rhoU,0)+" kg/m³   →   "+ve(Vu,2)+" m³/h",hi:true},
+    {k:"OVERFLOW clarificado",v:ve(Qov,1)+" m³/h   —  retorna ao circuito de água do lavador",hi:true},
+    {k:"⚠ Retirada do underflow",v:"Retirar devagar demais compacta a lama no cone e a bomba deixa de puxar; rápido demais arrasta água e derruba a concentração. O controle é por INTERFACE, medida por sonda de leito, e não por vazão fixa."},
+
+    {sec:"6 — RAKE E ACIONAMENTO"},
+    {k:"Velocidade periférica  ·  rotação",v:ve(nRake,1)+" m/min   →   "+ve(rpmRake,3)+" rpm   (faixa usual 3 a 9 m/min)"},
+    {k:"TORQUE DE PROJETO",v:ve(Tq/1000,1)+" kN·m   —  K·D² com K = "+Kt+" N·m/m² para underflow de "+ve(Cu,0)+" %. Exigir do fabricante o torque garantido e a curva de partida.",hi:true},
+    {k:"Potência do acionamento",v:ve(Pmot,1)+" kW   (2× o torque nominal na partida, rendimento 0,70)"},
+    {k:"⚠ Proteção de torque",v:"Alarme e desarme por torque são OBRIGATÓRIOS, com sistema de levantamento do rake. Sem eles, uma compactação por parada de energia quebra o mecanismo — e o conserto exige esvaziar o espessador.",hi:true},
+
+    {sec:"7 — FLOCULAÇÃO"},
+    {k:"Consumo de floculante",v:ve(WflocG,1)+" g/h de produto ativo   =   "+ve(Wfloc*24,2)+" kg/dia   ("+ve(doseFloc,1)+" g por tonelada de sólidos, sobre "+ve(S/1000,3)+" t/h)   →   "+ve(Vsol,1)+" L/h de solução a 0,3 %",hi:true},
+    {k:"Preparo",v:"Solução de 0,1 a 0,5 %, com 30 a 60 min de maturação sob agitação lenta, e diluição em linha para 0,05 a 0,1 % antes do ponto de aplicação. Dois tanques em paralelo, um preparando e um em uso."},
+    {k:"⚠ Superdosagem piora",v:"Floculante em excesso REESTABILIZA o coloide e a sedimentação piora. A dose ótima sai de ensaio de jarro e é estreita — instrumentar a dosagem e não deixar em ajuste manual.",hi:true},
+
+    {sec:"8 — ESTRUTURA E FUNDAÇÃO"},
+    {k:"Chapa do costado",v:ve(tCostC,1)+" mm comercial   (calculado "+ve(tCost,1)+" mm, incluindo "+ve(corrE,0)+" mm de corrosão)   ·   aço fy = "+fyE+" MPa   ·   σ_adm = "+ve(sadmE,0)+" MPa"},
+    {k:"Pressão hidrostática no fundo",v:ve(pFundo,1)+" kPa"},
+    {k:"Massas",v:"costado "+fmt(Math.round(mCost))+" kg   ·   fundo "+fmt(Math.round(mFundo))+" kg   ·   lama "+fmt(Math.round(mLama))+" kg   →   carga total "+ve(Ncarga,0)+" kN"},
+    {k:"Pressão média no solo",v:ve(pSolo,0)+" kPa   —  comparar com a tensão admissível do terreno. Espessador cheio é uma das maiores cargas distribuídas de uma planta.",hi:true},
+    {k:"Normas aplicáveis",v:"ABNT NBR 7821 e API 650 para o tanque soldado   ·   NBR 8800 para a ponte e a estrutura   ·   NBR 6118 se em concreto   ·   NBR 6123 para vento   ·   NBR 14718 e NR-12 para passarela e guarda-corpo   ·   NR-12 para o acionamento do rake"},
+    {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"A área por carga de sólidos e por velocidade ascensional são regras de projeto consagradas, mas o ensaio de sedimentação com a lama real é o que fecha o diâmetro. O torque do rake e a curva de floculação vêm do fabricante e do ensaio de jarro.",hi:true}
+  ]);
+
+  OUT.geo={tipo:"espessador",MEM:MEME,nRep:nRe,nVer:nVe,S:S,Sd:Sd,QG:QG,Cin:Cin,eta:eta,QL:QL,pPur:pPur,Qp:Qp,Qrec:Qrec,
+    Ctq:Ctq,ctqOK:ctqOK,rhos:rhos,pFino:pFino,A1:A1,A2:A2,A3:A3,Areq:Areq,gov:gov,Dreq:Dreq,Desp:Desp,Aesp:Aesp,
+    CsReal:CsReal,vAscReal:vAscReal,vVert:vVert,Cu:Cu,Wu:Wu,Vu:Vu,rhoU:rhoU,Qov:Qov,hLat:hLat,hCone:hCone,hTot:hTot,
+    Vesp:Vesp,tRet:tRetE,Dfeed:Dfeed,Tq:Tq,Pmot:Pmot,rpmRake:rpmRake,Wfloc:Wfloc,WflocG:WflocG,Vsol:Vsol,tCost:tCostC,pSolo:pSolo,
+    rhoLam:rhoLam,Ncarga:Ncarga,espOK:espOK,incCone:incCone,Cs:Cs,vAsc:vAsc};
+  return OUT;
+}
+
 function cicloneCalc(){
   /* Proporções sobre o diâmetro do corpo e parâmetro geométrico G de Leith & Licht.
      G é tabelado por família e entra na eficiência do modelo de Leith & Licht.       */
@@ -4041,6 +4246,48 @@ function flexowellCalc(){
 }
 
 const CALCS={
+  espessador:{
+    titulo:"Espessador de lama de lavador úmido",
+    referencia:"Área por três critérios, adotando-se o maior: carga de sólidos A = S/Cs; hidráulico A = Q_overflow/v_ascensional; e área unitária de ensaio de sedimentação pelos métodos de Coe-Clevenger ou Talmage-Fitch. Balanço de sólidos do lavador com Q_G·C_ent·η, e balanço do circuito com a fração purgada definindo simultaneamente a carga do espessador e a concentração de sólidos na recirculação do lavador. Underflow e overflow por balanço de massa; torque do rake por K·D²; consumo de floculante por dose específica sobre os sólidos. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; estrutura pela NBR 8800; passarela e guarda-corpo pela NBR 14718 e NR-12.",
+    campos:[
+      {tipo:"head",label:"Origem — lavador úmido"},
+      {id:"epQG",label:"VAZÃO DE GÁS tratada no lavador",unidade:"Nm³/h",tipo:"number",valor:174000,step:"1000"},
+      {id:"epCin",label:"POEIRA na entrada do lavador",unidade:"g/Nm³",tipo:"number",valor:12,step:"0.5"},
+      {id:"epEta",label:"EFICIÊNCIA DE CAPTURA do lavador (premissa a confirmar)",unidade:"%",tipo:"number",valor:99,step:"0.5"},
+      {id:"epH",label:"Horas de operação por dia",unidade:"h/dia",tipo:"number",valor:24,step:"1"},
+      {tipo:"head",label:"Circuito de água — purga × recirculação"},
+      {id:"epQL",label:"RECIRCULAÇÃO TOTAL do lavador",unidade:"m³/h",tipo:"number",valor:550,step:"10"},
+      {id:"epPurga",label:"FRAÇÃO PURGADA ao espessador (o resto retorna ao lavador)",unidade:"%",tipo:"number",valor:20,step:"1"},
+      {id:"epCmax",label:"Concentração MÁXIMA admitida na recirculação (bicos)",unidade:"% massa",tipo:"number",valor:2,step:"0.5"},
+      {tipo:"head",label:"Caracterização do sólido"},
+      {id:"epRhoS",label:"Massa específica REAL do sólido",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
+      {id:"epFino",label:"Fração abaixo de 0,106 mm",unidade:"%",tipo:"number",valor:79.27,step:"0.5"},
+      {id:"epT",label:"Temperatura da lama",unidade:"°C",tipo:"number",valor:50,step:"5"},
+      {id:"epPH",label:"pH da lama",tipo:"number",valor:7.5,step:"0.5"},
+      {tipo:"head",label:"Critérios de dimensionamento"},
+      {id:"epCs",label:"Carga de sólidos admissível",tipo:"select",valor:"0.15",opcoes:[
+        {v:"0.10",t:"0,10 t/(m²·h) — conservador, lama muito fina"},
+        {v:"0.15",t:"0,15 t/(m²·h) — usual em lama metalúrgica"},
+        {v:"0.20",t:"0,20 t/(m²·h)"},
+        {v:"0.25",t:"0,25 t/(m²·h) — agressivo, exige floculação boa"}]},
+      {id:"epVasc",label:"Velocidade ascensional admissível (overflow)",unidade:"m/h",tipo:"number",valor:1.5,step:"0.1"},
+      {id:"epAu",label:"Área unitária de ENSAIO (0 = sem ensaio)",unidade:"m²/(t/d)",tipo:"number",valor:0,step:"0.1"},
+      {id:"epCu",label:"Concentração alvo do UNDERFLOW",unidade:"% massa",tipo:"number",valor:30,step:"1"},
+      {id:"epFloc",label:"Dose de floculante",unidade:"g/t de sólidos",tipo:"number",valor:5,step:"0.5"},
+      {tipo:"head",label:"Geometria e estrutura"},
+      {id:"epD",label:"DIÂMETRO ADOTADO (0 = pelo cálculo)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
+      {id:"epHlat",label:"Profundidade lateral",unidade:"m",tipo:"number",valor:3.2,step:"0.1"},
+      {id:"epCone",label:"Inclinação do cone de fundo",tipo:"select",valor:"6",opcoes:[
+        {v:"4",t:"1:4 — mais íngreme, lama fina"},
+        {v:"6",t:"1:6 — usual"},
+        {v:"8",t:"1:8 — mais raso"}]},
+      {id:"epFy",label:"Aço do costado",tipo:"select",valor:"250",opcoes:[
+        {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]},
+      {id:"epCorr",label:"Sobrespessura de corrosão",unidade:"mm",tipo:"number",valor:3,step:"1"}
+    ],
+    calcular:espessadorCalc
+  },
   ciclone_gas:{
     titulo:"Ciclone de limpeza de gás — corpo único, operação a quente",
     referencia:"Geometrias padronizadas de Stairmand (alta eficiência), Swift (alta eficiência) e Lapple (uso geral), com as proporções clássicas sobre o diâmetro do corpo. Diâmetro de corte pela formulação de Lapple/Shepherd d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))) e eficiência fracionária pela curva de Lapple η(d) = 1/(1+(d50/d)²), integrada sobre distribuição log-normal do pó. Perda de carga por número de cabeças de velocidade da família. Propriedades do gás por gás ideal, com viscosidade pela correlação de Sutherland — decisiva em operação a quente, porque o corte cresce com a raiz da viscosidade. Verificação de metal dusting na janela de 400 a 800 °C com CO elevado, espessura de refratário por condução unidimensional para temperatura de pele alvo, e dilatação térmica do corpo.",
@@ -9508,6 +9755,140 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="espessador"){
+      /* ============ MEMORIAL + CROQUI DO ESPESSADOR ============ */
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+
+          "   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},
+                        3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; }
+          }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195, ZR1=118;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.2; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      function cH(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntc((x1+x2)/2,y-1.6,t,30,90,170,6.0); }
+      function cV(x,y1,y2,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        var xc=Math.max(XL+2,Math.min(XR-2,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
+        doc.setTextColor(30,90,170); doc.setFontSize(6.0);
+        var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
+        if(alt>=cmp+3) doc.text(san(t),xc-1.2,(y1+y2)/2,{angle:90,align:"center"});
+        else doc.text(san(t),Math.max(XL,Math.min(XR-cmp,xc-cmp-2)),Math.min(y1,y2)-1.5); }
+
+      ntc(105,27,"ESPESSADOR  ·  D "+G.Desp.toFixed(1)+" m  ·  area "+G.Aesp.toFixed(1)+" m2",20,60,100,9.0);
+      ntc(105,32,"governa: "+G.gov+"  ·  underflow "+G.Cu.toFixed(0)+" %  ·  overflow "+G.Qov.toFixed(1)+" m3/h",90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,35.5,XR,35.5);
+
+      /* ---- elevacao, coluna esquerda ---- */
+      var cxE=62, escE=Math.min(70/Math.max(G.Desp,1), 90/Math.max(G.hTot,1));
+      if(escE>9) escE=9;
+      /* a coluna esquerda vai de XL a 112; a esquerda do casco ainda ha 18 mm de cotas
+         e a seta de alimentacao, entao a meia-largura e limitada por isso.          */
+      var rE2=Math.max(12,Math.min(G.Desp*escE/2,cxE-XL-20,110-cxE-12));
+      var hL2=Math.max(14,Math.min(G.hLat*escE,50)), hC2=Math.max(8,Math.min(G.hCone*escE,45));
+      var yTopE=62, yTrE=yTopE+hL2, yFuE=yTrE+hC2;
+      doc.setFillColor(228,240,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
+      doc.rect(cxE-rE2,yTopE,2*rE2,hL2,"FD");
+      doc.setFillColor(228,240,248);
+      doc.triangle(cxE-rE2,yTrE,cxE+rE2,yTrE,cxE,yFuE,"F");
+      doc.setDrawColor(30,60,95); doc.line(cxE-rE2,yTrE,cxE,yFuE); doc.line(cxE+rE2,yTrE,cxE,yFuE);
+      /* nivel de lama e interface */
+      doc.setDrawColor(120,150,180); doc.setLineWidth(0.35); doc.setLineDashPattern([1.4,1.4],0);
+      doc.line(cxE-rE2+1,yTopE+4,cxE+rE2-1,yTopE+4); doc.setLineDashPattern([],0);
+      doc.setFillColor(196,176,150); doc.setDrawColor(150,130,100); doc.setLineWidth(0.3);
+      doc.triangle(cxE-rE2*0.55,yTrE+hC2*0.35,cxE+rE2*0.55,yTrE+hC2*0.35,cxE,yFuE,"F");
+      /* feedwell */
+      var rF=Math.max(4,G.Dfeed*escE/2);
+      doc.setFillColor(255,255,255); doc.setDrawColor(30,60,95); doc.setLineWidth(0.5);
+      doc.rect(cxE-rF,yTopE-8,2*rF,hL2*0.45+8,"FD");
+      /* ponte e rake */
+      doc.setDrawColor(60,60,60); doc.setLineWidth(0.7);
+      doc.line(cxE-rE2-3,yTopE-3,cxE+rE2+3,yTopE-3);
+      doc.setLineWidth(0.5); doc.line(cxE,yTopE-3,cxE,yTrE+hC2*0.55);
+      doc.line(cxE-rE2*0.85,yTrE+hC2*0.30,cxE+rE2*0.85,yTrE+hC2*0.30);
+      doc.line(cxE-rE2*0.85,yTrE+hC2*0.30,cxE-rE2*0.60,yTrE+hC2*0.05);
+      doc.line(cxE+rE2*0.85,yTrE+hC2*0.30,cxE+rE2*0.60,yTrE+hC2*0.05);
+      /* vertedouro e underflow */
+      doc.setDrawColor(40,140,190); doc.setLineWidth(0.6);
+      doc.line(cxE+rE2,yTopE+2,cxE+rE2+7,yTopE+2); doc.line(cxE+rE2+7,yTopE+2,cxE+rE2+7,yTopE+7);
+      doc.setDrawColor(150,90,50); doc.setLineWidth(0.6);
+      doc.line(cxE,yFuE,cxE,yFuE+8); doc.circle(cxE,yFuE+11,2.4,"S");
+      /* alimentacao */
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.7);
+      doc.line(cxE-rE2-18,yTopE-12,cxE-3,yTopE-12); doc.line(cxE-3,yTopE-12,cxE-3,yTopE-8);
+      doc.line(cxE-rE2-15,yTopE-13.4,cxE-rE2-18,yTopE-12); doc.line(cxE-rE2-15,yTopE-10.6,cxE-rE2-18,yTopE-12);
+      /* cotas */
+      cH(cxE-rE2,cxE+rE2,yTopE-18,"D "+G.Desp.toFixed(2)+" m");
+      cV(cxE-rE2-6,yTopE,yTrE,"h "+G.hLat.toFixed(2)+" m");
+      cV(cxE-rE2-14,yTopE,yFuE,"H "+G.hTot.toFixed(2)+" m");
+      cH(cxE-rF,cxE+rF,yTopE+hL2*0.55,"feedwell "+G.Dfeed.toFixed(2)+" m");
+      /* legendas do desenho confinadas a coluna esquerda: a tabela comeca em x = 118 */
+      nt(XL,yFuE+16,"overflow "+G.Qov.toFixed(1)+" m3/h",40,140,190,5.6);
+      nt(XL,yFuE+19.6,"vertedouro "+G.vVert.toFixed(1)+" m3/(m.h)",40,140,190,5.6);
+      nt(XL,yFuE+23.2,"alimentacao "+G.Qp.toFixed(1)+" m3/h ("+G.pPur.toFixed(0)+"%)",40,140,90,5.6);
+      nt(XL,yFuE+12,"underflow "+G.Vu.toFixed(2)+" m3/h a "+G.Cu.toFixed(0)+"%  ·  cone 1:"+G.incCone,150,90,50,5.6);
+      ntc(cxE,yFuE+30,"ELEVACAO",20,60,100,7.0);
+
+      /* ---- tabela, coluna direita ---- */
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Gas tratado"),Math.round(G.QG)+" Nm3/h"],
+          [san("Poeira / eficiencia"),san(G.Cin.toFixed(1))+" g/Nm3 / "+san(G.eta.toFixed(1))+" %"],
+          [san("SOLIDOS CAPTURADOS"),san(G.S.toFixed(0))+" kg/h"],
+          [san("Solidos por dia"),san(G.Sd.toFixed(1))+" t/d"],
+          [san("Recirculacao do lavador"),Math.round(G.QL)+" m3/h"],
+          [san("Fracao purgada"),san(G.pPur.toFixed(0))+" %"],
+          [san("PURGA ao espessador"),san(G.Qp.toFixed(1))+" m3/h"],
+          [san("C no circuito"),san(G.Ctq.toFixed(2))+" %  "+(G.ctqOK?"OK":"ALTA")],
+          [san("Area por solidos"),san(G.A1.toFixed(1))+" m2"],
+          [san("Area hidraulica"),san(G.A2.toFixed(1))+" m2"],
+          [san("AREA REQUERIDA"),san(G.Areq.toFixed(1))+" m2"],
+          [san("DIAMETRO ADOTADO"),san(G.Desp.toFixed(1))+" m"],
+          [san("Carga de solidos real"),san(G.CsReal.toFixed(3))+" t/m2h"],
+          [san("Vel. ascensional real"),san(G.vAscReal.toFixed(2))+" m/h"],
+          [san("Underflow"),san(G.Vu.toFixed(2))+" m3/h a "+san(G.Cu.toFixed(0))+" %"],
+          [san("Overflow"),san(G.Qov.toFixed(1))+" m3/h"],
+          [san("Volume / retencao"),san(G.Vesp.toFixed(0))+" m3 / "+san(G.tRet.toFixed(1))+" h"],
+          [san("Torque do rake"),san((G.Tq/1000).toFixed(1))+" kN.m"],
+          [san("Potencia do rake"),san(G.Pmot.toFixed(2))+" kW"],
+          [san("Floculante"),san(G.WflocG.toFixed(1))+" g/h"],
+          [san("Chapa do costado"),san(G.tCost.toFixed(1))+" mm"],
+          [san("Pressao no solo"),san(G.pSolo.toFixed(0))+" kPa"]
+        ],
+        styles:{fontSize:6.2,cellPadding:0.9,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.4},
+        columnStyles:{0:{cellWidth:44},1:{cellWidth:34,halign:"right"}}});
+
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,254,XR,254);
+      nt(XL,258,"Area pelo maior entre carga de solidos, criterio hidraulico e ensaio de sedimentacao. Sem ensaio de proveta com a lama real,",120,130,150,5.6);
+      nt(XL,261.5,"o diametro tem incerteza de fator 2. Torque do rake e dose de floculante devem vir do fabricante e do ensaio de jarro.",120,130,150,5.6);
+      nt(XL,265,"NBR 7821 / API 650 (costado)  ·  NBR 8800 (ponte)  ·  NBR 6118 (fundacao)  ·  NBR 14718 e NR-12 (acesso e acionamento).",120,130,150,5.6);
+
     } else if(G.tipo==="ciclone"){
       /* ============ MEMORIAL + CROQUI DO CICLONE ============ */
       if(G.MEM&&G.MEM.length){

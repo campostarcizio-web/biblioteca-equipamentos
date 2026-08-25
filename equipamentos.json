@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.91.0",
+    "versao": "1.92.0",
     "atualizado_em": "2026-06-22",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -70,6 +70,12 @@
         "subgrupos": [
           "Ciclone de Gás de Topo de Forno"
         ]
+      },
+      {
+        "grupo": "Tratamento de Lama",
+        "subgrupos": [
+          "Espessador"
+        ]
       }
     ],
     "i18n": {
@@ -82,7 +88,8 @@
         "Alimentadores": "Feeders",
         "Ativadores de Silo": "Bin Activators",
         "Utilidades e Segurança": "Utilities & Safety",
-        "Limpeza de Gases": "Gas Cleaning"
+        "Limpeza de Gases": "Gas Cleaning",
+        "Tratamento de Lama": "Sludge Treatment"
       },
       "subgrupos": {
         "Correia Transportadora Convencional": "Conventional Belt Conveyor",
@@ -105,7 +112,8 @@
         "Cone Vibratório Circular": "Circular Bin Activator",
         "Cone Vibratório Retangular": "Rectangular Bin Activator",
         "Flare (tocha de queima)": "Flare Stack",
-        "Ciclone de Gás de Topo de Forno": "Furnace Top-Gas Cyclone"
+        "Ciclone de Gás de Topo de Forno": "Furnace Top-Gas Cyclone",
+        "Espessador": "Thickener"
       }
     }
   },
@@ -562,6 +570,32 @@
       "resumo_en": "Hot cyclone: actual gas conditions, geometry family, d50 cut size, efficiency, pressure drop, dust discharge, refractory and metal dusting.",
       "grupo_en": "Gas Cleaning",
       "subgrupo_en": "Furnace Top-Gas Cyclone"
+    },
+    {
+      "id": "espessador",
+      "grupo": "Tratamento de Lama",
+      "subgrupo": "Espessador",
+      "subtipo": "Espessador circular de lama de lavador úmido, com rake e floculação",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Espessador de Lama",
+      "calculadora": "espessador",
+      "descricao": "Pré-dimensionamento de espessador circular para lama de sistema de limpeza de gases a úmido. Parte do balanço de sólidos do lavador — vazão de gás, poeira na entrada e eficiência de captura — e do balanço do circuito de água, no qual a fração purgada da recirculação define ao mesmo tempo a carga hidráulica do espessador e a concentração de sólidos que retorna aos bicos do lavador: purgar menos encolhe o espessador pelo critério hidráulico e concentra o circuito na mesma proporção, e a calculadora mostra as duas colunas lado a lado para que o compromisso seja escolhido com número. A área sai do maior entre três critérios — carga de sólidos, velocidade ascensional do overflow e área unitária de ensaio de sedimentação —, apontando qual governa, porque em lama diluída o critério hidráulico costuma governar e surpreender. Calcula underflow e overflow por balanço, verifica carga no vertedouro, dimensiona a geometria com cone, poço de alimentação e volume útil, o torque do rake por K·D² com a potência de acionamento, o consumo de floculante e o preparo da solução, e fecha com a chapa do costado por pressão hidrostática, as massas e a pressão média no solo.",
+      "referencia": "Balanço de sólidos S = Q_G·C_ent·η e balanço do circuito de recirculação. Área do espessador pelo maior entre: carga de sólidos A = S/Cs, com Cs de 0,10 a 0,25 t/(m²·h) para lama metalúrgica fina; critério hidráulico A = Q_overflow/v_ascensional; e área unitária de ensaio de sedimentação pelos métodos de Coe-Clevenger e Talmage-Fitch. Sedimentação livre verificada por Stokes. Torque do rake por K·D². Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; estrutura pela ABNT NBR 8800; passarela e guarda-corpo pela ABNT NBR 14718 e NR-12; fundação pela ABNT NBR 6118.",
+      "resumo": "Espessador: balanço do lavador, purga × recirculação, área por três critérios, underflow, rake, floculante, costado e fundação.",
+      "normas": [
+        "NBR 7821",
+        "API 650",
+        "NBR 8800",
+        "NBR 14718",
+        "NBR 6118",
+        "NR-12",
+        "Coe-Clevenger",
+        "Talmage-Fitch"
+      ],
+      "modelo_en": "Sludge Thickener",
+      "resumo_en": "Thickener: scrubber balance, bleed vs recirculation, area by three criteria, underflow, rake, flocculant, shell and foundation.",
+      "grupo_en": "Sludge Treatment",
+      "subgrupo_en": "Thickener"
     }
   ]
 }
