@@ -186,8 +186,32 @@
   box-shadow:0 30px 90px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.07)}
 #portal .pleft{padding:44px 46px;background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.01));
   display:flex;flex-direction:column;justify-content:space-between}
-#portal .plogo{display:flex;align-items:center;margin-bottom:22px}
-#portal .plogo img{height:auto;width:min(330px,72%);display:block}
+/* moldura do logotipo: cantos arredondados e um LED que percorre a borda.
+   O truque tem tres camadas: ::before e o gradiente conico que gira, ::after e um
+   painel opaco recuado 2px que deixa so o anel visivel, e a imagem fica por cima. */
+#portal .plogo{position:relative;display:inline-block;margin-bottom:22px;padding:16px 20px;
+  border-radius:20px;overflow:hidden;isolation:isolate;
+  box-shadow:0 0 26px rgba(63,169,220,.16),0 14px 34px rgba(0,0,0,.35)}
+#portal .plogo::before{content:"";position:absolute;left:50%;top:50%;width:190%;height:190%;
+  transform:translate(-50%,-50%);z-index:0;
+  background:conic-gradient(from 0deg,
+    rgba(63,169,220,0) 0 52%, rgba(63,169,220,.85) 66%, #dff4ff 74%,
+    #D9A94A 82%, rgba(217,169,74,0) 92%, rgba(63,169,220,0) 100%);
+  animation:pled 5.5s linear infinite}
+#portal .plogo::after{content:"";position:absolute;inset:2px;border-radius:18px;z-index:1;
+  background:linear-gradient(160deg,rgba(18,34,54,.92),rgba(9,17,29,.96))}
+#portal .plogo img{position:relative;z-index:2;display:block;
+  height:auto;width:min(300px,58vw);border-radius:10px}
+@keyframes pled{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+/* seletor de idioma: bandeiras no canto superior direito do cartao */
+#portal .plang{position:absolute;top:14px;right:16px;z-index:5;display:flex;gap:8px}
+#portal .plang button{width:34px;height:24px;padding:0;border-radius:5px;cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.18);overflow:hidden;
+  opacity:.5;transition:opacity .15s,border-color .15s,transform .15s;line-height:0}
+#portal .plang button:hover{opacity:.9;transform:translateY(-1px)}
+#portal .plang button.on{opacity:1;border-color:#4fbde8;box-shadow:0 0 0 1px rgba(79,189,232,.45)}
+#portal .plang svg{width:100%;height:100%;display:block}
 #portal .psub{font-size:14.5px;line-height:1.65;color:#9db1c8;margin:0 0 26px;max-width:44ch}
 #portal .pmods{display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;margin-bottom:24px}
 #portal .pmod{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#c3d3e6}
@@ -207,9 +231,11 @@
 #portal button:hover{filter:brightness(1.08)}
 #portal .perr{min-height:19px;font-size:12.5px;color:#ff8f8f;margin-top:12px;text-align:center}
 body.travado{overflow:hidden}
+@media (prefers-reduced-motion:reduce){ #portal .plogo::before{animation:none} }
 @media(max-width:860px){
   #portal .pgrid{grid-template-columns:1fr;min-height:auto}
-  #portal .pleft{padding:30px 26px}
+  /* espaco extra no topo para as bandeiras nao caírem sobre o logotipo */
+  #portal .pleft{padding:52px 26px 30px}
   #portal .pright{padding:30px 26px}
   #portal .pmods{grid-template-columns:1fr}
   }
@@ -222,39 +248,43 @@ body.travado{overflow:hidden}
      Guardamos apenas o hash da senha para não expor a senha em si.          -->
 <div id="portal">
   <div class="pgrid">
+    <div class="plang">
+      <button type="button" data-lang="pt" class="on" title="Portugues (Brasil)" aria-label="Portugues"><svg viewBox="0 0 60 42" aria-hidden="true"><rect width="60" height="42" fill="#009B3A"/><path d="M30 5 L55 21 L30 37 L5 21 Z" fill="#FEDF00"/><clipPath id="pbrC"><circle cx="30" cy="21" r="8.6"/></clipPath><circle cx="30" cy="21" r="8.6" fill="#002776"/><path d="M20 18.6 A17 17 0 0 1 40 21.6" stroke="#fff" stroke-width="3" fill="none" clip-path="url(#pbrC)"/></svg></button>
+      <button type="button" data-lang="en" title="English" aria-label="English"><svg viewBox="0 0 60 42" aria-hidden="true"><clipPath id="pukC"><rect width="60" height="42"/></clipPath><g clip-path="url(#pukC)"><rect width="60" height="42" fill="#012169"/><path d="M0 0 L60 42 M60 0 L0 42" stroke="#fff" stroke-width="8"/><path d="M0 0 L60 42 M60 0 L0 42" stroke="#C8102E" stroke-width="4"/><path d="M30 0 V42 M0 21 H60" stroke="#fff" stroke-width="13"/><path d="M30 0 V42 M0 21 H60" stroke="#C8102E" stroke-width="7"/></g></svg></button>
+    </div>
     <div class="pleft">
       <div>
         <div class="plogo">
           <img src="logo3.png?v=1" alt="ProjectArk Engenharia" onerror="this.style.display='none'"/>
         </div>
-        <p class="psub">Biblioteca de pré-dimensionamento de equipamentos mecânicos para mineração,
+        <p class="psub" data-i18n="sub">Biblioteca de pré-dimensionamento de equipamentos mecânicos para mineração,
         beneficiamento, siderurgia e utilidades. Cada rotina devolve o memorial de cálculo com
         critério de aceitação e status, e o croqui cotado em PDF.</p>
         <div class="pmods">
-          <div class="pmod"><span class="pdot"></span>Transportadores</div>
-          <div class="pmod"><span class="pdot"></span>Silos e moegas</div>
-          <div class="pmod"><span class="pdot"></span>Britadores</div>
-          <div class="pmod"><span class="pdot"></span>Peneiras</div>
-          <div class="pmod"><span class="pdot"></span>Alimentadores</div>
-          <div class="pmod"><span class="pdot"></span>Flare e utilidades</div>
-          <div class="pmod"><span class="pdot"></span>Limpeza de gases</div>
-          <div class="pmod"><span class="pdot"></span>Tratamento de lama</div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m1">Transportadores</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m2">Silos e moegas</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m3">Britadores</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m4">Peneiras</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m5">Alimentadores</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m6">Flare e utilidades</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m7">Limpeza de gases</span></div>
+          <div class="pmod"><span class="pdot"></span><span data-i18n="m8">Tratamento de lama</span></div>
         </div>
       </div>
       <div class="pfoot">
         API 521 · API 537 · ABNT NBR 6123 · NBR 8800 · NBR 6118 · NBR 15421 · EN 1991-4 · NR-12 · NR-13 · NR-35<br/>
-        Resultados de pré-projeto. Não substituem o cálculo detalhado nem a folha de dados do fabricante.
+        <span data-i18n="disc">Resultados de pré-projeto. Não substituem o cálculo detalhado nem a folha de dados do fabricante.</span>
       </div>
     </div>
     <div class="pright">
-      <h2>Acesso restrito</h2>
-      <p class="phint">Uso interno de engenharia.</p>
+      <h2 data-i18n="tit">Acesso restrito</h2>
+      <p class="phint" data-i18n="hint">Uso interno de engenharia.</p>
       <form id="pform" autocomplete="off">
-        <label for="puser">Usuário</label>
+        <label for="puser" data-i18n="user">Usuário</label>
         <input id="puser" type="text" autocomplete="off" spellcheck="false" />
-        <label for="ppass">Senha</label>
+        <label for="ppass" data-i18n="pass">Senha</label>
         <input id="ppass" type="password" autocomplete="off" />
-        <button type="submit">Entrar</button>
+        <button type="submit" data-i18n="go">Entrar</button>
         <div class="perr" id="perr"></div>
       </form>
     </div>
@@ -313,6 +343,58 @@ body.travado{overflow:hidden}
   var HP="105e1549a4da279c3003e69462a95484b47338815acf93f1d31f38df20e58f40";
   var portal=document.getElementById("portal");
   if(!portal) return;
+
+  /* ---- idioma da tela de entrada (so do portal; o site segue em pt-BR) ---- */
+  var I18N={
+    pt:{sub:"Biblioteca de pré-dimensionamento de equipamentos mecânicos para mineração, beneficiamento, siderurgia e utilidades. Cada rotina devolve o memorial de cálculo com critério de aceitação e status, e o croqui cotado em PDF.",
+        m1:"Transportadores",m2:"Silos e moegas",m3:"Britadores",m4:"Peneiras",
+        m5:"Alimentadores",m6:"Flare e utilidades",m7:"Limpeza de gases",m8:"Tratamento de lama",
+        disc:"Resultados de pré-projeto. Não substituem o cálculo detalhado nem a folha de dados do fabricante.",
+        tit:"Acesso restrito",hint:"Uso interno de engenharia.",
+        user:"Usuário",pass:"Senha",go:"Entrar",
+        e1:"Navegador sem suporte a criptografia. Use um navegador atual.",
+        e2:"Usuário ou senha incorretos."},
+    en:{sub:"Preliminary sizing library for mechanical equipment in mining, mineral processing, steelmaking and utilities. Each routine returns the calculation record with acceptance criteria and status, plus a dimensioned PDF sketch.",
+        m1:"Conveyors",m2:"Silos and hoppers",m3:"Crushers",m4:"Screens",
+        m5:"Feeders",m6:"Flare and utilities",m7:"Gas cleaning",m8:"Sludge treatment",
+        disc:"Preliminary results. They do not replace detailed design or the manufacturer data sheet.",
+        tit:"Restricted access",hint:"Internal engineering use.",
+        user:"Username",pass:"Password",go:"Sign in",
+        e1:"Browser without cryptography support. Please use an up-to-date browser.",
+        e2:"Incorrect username or password."}
+  };
+  var LANG="pt";
+  function aplicarIdioma(l){
+    if(!I18N[l]) l="pt";
+    LANG=l;
+    var d=I18N[l];
+    var ns=portal.querySelectorAll?portal.querySelectorAll("[data-i18n]"):[];
+    for(var i=0;i<ns.length;i++){
+      if(!ns[i]||!ns[i].getAttribute) continue;
+      var k=ns[i].getAttribute("data-i18n");
+      if(d[k]!==undefined) ns[i].textContent=d[k];
+    }
+    var bs=portal.querySelectorAll?portal.querySelectorAll(".plang button"):[];
+    for(var j=0;j<bs.length;j++){
+      if(!bs[j]||!bs[j].getAttribute) continue;
+      bs[j].className=(bs[j].getAttribute("data-lang")===l)?"on":"";
+    }
+    /* mensagem de erro em cartaz muda junto com o idioma */
+    var e=document.getElementById("perr");
+    if(e&&e.getAttribute){ var ek=e.getAttribute("data-k"); e.textContent=ek?(d[ek]||""):""; }
+    try{ localStorage.setItem("pa_lang",l); }catch(ex){}
+    var de=document.documentElement;
+    if(de&&de.setAttribute) de.setAttribute("lang", l==="en"?"en":"pt-BR");
+  }
+  var lbs=portal.querySelectorAll?portal.querySelectorAll(".plang button"):[];
+  for(var li=0;li<lbs.length;li++){
+    (function(b){ if(b&&b.addEventListener&&b.getAttribute) b.addEventListener("click",function(){ aplicarIdioma(b.getAttribute("data-lang")); }); })(lbs[li]);
+  }
+  var l0="pt";
+  try{ l0=localStorage.getItem("pa_lang")||((navigator.language||"pt").toLowerCase().indexOf("pt")===0?"pt":"en"); }catch(ex){}
+  aplicarIdioma(l0);
+  function T(k){ return (I18N[LANG]&&I18N[LANG][k])||I18N.pt[k]||""; }
+  function erroMsg(el,k){ if(el.setAttribute) el.setAttribute("data-k",k); el.textContent=T(k); }
   function abrir(){
     portal.style.display="none";
     document.body.classList.remove("travado");
@@ -331,11 +413,11 @@ body.travado{overflow:hidden}
     ev.preventDefault();
     var u=document.getElementById("puser").value.trim();
     var p=document.getElementById("ppass").value;
-    err.textContent="";
+    err.textContent=""; if(err.removeAttribute) err.removeAttribute("data-k");
     Promise.all([sha256(u),sha256(p)]).then(function(h){
-      if(h[0]===null){ err.textContent="Navegador sem suporte a criptografia. Use um navegador atual."; return; }
+      if(h[0]===null){ erroMsg(err,"e1"); return; }
       if(h[0]===HU&&h[1]===HP){ abrir(); }
-      else { err.textContent="Usuário ou senha incorretos."; document.getElementById("ppass").value=""; }
+      else { erroMsg(err,"e2"); document.getElementById("ppass").value=""; }
     });
   });
   var pu=document.getElementById("puser"); if(pu&&pu.focus) pu.focus();
