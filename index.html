@@ -170,16 +170,24 @@
    de verdade seria preciso um servidor ou um proxy de autenticação.        */
 #portal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(1200px 700px at 20% 15%,#16304f 0%,#0b1626 55%,#070d17 100%);
-  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-#portal .pgrid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;width:min(1080px,94vw);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;overflow:hidden}
+/* marca d'água: a logomarca ampliada atrás de tudo, em opacidade baixa. Fica no
+   pseudo-elemento para não interferir no fluxo nem capturar cliques.            */
+#portal::before{content:"";position:absolute;left:50%;top:50%;
+  width:min(190vw,2100px);height:min(190vw,2100px);transform:translate(-50%,-50%) rotate(-8deg);
+  background:url("logo3.png?v=1") no-repeat center center;background-size:contain;
+  opacity:.055;pointer-events:none;filter:grayscale(.25) brightness(1.35)}
+/* brilho suave por cima da marca, para o formulário não perder contraste */
+#portal::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(900px 620px at 72% 52%,rgba(7,13,23,.55) 0%,rgba(7,13,23,0) 70%)}
+#portal .pgrid{position:relative;z-index:2;backdrop-filter:blur(2px);
+  display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;width:min(1080px,94vw);
   min-height:min(600px,88vh);border-radius:18px;overflow:hidden;
   box-shadow:0 30px 90px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.07)}
 #portal .pleft{padding:44px 46px;background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.01));
   display:flex;flex-direction:column;justify-content:space-between}
-#portal .plogo{display:flex;align-items:center;gap:14px;margin-bottom:26px}
-#portal .plogo img{height:52px;width:auto}
-#portal .ptit{font-size:30px;font-weight:800;color:#f2f6fb;letter-spacing:-.4px;line-height:1.15;margin:0 0 10px}
-#portal .ptit span{color:#3fa9dc}
+#portal .plogo{display:flex;align-items:center;margin-bottom:22px}
+#portal .plogo img{height:auto;width:min(330px,72%);display:block}
 #portal .psub{font-size:14.5px;line-height:1.65;color:#9db1c8;margin:0 0 26px;max-width:44ch}
 #portal .pmods{display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;margin-bottom:24px}
 #portal .pmod{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#c3d3e6}
@@ -204,8 +212,7 @@ body.travado{overflow:hidden}
   #portal .pleft{padding:30px 26px}
   #portal .pright{padding:30px 26px}
   #portal .pmods{grid-template-columns:1fr}
-  #portal .ptit{font-size:24px}
-}
+  }
 </style>
 </head>
 <body class="travado">
@@ -218,9 +225,8 @@ body.travado{overflow:hidden}
     <div class="pleft">
       <div>
         <div class="plogo">
-          <img src="logo1.png.png?v=2" alt="ProjectArk" onerror="this.style.display='none'"/>
+          <img src="logo3.png?v=1" alt="ProjectArk Engenharia" onerror="this.style.display='none'"/>
         </div>
-        <h1 class="ptit">Project<span>ARK</span> Engenharia</h1>
         <p class="psub">Biblioteca de pré-dimensionamento de equipamentos mecânicos para mineração,
         beneficiamento, siderurgia e utilidades. Cada rotina devolve o memorial de cálculo com
         critério de aceitação e status, e o croqui cotado em PDF.</p>
