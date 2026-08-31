@@ -1,8 +1,8 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "1.97.0",
-    "atualizado_em": "2026-06-22",
+    "versao": "1.99.0",
+    "atualizado_em": "2026-08-31",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       {
@@ -81,6 +81,13 @@
           "Espessador",
           "Filtro Prensa"
         ]
+      },
+      {
+        "grupo": "Tanques de Agitadores",
+        "subgrupos": [
+          "Tanque Agitador Cilíndrico",
+          "Tanque Agitador Retangular"
+        ]
       }
     ],
     "i18n": {
@@ -94,7 +101,8 @@
         "Ativadores de Silo": "Bin Activators",
         "Utilidades e Segurança": "Utilities & Safety",
         "Limpeza de Gases": "Gas Cleaning",
-        "Tratamento de Lama": "Sludge Treatment"
+        "Tratamento de Lama": "Sludge Treatment",
+        "Tanques de Agitadores": "Agitated Tanks"
       },
       "subgrupos": {
         "Correia Transportadora Convencional": "Conventional Belt Conveyor",
@@ -123,7 +131,9 @@
         "Tanque de Lama Espessada": "Thickened Sludge Tank",
         "Tanque de Filtrado": "Filtrate Tank",
         "Filtro Prensa": "Filter Press",
-        "Dosagem Química e Floculador": "Chemical Dosing and Flocculator"
+        "Dosagem Química e Floculador": "Chemical Dosing and Flocculator",
+        "Tanque Agitador Cilíndrico": "Cylindrical Agitated Tank",
+        "Tanque Agitador Retangular": "Rectangular Agitated Tank"
       }
     }
   },
@@ -730,6 +740,64 @@
       "resumo_en": "Flocculator: tapered-G chambers in series, Camp number, SEW gearmotors per chamber, preparation and dosing, structure and load list.",
       "grupo_en": "Sludge Treatment",
       "subgrupo_en": "Chemical Dosing and Flocculator"
+    },
+    {
+      "id": "tanque-agitador-redondo",
+      "grupo": "Tanques de Agitadores",
+      "subgrupo": "Tanque Agitador Cilíndrico",
+      "subtipo": "Tanque cilíndrico com agitador vertical, impelidores em série no mesmo eixo",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Tanque Agitador Cilíndrico",
+      "calculadora": "tanque_agitador_redondo",
+      "descricao": "Pré-dimensionamento completo do sistema de agitação de um tanque cilíndrico. A partir do volume necessário, do tempo de autonomia e do diâmetro e altura adotados, a rotina define quantos impelidores o eixo comporta, de que tipo, com que diâmetro e largura de pá, em que cota, e com que rotação. A rotação não é arbitrada: vem da correlação de Zwietering para suspensão completa, que é a condição em que nenhuma partícula fica parada no fundo — abaixo dela forma-se leito, e o tanque deixa de ser um tanque agitado para virar um decantador. A viscosidade da polpa sai da tabela de meios líquidos da referência ou da correlação de Thomas sobre a concentração de sólidos, com entrada manual de densidade e viscosidade quando o meio não consta da lista. Com a rotação e a geometria fechadas, o Número de Reynolds define o regime, o Número de Potência é lido das curvas do Handbook para a família de impelidor escolhida (com e sem defletores) e a potência sai de P = Np·ρ·N³·D⁵. Devolve ainda a capacidade de bombeamento, a velocidade da massa líquida contra a tabela de resultado da agitação, o torque, o eixo por momento equivalente com verificação de velocidade crítica, a espessura da pá, os defletores, o costado, a viga de apoio, o motor e o redutor SEW com indicação de inversor, e o plano de cargas.",
+      "referencia": "Potência por P = Np·ρ·N³·D⁵, com Np das curvas Np × Re levantadas das tabelas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook (Engineering Equipment Users Association, Londres). Rotação de suspensão completa por Zwietering (1958). Viscosidade por tabela de meios líquidos ou correlação de Thomas. Proporções de impelidores e defletores conforme DIN 28131 e DIN 28138. Número e posição dos impelidores pela tabela de folga e espaçamento. Eixo por momento equivalente e velocidade crítica; costado pela NBR 7821 / API 650; viga de apoio pela NBR 8800; base pela NBR 6118 e NBR 6122; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções; NBR ISO 21940-11 para balanceamento.",
+      "resumo": "Tanque cilíndrico agitado: número, tipo e dimensões dos impelidores, rotação por Zwietering, potência, torque, eixo, motor e redutor SEW e plano de cargas.",
+      "normas": [
+        "DIN 28131",
+        "DIN 28138",
+        "NBR 7821",
+        "API 650",
+        "NBR 8800",
+        "NBR 6118",
+        "NBR 6122",
+        "NBR ISO 21940-11",
+        "NBR ISO 13857",
+        "NR-12",
+        "ANSI/AGMA 6013",
+        "SEW"
+      ],
+      "modelo_en": "Cylindrical Agitated Tank",
+      "resumo_en": "Cylindrical agitated tank: impeller count, type and dimensions, Zwietering just-suspended speed, power, torque, shaft, SEW drive and load list.",
+      "grupo_en": "Agitated Tanks",
+      "subgrupo_en": "Cylindrical Agitated Tank"
+    },
+    {
+      "id": "tanque-agitador-retangular",
+      "grupo": "Tanques de Agitadores",
+      "subgrupo": "Tanque Agitador Retangular",
+      "subtipo": "Tanque retangular com agitadores verticais distribuídos ao longo do comprimento",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Tanque Agitador Retangular",
+      "calculadora": "tanque_agitador_retangular",
+      "descricao": "Pré-dimensionamento do sistema de agitação de um tanque retangular, onde o problema não é dimensionar um agitador e sim decidir quantos. Um agitador vertical gera um campo de simetria circular; num tanque alongado ele cobre bem uma zona aproximadamente quadrada em planta e deixa o fundo parado fora dela. A rotina parte do comprimento, da largura e da altura, calcula a faixa de quantidade de agitadores que mantém a velocidade de suspensão em todo o comprimento, representa a zona de cada um por um diâmetro equivalente e aplica sobre ele as correlações de tanque cilíndrico. Verifica a proporção da zona, o passo entre eixos, a folga entre a pá e a parede lateral e — o critério que decide o arranjo — a velocidade da corrente de fundo entre dois agitadores, que é onde o sólido assenta quando faltam agitadores. Devolve o tipo, a quantidade, o diâmetro e a largura dos impelidores por eixo, a rotação por Zwietering, a potência por agitador e total, o torque, o eixo, o motor e o redutor SEW por agitador com indicação de inversor e escalonamento de partida, a chapa das paredes com os enrijecedores verticais, as vigas de apoio e o plano de cargas.",
+      "referencia": "Zona de influência de cada agitador representada pelo diâmetro equivalente Teq = √(4·B·Lz/π), com Lz = L/n. Critérios de cobertura: Lz/B entre 0,80 e 1,25, passo entre eixos até 1,5·B e velocidade da corrente de fundo acima de 0,30 m/s. Potência por P = Np·ρ·N³·D⁵ com Np das curvas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook; rotação por Zwietering (1958) sobre Teq. Tanque retangular tratado como auto-defletado. Chapa das paredes por flexão entre enrijecedores, enrijecedores verticais sob carga hidrostática triangular e vigas de apoio conforme ABNT NBR 8800; base pela NBR 6118 e NBR 6122; impelidores conforme DIN 28131; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções.",
+      "resumo": "Tanque retangular agitado: quantidade de agitadores ao longo do comprimento, impelidores por eixo, rotação por Zwietering, potência total, estrutura e acionamentos SEW.",
+      "normas": [
+        "DIN 28131",
+        "NBR 8800",
+        "NBR 6118",
+        "NBR 6122",
+        "NBR 8681",
+        "NBR ISO 21940-11",
+        "NBR ISO 13857",
+        "NR-12",
+        "ANSI/AGMA 6013",
+        "SEW"
+      ],
+      "modelo_en": "Rectangular Agitated Tank",
+      "resumo_en": "Rectangular agitated tank: number of agitators along the length, impellers per shaft, Zwietering speed, total power, structure and SEW drives.",
+      "grupo_en": "Agitated Tanks",
+      "subgrupo_en": "Rectangular Agitated Tank"
     }
   ]
 }
