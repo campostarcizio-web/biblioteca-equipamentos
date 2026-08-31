@@ -159,9 +159,102 @@
   .note{font-size:.76rem;color:var(--muted);margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}
   footer{background:var(--navy);color:#9fb2c4;font-size:.8rem;padding:16px 20px;text-align:center;border-top:3px solid var(--gold)}
   @media(max-width:900px){.burger{display:block}.emblem{height:46px}.wm .l1{font-size:1.05rem}.wm .l2{font-size:.62rem}aside{position:fixed;top:72px;left:0;height:calc(100% - 72px);transform:translateX(-100%);transition:.22s;z-index:35}aside.open{transform:translateX(0)}.htag{display:none}.calcbody{grid-template-columns:1fr}.inputs{border-right:none;border-bottom:1px solid var(--line)}}
+
+/* ===================== PORTAL DE ENTRADA =====================
+   Sobreposição de acesso. IMPORTANTE, e dito com todas as letras:
+   isto NÃO é segurança. O site é estático e servido pelo GitHub Pages,
+   sem servidor e sem sessão. A verificação roda no navegador do próprio
+   usuário, e qualquer pessoa com o DevTools aberto passa por ela. Guardamos
+   o hash SHA-256 em vez da senha em texto claro apenas para não expor uma
+   senha que possa ser reutilizada em outro sistema. Para restringir acesso
+   de verdade seria preciso um servidor ou um proxy de autenticação.        */
+#portal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(1200px 700px at 20% 15%,#16304f 0%,#0b1626 55%,#070d17 100%);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+#portal .pgrid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:0;width:min(1080px,94vw);
+  min-height:min(600px,88vh);border-radius:18px;overflow:hidden;
+  box-shadow:0 30px 90px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.07)}
+#portal .pleft{padding:44px 46px;background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.01));
+  display:flex;flex-direction:column;justify-content:space-between}
+#portal .plogo{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+#portal .plogo img{height:52px;width:auto}
+#portal .ptit{font-size:30px;font-weight:800;color:#f2f6fb;letter-spacing:-.4px;line-height:1.15;margin:0 0 10px}
+#portal .ptit span{color:#3fa9dc}
+#portal .psub{font-size:14.5px;line-height:1.65;color:#9db1c8;margin:0 0 26px;max-width:44ch}
+#portal .pmods{display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;margin-bottom:24px}
+#portal .pmod{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#c3d3e6}
+#portal .pdot{width:7px;height:7px;border-radius:50%;background:#3fa9dc;flex:none}
+#portal .pfoot{font-size:11.5px;color:#6b809a;line-height:1.6}
+#portal .pright{padding:44px 40px;background:rgba(6,12,22,.55);display:flex;flex-direction:column;justify-content:center}
+#portal h2{font-size:19px;font-weight:700;color:#eaf1f8;margin:0 0 6px}
+#portal .phint{font-size:12.5px;color:#8298b2;margin:0 0 26px}
+#portal label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;
+  color:#7f95af;margin:0 0 7px}
+#portal input{width:100%;box-sizing:border-box;padding:12px 14px;margin-bottom:18px;border-radius:9px;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#eef4fa;font-size:14.5px;
+  outline:none;transition:border-color .15s,background .15s}
+#portal input:focus{border-color:#3fa9dc;background:rgba(63,169,220,.08)}
+#portal button{width:100%;padding:13px;border:0;border-radius:9px;cursor:pointer;font-size:14.5px;font-weight:700;
+  color:#06121f;background:linear-gradient(135deg,#4fbde8,#2b8cc0);transition:filter .15s;letter-spacing:.2px}
+#portal button:hover{filter:brightness(1.08)}
+#portal .perr{min-height:19px;font-size:12.5px;color:#ff8f8f;margin-top:12px;text-align:center}
+body.travado{overflow:hidden}
+@media(max-width:860px){
+  #portal .pgrid{grid-template-columns:1fr;min-height:auto}
+  #portal .pleft{padding:30px 26px}
+  #portal .pright{padding:30px 26px}
+  #portal .pmods{grid-template-columns:1fr}
+  #portal .ptit{font-size:24px}
+}
 </style>
 </head>
-<body>
+<body class="travado">
+<!-- ============ PORTAL DE ENTRADA ============
+     ATENÇÃO: esta verificação roda no navegador e NÃO é um controle de acesso.
+     Site estático, sem servidor: qualquer pessoa com o DevTools aberto contorna.
+     Guardamos apenas o hash da senha para não expor a senha em si.          -->
+<div id="portal">
+  <div class="pgrid">
+    <div class="pleft">
+      <div>
+        <div class="plogo">
+          <img src="logo1.png.png?v=2" alt="ProjectArk" onerror="this.style.display='none'"/>
+        </div>
+        <h1 class="ptit">Project<span>ARK</span> Engenharia</h1>
+        <p class="psub">Biblioteca de pré-dimensionamento de equipamentos mecânicos para mineração,
+        beneficiamento, siderurgia e utilidades. Cada rotina devolve o memorial de cálculo com
+        critério de aceitação e status, e o croqui cotado em PDF.</p>
+        <div class="pmods">
+          <div class="pmod"><span class="pdot"></span>Transportadores</div>
+          <div class="pmod"><span class="pdot"></span>Silos e moegas</div>
+          <div class="pmod"><span class="pdot"></span>Britadores</div>
+          <div class="pmod"><span class="pdot"></span>Peneiras</div>
+          <div class="pmod"><span class="pdot"></span>Alimentadores</div>
+          <div class="pmod"><span class="pdot"></span>Flare e utilidades</div>
+          <div class="pmod"><span class="pdot"></span>Limpeza de gases</div>
+          <div class="pmod"><span class="pdot"></span>Tratamento de lama</div>
+        </div>
+      </div>
+      <div class="pfoot">
+        API 521 · API 537 · ABNT NBR 6123 · NBR 8800 · NBR 6118 · NBR 15421 · EN 1991-4 · NR-12 · NR-13 · NR-35<br/>
+        Resultados de pré-projeto. Não substituem o cálculo detalhado nem a folha de dados do fabricante.
+      </div>
+    </div>
+    <div class="pright">
+      <h2>Acesso restrito</h2>
+      <p class="phint">Uso interno de engenharia.</p>
+      <form id="pform" autocomplete="off">
+        <label for="puser">Usuário</label>
+        <input id="puser" type="text" autocomplete="off" spellcheck="false" />
+        <label for="ppass">Senha</label>
+        <input id="ppass" type="password" autocomplete="off" />
+        <button type="submit">Entrar</button>
+        <div class="perr" id="perr"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <header>
   <button class="burger" id="burger">☰</button>
   <div class="brand">
@@ -203,6 +296,44 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
+
+/* ===================== PORTAL: verificação de acesso =====================
+   SHA-256 do usuário e da senha, comparados no navegador. Guardar o hash em
+   vez do texto evita expor uma senha que possa estar em uso noutro sistema —
+   mas não impede ninguém de contornar a tela. Isso está dito na própria
+   página, e é a razão de o conteúdo não conter nada sigiloso.              */
+(function(){
+  var HU="235b3d1eec4c2416598ae0ec2287b6232ddee2fcfbade6480b8a96f2a6430be8";
+  var HP="105e1549a4da279c3003e69462a95484b47338815acf93f1d31f38df20e58f40";
+  var portal=document.getElementById("portal");
+  if(!portal) return;
+  function abrir(){
+    portal.style.display="none";
+    document.body.classList.remove("travado");
+    try{ sessionStorage.setItem("pa_ok","1"); }catch(e){}
+  }
+  try{ if(sessionStorage.getItem("pa_ok")==="1"){ abrir(); return; } }catch(e){}
+  function sha256(txt){
+    if(!(window.crypto&&window.crypto.subtle)) return Promise.resolve(null);
+    return window.crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt))
+      .then(function(b){ return Array.prototype.map.call(new Uint8Array(b),
+        function(x){ return ("0"+x.toString(16)).slice(-2); }).join(""); });
+  }
+  var form=document.getElementById("pform"), err=document.getElementById("perr");
+  if(!form||!form.addEventListener) return;
+  form.addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var u=document.getElementById("puser").value.trim();
+    var p=document.getElementById("ppass").value;
+    err.textContent="";
+    Promise.all([sha256(u),sha256(p)]).then(function(h){
+      if(h[0]===null){ err.textContent="Navegador sem suporte a criptografia. Use um navegador atual."; return; }
+      if(h[0]===HU&&h[1]===HP){ abrir(); }
+      else { err.textContent="Usuário ou senha incorretos."; document.getElementById("ppass").value=""; }
+    });
+  });
+  var pu=document.getElementById("puser"); if(pu&&pu.focus) pu.focus();
+})();
 let DB={meta:{},equipamentos:[]};
 let curGrupo="",curSub="",CUR_EQ=null;
 const REPORT_LOGO=new Image(); REPORT_LOGO.src="logo2.png";
