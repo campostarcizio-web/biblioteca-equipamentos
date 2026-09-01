@@ -15260,19 +15260,10 @@ function paginaDeclaracao(doc){
       headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:7.6},
       columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:38,fontStyle:"bold"},2:{cellWidth:137}}});
 
-    /* Encerramento em texto corrido, no fim do relatorio. Sem quadro e sem
-       destaque: o peso vem do conteudo, nao da moldura.                      */
-    var yA=(doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY:200)+9;
-    if(yA>262){ doc.addPage(); yA=28; }
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.4); doc.setTextColor(60,72,88);
-    var txtF=doc.splitTextToSize(san("Este documento e um pre-dimensionamento. Nao constitui projeto executivo, "+
-      "nao substitui a Anotacao de Responsabilidade Tecnica (ART) e nao autoriza fabricacao, compra ou montagem. "+
-      "Todos os dados devem ser validados junto aos fornecedores dos equipamentos antes de qualquer decisao de "+
-      "projeto ou de aquisicao."),182);
-    doc.text(txtF,14,yA);
-
-    doc.setFontSize(7); doc.setTextColor(150);
-    doc.text(san("ProjectARK Engenharia - Pre-dimensionamento de Equipamentos   -   documento gerado automaticamente, sem valor de projeto executivo"),14,290);
+    /* A tabela acima ja declara tudo item a item; repetir em paragrafo so
+       duplicaria o texto. O rodape segue o mesmo das demais paginas.        */
+    doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(150);
+    doc.text(san("ProjectARK Engenharia - Pre-dimensionamento de Equipamentos"),14,290);
   }catch(e){}
 }
 function closeModal(){$("#modal").classList.remove("open");}
