@@ -6288,9 +6288,34 @@ function pfNucleo(){
   var Wxviga=Mviga/(0.60*fy*1e6)*1e6;                           // cm3
   var pViga=selPerfil({W:Wxviga},"W");
   var Ncol=(Rmax*2+Mp*g*0.15)/2;                                // N por coluna
-  var lamb=hCol*100/8;                                          // esbeltez estimada
-  var Acol=Ncol/(0.5*fy*1e6)*1e4;                               // cm2
-  var pCol=selPerfil({A:Acol,i:hCol*100/180},"W");
+  /* Coluna guia: compressao com flambagem pela NBR 8800, e nao por uma tensao
+     admissivel fixa. Numa coluna de 6 m a esbeltez passa de 150, faixa em que o
+     fator de reducao chi cai para cerca de 0,3 — adotar 0,5.fy ali superestima
+     a capacidade em mais de 40 %.                                            */
+  function _chi(iCm){
+    var lam=(hCol*100)/Math.max(iCm,0.1);                       // esbeltez K.L/i, K = 1
+    var lam0=(lam/Math.PI)*Math.sqrt(fy/206000);
+    var ch=(lam0<=1.5)?Math.pow(0.658,lam0*lam0):(0.877/(lam0*lam0));
+    return {lam:lam,lam0:lam0,chi:ch};
+  }
+  var pCol=null, colDados=null;
+  var poolC=CAT_PERFIS.filter(function(pp){ return pp.fam==="W"; })
+                      .sort(function(a2,b2){ return a2.kg-b2.kg; });
+  for(var ic2=0;ic2<poolC.length;ic2++){
+    var cc=_chi(poolC[ic2].imin);
+    var NRd=cc.chi*(poolC[ic2].A/1e4)*fy*1e6/1.10;              // N
+    if(cc.lam<=200 && NRd>=Ncol){ pCol={best:poolC[ic2],alts:[],dobro:false};
+      colDados={lam:cc.lam,chi:cc.chi,NRd:NRd}; break; }
+  }
+  if(!pCol){
+    var big=poolC.length?poolC[poolC.length-1]:CAT_PERFIS[0];
+    var cb=_chi(big.imin);
+    var nd3=Math.max(2,Math.ceil(Ncol/Math.max(cb.chi*(big.A/1e4)*fy*1e6/1.10,1)));
+    pCol={best:{fam:"W",n:nd3+" x "+big.n+"  — SECAO COMPOSTA",A:nd3*big.A,Ix:nd3*big.Ix,
+                W:nd3*big.W,imin:big.imin,kg:nd3*big.kg},alts:[],dobro:true};
+    colDados={lam:cb.lam,chi:cb.chi,NRd:nd3*cb.chi*(big.A/1e4)*fy*1e6/1.10};
+  }
+  var lamb=colDados.lam;
   var mEstrut=(pViga.best.kg*vaoViga+2*pCol.best.kg*hCol);
 
   /* ================= 10. TEMPERATURA ================= */
@@ -6339,7 +6364,7 @@ function pfNucleo(){
     "NR-12: elevacao sobre area de circulacao exige retencao independente",st(trava)],
    ["9","Redundancia corrente + cabo","cada elemento dimensionado para a carga total","corrente FS "+vt(FScReal,1)+" e cabo FS "+vt(FSkReal,1),"os dois aprovados isoladamente",st(FScReal>=FSc&&FSkReal>=FSk)],
    ["10","Viga superior de apoio","M = R.vao/4","Wx requerido "+vt(Wxviga,0)+" cm3 -> "+pViga.best.n,"perfil unico do catalogo",st(!pViga.dobro)],
-   ["10","Colunas guia","compressao com flambagem","N = "+vt(Ncol/1000,1)+" kN por coluna -> "+pCol.best.n,"perfil unico do catalogo",st(!pCol.dobro)],
+   ["10","Colunas guia","NBR 8800: N_Rd = chi.A.fy/1,10, com chi da curva de flambagem","N_Sd = "+vt(Ncol/1000,1)+" kN -> "+pCol.best.n+" (N_Rd = "+vt(colDados.NRd/1000,0)+" kN)","esbeltez "+vt(colDados.lam,0)+" (limite 200), chi = "+vt(colDados.chi,3),st(!pCol.dobro&&colDados.lam<=200)],
    ["11","Temperatura junto a porta","radiacao do forno",vt(Tamb,0)+" C",tempTxt,st(tempOK)]
   ];
   var nRep=MEM.filter(function(m){return m[5]==="REPROVADO";}).length;
@@ -6365,6 +6390,7 @@ function pfNucleo(){
     frExced:frExced,kFreio:kFreio,iTot:iTot,espFrena:espFrena,trava:trava,
     MfreioNom:MfreioNom,Tsemcp:Tsemcp,dResistmm:dResistmm,govEixo:govEixo,
     pViga:pViga,pCol:pCol,Wxviga:Wxviga,Ncol:Ncol,vaoViga:vaoViga,hCol:hCol,mEstrut:mEstrut,fy:fy,
+    colDados:colDados,lamb:lamb,
     matEixo:matEixo,matEng:matEng};
 }
 
@@ -6450,7 +6476,8 @@ function portaFornoCalc(){
 
   OUT.push({sec:"9 · Estrutura de apoio"});
   OUT.push({k:"Viga superior",v:"vão "+v(A.vaoViga,2)+" m   ·   Wx requerido "+v(A.Wxviga,0)+" cm³   →   "+txtPerfil(A.pViga.best),hi:A.pViga.dobro});
-  OUT.push({k:"Colunas guia",v:"altura "+v(A.hCol,2)+" m   ·   "+v(A.Ncol/1000,1)+" kN por coluna   →   "+txtPerfil(A.pCol.best),hi:A.pCol.dobro});
+  OUT.push({k:"Colunas guia",v:"altura "+v(A.hCol,2)+" m   ·   N_Sd = "+v(A.Ncol/1000,1)+" kN por coluna   →   "+txtPerfil(A.pCol.best)+"   ·   N_Rd = "+v(A.colDados.NRd/1000,0)+" kN",hi:A.pCol.dobro});
+  OUT.push({k:"Flambagem da coluna",v:"esbeltez λ = "+v(A.colDados.lam,0)+" (limite 200 da NBR 8800)   ·   fator de redução χ = "+v(A.colDados.chi,3)+"   ·   numa coluna dessa altura a flambagem corta a capacidade a "+v(A.colDados.chi*100,0)+" % do escoamento — dimensionar por tensão admissível fixa superestimaria o perfil"});
   OUT.push({k:"Massa estimada da estrutura",v:v(A.mEstrut/1000,2)+" t   (viga + duas colunas)   ·   aço "+(A.fy===250?"ASTM A36 / MR250":"ASTM A572 Gr50")});
   OUT.push({k:"Guias da porta",v:"A porta precisa ser guiada em toda a altura do curso. Guia curta deixa a porta pendular no fim do movimento e a corrente sai do plano da roda dentada — origem mais comum de salto de dente neste tipo de mecanismo."});
 
@@ -6477,43 +6504,43 @@ const CALCS={
     referencia:"Classificação do mecanismo, coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e coeficientes de segurança conforme ABNT NBR 8400 e FEM 1.001. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1, ISO 606), dimensionadas para a carga total do ponto com coeficiente de elevação crítica. Cabos de aço com carga de ruptura por construção e verificação da relação D/d das polias conforme DIN 15020, com inspeção e descarte pela ABNT NBR ISO 4309. Redundância real: corrente e cabo, cada um capaz de sustentar sozinho a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo principal resolvido como viga sobre dois mancais por integração numérica, com momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI, verificação da flecha no engrenamento e da torção específica. Engrenagens abertas por Lewis com fator de velocidade de Barth e verificação da velocidade tangencial. Motoredutor e freio de mola SEW-EURODRIVE (série BE), com o freio dimensionado sem crédito de rendimento do redutor. NR-12 para o dispositivo de retenção independente.",
     campos:[
       {tipo:"head",label:"Porta, contrapeso e movimento"},
-      {id:"pfMp",label:"PESO DA PORTA (carga a ser içada)",unidade:"kg",tipo:"number",valor:8000,step:"100"},
-      {id:"pfMcp",label:"PESO DO CONTRAPESO",unidade:"kg",tipo:"number",valor:7200,step:"100"},
-      {id:"pfCurso",label:"DESLOCAMENTO TOTAL da porta",unidade:"m",tipo:"number",valor:2.0,step:"0.1"},
-      {id:"pfTab",label:"TEMPO de abertura (define a velocidade)",unidade:"s",tipo:"number",valor:15,step:"1"},
-      {id:"pfCiclos",label:"Aberturas por hora",tipo:"number",valor:12,step:"1"},
+      {id:"pfMp",label:"PESO DA PORTA (carga a ser içada)",unidade:"kg",tipo:"number",valor:6200,step:"100"},
+      {id:"pfMcp",label:"PESO DO CONTRAPESO",unidade:"kg",tipo:"number",valor:5600,step:"100"},
+      {id:"pfCurso",label:"DESLOCAMENTO TOTAL da porta",unidade:"m",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"pfTab",label:"TEMPO de abertura (define a velocidade)",unidade:"s",tipo:"number",valor:50,step:"1"},
+      {id:"pfCiclos",label:"Aberturas por hora",tipo:"number",valor:10,step:"1"},
       {id:"pfHdia",label:"Horas de operação por dia",unidade:"h",tipo:"number",valor:24,step:"1"},
-      {id:"pfTemp",label:"Temperatura junto à porta (radiação do forno)",unidade:"°C",tipo:"number",valor:80,step:"10"},
+      {id:"pfTemp",label:"Temperatura junto à porta (radiação do forno)",unidade:"°C",tipo:"number",valor:120,step:"10"},
       {tipo:"head",label:"Pontos de içamento, correntes e cabos"},
       {id:"pfNpd",label:"PONTOS DE IÇAMENTO da porta (correntes)",tipo:"number",valor:2,step:"1"},
       {id:"pfNpc",label:"PONTOS DE IÇAMENTO do contrapeso (correntes)",tipo:"number",valor:2,step:"1"},
       {id:"pfNcabo",label:"RAMOS DE CABO entre porta e contrapeso",tipo:"number",valor:2,step:"1"},
-      {id:"pfZrd",label:"Dentes das rodas dentadas de elevação",tipo:"number",valor:19,step:"1"},
+      {id:"pfZrd",label:"Dentes das rodas dentadas de elevação",tipo:"number",valor:25,step:"1"},
       {id:"pfFsc",label:"Coeficiente de segurança da CORRENTE",tipo:"number",valor:8,step:"0.5"},
-      {id:"pfCabo",label:"Construção do cabo de aço",tipo:"select",valor:"c636",opcoes:[
+      {id:"pfCabo",label:"Construção do cabo de aço",tipo:"select",valor:"c619",opcoes:[
         {v:"c636",t:"6×36 Warrington-Seale com alma de aço (IWRC) — D/d ≥ 22"},
         {v:"c619",t:"6×19 Seale com alma de aço (IWRC) — D/d ≥ 20"},
         {v:"c8x19",t:"8×19 IWRC — alta flexibilidade, D/d ≥ 25"},
         {v:"antig",t:"Anti-giro 19×7 — D/d ≥ 25"}]},
-      {id:"pfFscabo",label:"Coeficiente de segurança do CABO",tipo:"number",valor:6,step:"0.5"},
-      {id:"pfDpol",label:"DIÂMETRO DAS POLIAS dos cabos porta/contrapeso",unidade:"mm",tipo:"number",valor:600,step:"25"},
+      {id:"pfFscabo",label:"Coeficiente de segurança do CABO",tipo:"number",valor:8,step:"0.5"},
+      {id:"pfDpol",label:"DIÂMETRO DAS POLIAS dos cabos porta/contrapeso",unidade:"mm",tipo:"number",valor:500,step:"25"},
       {tipo:"head",label:"Olhais de fixação porta e contrapeso"},
-      {id:"pfDpino",label:"Diâmetro do PINO do olhal",unidade:"mm",tipo:"number",valor:60,step:"5"},
+      {id:"pfDpino",label:"Diâmetro do PINO do olhal",unidade:"mm",tipo:"number",valor:50,step:"5"},
       {id:"pfTolhal",label:"Espessura da chapa do olhal",unidade:"mm",tipo:"number",valor:25,step:"1"},
       {tipo:"head",label:"Eixo principal de transmissão"},
-      {id:"pfLeixo",label:"COMPRIMENTO TOTAL do eixo",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
-      {id:"pfLman",label:"DISTÂNCIA ENTRE OS MANCAIS de apoio",unidade:"m",tipo:"number",valor:5.0,step:"0.1"},
-      {id:"pfAeng",label:"DISTÂNCIA da engrenagem movida à extremidade do eixo",unidade:"m",tipo:"number",valor:0.35,step:"0.05"},
-      {id:"pfEpc",label:"DISTÂNCIA entre as rodas dentadas de porta e contrapeso",unidade:"m",tipo:"number",valor:0.60,step:"0.05"},
+      {id:"pfLeixo",label:"COMPRIMENTO TOTAL do eixo",unidade:"m",tipo:"number",valor:3.205,step:"0.005"},
+      {id:"pfLman",label:"DISTÂNCIA ENTRE OS MANCAIS de apoio",unidade:"m",tipo:"number",valor:2.85,step:"0.05"},
+      {id:"pfAeng",label:"DISTÂNCIA da engrenagem movida à extremidade do eixo",unidade:"m",tipo:"number",valor:0.04,step:"0.01"},
+      {id:"pfEpc",label:"DISTÂNCIA entre as rodas dentadas de porta e contrapeso",unidade:"m",tipo:"number",valor:0.2,step:"0.05"},
       {id:"pfMatEixo",label:"Material do eixo",tipo:"select",valor:"1045",opcoes:[
         {v:"1045",t:"SAE 1045 — σ_adm 110 MPa"},
         {v:"4140",t:"SAE 4140 temperado e revenido — σ_adm 150 MPa"},
         {v:"4340",t:"SAE 4340 — σ_adm 180 MPa"}]},
       {tipo:"head",label:"Engrenagens abertas de acionamento"},
-      {id:"pfMod",label:"Módulo das engrenagens",unidade:"mm",tipo:"number",valor:10,step:"1"},
-      {id:"pfZmot",label:"Dentes da engrenagem MOTORA (pinhão)",tipo:"number",valor:17,step:"1"},
-      {id:"pfZmov",label:"Dentes da engrenagem MOVIDA (coroa no eixo)",tipo:"number",valor:51,step:"1"},
-      {id:"pfBeng",label:"Largura da face das engrenagens",unidade:"mm",tipo:"number",valor:100,step:"5"},
+      {id:"pfMod",label:"Módulo das engrenagens",unidade:"mm",tipo:"number",valor:12.13,step:"0.01"},
+      {id:"pfZmot",label:"Dentes da engrenagem MOTORA (pinhão)",tipo:"number",valor:14,step:"1"},
+      {id:"pfZmov",label:"Dentes da engrenagem MOVIDA (coroa no eixo)",tipo:"number",valor:60,step:"1"},
+      {id:"pfBeng",label:"Largura da face das engrenagens",unidade:"mm",tipo:"number",valor:115,step:"5"},
       {id:"pfMatEng",label:"Material das engrenagens",tipo:"select",valor:"1045",opcoes:[
         {v:"1045",t:"SAE 1045 (Su 565 MPa)"},
         {v:"4140",t:"SAE 4140 temperado (Su 900 MPa)"},
@@ -6522,8 +6549,8 @@ const CALCS={
       {id:"pfTrava",label:"Trava mecânica independente do freio",tipo:"select",valor:"sim",opcoes:[
         {v:"sim",t:"SIM — catraca ou pino de retenção (exigido pela NR-12 sobre área de circulação)"},
         {v:"nao",t:"NÃO — apenas o freio do motoredutor"}]},
-      {id:"pfVaoViga",label:"Vão da viga superior de apoio",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
-      {id:"pfHcol",label:"Altura das colunas guia",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
+      {id:"pfVaoViga",label:"Vão da viga superior de apoio",unidade:"m",tipo:"number",valor:4.82,step:"0.01"},
+      {id:"pfHcol",label:"Altura das colunas guia",unidade:"m",tipo:"number",valor:6.2,step:"0.1"},
       {id:"pfFy",label:"Aço da estrutura",tipo:"select",valor:"250",opcoes:[
         {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
         {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]}
@@ -15211,16 +15238,7 @@ function paginaDeclaracao(doc){
     doc.text(san("Declaracao de limitacao de escopo e responsabilidade tecnica"),60,12);
     doc.setFont("helvetica","normal");
 
-    doc.setFillColor(253,240,225); doc.setDrawColor(214,150,60); doc.setLineWidth(0.6);
-    doc.rect(14,26,182,26,"FD");
-    doc.setTextColor(150,85,15); doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
-    doc.text(san("ESTE DOCUMENTO E UM PRE-DIMENSIONAMENTO."),18,34);
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.2); doc.setTextColor(90,60,20);
-    doc.text(san("Nao constitui projeto executivo, nao substitui a Anotacao de Responsabilidade Tecnica (ART) e"),18,40.5);
-    doc.text(san("nao autoriza fabricacao, compra ou montagem. Todos os dados devem ser validados junto aos"),18,45);
-    doc.text(san("fornecedores dos equipamentos antes de qualquer decisao de projeto ou de aquisicao."),18,49.5);
-
-    doc.autoTable({startY:57,theme:"grid",margin:{left:14,right:14},
+    doc.autoTable({startY:28,theme:"grid",margin:{left:14,right:14},
       head:[[san("#"),san("Item"),san("Declaracao")]],
       body:[
         ["1",san("Natureza do documento"),
@@ -15242,19 +15260,16 @@ function paginaDeclaracao(doc){
       headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:7.6},
       columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:38,fontStyle:"bold"},2:{cellWidth:137}}});
 
-    var yA=doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY+8:200;
-    if(yA>232) yA=232;
-    doc.setDrawColor(180,192,208); doc.setLineWidth(0.4);
-    doc.setFillColor(247,250,253); doc.rect(14,yA,182,40,"FD");
-    doc.setTextColor(20,60,100); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-    doc.text(san("RESPONSAVEL TECNICO PELO APROVEITAMENTO DESTE ESTUDO"),18,yA+6);
-    doc.setFont("helvetica","normal"); doc.setFontSize(7.4); doc.setTextColor(90,105,125);
-    doc.setDrawColor(150,165,185); doc.setLineWidth(0.3);
-    doc.line(18,yA+20,105,yA+20); doc.text(san("Nome e assinatura"),18,yA+24);
-    doc.line(112,yA+20,150,yA+20); doc.text(san("CREA / UF"),112,yA+24);
-    doc.line(156,yA+20,192,yA+20); doc.text(san("Numero da ART"),156,yA+24);
-    doc.line(18,yA+34,80,yA+34); doc.text(san("Data"),18,yA+38);
-    doc.line(88,yA+34,192,yA+34); doc.text(san("Empresa / contratante"),88,yA+38);
+    /* Encerramento em texto corrido, no fim do relatorio. Sem quadro e sem
+       destaque: o peso vem do conteudo, nao da moldura.                      */
+    var yA=(doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY:200)+9;
+    if(yA>262){ doc.addPage(); yA=28; }
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.4); doc.setTextColor(60,72,88);
+    var txtF=doc.splitTextToSize(san("Este documento e um pre-dimensionamento. Nao constitui projeto executivo, "+
+      "nao substitui a Anotacao de Responsabilidade Tecnica (ART) e nao autoriza fabricacao, compra ou montagem. "+
+      "Todos os dados devem ser validados junto aos fornecedores dos equipamentos antes de qualquer decisao de "+
+      "projeto ou de aquisicao."),182);
+    doc.text(txtF,14,yA);
 
     doc.setFontSize(7); doc.setTextColor(150);
     doc.text(san("ProjectARK Engenharia - Pre-dimensionamento de Equipamentos   -   documento gerado automaticamente, sem valor de projeto executivo"),14,290);
