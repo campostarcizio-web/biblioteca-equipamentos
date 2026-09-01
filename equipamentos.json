@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "2.0.0",
+    "versao": "2.1.0",
     "atualizado_em": "2026-08-31",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -88,6 +88,12 @@
           "Tanque Agitador Cilíndrico",
           "Tanque Agitador Retangular"
         ]
+      },
+      {
+        "grupo": "Mecanismos de Forno",
+        "subgrupos": [
+          "Sistema de Elevação de Porta"
+        ]
       }
     ],
     "i18n": {
@@ -102,7 +108,8 @@
         "Utilidades e Segurança": "Utilities & Safety",
         "Limpeza de Gases": "Gas Cleaning",
         "Tratamento de Lama": "Sludge Treatment",
-        "Tanques de Agitadores": "Agitated Tanks"
+        "Tanques de Agitadores": "Agitated Tanks",
+        "Mecanismos de Forno": "Furnace Mechanisms"
       },
       "subgrupos": {
         "Correia Transportadora Convencional": "Conventional Belt Conveyor",
@@ -133,7 +140,8 @@
         "Filtro Prensa": "Filter Press",
         "Dosagem Química e Floculador": "Chemical Dosing and Flocculator",
         "Tanque Agitador Cilíndrico": "Cylindrical Agitated Tank",
-        "Tanque Agitador Retangular": "Rectangular Agitated Tank"
+        "Tanque Agitador Retangular": "Rectangular Agitated Tank",
+        "Sistema de Elevação de Porta": "Door Hoisting System"
       }
     }
   },
@@ -798,6 +806,39 @@
       "resumo_en": "Rectangular agitated tank: number of agitators along the length, impellers per shaft, Zwietering speed, total power, structure and SEW drives.",
       "grupo_en": "Agitated Tanks",
       "subgrupo_en": "Rectangular Agitated Tank"
+    },
+    {
+      "id": "porta-forno-elevacao",
+      "grupo": "Mecanismos de Forno",
+      "subgrupo": "Sistema de Elevação de Porta",
+      "subtipo": "Elevação vertical de porta de forno com contrapeso, correntes de rolos e cabos redundantes",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Sistema de Elevação de Porta de Forno",
+      "calculadora": "porta_forno",
+      "descricao": "Pré-dimensionamento completo do mecanismo que levanta a porta de um forno de aciaria: correntes, cabos, olhais, eixo principal, engrenagens abertas, motoredutor com freio e a estrutura que apoia o conjunto. O ponto de partida é o balanço porta × contrapeso, que decide quanto o acionamento realmente levanta — e que precisa deixar a porta tendendo a fechar, porque essa é a posição segura em falta de energia. As correntes seguem a série ANSI RS do catálogo DAIDO e os cabos de aço são o segundo caminho de carga: em elevação sobre área de circulação, cada elemento é dimensionado para a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada e desaparece no instante em que um deles falha. O eixo principal é resolvido como viga sobre dois mancais por integração numérica, com o carregamento real das rodas dentadas e da coroa — inclusive quando a coroa fica em balanço fora dos mancais —, e o diâmetro é escolhido pelo critério que efetivamente governa, que quase nunca é a tensão e sim a flecha no engrenamento e a torção que faz um lado da porta subir antes do outro. O freio SEW é dimensionado pela porta inteira e não pelo desbalanço, porque é justamente na perda do contrapeso que ele precisa funcionar. Devolve croqui da elevação frontal, diagramas de momento, torque e flecha do eixo, e detalhes cotados do olhal e da roda dentada.",
+      "referencia": "ABNT NBR 8400 e FEM 1.001 para a classificação do mecanismo, o coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e os coeficientes de segurança. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1 e ISO 606), com indicação da corrente de placas (ANSI/ASME B29.8, série BL) como alternativa usual em elevação. Cabos de aço com carga de ruptura por construção, relação D/d das polias pela DIN 15020 e inspeção pela ABNT NBR ISO 4309. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo por momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI e torção específica limitada a 0,25°/m. Engrenagens abertas por Lewis com fator de velocidade de Barth. Motoredutor e freio de mola SEW-EURODRIVE série BE. NR-12, ABNT NBR ISO 13857 e NBR 14153 para retenção independente e circuito de segurança.",
+      "resumo": "Elevação de porta de forno: balanço com contrapeso, correntes DAIDO e cabos redundantes, olhais, eixo principal com diagramas, engrenagens, motoredutor e freio SEW.",
+      "normas": [
+        "NBR 8400",
+        "FEM 1.001",
+        "ANSI/ASME B29.1",
+        "ANSI/ASME B29.8",
+        "ISO 606",
+        "DIN 15020",
+        "NBR ISO 4309",
+        "NBR 8800",
+        "NBR 8681",
+        "NBR 6118",
+        "NBR 6122",
+        "NR-12",
+        "NBR ISO 13857",
+        "NBR 14153",
+        "SEW"
+      ],
+      "modelo_en": "Furnace Door Hoisting System",
+      "resumo_en": "Furnace door hoist: counterweight balance, DAIDO chains and redundant ropes, pad-eyes, main shaft with diagrams, open gearing, SEW gearmotor and brake.",
+      "grupo_en": "Furnace Mechanisms",
+      "subgrupo_en": "Door Hoisting System"
     }
   ]
 }

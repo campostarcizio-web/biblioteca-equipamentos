@@ -5914,7 +5914,623 @@ function tanqueAgitadorRetangularCalc(){
 }
 
 
+/* ===================== SISTEMA DE ELEVACAO DE PORTA DE FORNO =====================
+   Base normativa: ABNT NBR 8400 (calculo de equipamentos de levantamento) para a
+   classificacao do mecanismo, o coeficiente dinamico e os fatores de seguranca;
+   ANSI/ASME B29.1 e ISO 606 para a corrente de rolos (catalogo DAIDO);
+   DIN 15020 / ABNT NBR ISO 4309 para o cabo de aco e a relacao D/d das polias;
+   ABNT NBR 8800 para o eixo, os olhais e a estrutura; NR-12 para os dispositivos
+   de retencao. Elevacao sobre area de circulacao em aciaria: adota-se
+   redundancia real, isto e, corrente E cabo, cada um capaz de sustentar
+   sozinho a carga total.                                                      */
+
+/* Correntes de rolos serie ANSI (DAIDO RS). p = passo (mm), Q = carga de ruptura
+   minima do fio simples (kN), m = massa linear (kg/m).                         */
+const DAIDO_RS=[
+ {n:"RS40",  p:12.70, Q:13.9,  m:0.65},
+ {n:"RS50",  p:15.875,Q:21.8,  m:1.00},
+ {n:"RS60",  p:19.05, Q:31.3,  m:1.50},
+ {n:"RS80",  p:25.40, Q:55.6,  m:2.60},
+ {n:"RS100", p:31.75, Q:87.0,  m:3.90},
+ {n:"RS120", p:38.10, Q:124.6, m:5.60},
+ {n:"RS140", p:44.45, Q:169.0, m:7.50},
+ {n:"RS160", p:50.80, Q:222.4, m:10.00},
+ {n:"RS200", p:63.50, Q:347.0, m:16.00},
+ {n:"RS240", p:76.20, Q:500.4, m:22.50}
+];
+/* Freios eletromagneticos SEW serie BE — torque de frenagem nominal (N.m).
+   Atuam por mola e abrem por bobina: na falta de energia o freio FECHA.       */
+const SEW_BE=[
+ {n:"BE05",t:5},{n:"BE1",t:10},{n:"BE2",t:20},{n:"BE5",t:55},{n:"BE11",t:110},
+ {n:"BE20",t:200},{n:"BE30",t:300},{n:"BE32",t:400},{n:"BE60",t:600},
+ {n:"BE62",t:800},{n:"BE120",t:1200},{n:"BE122",t:1500}
+];
+/* Cabo de aco: carga de ruptura minima efetiva por construcao, MBL = k.d2 (kN,
+   d em mm), para arame de 1770 MPa.                                          */
+const CABO_TIPO={
+ c619:{n:"6x19 Seale com alma de aco (IWRC)", k:0.500, Dd:20, flex:"media"},
+ c636:{n:"6x36 Warrington-Seale IWRC",        k:0.515, Dd:22, flex:"alta"},
+ c8x19:{n:"8x19 IWRC - alta flexibilidade",   k:0.450, Dd:25, flex:"muito alta"},
+ antig:{n:"Anti-giro 19x7",                   k:0.470, Dd:25, flex:"media"}
+};
+/* Diametros comerciais de cabo (mm) */
+const CABO_D=[6,8,9.5,11,12.5,14,16,19,22,25,28,32,36,40,44,48,52];
+
+/* Fator de forma de Lewis para dente de 20 graus, altura plena */
+function lewisY(z){
+  var T=[[12,0.245],[14,0.277],[16,0.296],[18,0.309],[20,0.322],[22,0.331],[24,0.337],
+         [26,0.346],[28,0.353],[30,0.359],[34,0.371],[38,0.384],[43,0.397],[50,0.409],
+         [60,0.422],[75,0.435],[100,0.447],[150,0.460],[300,0.472]];
+  if(z<=T[0][0]) return T[0][1];
+  for(var i=1;i<T.length;i++){ if(z<=T[i][0]){
+    var f=(z-T[i-1][0])/(T[i][0]-T[i-1][0]);
+    return T[i-1][1]+f*(T[i][1]-T[i-1][1]); } }
+  return T[T.length-1][1];
+}
+
+/* Classificacao do mecanismo pela NBR 8400: o grupo sai do tempo medio de
+   funcionamento diario e do estado de solicitacao. Aqui o tempo e calculado a
+   partir do numero de ciclos e do curso, e nao arbitrado.                     */
+function grupoNBR8400(hDia){
+  if(hDia<=0.5) return {g:"1Bm",c:1.00,txt:"servico leve e intermitente"};
+  if(hDia<=1)   return {g:"1Am",c:1.06,txt:"servico leve"};
+  if(hDia<=2)   return {g:"2m", c:1.12,txt:"servico moderado"};
+  if(hDia<=4)   return {g:"3m", c:1.18,txt:"servico pesado"};
+  if(hDia<=8)   return {g:"4m", c:1.25,txt:"servico muito pesado"};
+  return {g:"5m",c:1.32,txt:"servico continuo"};
+}
+
+/* ---------- Viga biapoiada resolvida numericamente ----------
+   Recebe o comprimento, as posicoes dos dois apoios, uma lista de cargas
+   concentradas {x, P} e uma carga distribuida q. Devolve as reacoes, o
+   diagrama de momento fletor e a flecha, obtida por dupla integracao de M/EI
+   com a condicao de flecha nula nos dois apoios. Resolver numericamente evita
+   formulas fechadas que quebram quando a engrenagem fica em balanco fora dos
+   mancais — que e exatamente o caso deste eixo.                              */
+function vigaNum(L,x1,x2,cargas,q,EI,N){
+  N=N||600;
+  var i,dx=L/N, x=[], V=[], M=[];
+  var Pt=0, Mo=0;
+  for(i=0;i<cargas.length;i++){ Pt+=cargas[i].P; Mo+=cargas[i].P*cargas[i].x; }
+  Pt+=q*L; Mo+=q*L*L/2;
+  var d=(x2-x1);
+  if(Math.abs(d)<1e-6) d=1e-6;
+  var R2=(Mo-Pt*x1)/d, R1=Pt-R2;
+  for(i=0;i<=N;i++){
+    var xi=i*dx, v=0, m=0;
+    if(xi>=x1) { v-=R1; m-=R1*(xi-x1); }
+    if(xi>=x2) { v-=R2; m-=R2*(xi-x2); }
+    v+=q*xi; m+=q*xi*xi/2;
+    for(var j=0;j<cargas.length;j++){
+      if(xi>=cargas[j].x){ v+=cargas[j].P; m+=cargas[j].P*(xi-cargas[j].x); }
+    }
+    x.push(xi); V.push(v); M.push(m);
+  }
+  /* flecha: integra M/EI duas vezes e ajusta a reta para zerar nos apoios */
+  var th=[0], y=[0];
+  for(i=1;i<=N;i++){
+    th.push(th[i-1]+(M[i-1]+M[i])/2/EI*dx);
+    y.push(y[i-1]+(th[i-1]+th[i])/2*dx);
+  }
+  var i1=Math.round(x1/dx), i2=Math.round(x2/dx);
+  i1=Math.max(0,Math.min(N,i1)); i2=Math.max(0,Math.min(N,i2));
+  var a=(i2!==i1)?((y[i2]-y[i1])/((i2-i1)*dx)):0;
+  var b=y[i1]-a*(i1*dx);
+  var yf=[], ymax=0, xy=0;
+  for(i=0;i<=N;i++){ var yy=y[i]-(a*(i*dx)+b); yf.push(yy);
+    if(Math.abs(yy)>Math.abs(ymax)){ ymax=yy; xy=i*dx; } }
+  var Mmax=0, xM=0;
+  for(i=0;i<=N;i++){ if(Math.abs(M[i])>Math.abs(Mmax)){ Mmax=M[i]; xM=x[i]; } }
+  return {R1:R1,R2:R2,x:x,V:V,M:M,y:yf,Mmax:Mmax,xM:xM,ymax:ymax,xy:xy,dx:dx,N:N};
+}
+
+function pfNucleo(){
+  var g=9.80665, ACO=7850;
+  /* ================= ENTRADAS ================= */
+  var Mp=num("pfMp");     if(!isFinite(Mp)||Mp<=0) Mp=8000;      // kg - porta
+  var Mcp=num("pfMcp");   if(!isFinite(Mcp)||Mcp<0) Mcp=7200;    // kg - contrapeso
+  var curso=num("pfCurso");if(!isFinite(curso)||curso<=0) curso=2.0;
+  var tAb=num("pfTab");   if(!isFinite(tAb)||tAb<=0) tAb=15;     // s
+  var ciclos=num("pfCiclos"); if(!isFinite(ciclos)||ciclos<0) ciclos=12;
+  var hDiaOp=num("pfHdia");   if(!isFinite(hDiaOp)||hDiaOp<=0) hDiaOp=24;
+  var Tamb=num("pfTemp");     if(!isFinite(Tamb)) Tamb=80;
+  var nPd=Math.max(1,Math.round(num("pfNpd")||2));               // pontos de corrente na porta
+  var nPc=Math.max(1,Math.round(num("pfNpc")||2));               // pontos de corrente no contrapeso
+  var nCb=Math.max(1,Math.round(num("pfNcabo")||2));             // ramos de cabo porta-contrapeso
+  var Dpol=num("pfDpol"); if(!isFinite(Dpol)||Dpol<=0) Dpol=400; // mm
+  var zRd=Math.max(11,Math.round(num("pfZrd")||19));             // dentes das rodas de elevacao
+  var FSc=num("pfFsc");   if(!isFinite(FSc)||FSc<4) FSc=8;       // coef. seguranca corrente
+  var FSk=num("pfFscabo");if(!isFinite(FSk)||FSk<4) FSk=6;       // coef. seguranca cabo
+  var tipoCabo=selv("pfCabo","c636");
+  var tOlhal=num("pfTolhal"); if(!isFinite(tOlhal)||tOlhal<=0) tOlhal=25;  // mm chapa do olhal
+  var dPino=num("pfDpino");   if(!isFinite(dPino)||dPino<=0) dPino=60;     // mm pino do olhal
+  var Leixo=num("pfLeixo"); if(!isFinite(Leixo)||Leixo<=0) Leixo=6.0;
+  var Lman=num("pfLman");   if(!isFinite(Lman)||Lman<=0) Lman=5.0;
+  if(Lman>Leixo) Lman=Leixo;
+  var aEng=num("pfAeng");   if(!isFinite(aEng)||aEng<0) aEng=0.35;
+  var ePc=num("pfEpc");     if(!isFinite(ePc)||ePc<=0) ePc=0.60;
+  var matEixo=selv("pfMatEixo","1045");
+  var mod=num("pfMod");     if(!isFinite(mod)||mod<=0) mod=10;
+  var zMot=Math.max(11,Math.round(num("pfZmot")||17));
+  var zMov=Math.max(zMot,Math.round(num("pfZmov")||51));
+  var bEng=num("pfBeng");   if(!isFinite(bEng)||bEng<=0) bEng=100;
+  var matEng=selv("pfMatEng","1045");
+  var trava=(selv("pfTrava","sim")==="sim");
+  var fy=selvN("pfFy",250);
+  var vaoViga=num("pfVaoViga"); if(!isFinite(vaoViga)||vaoViga<=0) vaoViga=Leixo;
+  var hCol=num("pfHcol"); if(!isFinite(hCol)||hCol<=0) hCol=6.0;
+
+  /* ================= 1. MOVIMENTO E CLASSIFICACAO ================= */
+  var v=curso/tAb;                                    // m/s
+  var vmin=0.05, vmax=0.30;                           // faixa usual de porta de forno
+  var vOK=(v>=vmin&&v<=vmax);
+  /* tempo medio de funcionamento diario do mecanismo: cada ciclo move a porta
+     duas vezes (abre e fecha).                                              */
+  var hDia=ciclos*hDiaOp*2*tAb/3600;
+  var GR=grupoNBR8400(hDia);
+  /* coeficiente dinamico de icamento da NBR 8400: psi = 1 + 0,6.v, minimo 1,15 */
+  var psi=Math.max(1.15,1+0.6*v);
+
+  /* ================= 2. BALANCO PORTA x CONTRAPESO ================= */
+  var bal=(Mp>0)?(Mcp/Mp):0;                          // grau de balanceamento
+  var balOK=(bal>=0.80&&bal<=0.95);
+  var abreSozinha=(Mcp>Mp);
+  var Fliq=Math.abs(Mp-Mcp)*g;                        // N - desbalanco estatico
+
+  /* ================= 3. CORRENTE DE ROLOS (DAIDO) =================
+     Cada corrente e dimensionada para a carga TOTAL do seu lado dividida pelos
+     seus pontos, com o coeficiente dinamico. A redundancia com o cabo NAO e
+     usada para dividir a carga: em elevacao critica, cada elemento tem de
+     sustentar sozinho, porque a reparticao entre dois elementos de rigidez
+     diferente e indeterminada e some no instante em que um deles falha.     */
+  var Tpd=Mp*g*psi/nPd;                               // N por ponto na porta
+  var Tpc=Mcp*g*psi/nPc;                              // N por ponto no contrapeso
+  var Tcor=Math.max(Tpd,Tpc);
+  var nFios=1, cor=null;
+  for(var nf=1;nf<=3&&!cor;nf++){
+    for(var i=0;i<DAIDO_RS.length;i++){
+      if(DAIDO_RS[i].Q*1000*nf>=Tcor*FSc){ cor=DAIDO_RS[i]; nFios=nf; break; }
+    }
+  }
+  var corExced=false;
+  if(!cor){ cor=DAIDO_RS[DAIDO_RS.length-1]; nFios=3; corExced=true; }
+  var Qcor=cor.Q*1000*nFios;
+  var FScReal=Qcor/Math.max(Tcor,1);
+  /* rodas dentadas de elevacao: mesmo passo e mesmo numero de dentes nos dois
+     lados, porque a porta e o contrapeso precisam percorrer o mesmo curso.  */
+  var Drd=cor.p/1000/Math.sin(Math.PI/zRd);           // m - diametro primitivo
+  var nEixo=60*v/(Math.PI*Drd);                       // rpm do eixo principal
+  var Lcor=curso+Math.PI*Drd/2+0.5;                   // m - comprimento util por ramo
+  var elos=Math.ceil(Lcor/(cor.p/1000)/2)*2;
+  var vCor=Math.PI*Drd*nEixo/60;
+
+  /* ================= 4. CABO DE ACO REDUNDANTE ================= */
+  var CB=CABO_TIPO[tipoCabo]||CABO_TIPO.c636;
+  var Tcb=Mp*g*psi/nCb;                               // N por ramo, carga total
+  var MBLreq=Tcb*FSk/1000;                            // kN
+  var dCabo=null;
+  for(var k2=0;k2<CABO_D.length;k2++){
+    if(CB.k*CABO_D[k2]*CABO_D[k2]>=MBLreq){ dCabo=CABO_D[k2]; break; }
+  }
+  var cbExced=(!dCabo);
+  if(!dCabo) dCabo=CABO_D[CABO_D.length-1];
+  var MBL=CB.k*dCabo*dCabo;
+  var FSkReal=MBL*1000/Math.max(Tcb,1);
+  var DdReal=Dpol/dCabo, DdOK=(DdReal>=CB.Dd);
+  var DpolMin=CB.Dd*dCabo;
+
+  /* ================= 5. OLHAIS DE FIXACAO (NBR 8800) =================
+     Chapa com furo e pino: tres modos de ruina, verificados separadamente.  */
+  var Folhal=Math.max(Tpd,Tcb)*1.0;                   // N por olhal
+  var dFuro=dPino+2;                                  // mm - folga de montagem
+  var Rolhal=Math.max(1.6*dFuro/2, dFuro/2+35);       // mm - raio do olhal
+  var Anet=2*(Rolhal-dFuro/2)*tOlhal;                 // mm2
+  var sigTr=Folhal/Anet;                              // MPa
+  var sigTrAdm=0.45*fy;
+  var trOK=(sigTr<=sigTrAdm);
+  var sigEsm=Folhal/(dFuro*tOlhal);
+  var sigEsmAdm=1.80*fy/1.35;
+  var esmOK=(sigEsm<=sigEsmAdm);
+  var aBorda=Rolhal-dFuro/2;
+  var Ash=2*tOlhal*(aBorda+dFuro/2*0.5);
+  var tauSh=Folhal/Ash, tauShAdm=0.60*fy/1.35;
+  var shOK=(tauSh<=tauShAdm);
+  var tMin=Folhal/(dFuro*sigEsmAdm);
+  var olhalOK=(trOK&&esmOK&&shOK);
+
+  /* ================= 6. ENGRENAGENS ABERTAS ================= */
+  var iEng=zMov/zMot;
+  var Dmov=mod*zMov/1000, Dmot=mod*zMot/1000;         // m
+  var nPinhao=nEixo*iEng;                             // rpm do pinhao
+  var vTang=Math.PI*Dmov*nEixo/60;                    // m/s - igual nas duas
+  var vTangOK=(vTang<=5.0);
+  /* torque no eixo principal: desbalanco + atrito + inercia de partida */
+  var etaMec=0.90;
+  var Test=Fliq*Drd/2/etaMec;                         // N.m estatico
+  var tAcel=1.5;                                      // s de rampa
+  var Facel=(Mp+Mcp)*(v/tAcel);
+  var Tacel=Facel*Drd/2;
+  var Teixo=Test+Tacel;
+  var Ft=2*Teixo/Dmov;                                // N tangencial na coroa
+  var Fr=Ft*Math.tan(20*Math.PI/180);
+  var Feng=Math.sqrt(Ft*Ft+Fr*Fr);
+  var Kv=6.1/(6.1+vTang);
+  var sigLew=Ft/(Kv*(bEng/1000)*(mod/1000)*lewisY(zMov))/1e6;   // MPa
+  var SuEng=(matEng==="4140")?900:(matEng==="fund"?480:565);
+  var sigEngAdm=SuEng/3;
+  var engOK=(sigLew<=sigEngAdm);
+  var bmOK=(bEng/mod>=8&&bEng/mod<=14);
+
+  /* ================= 7. EIXO PRINCIPAL ================= */
+  /* posicoes ao longo do eixo, com os mancais centrados */
+  var x1=(Leixo-Lman)/2, x2=x1+Lman;
+  var xEng=Math.min(Math.max(aEng,0),Leixo);          // engrenagem movida
+  var recuo=0.25;
+  var posPd=[], posPc=[];
+  function _dentro(xx){ return Math.max(0.02,Math.min(Leixo-0.02,xx)); }
+  if(nPd===1){ posPd=[_dentro(Leixo/2)]; }
+  else { for(var q=0;q<nPd;q++) posPd.push(_dentro(x1+recuo+q*(Lman-2*recuo)/(nPd-1))); }
+  if(nPc===1){ posPc=[_dentro(Leixo/2+ePc)]; }
+  else { for(var q2=0;q2<nPc;q2++){
+      var base=x1+recuo+q2*(Lman-2*recuo)/Math.max(nPc-1,1);
+      posPc.push(_dentro(base+((q2%2===0)?ePc:-ePc))); } }
+  var dEst=Math.max(0.08,Math.pow(16*Math.sqrt(Math.pow(2*Teixo,2))/(Math.PI*60e6),1/3));
+  var qEixo=ACO*Math.PI*dEst*dEst/4*g;                // N/m - peso proprio estimado
+  var cargas=[];
+  posPd.forEach(function(xp){ cargas.push({x:xp,P:Tpd,tag:"porta"}); });
+  posPc.forEach(function(xp){ cargas.push({x:xp,P:Tpc,tag:"contrapeso"}); });
+  cargas.push({x:xEng,P:Feng,tag:"engrenagem"});
+  var Eaco=206e9, Gaco=79.3e9;
+  /* iteracao: o diametro entra na rigidez e no peso proprio */
+  var dEixo=dEst, VG=null, sigAdm=(matEixo==="4140")?150e6:((matEixo==="4340")?180e6:110e6);
+  for(var it=0;it<40;it++){
+    var Ix=Math.PI*Math.pow(dEixo,4)/64;
+    VG=vigaNum(Leixo,x1,x2,cargas,ACO*Math.PI*dEixo*dEixo/4*g,Eaco*Ix,600);
+    /* torque por trecho: entra na engrenagem e sai nas rodas dentadas */
+    var Tx=[];
+    for(var ii=0;ii<=VG.N;ii++){
+      var xi=VG.x[ii], acum=0;
+      if(xi>=Math.min(xEng,Leixo)){ acum=0; }
+      /* torque = soma dos torques das rodas entre o ponto e a extremidade oposta
+         a engrenagem                                                           */
+      var somaLado=0;
+      cargas.forEach(function(c){
+        if(c.tag==="engrenagem") return;
+        var Tro=(c.tag==="porta")?(Tpd*Drd/2):(Tpc*Drd/2);
+        if((xEng<=xi&&c.x>=xi)||(xEng>=xi&&c.x<=xi)) somaLado+=Tro;
+      });
+      Tx.push(somaLado);
+    }
+    VG.T=Tx;
+    var dReq=0;
+    for(var jj=0;jj<=VG.N;jj++){
+      var Mj=Math.abs(VG.M[jj]), Tj=Math.abs(VG.T[jj]);
+      var Meq=Math.sqrt(Math.pow(2.0*Mj,2)+Math.pow(1.5*Tj,2));   // ASME com choque
+      var dj=Math.pow(32*Meq/(Math.PI*sigAdm),1/3);
+      if(dj>dReq) dReq=dj;
+    }
+    if(Math.abs(dReq-dEixo)<1e-4){ dEixo=dReq; break; }
+    dEixo=dReq;
+  }
+  var DEIX=[60,70,80,90,100,110,125,140,160,180,200,220,250,280,320,360,400,450,500];
+  var dReqmm=dEixo*1000, dResistmm=DEIX[DEIX.length-1];
+  for(var e3=0;e3<DEIX.length;e3++){ if(DEIX[e3]>=dReqmm){ dResistmm=DEIX[e3]; break; } }
+  /* Em eixo longo de elevacao a resistencia raramente governa: quem manda e a
+     rigidez. A flecha no ponto da coroa desalinha o engrenamento e a torcao faz
+     um lado da porta subir antes do outro, que e o que a emperra na guia. Por
+     isso o diametro sobe ate atender SIMULTANEAMENTE tensao, flecha e torcao. */
+  var flechaLimM=Lman/1000, flEngLimM=0.03*mod/1000, torcLim=0.25;
+  function _verif(dmm){
+    var d0=dmm/1000, I0=Math.PI*Math.pow(d0,4)/64, J0=2*I0;
+    var V0=vigaNum(Leixo,x1,x2,cargas,ACO*Math.PI*d0*d0/4*g,Eaco*I0,600);
+    var ie=Math.max(0,Math.min(V0.N,Math.round(xEng/V0.dx)));
+    var Tm=Math.max.apply(null,VG.T.map(Math.abs));
+    var th=Tm*Lman/(Gaco*J0)*180/Math.PI/Math.max(Lman,0.01);
+    var se=Math.sqrt(Math.pow(Math.abs(V0.Mmax)*32/(Math.PI*Math.pow(d0,3)),2)
+                    +3*Math.pow(Tm*16/(Math.PI*Math.pow(d0,3)),2));
+    return {V:V0,fl:Math.abs(V0.ymax),flE:Math.abs(V0.y[ie]),th:th,se:se,
+            ok:(Math.abs(V0.ymax)<=flechaLimM&&Math.abs(V0.y[ie])<=flEngLimM&&th<=torcLim&&se<=sigAdm)};
+  }
+  var dCom=DEIX[DEIX.length-1], govEixo="resistencia (momento equivalente)", achou=false;
+  for(var e4=0;e4<DEIX.length;e4++){
+    if(DEIX[e4]<dResistmm) continue;
+    if(_verif(DEIX[e4]).ok){ dCom=DEIX[e4]; achou=true; break; }
+  }
+  if(!achou) dCom=DEIX[DEIX.length-1];
+  if(dCom>dResistmm) govEixo="rigidez (flecha no engrenamento / torcao)";
+  var dc=dCom/1000, Ic=Math.PI*Math.pow(dc,4)/64, Jc=2*Ic;
+  var VF=_verif(dCom).V;
+  VF.T=VG.T;
+  var flecha=Math.abs(VF.ymax)*1000;                          // mm
+  var flechaLim=Lman*1000/1000;                               // L/1000
+  var flechaOK=(flecha<=flechaLim);
+  /* flecha no ponto da engrenagem: o engrenamento e o critico */
+  var iEg=Math.max(0,Math.min(VF.N,Math.round(xEng/VF.dx)));
+  var flEng=Math.abs(VF.y[iEg])*1000;
+  var flEngLim=0.03*mod;
+  var flEngOK=(flEng<=flEngLim);
+  var Ttot=Math.max.apply(null,VF.T.map(Math.abs));
+  var torcao=Ttot*Lman/(Gaco*Jc)*180/Math.PI/Math.max(Lman,0.01);  // graus/m
+  var torcaoOK=(torcao<=0.25);
+  var sigF=Math.abs(VF.Mmax)*32/(Math.PI*Math.pow(dc,3))/1e6;
+  var tauT=Ttot*16/(Math.PI*Math.pow(dc,3))/1e6;
+  var sigEq=Math.sqrt(sigF*sigF+3*tauT*tauT);
+  var eixoOK=(sigEq<=sigAdm/1e6);
+  /* mancais */
+  var R1=Math.abs(VF.R1), R2=Math.abs(VF.R2), Rmax=Math.max(R1,R2);
+  var L10h=20000;
+  var Cdin=(nEixo>0)?Rmax/1000*Math.pow(60*nEixo*L10h/1e6,1/3):Rmax/1000;
+
+  /* ================= 8. MOTOREDUTOR E FREIO SEW ================= */
+  var Peixo=Teixo*(2*Math.PI*nEixo/60)/1000;                   // kW
+  var nSaida=nEixo*iEng;                                        // rpm no pinhao
+  var kPart=(Test>0)?(Teixo/Test):1.5;
+  var ac=acionaSEW(Peixo,nSaida,{varia:true,kPart:Math.max(1.6,kPart),fs:1.4,rend:0.94});
+  /* freio: tem de segurar o desbalanco estatico SEM credito de rendimento do
+     redutor, com o coeficiente de elevacao critica.                          */
+  var kFreio=2.0;
+  var iTot=ac.i*iEng;
+  var MfreioNom=Test*kFreio/Math.max(iTot,1);                   // N.m - servico normal
+  /* Contingencia: se a ligacao com o contrapeso falhar, o freio deixa de segurar
+     apenas o desbalanco e passa a segurar a porta inteira. Dimensionar o freio
+     so pelo desbalanco e o erro classico deste mecanismo — ele fica pequeno
+     justamente para a unica situacao em que precisa funcionar.               */
+  var Tsemcp=Mp*g*Drd/2;
+  var Mfreio=Tsemcp*kFreio/Math.max(iTot,1);
+  var fr=null;
+  for(var b2=0;b2<SEW_BE.length;b2++){ if(SEW_BE[b2].t>=Mfreio){ fr=SEW_BE[b2]; break; } }
+  var frExced=(!fr); if(!fr) fr=SEW_BE[SEW_BE.length-1];
+  var espFrena=v*0.6;                                           // m - espaco de parada estimado
+
+  /* ================= 9. ESTRUTURA ================= */
+  var Rviga=Rmax;
+  var Mviga=Rviga*vaoViga/4;                                    // N.m - carga no meio do vao
+  var Wxviga=Mviga/(0.60*fy*1e6)*1e6;                           // cm3
+  var pViga=selPerfil({W:Wxviga},"W");
+  var Ncol=(Rmax*2+Mp*g*0.15)/2;                                // N por coluna
+  var lamb=hCol*100/8;                                          // esbeltez estimada
+  var Acol=Ncol/(0.5*fy*1e6)*1e4;                               // cm2
+  var pCol=selPerfil({A:Acol,i:hCol*100/180},"W");
+  var mEstrut=(pViga.best.kg*vaoViga+2*pCol.best.kg*hCol);
+
+  /* ================= 10. TEMPERATURA ================= */
+  var tempOK=(Tamb<=120);
+  var tempTxt=(Tamb<=120)?"corrente e cabo com lubrificacao convencional atendem":
+              (Tamb<=250)?"acima de 120 C: exigir corrente com lubrificante de alta temperatura e cabo com alma de aco; descartar alma de fibra":
+              "acima de 250 C: a resistencia do arame do cabo cai; prever protecao termica ou corrente especial e reduzir a carga admissivel";
+
+  function vt(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+
+  var MEM=[
+   ["1","Velocidade de abertura","v = curso / tempo","v = "+vt(v,3)+" m/s ("+vt(v*60,2)+" m/min)","0,05 a 0,30 m/s em porta de forno",st(vOK)],
+   ["1","Classificacao do mecanismo","NBR 8400, pelo tempo medio diario","grupo "+GR.g+" ("+vt(hDia,2)+" h/dia)",GR.txt,"—"],
+   ["1","Coeficiente dinamico de icamento","psi = 1 + 0,6.v, minimo 1,15","psi = "+vt(psi,3),"NBR 8400","—"],
+   ["2","Grau de balanceamento","M_contrapeso / M_porta",vt(bal*100,1)+" %","80 a 95 %: alivia sem inverter o sentido do esforco",st(balOK&&!abreSozinha)],
+   ["2","Sentido do desbalanco",(abreSozinha?"contrapeso MAIOR que a porta":"porta maior que o contrapeso"),
+    (abreSozinha?"a porta tende a ABRIR sozinha":"a porta tende a FECHAR sozinha"),
+    "a porta deve tender a fechar: e a posicao segura",st(!abreSozinha)],
+   ["3","Carga por ponto de corrente - porta","M.g.psi / n_pontos","T = "+vt(Tpd/1000,2)+" kN","cada elemento sustenta a carga total do seu ponto","—"],
+   ["3","Corrente selecionada","catalogo DAIDO serie RS (ANSI/ISO 606)",cor.n+(nFios>1?(" x"+nFios+" fios"):"")+" - passo "+vt(cor.p,2)+" mm","ruptura "+vt(Qcor/1000,1)+" kN",st(!corExced)],
+   ["3","Coeficiente de seguranca da corrente","Q_ruptura / T_trabalho","FS = "+vt(FScReal,2),"maior ou igual a "+vt(FSc,1)+" em elevacao critica",st(FScReal>=FSc)],
+   ["3","Roda dentada de elevacao","D = p / sen(180/z), z = "+String(zRd),"D = "+vt(Drd*1000,1)+" mm","z maior ou igual a 17 para reduzir o efeito poligonal",st(zRd>=17)],
+   ["4","Carga por ramo de cabo","M.g.psi / n_ramos","T = "+vt(Tcb/1000,2)+" kN","o cabo e redundante: dimensionado para a carga TOTAL","—"],
+   ["4","Cabo de aco",CB.n,"diametro "+vt(dCabo,1)+" mm - ruptura "+vt(MBL,1)+" kN","FS = "+vt(FSkReal,2)+", exigido "+vt(FSk,1),st(FSkReal>=FSk&&!cbExced)],
+   ["4","Relacao D/d das polias","D_polia / d_cabo","D/d = "+vt(DdReal,1),"maior ou igual a "+String(CB.Dd)+" (DIN 15020) - polia minima "+vt(DpolMin,0)+" mm",st(DdOK)],
+   ["5","Olhal - tracao na secao liquida","sigma = F / (2.(R - d/2).t)",vt(sigTr,1)+" MPa","menor ou igual a 0,45.fy = "+vt(sigTrAdm,0)+" MPa",st(trOK)],
+   ["5","Olhal - esmagamento no pino","sigma = F / (d_furo . t)",vt(sigEsm,1)+" MPa","menor ou igual a 1,80.fy/1,35 = "+vt(sigEsmAdm,0)+" MPa",st(esmOK)],
+   ["5","Olhal - rasgamento","tau = F / (2.t.(a + d/2))",vt(tauSh,1)+" MPa","menor ou igual a 0,60.fy/1,35 = "+vt(tauShAdm,0)+" MPa",st(shOK)],
+   ["6","Relacao de transmissao das engrenagens","i = z_movida / z_motora","i = "+vt(iEng,2)+" ("+String(zMot)+"/"+String(zMov)+" dentes, modulo "+vt(mod,1)+")","—","—"],
+   ["6","Velocidade tangencial","v = pi.D.n, igual nas duas rodas","v = "+vt(vTang,2)+" m/s","menor ou igual a 5 m/s em engrenamento aberto lubrificado a graxa",st(vTangOK)],
+   ["6","Tensao de flexao no dente (Lewis)","sigma = Ft / (Kv.b.m.Y)",vt(sigLew,1)+" MPa","menor ou igual a Su/3 = "+vt(sigEngAdm,0)+" MPa",st(engOK)],
+   ["6","Largura da face","b / modulo","b/m = "+vt(bEng/mod,1),"entre 8 e 14",st(bmOK)],
+   ["7","Momento fletor maximo no eixo","viga sobre dois mancais, cargas das rodas e da engrenagem","M = "+vt(Math.abs(VF.Mmax)/1000,2)+" kN.m em x = "+vt(VF.xM,2)+" m","—","—"],
+   ["7","Torque maximo no eixo","soma dos torques das rodas de um lado","T = "+vt(Ttot/1000,2)+" kN.m","—","—"],
+   ["7","Diametro do eixo","resistencia por ASME e rigidez por flecha e torcao","por resistencia "+vt(dReqmm,1)+" mm ("+String(dResistmm)+" comercial) -> adotado "+String(dCom)+" mm","governado por "+govEixo,st(dCom>=dReqmm)],
+   ["7","Tensao equivalente","von Mises com flexao e torcao",vt(sigEq,1)+" MPa","menor ou igual a "+vt(sigAdm/1e6,0)+" MPa",st(eixoOK)],
+   ["7","Flecha maxima","dupla integracao de M/EI",vt(flecha,2)+" mm","menor ou igual a L_mancais/1000 = "+vt(flechaLim,2)+" mm",st(flechaOK)],
+   ["7","Flecha no engrenamento","no ponto da coroa movida",vt(flEng,3)+" mm","menor ou igual a 0,03.modulo = "+vt(flEngLim,2)+" mm",st(flEngOK)],
+   ["7","Torcao especifica","theta = T.L/(G.J)",vt(torcao,4)+" graus/m","menor ou igual a 0,25 graus/m em eixo de transmissao",st(torcaoOK)],
+   ["7","Reacoes nos mancais","equilibrio da viga","R1 = "+vt(R1/1000,2)+" kN - R2 = "+vt(R2/1000,2)+" kN","capacidade dinamica C maior ou igual a "+vt(Cdin,1)+" kN para 20.000 h","VERIFICAR"],
+   ["8","Potencia no eixo principal","P = T.omega","P = "+vt(Peixo,2)+" kW","inclui desbalanco, atrito e aceleracao","—"],
+   ["8","Motoredutor SEW",ac.foraR?"redutor industrial":"serie R","Pinst = "+vt(ac.Pinst,2)+" kW - i = "+vt(ac.i,1),"relacao ate 300:1 em motoredutor de serie",st(ac.iOK)],
+   ["8","Freio SEW serie BE","M = T_porta_inteira . 2,0 / i_total, sem credito de rendimento",fr.n+" - "+vt(fr.t,0)+" N.m","requerido "+vt(Mfreio,1)+" N.m (servico normal exigiria so "+vt(MfreioNom,1)+")",st(!frExced)],
+   ["9","Trava mecanica independente",(trava?"prevista":"NAO prevista"),(trava?"retem a porta aberta com falha do freio":"unico dispositivo de retencao e o freio"),
+    "NR-12: elevacao sobre area de circulacao exige retencao independente",st(trava)],
+   ["9","Redundancia corrente + cabo","cada elemento dimensionado para a carga total","corrente FS "+vt(FScReal,1)+" e cabo FS "+vt(FSkReal,1),"os dois aprovados isoladamente",st(FScReal>=FSc&&FSkReal>=FSk)],
+   ["10","Viga superior de apoio","M = R.vao/4","Wx requerido "+vt(Wxviga,0)+" cm3 -> "+pViga.best.n,"perfil unico do catalogo",st(!pViga.dobro)],
+   ["10","Colunas guia","compressao com flambagem","N = "+vt(Ncol/1000,1)+" kN por coluna -> "+pCol.best.n,"perfil unico do catalogo",st(!pCol.dobro)],
+   ["11","Temperatura junto a porta","radiacao do forno",vt(Tamb,0)+" C",tempTxt,st(tempOK)]
+  ];
+  var nRep=MEM.filter(function(m){return m[5]==="REPROVADO";}).length;
+  var nVer=MEM.filter(function(m){return m[5]==="VERIFICAR";}).length;
+  return {MEM:MEM,nRep:nRep,nVer:nVer,vt:vt,st:st,
+    Mp:Mp,Mcp:Mcp,curso:curso,tAb:tAb,v:v,vOK:vOK,bal:bal,balOK:balOK,abreSozinha:abreSozinha,
+    Fliq:Fliq,psi:psi,GR:GR,hDia:hDia,ciclos:ciclos,Tamb:Tamb,tempOK:tempOK,tempTxt:tempTxt,
+    nPd:nPd,nPc:nPc,nCb:nCb,Tpd:Tpd,Tpc:Tpc,Tcb:Tcb,
+    cor:cor,nFios:nFios,Qcor:Qcor,FSc:FSc,FScReal:FScReal,corExced:corExced,zRd:zRd,Drd:Drd,
+    elos:elos,Lcor:Lcor,vCor:vCor,nEixo:nEixo,
+    CB:CB,dCabo:dCabo,MBL:MBL,FSk:FSk,FSkReal:FSkReal,cbExced:cbExced,Dpol:Dpol,DdReal:DdReal,
+    DdOK:DdOK,DpolMin:DpolMin,
+    Folhal:Folhal,dFuro:dFuro,dPino:dPino,Rolhal:Rolhal,tOlhal:tOlhal,sigTr:sigTr,sigTrAdm:sigTrAdm,
+    trOK:trOK,sigEsm:sigEsm,sigEsmAdm:sigEsmAdm,esmOK:esmOK,tauSh:tauSh,tauShAdm:tauShAdm,shOK:shOK,
+    olhalOK:olhalOK,tMin:tMin,
+    mod:mod,zMot:zMot,zMov:zMov,iEng:iEng,Dmot:Dmot,Dmov:Dmov,bEng:bEng,vTang:vTang,vTangOK:vTangOK,
+    sigLew:sigLew,sigEngAdm:sigEngAdm,engOK:engOK,bmOK:bmOK,Ft:Ft,Fr:Fr,Feng:Feng,nPinhao:nPinhao,
+    Leixo:Leixo,Lman:Lman,x1:x1,x2:x2,xEng:xEng,ePc:ePc,posPd:posPd,posPc:posPc,
+    VF:VF,dReqmm:dReqmm,dCom:dCom,sigF:sigF,tauT:tauT,sigEq:sigEq,sigAdm:sigAdm,eixoOK:eixoOK,
+    flecha:flecha,flechaLim:flechaLim,flechaOK:flechaOK,flEng:flEng,flEngLim:flEngLim,flEngOK:flEngOK,
+    torcao:torcao,torcaoOK:torcaoOK,Ttot:Ttot,R1:R1,R2:R2,Rmax:Rmax,Cdin:Cdin,
+    Teixo:Teixo,Test:Test,Tacel:Tacel,Peixo:Peixo,nSaida:nSaida,ac:ac,fr:fr,Mfreio:Mfreio,
+    frExced:frExced,kFreio:kFreio,iTot:iTot,espFrena:espFrena,trava:trava,
+    MfreioNom:MfreioNom,Tsemcp:Tsemcp,dResistmm:dResistmm,govEixo:govEixo,
+    pViga:pViga,pCol:pCol,Wxviga:Wxviga,Ncol:Ncol,vaoViga:vaoViga,hCol:hCol,mEstrut:mEstrut,fy:fy,
+    matEixo:matEixo,matEng:matEng};
+}
+
+function portaFornoCalc(){
+  var A=pfNucleo(); if(!A) return null;
+  var v=A.vt, st=A.st;
+  var OUT=[];
+
+  OUT.push({sec:"1 · Movimento da porta e classificação do mecanismo"});
+  OUT.push({k:"Curso e tempo",v:"deslocamento total "+v(A.curso,2)+" m   em   "+v(A.tAb,1)+" s"});
+  OUT.push({k:"VELOCIDADE DE ABERTURA",v:v(A.v,3)+" m/s   =   "+v(A.v*60,2)+" m/min   ·   "+(A.vOK?"dentro da faixa usual de 0,05 a 0,30 m/s":"FORA da faixa usual — abaixo de 0,05 m/s a porta demora e o forno perde carga térmica; acima de 0,30 m/s a energia cinética da porta torna a parada de emergência perigosa"),hi:true});
+  OUT.push({k:"Velocidade recomendada",v:"para "+v(A.curso,2)+" m de curso, o tempo de abertura fica entre "+v(A.curso/0.30,0)+" e "+v(A.curso/0.05,0)+" s. O ponto usual em porta de forno de aciaria é entre 10 e 25 s."});
+  OUT.push({k:"Regime de operação",v:v(A.ciclos,0)+" aberturas/h   ·   tempo médio de funcionamento do mecanismo "+v(A.hDia,2)+" h/dia"});
+  OUT.push({k:"CLASSIFICAÇÃO NBR 8400",v:"grupo "+A.GR.g+"   ·   "+A.GR.txt+"   ·   é dela que saem os fatores de segurança e a vida dos componentes",hi:true});
+  OUT.push({k:"Coeficiente dinâmico de içamento",v:"ψ = "+v(A.psi,3)+"   ·   ψ = 1 + 0,6·v, com mínimo de 1,15 (NBR 8400). Ele majora toda a carga de içamento: o arranque não é estático, e a corrente sente isso antes do eixo."});
+
+  OUT.push({sec:"2 · Balanço porta × contrapeso"});
+  OUT.push({k:"Peso da porta",v:v(A.Mp/1000,2)+" t   ("+v(A.Mp,0)+" kg)   ·   "+v(A.Mp*9.80665/1000,1)+" kN"});
+  OUT.push({k:"Peso do contrapeso",v:v(A.Mcp/1000,2)+" t   ("+v(A.Mcp,0)+" kg)   ·   "+v(A.Mcp*9.80665/1000,1)+" kN"});
+  OUT.push({k:"GRAU DE BALANCEAMENTO",v:v(A.bal*100,1)+" %   ·   "+(A.balOK&&!A.abreSozinha?"dentro da faixa de 80 a 95 %":"FORA da faixa recomendada de 80 a 95 %"),hi:true});
+  OUT.push({k:"Sentido do desbalanço",v:A.abreSozinha?"⚠ O CONTRAPESO É MAIOR QUE A PORTA. Com o freio solto a porta ABRE sozinha — a posição de falha passa a ser a porta aberta, com o vão do forno exposto. Reduzir o contrapeso para abaixo do peso da porta.":"A porta tende a FECHAR sozinha, que é a posição segura: em falta de energia ou ruptura do acionamento, o vão do forno fecha.",hi:A.abreSozinha});
+  OUT.push({k:"Desbalanço estático",v:v(A.Fliq/1000,2)+" kN   ·   é essa a força que o acionamento levanta, e não o peso da porta. O contrapeso não reduz a carga na corrente, só o trabalho do motor."});
+
+  OUT.push({sec:"3 · Correntes de rolos — catálogo DAIDO"});
+  OUT.push({k:"Pontos de içamento",v:String(A.nPd)+" na porta   ·   "+String(A.nPc)+" no contrapeso"});
+  OUT.push({k:"Carga por ponto — porta",v:v(A.Tpd/1000,2)+" kN   ·   peso da porta × ψ ÷ "+String(A.nPd)+" pontos"});
+  OUT.push({k:"Carga por ponto — contrapeso",v:v(A.Tpc/1000,2)+" kN"});
+  OUT.push({k:"CORRENTE SELECIONADA",v:A.cor.n+(A.nFios>1?("  ×"+A.nFios+" fios"):"  simples")+"   ·   passo "+v(A.cor.p,2)+" mm   ·   ruptura mínima "+v(A.Qcor/1000,1)+" kN   ·   "+v(A.cor.m*A.nFios,2)+" kg/m"+(A.corExced?"   ⚠ ACIMA da maior corrente RS tabelada — dividir em mais pontos de içamento":""),hi:true});
+  OUT.push({k:"CARGA DE RUPTURA EXIGIDA",v:v(Math.max(A.Tpd,A.Tpc)*A.FSc/1000,1)+" kN por ponto   ·   é este o número a levar ao catálogo, qualquer que seja a série escolhida",hi:true});
+  OUT.push({k:"Coeficiente de segurança real",v:"FS = "+v(A.FScReal,2)+"   ·   exigido "+v(A.FSc,1)+"   ·   "+(A.FScReal>=A.FSc?"APROVADO":"REPROVADO"),hi:A.FScReal<A.FSc});
+  OUT.push({k:"Alternativa: corrente de placas",v:"A seleção acima é da série de rolos RS. Para elevação, o produto usual é a corrente de placas (leaf chain, ANSI/ASME B29.8 — série DAIDO BL), que entrega a mesma carga de ruptura com passo bem menor: a roda dentada fica menor, o efeito poligonal cai e o conjunto ocupa menos espaço na coluna. Levar ao catálogo DAIDO a mesma exigência de "+v(Math.max(A.Tpd,A.Tpc)*A.FSc/1000,1)+" kN de ruptura e confirmar a carga admissível na temperatura de operação."});
+  OUT.push({k:"Por que 8 e não 5",v:"A corrente de rolos foi projetada para transmitir potência, não para suspender carga. Usada como elemento de elevação sobre área de circulação, ela perde a folga que o uso original lhe dava: não há tensor, o desgaste do pino alonga o passo e a ruptura é súbita, sem aviso. Daí o coeficiente de elevação crítica."});
+  OUT.push({k:"Rodas dentadas de elevação",v:"z = "+String(A.zRd)+" dentes   ·   diâmetro primitivo "+v(A.Drd*1000,1)+" mm   ·   iguais nos dois lados, porque porta e contrapeso precisam percorrer o mesmo curso"});
+  OUT.push({k:"Comprimento e elos por ramo",v:v(A.Lcor,2)+" m   ≈   "+String(A.elos)+" elos (número par, para fechar com elo de emenda)"});
+  OUT.push({k:"Rotação do eixo principal",v:v(A.nEixo,2)+" rpm   ·   n = 60·v/(π·D)   ·   velocidade da corrente "+v(A.vCor,3)+" m/s"});
+
+  OUT.push({sec:"4 · Cabos de aço e polias — sistema redundante"});
+  OUT.push({k:"Função do cabo",v:"O cabo não divide carga com a corrente: ele é o segundo caminho. Repartição entre dois elementos de rigidezes diferentes é indeterminada, e some no instante em que um deles falha. Por isso cada um é dimensionado para a carga TOTAL."});
+  OUT.push({k:"Ramos de cabo porta ↔ contrapeso",v:String(A.nCb)+" ramos   ·   carga por ramo "+v(A.Tcb/1000,2)+" kN"});
+  OUT.push({k:"CABO SELECIONADO",v:A.CB.n+"   ·   Ø "+v(A.dCabo,1)+" mm   ·   ruptura mínima "+v(A.MBL,1)+" kN   ·   arame 1770 MPa"+(A.cbExced?"   ⚠ acima do maior diâmetro tabelado":""),hi:true});
+  OUT.push({k:"Coeficiente de segurança do cabo",v:"FS = "+v(A.FSkReal,2)+"   ·   exigido "+v(A.FSk,1)+"   ·   "+(A.FSkReal>=A.FSk?"APROVADO":"REPROVADO"),hi:A.FSkReal<A.FSk});
+  OUT.push({k:"POLIAS — relação D/d",v:"polia Ø "+v(A.Dpol,0)+" mm   ·   D/d = "+v(A.DdReal,1)+"   ·   mínimo "+String(A.CB.Dd)+" (DIN 15020) → polia mínima "+v(A.DpolMin,0)+" mm   ·   "+(A.DdOK?"APROVADO":"REPROVADO — polia pequena demais: cada passagem flexiona o arame além do limite e a fadiga aparece em meses, não em anos"),hi:!A.DdOK});
+  OUT.push({k:"Inspeção e descarte",v:"ABNT NBR ISO 4309: descartar por número de fios rompidos no passo de cordoamento, redução de diâmetro acima de 7 %, corrosão, amassamento ou dobra. Em ambiente de forno, inspeção mensal e registro."});
+
+  OUT.push({sec:"5 · Olhais de fixação porta e contrapeso"});
+  OUT.push({k:"Carga de projeto por olhal",v:v(A.Folhal/1000,2)+" kN"});
+  OUT.push({k:"Geometria adotada",v:"chapa "+v(A.tOlhal,1)+" mm   ·   pino Ø "+v(A.dPino,0)+" mm   ·   furo Ø "+v(A.dFuro,0)+" mm   ·   raio do olhal "+v(A.Rolhal,0)+" mm"});
+  OUT.push({k:"Tração na seção líquida",v:v(A.sigTr,1)+" MPa   ·   admissível 0,45·fy = "+v(A.sigTrAdm,0)+" MPa   ·   "+(A.trOK?"APROVADO":"REPROVADO"),hi:!A.trOK});
+  OUT.push({k:"Esmagamento no pino",v:v(A.sigEsm,1)+" MPa   ·   admissível "+v(A.sigEsmAdm,0)+" MPa   ·   "+(A.esmOK?"APROVADO":"REPROVADO — espessura mínima da chapa "+v(A.tMin,1)+" mm"),hi:!A.esmOK});
+  OUT.push({k:"Rasgamento na borda",v:v(A.tauSh,1)+" MPa   ·   admissível "+v(A.tauShAdm,0)+" MPa   ·   "+(A.shOK?"APROVADO":"REPROVADO — aumentar o raio do olhal"),hi:!A.shOK});
+  OUT.push({k:"Solda do olhal",v:"Solda de penetração total na base do olhal, com ensaio por líquido penetrante ou partícula magnética. Em elevação crítica a solda do olhal é ponto único de falha — a redundância de corrente e cabo não a cobre se os dois estiverem no mesmo olhal. Prever olhais independentes para cada caminho."});
+
+  OUT.push({sec:"6 · Engrenagens abertas de acionamento"});
+  OUT.push({k:"Par selecionado",v:"pinhão z = "+String(A.zMot)+"   ·   coroa z = "+String(A.zMov)+"   ·   módulo "+v(A.mod,1)+" mm   ·   i = "+v(A.iEng,2)});
+  OUT.push({k:"Diâmetros primitivos",v:"pinhão "+v(A.Dmot*1000,0)+" mm   ·   coroa "+v(A.Dmov*1000,0)+" mm   ·   largura da face "+v(A.bEng,0)+" mm (b/m = "+v(A.bEng/A.mod,1)+")"});
+  OUT.push({k:"VELOCIDADE TANGENCIAL",v:v(A.vTang,2)+" m/s   ·   é a mesma nas duas rodas, porque no ponto primitivo elas não escorregam   ·   "+(A.vTangOK?"abaixo de 5 m/s, limite do engrenamento aberto lubrificado a graxa":"ACIMA de 5 m/s — engrenamento aberto a graxa não sustenta essa velocidade: a graxa é lançada para fora e o dente engripa. Fechar o par em cárter com banho de óleo ou reduzir a rotação"),hi:!A.vTangOK});
+  OUT.push({k:"Rotações",v:"eixo principal "+v(A.nEixo,2)+" rpm   ·   pinhão "+v(A.nPinhao,1)+" rpm"});
+  OUT.push({k:"Forças no engrenamento",v:"tangencial "+v(A.Ft/1000,2)+" kN   ·   radial "+v(A.Fr/1000,2)+" kN   ·   resultante "+v(A.Feng/1000,2)+" kN sobre o eixo"});
+  OUT.push({k:"Flexão no dente (Lewis)",v:v(A.sigLew,1)+" MPa   ·   admissível Su/3 = "+v(A.sigEngAdm,0)+" MPa   ·   "+(A.engOK?"APROVADO":"REPROVADO — aumentar o módulo ou a largura da face"),hi:!A.engOK});
+  OUT.push({k:"Largura da face",v:"b/m = "+v(A.bEng/A.mod,1)+"   ·   "+(A.bmOK?"entre 8 e 14, faixa que mantém o contato uniforme":"FORA de 8 a 14 — face estreita concentra carga na ponta do dente; face larga não contata em toda a largura se o eixo fletir"),hi:!A.bmOK});
+
+  OUT.push({sec:"7 · Eixo principal de transmissão"});
+  OUT.push({k:"Geometria",v:"comprimento total "+v(A.Leixo,2)+" m   ·   vão entre mancais "+v(A.Lman,2)+" m   ·   coroa movida a "+v(A.xEng,2)+" m da extremidade   ·   distância entre as rodas de porta e contrapeso "+v(A.ePc,2)+" m"});
+  OUT.push({k:"Posição da coroa",v:(A.xEng<A.x1||A.xEng>A.x2)?("⚠ A coroa está EM BALANÇO, fora do vão entre os mancais ("+v(A.x1,2)+" a "+v(A.x2,2)+" m). O balanço amplia a flecha no engrenamento e o momento no mancal vizinho — é a posição mais exigente, e está calculada como tal."):("dentro do vão entre os mancais ("+v(A.x1,2)+" a "+v(A.x2,2)+" m)"),hi:(A.xEng<A.x1||A.xEng>A.x2)});
+  OUT.push({k:"MOMENTO FLETOR MÁXIMO",v:v(Math.abs(A.VF.Mmax)/1000,2)+" kN·m   em   x = "+v(A.VF.xM,2)+" m",hi:true});
+  OUT.push({k:"TORQUE MÁXIMO",v:v(A.Ttot/1000,2)+" kN·m   ·   o torque não é uniforme: entra na coroa e sai em cada roda dentada, então cada trecho do eixo carrega só a parcela que ainda não foi entregue",hi:true});
+  OUT.push({k:"DIÂMETRO DO EIXO",v:"por resistência "+v(A.dReqmm,1)+" mm ("+String(A.dResistmm)+" mm comercial)   →   ADOTADO "+String(A.dCom)+" mm   ·   governado por "+A.govEixo+"   ·   "+(A.matEixo==="4140"?"SAE 4140 temperado e revenido":(A.matEixo==="4340"?"SAE 4340":"SAE 1045"))+"   ·   momento equivalente com Kb = 2,0 e Kt = 1,5 (carga com choque, ASME)",hi:true});
+  OUT.push({k:"Tensões",v:"flexão "+v(A.sigF,1)+" MPa   ·   torção "+v(A.tauT,1)+" MPa   ·   equivalente de von Mises "+v(A.sigEq,1)+" MPa   ·   admissível "+v(A.sigAdm/1e6,0)+" MPa   ·   "+(A.eixoOK?"APROVADO":"REPROVADO"),hi:!A.eixoOK});
+  OUT.push({k:"Flecha máxima",v:v(A.flecha,3)+" mm   ·   limite L/1000 = "+v(A.flechaLim,2)+" mm   ·   "+(A.flechaOK?"APROVADO":"REPROVADO"),hi:!A.flechaOK});
+  OUT.push({k:"Flecha no engrenamento",v:v(A.flEng,4)+" mm   ·   limite 0,03·módulo = "+v(A.flEngLim,2)+" mm   ·   "+(A.flEngOK?"APROVADO":"REPROVADO — a coroa desalinha e o contato migra para a ponta do dente")+"   ·   este é o critério que costuma governar o eixo, não a tensão",hi:!A.flEngOK});
+  OUT.push({k:"Torção específica",v:v(A.torcao,4)+" °/m   ·   limite 0,25 °/m   ·   "+(A.torcaoOK?"APROVADO":"REPROVADO — com essa torção os dois lados da porta não sobem juntos e ela emperra na guia"),hi:!A.torcaoOK});
+  OUT.push({k:"REAÇÕES NOS MANCAIS",v:"R1 = "+v(A.R1/1000,2)+" kN   ·   R2 = "+v(A.R2/1000,2)+" kN   ·   capacidade dinâmica C ≥ "+v(A.Cdin,1)+" kN para 20.000 h de vida L10h",hi:true});
+  OUT.push({k:"Tipo de mancal",v:"Mancais de rolamento autocompensadores de rolos em caixa bipartida (SN/SNL), que absorvem o desalinhamento da flecha do eixo e permitem troca sem desmontar o conjunto. Em ambiente de forno, graxa de alta temperatura e vedação labirinto."});
+
+  OUT.push({sec:"8 · Motoredutor e freio SEW"});
+  OUT.push({k:"Torque no eixo principal",v:"estático "+v(A.Test/1000,2)+" kN·m   +   aceleração "+v(A.Tacel/1000,2)+" kN·m   =   "+v(A.Teixo/1000,2)+" kN·m"});
+  OUT.push({k:"Potência no eixo principal",v:v(A.Peixo,2)+" kW   ·   rotação de saída do redutor "+v(A.nSaida,1)+" rpm (aciona o pinhão)"});
+  linhasAciona("Elevação da porta",A.ac,v).forEach(function(l){ OUT.push(l); });
+  OUT.push({k:"FREIO SEW",v:A.fr.n+"   ·   "+v(A.fr.t,0)+" N·m   ·   requerido "+v(A.Mfreio,1)+" N·m"+(A.frExced?"   ⚠ acima do maior freio BE tabelado — prever freio no eixo de saída ou freio adicional":""),hi:true});
+  OUT.push({k:"Como o freio foi dimensionado",v:"Não pelo desbalanço, e sim pela PORTA INTEIRA. Em serviço normal o freio segura só "+v(A.MfreioNom,1)+" N·m, porque o contrapeso equilibra "+v(A.bal*100,0)+" % da carga. Mas se a ligação com o contrapeso falhar, o freio passa a segurar a porta toda — "+v(A.Mfreio,1)+" N·m. Dimensionar pelo desbalanço deixaria o freio pequeno justamente para a única situação em que ele precisa funcionar. Fator "+v(A.kFreio,1)+"× e SEM crédito de rendimento do redutor, porque na condição de falha ele pode estar transmitindo tudo. Freio de mola: falta de energia FECHA."});
+  OUT.push({k:"Espaço de parada estimado",v:v(A.espFrena*1000,0)+" mm   ·   verificar que a porta não colide com o batente nem com o piso dentro desse curso"});
+  OUT.push({k:"TRAVA MECÂNICA INDEPENDENTE",v:A.trava?"PREVISTA — catraca ou pino de retenção que segura a porta aberta mesmo com falha do freio, da corrente ou do cabo. Dimensionar para 2× o peso da porta e intertravar com o comando.":"⚠ NÃO PREVISTA — o freio é o único dispositivo de retenção. Em elevação sobre área de circulação a NR-12 exige retenção independente do acionamento.",hi:!A.trava});
+
+  OUT.push({sec:"9 · Estrutura de apoio"});
+  OUT.push({k:"Viga superior",v:"vão "+v(A.vaoViga,2)+" m   ·   Wx requerido "+v(A.Wxviga,0)+" cm³   →   "+txtPerfil(A.pViga.best),hi:A.pViga.dobro});
+  OUT.push({k:"Colunas guia",v:"altura "+v(A.hCol,2)+" m   ·   "+v(A.Ncol/1000,1)+" kN por coluna   →   "+txtPerfil(A.pCol.best),hi:A.pCol.dobro});
+  OUT.push({k:"Massa estimada da estrutura",v:v(A.mEstrut/1000,2)+" t   (viga + duas colunas)   ·   aço "+(A.fy===250?"ASTM A36 / MR250":"ASTM A572 Gr50")});
+  OUT.push({k:"Guias da porta",v:"A porta precisa ser guiada em toda a altura do curso. Guia curta deixa a porta pendular no fim do movimento e a corrente sai do plano da roda dentada — origem mais comum de salto de dente neste tipo de mecanismo."});
+
+  OUT.push({sec:"10 · Ambiente e manutenção"});
+  OUT.push({k:"Temperatura junto à porta",v:v(A.Tamb,0)+" °C   ·   "+A.tempTxt,hi:!A.tempOK});
+  OUT.push({k:"Alongamento admissível da corrente",v:"2 % do passo nominal, ou "+v(A.cor.p*0.02,2)+" mm por elo. Medir sobre 10 elos e substituir o ramo inteiro, nunca elos isolados: corrente nova em roda desgastada dura menos que a velha."});
+  OUT.push({k:"Plano de inspeção",v:"Diária: ruído, folga e alinhamento das correntes. Mensal: cabo conforme NBR ISO 4309, alongamento da corrente, folga dos mancais. Semestral: torque de frenagem medido, desgaste do dente da coroa, aperto dos chumbadores."});
+
+  OUT.push({sec:"11 · Normas aplicadas"});
+  OUT.push({k:"Equipamento de levantamento",v:"ABNT NBR 8400 — classificação do mecanismo, coeficiente dinâmico de içamento e coeficientes de segurança. FEM 1.001 como referência complementar."});
+  OUT.push({k:"Corrente e cabo",v:"ANSI/ASME B29.1 e ISO 606 para a corrente de rolos (catálogo DAIDO série RS). DIN 15020 para a relação D/d das polias e ABNT NBR ISO 4309 para inspeção e descarte do cabo de aço."});
+  OUT.push({k:"Estrutura e ligações",v:"ABNT NBR 8800 para o eixo, os olhais com pino e a estrutura de apoio; ABNT NBR 8681 para as combinações de ações; ABNT NBR 6118 e NBR 6122 para a base."});
+  OUT.push({k:"Segurança",v:"NR-12 com dispositivo de retenção independente, proteção das partes móveis e parada de emergência; ABNT NBR ISO 13857 para distâncias de segurança; ABNT NBR 14153 para as categorias do circuito de segurança. Acionamento SEW-EURODRIVE com freio de mola série BE."});
+  OUT.push({k:"Limite deste cálculo",v:"O modelo trata o eixo como viga sobre dois mancais e as engrenagens por Lewis, o que é adequado a pré-dimensionamento. Para a fabricação, o par de engrenagens deve ser verificado por AGMA 2001/ISO 6336 (flexão e pressão de contato), e a corrente confirmada na folha de dados DAIDO para a temperatura de operação."});
+
+  OUT.geo={tipo:"porta_forno",MEM:A.MEM,nRep:A.nRep,nVer:A.nVer,A:A};
+  return OUT;
+}
+
+
 const CALCS={
+  porta_forno:{
+    titulo:"Sistema de elevação de porta de forno — corrente, cabo, eixo e acionamento",
+    referencia:"Classificação do mecanismo, coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e coeficientes de segurança conforme ABNT NBR 8400 e FEM 1.001. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1, ISO 606), dimensionadas para a carga total do ponto com coeficiente de elevação crítica. Cabos de aço com carga de ruptura por construção e verificação da relação D/d das polias conforme DIN 15020, com inspeção e descarte pela ABNT NBR ISO 4309. Redundância real: corrente e cabo, cada um capaz de sustentar sozinho a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo principal resolvido como viga sobre dois mancais por integração numérica, com momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI, verificação da flecha no engrenamento e da torção específica. Engrenagens abertas por Lewis com fator de velocidade de Barth e verificação da velocidade tangencial. Motoredutor e freio de mola SEW-EURODRIVE (série BE), com o freio dimensionado sem crédito de rendimento do redutor. NR-12 para o dispositivo de retenção independente.",
+    campos:[
+      {tipo:"head",label:"Porta, contrapeso e movimento"},
+      {id:"pfMp",label:"PESO DA PORTA (carga a ser içada)",unidade:"kg",tipo:"number",valor:8000,step:"100"},
+      {id:"pfMcp",label:"PESO DO CONTRAPESO",unidade:"kg",tipo:"number",valor:7200,step:"100"},
+      {id:"pfCurso",label:"DESLOCAMENTO TOTAL da porta",unidade:"m",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"pfTab",label:"TEMPO de abertura (define a velocidade)",unidade:"s",tipo:"number",valor:15,step:"1"},
+      {id:"pfCiclos",label:"Aberturas por hora",tipo:"number",valor:12,step:"1"},
+      {id:"pfHdia",label:"Horas de operação por dia",unidade:"h",tipo:"number",valor:24,step:"1"},
+      {id:"pfTemp",label:"Temperatura junto à porta (radiação do forno)",unidade:"°C",tipo:"number",valor:80,step:"10"},
+      {tipo:"head",label:"Pontos de içamento, correntes e cabos"},
+      {id:"pfNpd",label:"PONTOS DE IÇAMENTO da porta (correntes)",tipo:"number",valor:2,step:"1"},
+      {id:"pfNpc",label:"PONTOS DE IÇAMENTO do contrapeso (correntes)",tipo:"number",valor:2,step:"1"},
+      {id:"pfNcabo",label:"RAMOS DE CABO entre porta e contrapeso",tipo:"number",valor:2,step:"1"},
+      {id:"pfZrd",label:"Dentes das rodas dentadas de elevação",tipo:"number",valor:19,step:"1"},
+      {id:"pfFsc",label:"Coeficiente de segurança da CORRENTE",tipo:"number",valor:8,step:"0.5"},
+      {id:"pfCabo",label:"Construção do cabo de aço",tipo:"select",valor:"c636",opcoes:[
+        {v:"c636",t:"6×36 Warrington-Seale com alma de aço (IWRC) — D/d ≥ 22"},
+        {v:"c619",t:"6×19 Seale com alma de aço (IWRC) — D/d ≥ 20"},
+        {v:"c8x19",t:"8×19 IWRC — alta flexibilidade, D/d ≥ 25"},
+        {v:"antig",t:"Anti-giro 19×7 — D/d ≥ 25"}]},
+      {id:"pfFscabo",label:"Coeficiente de segurança do CABO",tipo:"number",valor:6,step:"0.5"},
+      {id:"pfDpol",label:"DIÂMETRO DAS POLIAS dos cabos porta/contrapeso",unidade:"mm",tipo:"number",valor:600,step:"25"},
+      {tipo:"head",label:"Olhais de fixação porta e contrapeso"},
+      {id:"pfDpino",label:"Diâmetro do PINO do olhal",unidade:"mm",tipo:"number",valor:60,step:"5"},
+      {id:"pfTolhal",label:"Espessura da chapa do olhal",unidade:"mm",tipo:"number",valor:25,step:"1"},
+      {tipo:"head",label:"Eixo principal de transmissão"},
+      {id:"pfLeixo",label:"COMPRIMENTO TOTAL do eixo",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
+      {id:"pfLman",label:"DISTÂNCIA ENTRE OS MANCAIS de apoio",unidade:"m",tipo:"number",valor:5.0,step:"0.1"},
+      {id:"pfAeng",label:"DISTÂNCIA da engrenagem movida à extremidade do eixo",unidade:"m",tipo:"number",valor:0.35,step:"0.05"},
+      {id:"pfEpc",label:"DISTÂNCIA entre as rodas dentadas de porta e contrapeso",unidade:"m",tipo:"number",valor:0.60,step:"0.05"},
+      {id:"pfMatEixo",label:"Material do eixo",tipo:"select",valor:"1045",opcoes:[
+        {v:"1045",t:"SAE 1045 — σ_adm 110 MPa"},
+        {v:"4140",t:"SAE 4140 temperado e revenido — σ_adm 150 MPa"},
+        {v:"4340",t:"SAE 4340 — σ_adm 180 MPa"}]},
+      {tipo:"head",label:"Engrenagens abertas de acionamento"},
+      {id:"pfMod",label:"Módulo das engrenagens",unidade:"mm",tipo:"number",valor:10,step:"1"},
+      {id:"pfZmot",label:"Dentes da engrenagem MOTORA (pinhão)",tipo:"number",valor:17,step:"1"},
+      {id:"pfZmov",label:"Dentes da engrenagem MOVIDA (coroa no eixo)",tipo:"number",valor:51,step:"1"},
+      {id:"pfBeng",label:"Largura da face das engrenagens",unidade:"mm",tipo:"number",valor:100,step:"5"},
+      {id:"pfMatEng",label:"Material das engrenagens",tipo:"select",valor:"1045",opcoes:[
+        {v:"1045",t:"SAE 1045 (Su 565 MPa)"},
+        {v:"4140",t:"SAE 4140 temperado (Su 900 MPa)"},
+        {v:"fund",t:"Aço fundido (Su 480 MPa)"}]},
+      {tipo:"head",label:"Segurança e estrutura"},
+      {id:"pfTrava",label:"Trava mecânica independente do freio",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"SIM — catraca ou pino de retenção (exigido pela NR-12 sobre área de circulação)"},
+        {v:"nao",t:"NÃO — apenas o freio do motoredutor"}]},
+      {id:"pfVaoViga",label:"Vão da viga superior de apoio",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
+      {id:"pfHcol",label:"Altura das colunas guia",unidade:"m",tipo:"number",valor:6.0,step:"0.1"},
+      {id:"pfFy",label:"Aço da estrutura",tipo:"select",valor:"250",opcoes:[
+        {v:"250",t:"ASTM A36 / MR250 (fy 250 MPa)"},
+        {v:"345",t:"ASTM A572 Gr50 (fy 345 MPa)"}]}
+    ],
+    calcular:portaFornoCalc
+  },
+
   tanque_agitador_redondo:{
     titulo:"Tanque agitador CILÍNDRICO — impelidores, potência e acionamento",
     referencia:"Potência de agitação por P = Np·ρ·N³·D⁵, com o Número de Potência lido das curvas Np × Re levantadas das tabelas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook (Engineering Equipment Users Association, Londres) para cada família de impelidor, com e sem defletores. Rotação de suspensão completa pela correlação de Zwietering (1958), N_js = S·ν^0,1·d_p^0,2·[g·Δρ/ρ_L]^0,45·X^0,13 / D^0,85, com a constante S ajustada por T/D e pela folga ao fundo. Viscosidade da polpa pela tabela de meios líquidos da referência ou pela correlação de Thomas sobre a concentração de sólidos, com entrada manual quando o meio não consta da lista. Número e posição dos impelidores pela tabela de folga e espaçamento (H/T até 1,2 → um impelidor; até 1,8 → dois). Proporções dos impelidores e dos defletores conforme DIN 28131 e DIN 28138. Eixo por momento equivalente com pico de partida e verificação de velocidade crítica; pás por flexão sob a força tangencial F_t = 2·T/D. Costado pela pressão hidrostática (NBR 7821 / API 650), viga de apoio pela NBR 8800 e motores e redutores selecionados nos catálogos SEW-EURODRIVE, com indicação de necessidade de inversor.",
@@ -11690,6 +12306,350 @@ function gerarRelatorio(){
       doc.text(doc.splitTextToSize(san("Croqui esquematico, fora de escala. Roteiro integral do Manual FACO de Transportadores de "+
         "Correia (Tab. 1-01 a 1-34 e 2-55 a 2-57), com verificacao cruzada pelo metodo CEMA. Pre-dimensionamento: "+
         "confirmar serie de roletes, classe de correia e conjunto de acionamento com os catalogos do fabricante."),182),14,byFim);
+    } else if(G.tipo==="porta_forno"){
+      var A=G.A;
+      /* ---------- memorial consolidado ---------- */
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CALCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificacao reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equacao / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.2,cellPadding:1.1,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.4},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&d.row.raw[5]==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&d.row.raw[5]==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XP=15, XQ=196, ZP=124;
+      function fxP(x,w){ return Math.max(XP,Math.min(XQ-w,x)); }
+      function ntP(x,y,t,r,g2,b2,fs){ var f=fs||5.6; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxP(x,w2),y); }
+      function ntcP(x,y,t,r,g2,b2,fs){ var f=fs||5.6; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XP+w2/2,Math.min(XQ-w2/2,x)),y,{align:"center"}); }
+      function cHP(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntcP((x1+x2)/2,y-1.6,t,30,90,170,5.2); }
+      function cVP(y1,y2,x,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        var xc=Math.max(XP+2,Math.min(XQ-2,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
+        doc.setTextColor(30,90,170); doc.setFontSize(5.2);
+        var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
+        if(alt>=cmp+3) doc.text(san(t),xc-1.2,(y1+y2)/2,{angle:90,align:"center"});
+        else doc.text(san(t),Math.max(XP,Math.min(XQ-cmp,xc-cmp-2)),Math.min(y1,y2)-1.5); }
+
+      /* ================= PAGINA 1 — ELEVACAO FRONTAL ================= */
+      ntcP(105,27,"ELEVACAO DE PORTA DE FORNO  ·  porta "+(A.Mp/1000).toFixed(1)+" t  ·  curso "+A.curso.toFixed(2)+" m",20,60,100,9.0);
+      ntcP(105,32,"contrapeso "+(A.Mcp/1000).toFixed(1)+" t ("+(A.bal*100).toFixed(0)+" %)  ·  "+A.v.toFixed(3)+" m/s  ·  "+A.ac.mot.d+"  "+A.ac.Pinst+" kW  ·  freio "+A.fr.n,90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XP,35.5,XQ,35.5);
+
+      var xEsq=26, xDir=104, larg=xDir-xEsq;
+      var yTopo=48, yBase=176;
+      /* colunas do portico */
+      doc.setFillColor(214,220,228); doc.setDrawColor(45,45,45); doc.setLineWidth(0.6);
+      doc.rect(xEsq-7,yTopo,7,yBase-yTopo,"FD");
+      doc.rect(xDir,yTopo,7,yBase-yTopo,"FD");
+      /* viga superior */
+      doc.setFillColor(198,206,216); doc.setLineWidth(0.7);
+      doc.rect(xEsq-7,yTopo-9,larg+14,9,"FD");
+      ntcP((xEsq+xDir)/2,yTopo-3.4,"VIGA SUPERIOR  "+A.pViga.best.n,60,60,60,5.0);
+      /* eixo principal e mancais */
+      var yEix=yTopo+7;
+      doc.setDrawColor(40,40,40); doc.setLineWidth(1.4);
+      doc.line(xEsq-11,yEix,xDir+11,yEix);
+      doc.setFillColor(120,130,145); doc.setDrawColor(40,40,40); doc.setLineWidth(0.4);
+      doc.rect(xEsq-4,yEix-4,7,8,"FD"); doc.rect(xDir-3,yEix-4,7,8,"FD");
+      ntP(xEsq-11,yEix-6,"mancal",90,90,90,4.6); ntP(xDir-3,yEix-6,"mancal",90,90,90,4.6);
+      /* coroa movida e pinhao, na extremidade */
+      doc.setFillColor(190,160,90); doc.setDrawColor(120,90,30); doc.setLineWidth(0.5);
+      doc.circle(xDir+11,yEix,6,"FD");
+      doc.circle(xDir+11,yEix+9,2.6,"FD");
+      doc.setFillColor(120,130,145); doc.setDrawColor(50,50,50);
+      doc.rect(xDir+5,yEix+12,13,8,"FD");
+      ntcP(xDir+11,yEix+24,"acion.",150,90,50,4.6);
+      /* rodas dentadas da porta e do contrapeso */
+      var xRp=[xEsq+10,xDir-10], xRc=[xEsq+20,xDir-20];
+      var k3;
+      for(k3=0;k3<2;k3++){
+        doc.setFillColor(70,140,200); doc.setDrawColor(25,60,110); doc.setLineWidth(0.4);
+        doc.circle(xRp[k3],yEix,4.2,"FD");
+        doc.setFillColor(150,110,190); doc.setDrawColor(80,50,110);
+        doc.circle(xRc[k3],yEix,4.2,"FD");
+      }
+      /* porta */
+      var yPortaT=118, hPorta=42;
+      doc.setFillColor(150,158,168); doc.setDrawColor(35,35,35); doc.setLineWidth(0.8);
+      doc.rect(xEsq,yPortaT,larg,hPorta,"FD");
+      var c2;
+      for(c2=1;c2<6;c2++){ doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
+        doc.line(xEsq+c2*larg/6,yPortaT,xEsq+c2*larg/6,yPortaT+hPorta); }
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3);
+      doc.line(xEsq,yPortaT+hPorta/2,xDir,yPortaT+hPorta/2);
+      ntcP((xEsq+xDir)/2,yPortaT+hPorta/2+1.4,"PORTA  "+(A.Mp/1000).toFixed(1)+" t",30,30,30,6.2);
+      /* correntes porta */
+      doc.setDrawColor(25,60,110); doc.setLineWidth(0.9);
+      for(k3=0;k3<2;k3++){
+        doc.line(xRp[k3],yEix+4.2,xRp[k3],yPortaT);
+        doc.setFillColor(40,90,160); doc.rect(xRp[k3]-2,yPortaT-3,4,3,"FD");
+      }
+      /* cabos de aco redundantes, sobre polias no eixo */
+      doc.setDrawColor(200,120,40); doc.setLineWidth(0.5);
+      for(k3=0;k3<2;k3++){
+        doc.circle(xRp[k3]+6,yEix,3.2,"S");
+        doc.line(xRp[k3]+6,yEix+3.2,xRp[k3]+6,yPortaT+2);
+      }
+      /* contrapesos nas colunas */
+      var yCpT=yTopo+34;
+      for(k3=0;k3<2;k3++){
+        doc.setDrawColor(80,50,110); doc.setLineWidth(0.9);
+        doc.line(xRc[k3],yEix+4.2,xRc[k3],yCpT);
+        doc.setFillColor(178,150,205); doc.setDrawColor(70,45,100); doc.setLineWidth(0.5);
+        doc.rect(xRc[k3]-5,yCpT,10,26,"FD");
+        doc.setDrawColor(200,120,40); doc.setLineWidth(0.5);
+        doc.line(xRc[k3]+6,yEix+3,xRc[k3]+6,yCpT+3);
+        doc.circle(xRc[k3]+6,yEix,3.2,"S");
+      }
+      ntcP(xRc[0],yCpT+30,"CONTRAPESO",80,50,110,5.0);
+      ntcP(xRc[0],yCpT+34,(A.Mcp/2000).toFixed(1)+" t",80,50,110,5.0);
+      /* soleira do forno */
+      doc.setFillColor(120,90,70); doc.setDrawColor(60,45,35); doc.setLineWidth(0.5);
+      doc.rect(xEsq-7,yBase,larg+14,7,"FD");
+      ntcP((xEsq+xDir)/2,yBase+4.6,"SOLEIRA DO FORNO",240,235,230,5.0);
+      /* curso */
+      /* o curso e desenhado em escala, mas limitado ao espaco livre entre a porta
+         fechada e o eixo, para que nenhuma entrada extrema jogue o desenho para
+         fora da folha.                                                        */
+      var cursoPx=Math.max(6,Math.min(A.curso*10,yPortaT-yEix-16));
+      cVP(yPortaT-cursoPx,yPortaT,xEsq-14,"curso "+A.curso.toFixed(2)+" m");
+      doc.setDrawColor(150,160,175); doc.setLineWidth(0.3); doc.setLineDashPattern([1.2,1.2],0);
+      doc.rect(xEsq,yPortaT-cursoPx,larg,hPorta,"S");
+      doc.setLineDashPattern([],0);
+      ntP(xEsq+26,yPortaT-cursoPx-2,"porta aberta",150,160,175,4.8);
+      cHP(xEsq,xDir,yBase+14,"vao da porta");
+      ntcP((xEsq+xDir)/2,yBase+21,"ELEVACAO FRONTAL",20,60,100,6.4);
+
+      /* legenda a esquerda, abaixo do desenho */
+      /* A legenda fica abaixo da coluna da tabela, com linhas curtas, para nao
+         disputar espaco com ela em nenhuma combinacao de entradas.          */
+      var yLg=208;
+      ntP(XP,yLg,     "azul: correntes da porta  "+A.cor.n+" x"+A.nPd,25,60,110,5.2);
+      ntP(XP,yLg+4,   "roxo: correntes do contrapeso  x"+A.nPc,80,50,110,5.2);
+      ntP(XP,yLg+8,   "laranja: cabos  x"+A.nCb+"  diam "+A.dCabo.toFixed(1)+" mm",200,120,40,5.2);
+      ntP(XP,yLg+12,  "polias diam "+A.Dpol.toFixed(0)+" mm   D/d "+A.DdReal.toFixed(1),200,120,40,5.2);
+      ntP(XP,yLg+16,  "eixo diam "+A.dCom+" mm   roda z "+A.zRd,60,60,60,5.2);
+      ntP(XP,yLg+20,  "motoredutor "+A.ac.mot.d+"   freio "+A.fr.n,150,90,50,5.2);
+      ntP(XP,yLg+24,  A.trava?"trava mecanica PREVISTA":"SEM trava mecanica",A.trava?60:180,A.trava?120:60,60,5.2);
+
+      /* tabela de resultados */
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZP,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Peso da porta"),san((A.Mp/1000).toFixed(2))+" t"],
+          [san("Contrapeso"),san((A.Mcp/1000).toFixed(2))+" t ("+san((A.bal*100).toFixed(0))+" %)"],
+          [san("Curso / tempo"),san(A.curso.toFixed(2))+" m / "+san(A.tAb.toFixed(0))+" s"],
+          [san("VELOCIDADE"),san(A.v.toFixed(3))+" m/s"],
+          [san("Grupo NBR 8400"),san(A.GR.g)],
+          [san("Coef. dinamico psi"),san(A.psi.toFixed(3))],
+          [san("Carga por corrente"),san((A.Tpd/1000).toFixed(1))+" kN"],
+          [san("CORRENTE"),san(A.cor.n)+(A.nFios>1?(" x"+A.nFios):"")],
+          [san("Passo / ruptura"),san(A.cor.p.toFixed(1))+" mm / "+san((A.Qcor/1000).toFixed(0))+" kN"],
+          [san("FS corrente"),san(A.FScReal.toFixed(2))],
+          [san("Roda dentada"),"z "+String(A.zRd)+" - D "+san((A.Drd*1000).toFixed(0))+" mm"],
+          [san("CABO"),san("diam ")+san(A.dCabo.toFixed(1))+" mm"],
+          [san("Ruptura / FS"),san(A.MBL.toFixed(0))+" kN / "+san(A.FSkReal.toFixed(2))],
+          [san("Polia / D-d"),san(A.Dpol.toFixed(0))+" mm / "+san(A.DdReal.toFixed(1))],
+          [san("Olhal"),san("chapa ")+san(A.tOlhal.toFixed(0))+" mm - pino "+san(A.dPino.toFixed(0))+" mm"],
+          [san("Engrenagens"),String(A.zMot)+"/"+String(A.zMov)+" m "+san(A.mod.toFixed(0))],
+          [san("Vel. tangencial"),san(A.vTang.toFixed(3))+" m/s"],
+          [san("EIXO"),san("diam ")+String(A.dCom)+" mm"],
+          [san("Momento / torque"),san((Math.abs(A.VF.Mmax)/1000).toFixed(1))+" / "+san((A.Ttot/1000).toFixed(1))+" kN.m"],
+          [san("Flecha / no engrenam."),san(A.flecha.toFixed(2))+" / "+san(A.flEng.toFixed(3))+" mm"],
+          [san("Torcao"),san(A.torcao.toFixed(3))+" graus/m"],
+          [san("Reacoes R1 / R2"),san((A.R1/1000).toFixed(0))+" / "+san((A.R2/1000).toFixed(0))+" kN"],
+          [san("Rotacao do eixo"),san(A.nEixo.toFixed(2))+" rpm"],
+          [san("Potencia no eixo"),san(A.Peixo.toFixed(2))+" kW"],
+          [san("MOTOR"),san(A.ac.mot.d)+" - "+san(A.ac.Pinst.toFixed(2))+" kW"],
+          [san("REDUTOR"),san(A.ac.foraR?"industrial":A.ac.red.s)+" i "+san(A.ac.i.toFixed(0))],
+          [san("FREIO"),san(A.fr.n)+" - "+san(A.fr.t.toFixed(0))+" N.m"],
+          [san("Viga superior"),san(A.pViga.best.n)],
+          [san("Colunas"),san(A.pCol.best.n)]
+        ],
+        styles:{fontSize:5.6,cellPadding:0.75,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:5.8},
+        columnStyles:{0:{cellWidth:34},1:{cellWidth:38}}});
+
+      /* ================= PAGINA 2 — EIXO PRINCIPAL ================= */
+      doc.addPage();
+      doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+      try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+      doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+      doc.text(san("Eixo principal de transmissão — carregamento e diagramas"),60,12);
+      doc.setFont("helvetica","normal");
+      ntcP(105,28,"EIXO diam "+A.dCom+" mm  ·  L "+A.Leixo.toFixed(2)+" m  ·  mancais a "+A.Lman.toFixed(2)+" m",20,60,100,9.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XP,32,XQ,32);
+
+      var xa=24, xb=186, esc=(xb-xa)/Math.max(A.Leixo,0.1);
+      function pxE(vv){ return Math.max(xa,Math.min(xb, xa+vv*esc)); }
+      var yE=52;
+      /* eixo */
+      doc.setFillColor(205,212,222); doc.setDrawColor(40,40,40); doc.setLineWidth(0.5);
+      doc.rect(xa,yE-3,xb-xa,6,"FD");
+      /* mancais */
+      var xm1=pxE(A.x1), xm2=pxE(A.x2);
+      var mm;
+      for(mm=0;mm<2;mm++){
+        var xmm=(mm===0)?xm1:xm2;
+        doc.setFillColor(120,130,145); doc.setDrawColor(40,40,40); doc.setLineWidth(0.4);
+        doc.rect(xmm-3.5,yE+3,7,6,"FD");
+        doc.setDrawColor(40,40,40); doc.setLineWidth(0.5);
+        doc.line(xmm-6,yE+9,xmm+6,yE+9);
+        for(var h2=0;h2<5;h2++) doc.line(xmm-6+h2*3,yE+9,xmm-8+h2*3,yE+12);
+        ntcP(xmm,yE+17,(mm===0?"R1 ":"R2 ")+((mm===0?A.R1:A.R2)/1000).toFixed(0)+" kN",30,90,170,5.2);
+      }
+      /* rodas e engrenagem */
+      var kk;
+      for(kk=0;kk<A.posPd.length;kk++){
+        var xp=pxE(A.posPd[kk]);
+        doc.setFillColor(70,140,200); doc.setDrawColor(25,60,110); doc.setLineWidth(0.4);
+        doc.rect(xp-2.2,yE-9,4.4,12,"FD");
+        doc.setDrawColor(25,60,110); doc.setLineWidth(0.7);
+        doc.line(xp,yE-9,xp,yE-19); doc.line(xp-1.6,yE-16,xp,yE-19); doc.line(xp+1.6,yE-16,xp,yE-19);
+        ntcP(xp,yE-21,(A.Tpd/1000).toFixed(0)+" kN",25,60,110,5.0);
+      }
+      for(kk=0;kk<A.posPc.length;kk++){
+        var xq2=pxE(A.posPc[kk]);
+        doc.setFillColor(150,110,190); doc.setDrawColor(80,50,110); doc.setLineWidth(0.4);
+        doc.rect(xq2-2.2,yE-7,4.4,10,"FD");
+      }
+      var xg=pxE(A.xEng);
+      doc.setFillColor(190,160,90); doc.setDrawColor(120,90,30); doc.setLineWidth(0.5);
+      doc.circle(xg,yE,7,"FD");
+      ntcP(xg,yE+24,"coroa z "+String(A.zMov),120,90,30,5.2);
+      ntcP(xg,yE+28,(A.Feng/1000).toFixed(1)+" kN",120,90,30,5.0);
+      /* cotas */
+      cHP(xa,xb,yE+34,"L eixo = "+A.Leixo.toFixed(2)+" m");
+      cHP(xm1,xm2,yE+41,"entre mancais = "+A.Lman.toFixed(2)+" m");
+      cHP(xa,xg,yE-27,"a = "+A.xEng.toFixed(2)+" m");
+      if(A.posPd.length&&A.posPc.length)
+        cHP(pxE(A.posPd[0]),pxE(A.posPc[0]),yE+48,"porta-contrapeso = "+A.ePc.toFixed(2)+" m");
+
+      /* diagrama de momento fletor */
+      var yM0=118, hM=26;
+      var Mm=Math.max.apply(null,A.VF.M.map(Math.abs))||1;
+      doc.setDrawColor(150,160,175); doc.setLineWidth(0.3); doc.line(xa,yM0,xb,yM0);
+      doc.setDrawColor(30,90,170); doc.setLineWidth(0.5);
+      var pp;
+      for(pp=1;pp<=A.VF.N;pp++){
+        var xA1=xa+A.VF.x[pp-1]/Math.max(A.Leixo,0.1)*(xb-xa);
+        var xA2=xa+A.VF.x[pp]/Math.max(A.Leixo,0.1)*(xb-xa);
+        doc.line(xA1,yM0-A.VF.M[pp-1]/Mm*hM,xA2,yM0-A.VF.M[pp]/Mm*hM);
+      }
+      ntP(xa,yM0-hM-4,"MOMENTO FLETOR  ·  max "+(Math.abs(A.VF.Mmax)/1000).toFixed(1)+" kN.m em x = "+A.VF.xM.toFixed(2)+" m",30,90,170,6.0);
+      /* diagrama de torque */
+      var yT0=176, hT=22;
+      var Tm2=Math.max.apply(null,A.VF.T.map(Math.abs))||1;
+      doc.setDrawColor(150,160,175); doc.setLineWidth(0.3); doc.line(xa,yT0,xb,yT0);
+      doc.setDrawColor(180,80,60); doc.setLineWidth(0.5);
+      for(pp=1;pp<=A.VF.N;pp++){
+        var xB1=xa+A.VF.x[pp-1]/Math.max(A.Leixo,0.1)*(xb-xa);
+        var xB2=xa+A.VF.x[pp]/Math.max(A.Leixo,0.1)*(xb-xa);
+        doc.line(xB1,yT0-A.VF.T[pp-1]/Tm2*hT,xB2,yT0-A.VF.T[pp]/Tm2*hT);
+      }
+      ntP(xa,yT0-hT-4,"TORQUE  ·  max "+(A.Ttot/1000).toFixed(1)+" kN.m  ·  escalonado a cada roda dentada",180,80,60,6.0);
+      /* flecha */
+      var yF0=222, hF=16;
+      var Fm=Math.max.apply(null,A.VF.y.map(Math.abs))||1e-9;
+      doc.setDrawColor(150,160,175); doc.setLineWidth(0.3); doc.line(xa,yF0,xb,yF0);
+      doc.setDrawColor(40,140,90); doc.setLineWidth(0.5);
+      for(pp=1;pp<=A.VF.N;pp++){
+        var xC1=xa+A.VF.x[pp-1]/Math.max(A.Leixo,0.1)*(xb-xa);
+        var xC2=xa+A.VF.x[pp]/Math.max(A.Leixo,0.1)*(xb-xa);
+        doc.line(xC1,yF0+A.VF.y[pp-1]/Fm*hF,xC2,yF0+A.VF.y[pp]/Fm*hF);
+      }
+      ntP(xa,yF0-hF-4,"FLECHA  ·  max "+A.flecha.toFixed(2)+" mm  ·  no engrenamento "+A.flEng.toFixed(3)+" mm (limite "+A.flEngLim.toFixed(2)+")",40,140,90,6.0);
+      ntP(XP,258,"Diagramas obtidos por integracao numerica; a flecha vem da dupla integracao de M/EI com flecha nula nos mancais.",120,130,145,5.4);
+      ntP(XP,262,"Diametro governado por "+A.govEixo+"  ·  por resistencia bastariam "+A.dResistmm+" mm.",120,130,145,5.4);
+
+      /* ================= PAGINA 3 — DETALHES ================= */
+      doc.addPage();
+      doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+      try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+      doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+      doc.text(san("Detalhes — olhal, roda dentada e polia"),60,12);
+      doc.setFont("helvetica","normal");
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XP,26,XQ,26);
+
+      /* olhal */
+      var xo=52, yo=62, Ro=Math.max(12,Math.min(A.Rolhal*0.16,22));
+      var ro=Math.max(3,Ro*A.dFuro/(2*Math.max(A.Rolhal,1)));
+      doc.setFillColor(214,220,230); doc.setDrawColor(40,40,40); doc.setLineWidth(0.6);
+      doc.circle(xo,yo,Ro,"FD");
+      doc.rect(xo-Ro,yo,2*Ro,Ro+10,"FD");
+      doc.setFillColor(255,255,255); doc.setDrawColor(40,40,40);
+      doc.circle(xo,yo,ro,"FD");
+      cHP(xo-Ro,xo+Ro,yo-Ro-6,"2R = "+(2*A.Rolhal).toFixed(0)+" mm");
+      ntP(xo+Ro+4,yo,"furo diam "+A.dFuro.toFixed(0)+" mm",25,60,110,5.4);
+      ntP(xo+Ro+4,yo+4,"pino diam "+A.dPino.toFixed(0)+" mm",25,60,110,5.4);
+      ntP(xo+Ro+4,yo+8,"chapa "+A.tOlhal.toFixed(0)+" mm",25,60,110,5.4);
+      ntcP(xo,yo+Ro+18,"OLHAL DE FIXACAO",20,60,100,6.2);
+      /* roda dentada */
+      var xr=140, yr=62, Rr=Math.max(14,Math.min(A.Drd*38,26));
+      doc.setDrawColor(25,60,110); doc.setLineWidth(0.6); doc.circle(xr,yr,Rr,"S");
+      doc.setLineWidth(0.3); doc.circle(xr,yr,Rr*0.86,"S");
+      var zz=Math.min(A.zRd,28), a3;
+      for(a3=0;a3<zz;a3++){ var an=2*Math.PI*a3/zz;
+        doc.line(xr+Rr*Math.cos(an),yr+Rr*Math.sin(an),xr+(Rr+2)*Math.cos(an),yr+(Rr+2)*Math.sin(an)); }
+      doc.setFillColor(120,130,145); doc.setDrawColor(40,40,40); doc.setLineWidth(0.4);
+      doc.circle(xr,yr,Math.max(3,A.dCom*0.035),"FD");
+      cHP(xr-Rr,xr+Rr,yr+Rr+10,"D = "+(A.Drd*1000).toFixed(0)+" mm");
+      ntP(xr+Rr+4,yr-4,"z = "+String(A.zRd)+" dentes",25,60,110,5.4);
+      ntP(xr+Rr+4,yr,"passo "+A.cor.p.toFixed(2)+" mm",25,60,110,5.4);
+      ntP(xr+Rr+4,yr+4,"cubo p/ eixo "+A.dCom+" mm",25,60,110,5.4);
+      ntcP(xr,yr+Rr+18,"RODA DENTADA DE ELEVACAO",20,60,100,6.2);
+
+      doc.autoTable({startY:104,theme:"grid",margin:{left:14,right:14},
+        head:[[san("Componente"),san("Especificacao"),san("Criterio de verificacao")]],
+        body:[
+          [san("Corrente de icamento"),san(A.cor.n+(A.nFios>1?(" x"+A.nFios+" fios"):"")+" - passo "+A.cor.p.toFixed(2)+" mm - ruptura "+(A.Qcor/1000).toFixed(0)+" kN"),
+           san("FS = "+A.FScReal.toFixed(2)+" sobre a carga do ponto, exigido "+A.FSc.toFixed(1)+" (elevacao critica)")],
+          [san("Ruptura exigida"),san((Math.max(A.Tpd,A.Tpc)*A.FSc/1000).toFixed(1)+" kN por ponto"),
+           san("levar ao catalogo DAIDO; corrente de placas (B29.8, serie BL) atende com passo menor")],
+          [san("Roda dentada"),san("z = "+A.zRd+" - D primitivo "+(A.Drd*1000).toFixed(0)+" mm"),
+           san("z >= 17 para limitar o efeito poligonal; iguais nos dois lados pelo curso")],
+          [san("Cabo redundante"),san(A.CB.n+" - diam "+A.dCabo.toFixed(1)+" mm - ruptura "+A.MBL.toFixed(0)+" kN"),
+           san("FS = "+A.FSkReal.toFixed(2)+"; dimensionado para a carga TOTAL, nao para metade")],
+          [san("Polias"),san("diam "+A.Dpol.toFixed(0)+" mm"),
+           san("D/d = "+A.DdReal.toFixed(1)+", minimo "+A.CB.Dd+" (DIN 15020) - polia minima "+A.DpolMin.toFixed(0)+" mm")],
+          [san("Olhais"),san("chapa "+A.tOlhal.toFixed(0)+" mm - pino "+A.dPino.toFixed(0)+" mm - raio "+A.Rolhal.toFixed(0)+" mm"),
+           san("tracao "+A.sigTr.toFixed(0)+", esmagamento "+A.sigEsm.toFixed(0)+", rasgamento "+A.tauSh.toFixed(0)+" MPa (NBR 8800)")],
+          [san("Engrenagens abertas"),san("z "+A.zMot+"/"+A.zMov+" - modulo "+A.mod.toFixed(0)+" mm - face "+A.bEng.toFixed(0)+" mm"),
+           san("Lewis "+A.sigLew.toFixed(0)+" MPa; v tangencial "+A.vTang.toFixed(2)+" m/s (limite 5 m/s)")],
+          [san("Eixo principal"),san("diam "+A.dCom+" mm - "+(A.matEixo==="4140"?"SAE 4140":(A.matEixo==="4340"?"SAE 4340":"SAE 1045"))),
+           san("governado por "+A.govEixo+"; von Mises "+A.sigEq.toFixed(0)+" MPa")],
+          [san("Mancais"),san("R1 "+(A.R1/1000).toFixed(0)+" kN - R2 "+(A.R2/1000).toFixed(0)+" kN"),
+           san("C dinamico >= "+A.Cdin.toFixed(0)+" kN para L10h de 20.000 h; autocompensador de rolos")],
+          [san("Motoredutor"),san(A.ac.mot.d+" - "+A.ac.Pinst.toFixed(2)+" kW - "+(A.ac.foraR?"industrial":A.ac.red.s)+" i "+A.ac.i.toFixed(0)),
+           san("fs 1,4 e fator de partida "+A.ac.kPart.toFixed(1)+"x; inversor "+(A.ac.inv?"NECESSARIO":"dispensavel"))],
+          [san("Freio SEW"),san(A.fr.n+" - "+A.fr.t.toFixed(0)+" N.m"),
+           san("dimensionado pela PORTA INTEIRA ("+A.Mfreio.toFixed(0)+" N.m), nao pelo desbalanco ("+A.MfreioNom.toFixed(0)+" N.m)")],
+          [san("Trava mecanica"),san(A.trava?"prevista":"NAO prevista"),
+           san("NR-12: retencao independente do acionamento em elevacao sobre area de circulacao")],
+          [san("Viga superior"),san(A.pViga.best.n),san("M = R.vao/4 com vao de "+A.vaoViga.toFixed(2)+" m (NBR 8800)")],
+          [san("Colunas guia"),san(A.pCol.best.n),san("compressao com flambagem, altura "+A.hCol.toFixed(2)+" m")]
+        ],
+        styles:{fontSize:6.5,cellPadding:1.3,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.7},
+        columnStyles:{0:{cellWidth:33},1:{cellWidth:65},2:{cellWidth:84}}});
     } else if(G.tipo==="rosca"){
       /* =============== CROQUI DO TRANSPORTADOR HELICOIDAL =============== */
       var XS=15, XE=196, ZS=126;
