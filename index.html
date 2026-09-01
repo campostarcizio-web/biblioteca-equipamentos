@@ -439,8 +439,8 @@ const ICON_HAMMER='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" st
 const ICON_CONE='<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12 L39 12 L30 30 L18 30 Z"/><path d="M24 8 L24 12 M20 33 L28 33 L26 40 L22 40 Z"/><path d="M18 30 L24 18 L30 30" fill="currentColor" fill-opacity="0.15"/><circle cx="14" cy="9" r="1.4" fill="currentColor"/><circle cx="24" cy="8" r="1.4" fill="currentColor"/><circle cx="34" cy="9" r="1.4" fill="currentColor"/></svg>';
 /* Materiais típicos para arraste tubular (densidade aparente e atritos) */
 const TUB_MAT={
-  briq_bar:{rho:1.70,mum:"0.5",muc:"0.3",dim:60},
-  briq_bricao:{rho:1.30,mum:"0.5",muc:"0.3",dim:120},
+  briq_fe57:{rho:1.70,mum:"0.5",muc:"0.3",dim:60},
+  briq_carb120:{rho:1.30,mum:"0.5",muc:"0.3",dim:120},
   briq_carb:{rho:0.80,mum:"0.5",muc:"0.3",dim:50},
   briq_ferro:{rho:2.50,mum:"0.6",muc:"0.35",dim:100},
   carvao:{rho:0.85,mum:"0.5",muc:"0.3",dim:50},
@@ -470,10 +470,10 @@ const SCREEN_MAT={
   minerio_ferro:{rho:2.5,q2:"1",  q5:["1"],            dim:100},
   carvao:       {rho:0.9,q2:"0.9",q5:["1"],            dim:50},
   coque:        {rho:0.5,q2:"0.9",q5:["1"],            dim:75},
-  briq_bar:     {rho:1.7,q2:"1",  q5:["0.8b","0.85","0.8"],dim:57,
-                 nota:"Briquete BAR 57 × 57 × 37,5 mm · 1,7 t/m³ — peça prensada, aproximadamente equidimensional (Q2 = 1,0). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."},
-  briq_bricao:  {rho:1.3,q2:"0.9",q5:["0.8b","0.85","0.8"],dim:120,
-                 nota:"Briquete Bricão 120 × 108 × 87 mm · 1,3 t/m³ — peça grande e achatada (relação 1,4:1), tratada como alongada (Q2 = 0,9). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."}
+  briq_fe57:     {rho:1.7,q2:"1",  q5:["0.8b","0.85","0.8"],dim:57,
+                 nota:"Briquete Ferroso 57 × 57 × 37,5 mm · 1,7 t/m³ — peça prensada, aproximadamente equidimensional (Q2 = 1,0). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."},
+  briq_carb120:  {rho:1.3,q2:"0.9",q5:["0.8b","0.85","0.8"],dim:120,
+                 nota:"Briquete Carbonoso 120 × 108 × 87 mm · 1,3 t/m³ — peça grande e achatada (relação 1,4:1), tratada como alongada (Q2 = 0,9). Tela de poliuretano/borracha indicada para reduzir a degradação e a geração de finos. Valores estimados de forma conservadora."}
 };
 function scrSet(id,vals){
   var s=$("#"+id); if(!s||!vals) return;
@@ -499,10 +499,10 @@ const CALHA_MAT={
   carvao:     {rho:0.9,d:50, g:"0.85",u:"0.8"},
   carvao_seco:{rho:0.8,d:50, g:"0.85",u:"1"},
   coque:      {rho:0.5,d:75, g:"0.85",u:"1"},
-  briq_bar:   {rho:1.7,d:57, g:"0.85",u:"1",briq:true,
-               nota:"Briquete BAR 57 × 57 × 37,5 mm · 1,7 t/m³"},
-  briq_bricao:{rho:1.3,d:120,g:"0.85",u:"1",briq:true,
-               nota:"Briquete Bricão 120 × 108 × 87 mm · 1,3 t/m³"}
+  briq_fe57:   {rho:1.7,d:57, g:"0.85",u:"1",briq:true,
+               nota:"Briquete Ferroso 57 × 57 × 37,5 mm · 1,7 t/m³"},
+  briq_carb120:{rho:1.3,d:120,g:"0.85",u:"1",briq:true,
+               nota:"Briquete Carbonoso 120 × 108 × 87 mm · 1,3 t/m³"}
 };
 function calhaPreset(){
   var m=CALHA_MAT[selv("chMat","custom")];
@@ -592,8 +592,8 @@ const SILO_MAT={
   calcario:{rho:1.5,phi:38,delta:28,c:0.5,d50:10},
   /* Briquetes — estimativas CONSERVADORAS considerando geração de finos no manuseio/estocagem.
      d50 adotado = maior dimensão da peça (governa o arco mecânico). Confirmar em ensaio Jenike Shear. */
-  briq_bar:{rho:1.7,phi:40,delta:28,c:0.5,d50:57},
-  briq_bricao:{rho:1.3,phi:42,delta:26,c:0.4,d50:120}
+  briq_fe57:{rho:1.7,phi:40,delta:28,c:0.5,d50:57},
+  briq_carb120:{rho:1.3,phi:42,delta:26,c:0.4,d50:120}
 };
 function moegaPreset(){
   var p=SILO_MAT[$("#mgMat").value]; if(!p){ runCalc("moega_alimentacao"); return; }
@@ -623,8 +623,8 @@ const FEED_MAT={
   escoria:      {rho:1.60,theta:35,fm:0.60,fsm:0.54,abr:"abr", d:80, fonte:"fm da pág. 1-22 · fsm estimado (rocha britada)"},
   rocha_brit:   {rho:1.60,theta:37,fm:0.65,fsm:0.54,abr:"abr", d:100,fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
   rocha_fosf:   {rho:1.30,theta:35,fm:0.65,fsm:0.54,abr:"abr", d:60, fonte:"fsm da pág. 1-22 · fm estimado (cascalho)"},
-  briq_bar:     {rho:1.70,theta:35,fm:0.75,fsm:0.60,abr:"abr", d:57, br:[57,57,37.5], fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"},
-  briq_bricao:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,br:[120,108,87],fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
+  briq_fe57:     {rho:1.70,theta:35,fm:0.75,fsm:0.60,abr:"abr", d:57, br:[57,57,37.5], fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"},
+  briq_carb120:  {rho:1.30,theta:37,fm:0.80,fsm:0.65,abr:"abr", d:120,br:[120,108,87],fonte:"ESTIMADO (não consta do manual) — briquete em pedaços, conservador"}
 };
 function acPreset(){
   var p=FEED_MAT[$("#acMat").value]; if(!p){ runCalc((CUR_EQ&&CUR_EQ.calculadora)?CUR_EQ.calculadora:"alimentador_correia"); return; }
@@ -999,17 +999,6 @@ function planoCargas(itens){
           fd:(sIn>0?sAb/sIn:0)};
 }
 
-/* As opcoes do seletor de meio saem da tabela de viscosidades, para nao
-   duplicar a lista em dois lugares. */
-(function(){
-  try{
-    var op=AG_MEIOS.map(function(m){ return {v:m.v,t:m.t}; });
-    ["tanque_agitador_redondo","tanque_agitador_retangular"].forEach(function(k){
-      var C=CALCS[k]; if(!C) return;
-      C.campos.forEach(function(c){ if(c.id==="arMeio"||c.id==="atMeio") c.opcoes=op.slice(); });
-    });
-  }catch(e){}
-})();
 
 function coneVibCalc(CVCIRC){
       var g=9.80665;
@@ -2125,14 +2114,14 @@ const FLARE_GAS={
      partir da composição típica, com PCI dos componentes: CO 12,64 · H2 10,80 ·
      CH4 35,88 · C2H2 56,0 MJ/Nm³. São gases de BAIXO PODER CALORÍFICO: a estabilidade
      de chama, e não a radiação, é o critério que governa o projeto da ponta.          */
-  /* Caso Rev. A — mini alto-forno 300 kta gusa, carga 92 t/h BAR + 25 t/h carvão misto.
+  /* Caso Rev. A — mini alto-forno 300 kta gusa, carga 92 t/h de briquete ferroso + 25 t/h carvão misto.
      Composição base seca: CO 23,0 · CO2 22,0 · H2 3,5 · CH4 1,2 · N2 50,3 (% vol);
      umidade 7,3 % vol (saturado a 40 C). MW = 30,48 kg/kmol e k = 1,38 calculados da
      composição. PCI de 840 kcal/Nm3 (cenario Alto, planilha Rev.1 revisada) = 3,517 MJ/Nm3 = 2.586 kJ/kg.
      LII estimado por Le Chatelier sobre os combustiveis (CO 12,5 · H2 4,0 · CH4 5,0 %)
      e dividido pela fracao combustivel de 27,7 %.                                      */
-  bfg_bar_gusa: {MW:30.48,k:1.38, LHV:2586,  F:0.12, LII:34.0, vap:0.05, CO:23,
-                 nome:"BFG de mini alto-forno a carvao vegetal + BAR (300 kta gusa)"},
+  bfg_briq_gusa: {MW:30.48,k:1.38, LHV:2586,  F:0.12, LII:34.0, vap:0.05, CO:23,
+                 nome:"BFG de mini alto-forno a carvao vegetal + briquete ferroso (300 kta gusa)"},
   bfg_vegetal:  {MW:29.20,k:1.38, LHV:2951,  F:0.10, LII:35.0, vap:0.05, CO:27,
                  nome:"Alto-forno a carvão vegetal — gás de topo (guseira)"},
   bfg_coque:    {MW:30.74,k:1.38, LHV:2264,  F:0.10, LII:38.0, vap:0.05, CO:22,
@@ -4828,8 +4817,8 @@ const FACO_MAT={
   sinter:      {nome:"Sínter",                                   rho:1.70,rep:38,lmax:16,cod:"D37",  fora:true},
   pelota:      {nome:"Pelota / pellet",                          rho:2.10,rep:32,lmax:12,cod:"C26",  fora:true},
   sinter_feed: {nome:"Sinter feed / pellet feed",                rho:2.20,rep:35,lmax:18,cod:"B37",  fora:true},
-  briq_bar:    {nome:"Briquete BAR (57×57×37,5 mm)",             rho:1.70,rep:35,lmax:12,cod:"D27",  fora:true},
-  briq_bricao: {nome:"Briquete Bricão (120×108×87 mm)",          rho:1.30,rep:37,lmax:10,cod:"D27",  fora:true}
+  briq_fe57:    {nome:"Briquete Ferroso (57×57×37,5 mm)",             rho:1.70,rep:35,lmax:12,cod:"D27",  fora:true},
+  briq_carb120: {nome:"Briquete Carbonoso (120×108×87 mm)",          rho:1.30,rep:37,lmax:10,cod:"D27",  fora:true}
 };
 function btPreset(){
   var p=FACO_MAT[$("#btMat").value]; if(!p){ runCalc("belt_conveyor"); return; }
@@ -4849,8 +4838,8 @@ const FLEX_MAT={
   coque:        {rho:0.50,lump:75, phi:0.80,abr:"média", nome:"Coque"},
   carvao_veg:   {rho:0.25,lump:60, phi:0.85,abr:"baixa", nome:"Carvão vegetal"},
   clinquer:     {rho:1.40,lump:40, phi:0.80,abr:"alta",  nome:"Clínquer"},
-  briq_bar:     {rho:1.70,lump:57, phi:0.75,abr:"alta",  nome:"Briquete BAR (57 × 57 × 37,5 mm)"},
-  briq_bricao:  {rho:1.30,lump:120,phi:0.70,abr:"alta",  nome:"Briquete Bricão (120 × 108 × 87 mm)"}
+  briq_fe57:     {rho:1.70,lump:57, phi:0.75,abr:"alta",  nome:"Briquete Ferroso (57 × 57 × 37,5 mm)"},
+  briq_carb120:  {rho:1.30,lump:120,phi:0.70,abr:"alta",  nome:"Briquete Carbonoso (120 × 108 × 87 mm)"}
 };
 function flexPreset(){
   var p=FLEX_MAT[$("#fxMat").value]; if(!p){ runCalc("flexowell"); return; }
@@ -5942,7 +5931,7 @@ const CALCS={
         {v:"abaulado",t:"Abaulado — o melhor para suspensão, sem canto vivo"},
         {v:"plano",t:"Plano — mais barato; exige cantoneira de enchimento a 45°"}]},
       {tipo:"head",label:"Características da polpa / meio a agitar"},
-      {id:"arMeio",label:"MEIO LÍQUIDO (define a viscosidade pela tabela de referência)",tipo:"select",valor:"polpa",opcoes:[]},
+      {id:"arMeio",label:"MEIO LÍQUIDO (define a viscosidade pela tabela de referência)",tipo:"select",valor:"polpa",opcoes:AG_MEIOS.map(function(m){return {v:m.v,t:m.t};})},
       {id:"arCw",label:"CONCENTRAÇÃO DE SÓLIDOS (0 = líquido puro)",unidade:"% em massa",tipo:"number",valor:12,step:"1"},
       {id:"arRhoS",label:"Massa específica REAL dos sólidos",unidade:"kg/m³",tipo:"number",valor:2936,step:"50"},
       {id:"arDp",label:"Diâmetro característico da partícula",unidade:"µm",tipo:"number",valor:80,step:"5"},
@@ -5998,7 +5987,7 @@ const CALCS={
       {id:"atBL",label:"Borda livre (folga acima do nível)",unidade:"m",tipo:"number",valor:0.35,step:"0.05"},
       {id:"atNag",label:"QUANTIDADE DE AGITADORES ao longo do comprimento (0 = calcular)",tipo:"number",valor:0,step:"1"},
       {tipo:"head",label:"Características da polpa / meio a agitar"},
-      {id:"atMeio",label:"MEIO LÍQUIDO (define a viscosidade pela tabela de referência)",tipo:"select",valor:"polpa",opcoes:[]},
+      {id:"atMeio",label:"MEIO LÍQUIDO (define a viscosidade pela tabela de referência)",tipo:"select",valor:"polpa",opcoes:AG_MEIOS.map(function(m){return {v:m.v,t:m.t};})},
       {id:"atCw",label:"CONCENTRAÇÃO DE SÓLIDOS (0 = líquido puro)",unidade:"% em massa",tipo:"number",valor:12,step:"1"},
       {id:"atRhoS",label:"Massa específica REAL dos sólidos",unidade:"kg/m³",tipo:"number",valor:2936,step:"50"},
       {id:"atDp",label:"Diâmetro característico da partícula",unidade:"µm",tipo:"number",valor:80,step:"5"},
@@ -6284,10 +6273,10 @@ const CALCS={
       {id:"flVlam",label:"Velocidade de chama laminar do gás (limite de retrocesso)",unidade:"m/s",tipo:"number",valor:0.4,step:"0.05"},
       {id:"flVturn",label:"Velocidade alvo no estágio 1 na vazão mínima",unidade:"m/s",tipo:"number",valor:18,step:"1"},
       {tipo:"head",label:"Gás de alívio"},
-      {id:"flGas",label:"Gás (preset — preenche MW, k, PCI, F e LII)",tipo:"select",valor:"bfg_bar_gusa",onchange:"flarePreset()",opcoes:[
+      {id:"flGas",label:"Gás (preset — preenche MW, k, PCI, F e LII)",tipo:"select",valor:"bfg_briq_gusa",onchange:"flarePreset()",opcoes:[
         {v:"gas_natural",t:"Gás natural"},{v:"metano",t:"Metano"},
         {v:"gas_refinaria",t:"Gás de refinaria"},{v:"gas_processo",t:"Gás de processo (genérico)"},
-        {v:"bfg_bar_gusa",t:"BFG mini alto-forno a carvão vegetal + BAR (300 kta gusa)"},
+        {v:"bfg_briq_gusa",t:"BFG mini alto-forno a carvão vegetal + briquete ferroso (300 kta gusa)"},
         {v:"bfg_vegetal",t:"Alto-forno a carvão vegetal — gás de topo (GUSEIRA)"},
         {v:"bfg_coque",t:"Alto-forno a coque — BFG"},
         {v:"ldg",t:"Aciaria LD / conversor — LDG"},
@@ -6607,12 +6596,12 @@ const CALCS={
     campos:[
       {tipo:"head",label:"Processo"},
       {id:"mgQ",label:"Vazão de projeto  Q",unidade:"t/h",tipo:"number",valor:300},
-      {id:"mgMat",label:"Material (preset — preenche γ, φi, φw, δ, c e d50)",tipo:"select",valor:"briq_bar",onchange:"moegaPreset()",opcoes:[
+      {id:"mgMat",label:"Material (preset — preenche γ, φi, φw, δ, c e d50)",tipo:"select",valor:"briq_fe57",onchange:"moegaPreset()",opcoes:[
         {v:"fe_gran",t:"Minério de ferro granulado"},{v:"fe_fino",t:"Minério de ferro fino (sinter feed)"},
         {v:"pelota",t:"Pelota"},{v:"sinter",t:"Sínter"},{v:"carvao",t:"Carvão úmido"},
         {v:"carvao_seco",t:"Carvão seco"},{v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
-        {v:"briq_bar",t:"Briquete BAR (57 × 57 × 37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120 × 108 × 87 mm · 1,3 t/m³)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso (57 × 57 × 37,5 mm · 1,7 t/m³)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120 × 108 × 87 mm · 1,3 t/m³)"}]},
       {id:"mgRho",label:"Densidade aparente  γ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.01"},
       {id:"mgPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
       {id:"mgPhw",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
@@ -6819,7 +6808,7 @@ const CALCS={
     referencia:"Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34, 2-55 a 2-57 · verificação cruzada CEMA",
     campos:[
       {tipo:"head",label:"Etapa 1 — Material (Tab. 1-01 e 1-02)"},
-      {id:"btMat",label:"Material transportado",tipo:"select",valor:"briq_bar",onchange:"btPreset()",opcoes:[
+      {id:"btMat",label:"Material transportado",tipo:"select",valor:"briq_fe57",onchange:"btPreset()",opcoes:[
         {v:"fe_britado",t:"Ferro, minério de (britado) — 1.07"},
         {v:"fe_minerio",t:"Ferro, minério de — 1.07"},
         {v:"mn_minerio",t:"Manganês, minério de — 1.09"},
@@ -6847,8 +6836,8 @@ const CALCS={
         {v:"sinter",t:"Sínter  ⚠ fora do manual"},
         {v:"pelota",t:"Pelota / pellet  ⚠ fora do manual"},
         {v:"sinter_feed",t:"Sinter feed / pellet feed  ⚠ fora do manual"},
-        {v:"briq_bar",t:"Briquete BAR  ⚠ fora do manual"},
-        {v:"briq_bricao",t:"Briquete Bricão  ⚠ fora do manual"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso  ⚠ fora do manual"},
+        {v:"briq_carb120",t:"Briquete Carbonoso  ⚠ fora do manual"}]},
       {id:"btRho",label:"Peso específico (ajustável)",unidade:"t/m³",tipo:"number",valor:1.70,step:"0.01"},
       {id:"btLump",label:"Tamanho máximo dos pedaços",unidade:"mm",tipo:"number",valor:57},
       {id:"btGran",label:"Granulometria — largura mínima (Tab. 1-06)",tipo:"select",valor:"5",opcoes:[
@@ -7504,8 +7493,8 @@ const CALCS={
         {v:"brita",t:"Brita / rocha britada"},{v:"areia",t:"Areia"},
         {v:"carvao",t:"Carvão mineral"},{v:"coque",t:"Coque"},{v:"carvao_veg",t:"Carvão vegetal"},
         {v:"clinquer",t:"Clínquer"},
-        {v:"briq_bar",t:"Briquete BAR (57 × 57 × 37,5 mm)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120 × 108 × 87 mm)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso (57 × 57 × 37,5 mm)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120 × 108 × 87 mm)"}]},
       {id:"lumpf",label:"Tamanho máximo do material",unidade:"mm",tipo:"number",valor:100},
       {id:"Bf",label:"Largura da correia base",tipo:"select",valor:"1000",opcoes:[
         {v:"400",t:"400 mm"},{v:"500",t:"500 mm"},{v:"650",t:"650 mm"},{v:"800",t:"800 mm"},{v:"1000",t:"1000 mm"},{v:"1200",t:"1200 mm"},{v:"1400",t:"1400 mm"},{v:"1600",t:"1600 mm"},{v:"1800",t:"1800 mm"},{v:"2000",t:"2000 mm"},{v:"2200",t:"2200 mm"},{v:"2400",t:"2400 mm"}]},
@@ -7560,8 +7549,8 @@ const CALCS={
         {v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},
         {v:"calcario",t:"Calcário britado"},
-        {v:"briq_bar",t:"Briquete BAR — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:2.2,step:"0.05"},
       {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:35},
       {id:"siDelta",label:"Atrito parede-material  δ",unidade:"°",tipo:"number",valor:25},
@@ -7810,7 +7799,7 @@ const CALCS={
         {v:"2",t:"Classe 2 — 100 a 10.000 t (padrão industrial)"},
         {v:"3",t:"Classe 3 — acima de 10.000 t ou excentricidade elevada"}]},
       {tipo:"head",label:"Etapa 1 — Propriedades do minério"},
-      {id:"siMat",label:"Material (pré-seleção típica — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_bar",onchange:"siloPreset()",opcoes:[
+      {id:"siMat",label:"Material (pré-seleção típica — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_fe57",onchange:"siloPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
         {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
         {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
@@ -7820,8 +7809,8 @@ const CALCS={
         {v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},
         {v:"calcario",t:"Calcário britado"},
-        {v:"briq_bar",t:"Briquete BAR — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso — autoredutor (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"siRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
       {id:"siPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40},
       {id:"siDeff",label:"Ângulo efetivo de atrito interno  δ (Jenike; 0 = usar φi)",unidade:"°",tipo:"number",valor:0,step:"1"},
@@ -8613,8 +8602,8 @@ const CALCS={
       {tipo:"head",label:"Processo e material"},
       {id:"tcMat",label:"Material (preset — preenche densidade e atritos)",tipo:"select",valor:"custom",onchange:"tubPreset()",opcoes:[
         {v:"custom",t:"Personalizado"},
-        {v:"briq_bar",t:"Briquete autoredutor BAR  (ρ 1,70 t/m³ · 60 mm)"},
-        {v:"briq_bricao",t:"Briquete Bricão  (ρ 1,30 t/m³ · 120 mm)"},
+        {v:"briq_fe57",t:"Briquete Ferroso autoredutor  (ρ 1,70 t/m³ · 60 mm)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso  (ρ 1,30 t/m³ · 120 mm)"},
         {v:"briq_carb",t:"Briquete carbonoso  (ρ ~0,80 t/m³)"},
         {v:"briq_ferro",t:"Briquete ferroso / HBI  (ρ ~2,50 t/m³)"},
         {v:"carvao",t:"Carvão  (ρ ~0,85)"},
@@ -9138,8 +9127,8 @@ const CALCS={
         {v:"brita",t:"Brita / pedra britada (1,6)"},{v:"granito",t:"Granito (1,6)"},{v:"calcario",t:"Calcário (1,5)"},
         {v:"agregado",t:"Agregado genérico (1,6)"},{v:"areia",t:"Areia (1,5)"},{v:"minerio_ferro",t:"Minério de ferro (2,5)"},
         {v:"carvao",t:"Carvão (0,9)"},{v:"coque",t:"Coque (0,5)"},
-        {v:"briq_bar",t:"Briquete BAR — 57 × 57 × 37,5 mm · 1,7 t/m³"},
-        {v:"briq_bricao",t:"Briquete Bricão — 120 × 108 × 87 mm · 1,3 t/m³"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso — 57 × 57 × 37,5 mm · 1,7 t/m³"},
+        {v:"briq_carb120",t:"Briquete Carbonoso — 120 × 108 × 87 mm · 1,3 t/m³"}]},
       {id:"piForma",label:"Forma da partícula (Q2)",tipo:"select",valor:"1",opcoes:[
         {v:"1",t:"Cúbica (Q2 = 1,0)"},{v:"0.9",t:"Lamelar / alongada (Q2 = 0,9)"}]},
       {id:"piUmido",label:"Peneiramento via úmida (Q3)",tipo:"select",valor:"nao",opcoes:[
@@ -9409,15 +9398,15 @@ const CALCS={
       {id:"cvDb",label:"Diâmetro da base do defletor  (0 = automático, 0,55 · A)",unidade:"mm",tipo:"number",valor:0,step:"25"},
       {id:"cvDh",label:"Altura do defletor  (0 = automático, base a 45°)",unidade:"mm",tipo:"number",valor:0,step:"25"},
       {tipo:"head",label:"Material armazenado"},
-      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_bar",onchange:"conePreset2()",opcoes:[
+      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_fe57",onchange:"conePreset2()",opcoes:[
         {v:"custom",t:"Personalizado"},
         {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
         {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
         {v:"pelota",t:"Pelotas de minério de ferro"},{v:"sinter",t:"Sínter"},
         {v:"carvao",t:"Carvão (ROM, fino úmido)"},{v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
-        {v:"briq_bar",t:"Briquete BAR (57×57×37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"cvRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
       {id:"cvPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
       {id:"cvDelta",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
@@ -9484,15 +9473,15 @@ const CALCS={
       {id:"cvDb",label:"Base do defletor  (0 = automático, 0,55 · A)",unidade:"mm",tipo:"number",valor:0,step:"25"},
       {id:"cvDh",label:"Altura do defletor  (0 = automático, base a 45°)",unidade:"mm",tipo:"number",valor:0,step:"25"},
       {tipo:"head",label:"Material armazenado"},
-      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_bar",onchange:"conePreset2()",opcoes:[
+      {id:"cvMat",label:"Material (preset — preenche ρ, φi, φw, c, d50)",tipo:"select",valor:"briq_fe57",onchange:"conePreset2()",opcoes:[
         {v:"custom",t:"Personalizado"},
         {v:"fe_gran",t:"Minério de ferro granulado (seco)"},
         {v:"fe_fino",t:"Minério de ferro fino / pellet feed (úmido)"},
         {v:"pelota",t:"Pelotas de minério de ferro"},{v:"sinter",t:"Sínter"},
         {v:"carvao",t:"Carvão (ROM, fino úmido)"},{v:"carvao_seco",t:"Carvão seco"},
         {v:"coque",t:"Coque"},{v:"calcario",t:"Calcário britado"},
-        {v:"briq_bar",t:"Briquete BAR (57×57×37,5 mm · 1,7 t/m³)"},
-        {v:"briq_bricao",t:"Briquete Bricão (120×108×87 mm · 1,3 t/m³)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso (57×57×37,5 mm · 1,7 t/m³)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso (120×108×87 mm · 1,3 t/m³)"}]},
       {id:"cvRho",label:"Densidade aparente  ρ",unidade:"t/m³",tipo:"number",valor:1.7,step:"0.05"},
       {id:"cvPhi",label:"Ângulo de atrito interno  φi",unidade:"°",tipo:"number",valor:40,step:"1"},
       {id:"cvDelta",label:"Ângulo de atrito com a parede  φw",unidade:"°",tipo:"number",valor:28,step:"1"},
@@ -9559,8 +9548,8 @@ const CALCS={
         {v:"carvao",t:"Carvão úmido (0,9 t/m³)"},
         {v:"carvao_seco",t:"Carvão seco (0,8 t/m³)"},
         {v:"coque",t:"Coque (0,5 t/m³)"},
-        {v:"briq_bar",t:"Briquete BAR — 57 × 57 × 37,5 mm · 1,7 t/m³"},
-        {v:"briq_bricao",t:"Briquete Bricão — 120 × 108 × 87 mm · 1,3 t/m³"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso — 57 × 57 × 37,5 mm · 1,7 t/m³"},
+        {v:"briq_carb120",t:"Briquete Carbonoso — 120 × 108 × 87 mm · 1,3 t/m³"}]},
       {id:"cvRho",label:"Densidade aparente",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
       {id:"cvFmax",label:"Maior bloco do material  F_máx",unidade:"mm",tipo:"number",valor:150},
       {tipo:"head",label:"Material (fatores φ1 e φ2)"},
@@ -9732,8 +9721,8 @@ const CALCS={
         {v:"escoria",t:"Escória  (fm 0,60)"},
         {v:"rocha_brit",t:"Rocha britada  (fsm 0,54)"},
         {v:"rocha_fosf",t:"Rocha fosfática  (fsm 0,54)"},
-        {v:"briq_bar",t:"Briquete BAR — 57×57×37,5 mm · 1,7 t/m³  (estimado)"},
-        {v:"briq_bricao",t:"Briquete Bricão — 120×108×87 mm · 1,3 t/m³  (estimado)"}]},
+        {v:"briq_fe57",t:"Briquete Ferroso — 57×57×37,5 mm · 1,7 t/m³  (estimado)"},
+        {v:"briq_carb120",t:"Briquete Carbonoso — 120×108×87 mm · 1,3 t/m³  (estimado)"}]},
       {id:"acRho",label:"Densidade aparente  γ",unidade:"t/m³",tipo:"number",valor:1.6,step:"0.05"},
       {id:"acTheta",label:"Ângulo de repouso do material  θ",unidade:"°",tipo:"number",valor:35,step:"1"},
       {id:"acFm",label:"Coeficiente de atrito interno  fm  (pág. 1-22)",unidade:"-",tipo:"number",valor:0.80,step:"0.01"},
@@ -10875,7 +10864,7 @@ function openItem(i){
     $("#modal").classList.add("open");
     return;
   }
-  if(!calc.campos[0]||calc.campos[0].id!=="eqTag"){ calc.campos.unshift({id:"eqTag",label:"TAG (identificação do equipamento)",tipo:"text",valor:"CW-0304MB-001/002",placeholder:"ex.: PN-101 / TC-201"}); }
+  if(!calc.campos[0]||calc.campos[0].id!=="eqTag"){ calc.campos.unshift({id:"eqTag",label:"TAG (identificação do equipamento)",tipo:"text",valor:"",placeholder:"ex.: PN-101 / TC-201"}); }
   const campos=calc.campos.map(f=>{
     if(f.tipo==="head"){return `<div class="fhead">${f.label}</div>`;}
     if(f.tipo==="text"){
