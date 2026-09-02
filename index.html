@@ -13083,8 +13083,8 @@ function gerarRelatorio(){
       doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XA,32,XB,32);
 
       var escI=Math.min(70/Math.max(G.D,0.05),70);
-      var xCi=56, yCi=76, rIi=Math.max(12,G.D*escI/2);
-      if(rIi>34) rIi=34;
+      var xCi=56, yCi=70, rIi=Math.max(12,G.D*escI/2);
+      if(rIi>28) rIi=28;
       /* vista em planta do impelidor */
       doc.setDrawColor(150,170,195); doc.setLineWidth(0.25); doc.circle(xCi,yCi,rIi,"S");
       var nbD=Math.max(2,Math.min(G.nb,8));
@@ -13106,7 +13106,7 @@ function gerarRelatorio(){
       ntcA(xCi,yCi+rIi+16,"VISTA EM PLANTA  ·  "+G.nb+" pas",20,60,100,6.4);
 
       /* elevacao da pa */
-      var xE=136, yE=62, hPa=Math.max(6,Math.min(G.W*escI,26)), lPa=Math.min(46,rIi*1.5);
+      var xE=136, yE=56, hPa=Math.max(6,Math.min(G.W*escI,26)), lPa=Math.min(46,rIi*1.6);
       doc.setFillColor(70,140,200); doc.setDrawColor(25,60,110); doc.setLineWidth(0.5);
       doc.rect(xE,yE,lPa,hPa,"FD");
       cHA(xE,xE+lPa,yE+hPa+8,"L pa = "+((G.D/2-0.05*G.D)*1000).toFixed(0)+" mm");
@@ -13114,15 +13114,15 @@ function gerarRelatorio(){
       ntA(xE,yE-4,"espessura da chapa da pa: "+G.tPaCom.toFixed(1)+" mm",25,60,110,5.8);
       ntcA(xE+lPa/2,yE+hPa+15,"ELEVACAO DA PA",20,60,100,6.4);
 
-      /* eixo */
-      var yEx=118;
+      /* eixo — abaixo das duas vistas acima, com folga para as cotas e legendas */
+      var yEx=130;
       doc.setFillColor(200,208,218); doc.setDrawColor(50,50,50); doc.setLineWidth(0.5);
       doc.rect(30,yEx,110,Math.max(3,Math.min(G.dCom/8,9)),"FD");
       cHA(30,140,yEx-5,"comprimento livre = "+G.Leixo.toFixed(2)+" m");
       ntA(145,yEx+4,"ø "+G.dCom.toFixed(0)+" mm",25,60,110,6.4);
       ntcA(85,yEx+16,"EIXO DO AGITADOR",20,60,100,6.4);
 
-      doc.autoTable({startY:140,theme:"grid",margin:{left:14,right:14},
+      doc.autoTable({startY:156,theme:"grid",margin:{left:14,right:14},
         head:[[san("Elemento"),san("Dimensao / especificacao"),san("Criterio adotado")]],
         body:[
           [san("Familia do impelidor"),san(G.famNome),san("DIN 28131 - formas e dimensoes principais")],
