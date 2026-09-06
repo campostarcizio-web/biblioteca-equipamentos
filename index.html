@@ -2721,12 +2721,16 @@ function espessadorCalc(){
   var pHl=num("epPH");  if(!isFinite(pHl))pHl=7.5;
   var hDia=num("epH");  if(!isFinite(hDia)||hDia<=0||hDia>24)hDia=24;
   var Cs=selvN("epCs",0.15);                                     // t/(m²·h)
-  var vAsc=num("epVasc");if(!isFinite(vAsc)||vAsc<=0)vAsc=1.5;   // m/h
+  var vAscIn=num("epVasc");if(!isFinite(vAscIn)||vAscIn<0)vAscIn=0;   // m/h — 0 = calcular
+  var dProj=num("epDproj");if(!isFinite(dProj)||dProj<=0)dProj=20;    // µm
   var Cu=num("epCu");   if(!isFinite(Cu)||Cu<=0||Cu>=100)Cu=30;  // % underflow
   var Au=num("epAu");   if(!isFinite(Au)||Au<0)Au=0;             // m²/(t/d) de ensaio
   var Cmax=num("epCmax");if(!isFinite(Cmax)||Cmax<=0)Cmax=2.0;   // % máx na recirculação
   var Dado=num("epD");  if(!isFinite(Dado)||Dado<0)Dado=0;       // m
-  var hLat=num("epHlat");if(!isFinite(hLat)||hLat<=0)hLat=3.2;   // m
+  var hLatIn=num("epHlat");if(!isFinite(hLatIn)||hLatIn<0)hLatIn=0;   // m — 0 = dimensionar
+  var tComp=num("epTcomp");if(!isFinite(tComp)||tComp<=0)tComp=3;     // h
+  var blEsp=num("epBL");  if(!isFinite(blEsp)||blEsp<0)blEsp=0.30;    // m
+  var clsKt=selv("epClasse","auto");
   var incCone=selvN("epCone",6);                                  // 1:n
   var fyE=selvN("epFy",250), corrE=num("epCorr");
   if(!isFinite(corrE)||corrE<0)corrE=3;
@@ -2743,10 +2747,30 @@ function espessadorCalc(){
   var ctqOK=(Ctq<=Cmax);
   var Cfeed=Ctq;                            // a alimentação do espessador é a purga
 
+  /* ---------- VELOCIDADE ASCENSIONAL ADMISSIVEL ----------
+     O overflow so clarifica se a agua subir mais devagar do que a particula de
+     projeto desce. A referencia e a sedimentacao LIVRE de Stokes dessa particula,
+     dividida por um fator de seguranca: e o criterio classico de clarificador, e
+     nao depende de nenhum fator de floculacao arbitrado. A floculacao e o que faz
+     a fracao mais fina que a particula de projeto tambem sedimentar.            */
+  var muAgua=0.001*Math.exp(1.3272*(20-Tl)/(Tl+105));       // Pa.s na temperatura
+  var vStk=9.80665*Math.pow(dProj*1e-6,2)*Math.max(rhos-1000,1)/(18*muAgua)*3600;  // m/h
+  var FSasc=1.5;
+  var vAscCalc=vStk/FSasc;
+  var VASC_MIN=0.5, VASC_MAX=3.0;                            // faixa pratica
+  var vAscLim=Math.max(VASC_MIN,Math.min(vAscCalc,VASC_MAX));
+  var vAsc=(vAscIn>0)?vAscIn:Math.round(vAscLim*100)/100;
+  var vAscTeto=(vAscCalc>VASC_MAX), vAscPiso=(vAscCalc<VASC_MIN);
+  var vAscOK=(vAsc<=vStk/1.2);                               // margem minima de 1,2
+
   /* ---------- ETAPA 2 — UNDERFLOW ---------- */
   var Wu=S/(Cu/100);                        // kg/h de polpa de underflow
   var rhoU=1/((Cu/100/rhos)+((1-Cu/100)/1000));
-  var Vu=Wu/rhoU;                           // m³/h
+  var Vu=Wu/rhoU;                           // m³/h de polpa no underflow
+  var VuDia=Vu*hDia;                        // m³/dia
+  var phiU=(Cu/100)*rhoU/rhos;              // fracao volumetrica de solidos no underflow
+  var VsolU=S/rhos;                         // m³/h de solido puro
+  var VaguaU=Vu-VsolU;                      // m³/h de agua que sai junto com o solido
   var Qov=Math.max(Qp-Vu,0.1);              // m³/h de overflow clarificado
 
   /* ---------- ETAPA 3 — ÁREA POR TRÊS CRITÉRIOS ---------- */
@@ -2764,10 +2788,36 @@ function espessadorCalc(){
   var espOK=(Aesp>=Areq-1e-6);
   var CsReal=(S/1000)/Aesp, vAscReal=Qov/Aesp;
 
-  /* ---------- ETAPA 4 — GEOMETRIA ---------- */
+  /* ---------- ETAPA 4 — GEOMETRIA ----------
+     A profundidade lateral nao e um numero de catalogo: ela e a soma de zonas com
+     funcoes distintas. De baixo para cima, dentro do cone e acima dele:
+       compressao   — onde o leito adensa ate a concentracao do underflow. E a unica
+                      que depende do processo, e sai do inventario de solidos que se
+                      quer manter no leito (S . t_compactacao) dividido pela massa
+                      especifica do leito na concentracao media entre alimentacao e
+                      underflow.
+       alimentacao  — envolve o poco de alimentacao, onde a polpa entra e se espalha.
+       clarificacao — lamina limpa acima do leito, que da a folga para a oscilacao
+                      da interface sem que solido escape pelo vertedouro.
+       borda livre  — acima do vertedouro.                                        */
   var hCone=(Desp/2)/incCone;
+  var Vcone=Math.PI*hCone/3*(Desp*Desp/4);
+  var Cbed=(Cu+Cfeed)/2;                                   // % media no leito
+  if(Cbed<=0.5) Cbed=Math.max(Cu*0.6,1);
+  var rhoBed=1/((Cbed/100/rhos)+((1-Cbed/100)/1000));
+  var Vbed=S*tComp/(rhoBed*(Cbed/100));                    // m³ de leito em compressao
+  var VbedCil=Math.max(Vbed-Vcone,0);                      // parcela que sobe no cilindro
+  var hComp=VbedCil/Aesp;
+  var hAlim=Math.max(0.80,0.15*Desp);                      // zona de alimentacao (0,10 a 0,20.D)
+  var hClar=Math.max(0.60,vAsc*0.5);                       // lamina de clarificacao
+  var hCalc=hComp+hAlim+hClar+blEsp;
+  var hLat=(hLatIn>0)?hLatIn:Math.max(2.5,Math.ceil(hCalc*10)/10);
+  var hPratica=(hLat>=3.0);                                // faixa usual de projeto
+  var hLatOK=(hLat>=hCalc-1e-6);
   var hTot=hLat+hCone;
-  var Vesp=Math.PI*Desp*Desp/4*hLat+Math.PI*hCone/3*(Desp*Desp/4);
+  var Vesp=Math.PI*Desp*Desp/4*hLat+Vcone;
+  var invSol=Vbed*rhoBed*(Cbed/100)/1000;                  // t de solido no leito
+  var tInv=(S>0)?(invSol*1000/S):0;                        // h de inventario
   var tRetE=Vesp/Math.max(Qp,0.01);         // h
   var Dfeed=0.22*Desp;                      // poço de alimentação
   var vVert=Qov/(Math.PI*Desp);             // m³/(m·h) no vertedouro
@@ -2776,9 +2826,35 @@ function espessadorCalc(){
   /* ---------- ETAPA 5 — RAKE ---------- */
   var nRake=Math.min(9,Math.max(3,6));      // m/min periférico alvo
   var rpmRake=nRake/(Math.PI*Desp);         // rpm
-  var Kt=(Cu>=35)?45:((Cu>=25)?30:20);      // N·m/m² — lama fina, faixa usual
-  var Tq=Kt*Desp*Desp;                      // N·m — torque de projeto
+  var vPerRake=nRake/60;                    // m/s na ponta do braco
+  var vRakeOK=(nRake>=3&&nRake<=12);        // m/min - faixa usual
+  /* Fator de torque K: define a CLASSE do mecanismo. E a grandeza que o fabricante
+     usa para vender o espessador, e nao a potencia — a potencia e pequena, o torque
+     e que e grande. Automatico: cresce com a concentracao do underflow, porque leito
+     mais denso oferece mais resistencia ao arraste das laminas.                   */
+  /* O fator K e tabelado historicamente em lb.ft/ft2. A conversao e 1 lb.ft/ft2 =
+     14,59 N.m/m2 — usar o numero imperial com unidade do SI subestima o torque em
+     quase quinze vezes, e foi esse o erro corrigido aqui.                        */
+  var KtAuto=(Cu>=35)?660:((Cu>=25)?440:220);
+  var Kt=(clsKt==="auto")?KtAuto:parseFloat(clsKt);
+  if(!isFinite(Kt)||Kt<=0) Kt=KtAuto;
+  var clsNome=(Kt<=220)?"leve":((Kt<=440)?"média":((Kt<=660)?"pesada":"extrapesada"));
+  var KtImp=Kt/14.594;                      // lb.ft/ft2, para conferir em catalogo
+  var clsOK=(Kt>=KtAuto);                   // a classe escolhida cobre a exigida?
+  var Tq=Kt*Desp*Desp;                      // N·m — torque NOMINAL do mecanismo
+  var Talarme=1.00*Tq;                      // alarme
+  var Tdesarme=1.20*Tq;                     // desarme
+  var Tpico=2.50*Tq;                        // pico estrutural (partida contra leito)
   var Ppar=Tq*2*Math.PI*rpmRake/60/1000;    // kW no eixo, no torque nominal
+  /* Braco do rake: a forca de arraste na lamina e o torque dividido pelo raio
+     efetivo, tomado em 2/3 do raio, e ela flexiona o braco na horizontal.       */
+  var nBracos=2;
+  var rEf=(Desp/2)*(2/3);
+  var Fbraco=Tpico/(nBracos*Math.max(rEf,0.1));            // N por braco, no pico
+  var Mbraco=Fbraco*rEf/2;                                  // N.m — flexao no engaste
+  var WxBraco=Mbraco/(0.60*fyE*1e6)*1e6;                    // cm³ requerido
+  var pBraco=selPerfil({W:WxBraco},"W");
+  var bracoOK=!pBraco.dobro;
   /* O rake pode partir contra leito compactado: a prática adota 2× o torque nominal
      como torque de partida, e é ele que dimensiona o redutor e exige partida suave. */
   var acE=acionaSEW(Ppar,rpmRake,{varia:false,kPart:2.0,fs:1.25,rend:0.90});
@@ -2827,13 +2903,27 @@ function espessadorCalc(){
    ["3","Área HIDRÁULICA","A = Q_overflow/v_asc",ve(A2,1)+" m² (v = "+ve(vAsc,2)+" m/h)","—","—"],
    ["3","Área por ENSAIO","A = S_dia·A_unitária",(Au>0?ve(A3,1)+" m²":"sem ensaio"),(Au>0?"—":"ENSAIO DE PROVETA OBRIGATÓRIO"),(Au>0?"—":"VERIFICAR")],
    ["3","ÁREA REQUERIDA","maior dos três",ve(Areq,1)+" m² → D = "+ve(Dreq,2)+" m","governa: "+gov,"—"],
+   ["2","Sedimentacao livre da particula de projeto","v = g.d2.(ros-ro)/(18.mu), d = "+ve(dProj,0)+" um",
+    ve(vStk,3)+" m/h a "+ve(Tl,0)+" C","referencia para a velocidade ascensional","—"],
+   ["2","Velocidade ascensional admissivel","v_Stokes / "+ve(FSasc,1),
+    ve(vAsc,2)+" m/h "+(vAscIn>0?"(imposta)":"(calculada)"),"margem de "+ve(vStk/Math.max(vAsc,0.01),2)+"x sobre a sedimentacao, minimo 1,2",se(vAscOK)],
    ["3","Diâmetro adotado","—",ve(Desp,1)+" m ("+ve(Aesp,1)+" m²)","≥ "+ve(Dreq,2)+" m",se(espOK)],
+   ["4","Profundidade lateral","compressao + alimentacao + clarificacao + borda livre",
+    ve(hLat,2)+" m "+(hLatIn>0?"(imposta)":"(dimensionada)"),"calculada em "+ve(hCalc,2)+" m",se(hLatOK)],
+   ["4","Zona de compressao","V_leito = S.t_comp/(ro_leito.C_leito)",ve(hComp,2)+" m ("+ve(Vbed,1)+" m3, "+ve(invSol,2)+" t de solido)","inventario de "+ve(tComp,1)+" h","—"],
    ["4","Carga de sólidos real","S/A",ve(CsReal,3)+" t/(m²·h)","≤ "+ve(Cs,2),se(CsReal<=Cs+1e-6)],
    ["4","Velocidade ascensional real","Q_ov/A",ve(vAscReal,2)+" m/h","≤ "+ve(vAsc,2)+" m/h",se(vAscReal<=vAsc+1e-6)],
    ["4","Carga no vertedouro","Q_ov/(π·D)",ve(vVert,2)+" m³/(m·h)","≤ 10",se(vertOK)],
-   ["5","Underflow","S/C_u",ve(Wu,0)+" kg/h = "+ve(Vu,2)+" m³/h a "+ve(Cu,0)+" %","—","—"],
+   ["5","Underflow - massa","W_u = S/C_u",ve(Wu,0)+" kg/h de polpa a "+ve(Cu,0)+" %","—","—"],
+   ["5","Underflow - VOLUME DE POLPA","V_u = W_u/ro_polpa",ve(Vu,2)+" m3/h = "+ve(VuDia,1)+" m3/dia","dimensiona a bomba e o tanque de lama espessada","—"],
+   ["5","Fracao volumetrica no underflow","phi = C_u.ro_polpa/ro_solido",ve(phiU*100,1)+" % em volume","a "+ve(Cu,0)+" % em massa","—"],
    ["5","Overflow clarificado","Q_purga − Q_underflow",ve(Qov,1)+" m³/h","retorna ao circuito","—"],
-   ["6","Torque do rake","K·D²",ve(Tq/1000,1)+" kN·m (K = "+Kt+" N·m/m²)","alarme e desarme obrigatórios","VERIFICAR"],
+   ["6","Classe do mecanismo","fator K pela concentracao do underflow","K = "+ve(Kt,0)+" N.m/m2 = "+ve(KtImp,0)+" lb.ft/ft2 - classe "+clsNome,"K minimo "+ve(KtAuto,0)+" para "+ve(Cu,0)+" % de underflow",se(clsOK)],
+   ["6","Torque nominal do rake","T = K.D2",ve(Tq/1000,1)+" kN.m","grandeza de especificacao do espessador","—"],
+   ["6","Protecao por torque","alarme 100 %, desarme 120 %, pico 250 %",ve(Talarme/1000,1)+" / "+ve(Tdesarme/1000,1)+" / "+ve(Tpico/1000,1)+" kN.m","alarme e desarme obrigatorios, com levantamento do rake","VERIFICAR"],
+   ["6","Redutor no desarme","torque de selecao maior ou igual ao de desarme",ve(acE.Tsel/1000,1)+" kN.m selecionado","exigido "+ve(Tdesarme/1000,1)+" kN.m",se(acE.Tsel>=Tdesarme)],
+   ["6","Braco do rake","flexao pela forca de arraste no pico","Wx "+ve(WxBraco,0)+" cm3 -> "+pBraco.best.n,"perfil unico do catalogo",se(bracoOK)],
+   ["6","Velocidade periferica do rake","v = n perimetral",ve(nRake,1)+" m/min","entre 3 e 12 m/min",se(vRakeOK)],
    ["6","Potência no eixo do rake","T·ω",ve(Ppar,3)+" kW","—","—"],
    ["6","Acionamento SEW do rake",(acE.foraR?"redutor industrial":"série R")+" + motor DRN",
     txtAciona(acE),"torque de partida 2× o nominal","—"],
@@ -2862,7 +2952,7 @@ function espessadorCalc(){
     {k:"Gás tratado e poeira na entrada",v:fmt(Math.round(QG))+" Nm³/h   ·   "+ve(Cin,1)+" g/Nm³   ·   eficiência de captura "+ve(eta,1)+" %"},
     {k:"SÓLIDOS CAPTURADOS",v:ve(S,0)+" kg/h   =   "+ve(S/1000,3)+" t/h   =   "+ve(Sd,1)+" t/dia em "+ve(hDia,0)+" h de operação   —  é a única vazão mássica que atravessa todo o trem de lama. Espessador, filtro e destinação final trabalham sobre ela.",hi:true},
     {k:"Sólidos que escapam no gás limpo",v:ve(Sesc,1)+" kg/h   =   "+ve(Cin*(1-eta/100)*1000,0)+" mg/Nm³   —  com η = "+ve(eta,1)+" %. Esta eficiência é PREMISSA PROVISÓRIA: precisa vir da curva garantida do lavador, e cada ponto percentual muda a carga do espessador em "+ve(QG*Cin/1000/100,1)+" kg/h.",hi:true},
-    {k:"Caracterização do sólido",v:"massa específica real "+fmt(Math.round(rhos))+" kg/m³   ·   "+ve(pFino,2)+" % abaixo de 0,106 mm   ·   pH "+ve(pHl,1)+"   ·   "+ve(Tl,0)+" °C"},
+    {k:"Caracterização do sólido",v:"massa específica real "+fmt(Math.round(rhos))+" kg/m³   ·   "+ve(pFino,2)+" % abaixo de 106 µm (0,106 mm)   ·   pH "+ve(pHl,1)+"   ·   "+ve(Tl,0)+" °C"},
     {k:"⚠ O que "+ve(pFino,1)+" % abaixo de 106 µm significa aqui",v:"É um sólido FINO. Sedimentação livre por Stokes de uma partícula de 20 µm com "+fmt(Math.round(rhos))+" kg/m³ a "+ve(Tl,0)+" °C dá cerca de "+ve(9.80665*Math.pow(20e-6,2)*(rhos-1000)/(18*0.00055)*3600,2)+" m/h. É a ordem de grandeza da velocidade ascensional adotada — ou seja, SEM FLOCULANTE este espessador não funciona. O floculante não é otimização, é condição de funcionamento.",hi:true},
 
     {sec:"2 — PURGA × RECIRCULAÇÃO  (o compromisso central)"},
@@ -2877,6 +2967,13 @@ function espessadorCalc(){
           t.push(pc+"%: D "+Math.sqrt(4*a/Math.PI).toFixed(1).replace(".",",")+" m / "+c.toFixed(2).replace(".",",")+"% no circuito"); });
         return t.join("   ·   ");})()+"   —  leia as duas colunas juntas: o diâmetro cai e a concentração sobe.",hi:true},
 
+    {sec:"2b — VELOCIDADE ASCENSIONAL ADMISSÍVEL"},
+    {k:"Partícula de projeto",v:ve(dProj,0)+" µm   —  a menor partícula que se quer reter. Tudo abaixo disso só sedimenta floculado."},
+    {k:"Sedimentação livre por Stokes",v:ve(vStk,3)+" m/h   ·   v = g·d²·(ρs−ρ)/(18·µ)   com µ = "+ve(muAgua*1000,3)+" cP a "+ve(Tl,0)+" °C"},
+    {k:"VELOCIDADE ASCENSIONAL ADOTADA",v:ve(vAsc,2)+" m/h   "+(vAscIn>0?"(imposta pelo usuário)":"(calculada: "+ve(vStk,2)+" ÷ "+ve(FSasc,1)+" = "+ve(vAscCalc,2)+" m/h"+(vAscTeto?", limitada ao teto prático de "+ve(VASC_MAX,1)+" m/h":(vAscPiso?", elevada ao piso prático de "+ve(VASC_MIN,1)+" m/h":""))+")"),hi:true},
+    {k:"Margem sobre a sedimentação",v:ve(vStk/Math.max(vAsc,0.01),2)+"×   ·   "+(vAscOK?"acima de 1,2× — a partícula de projeto vence a corrente ascendente":"ABAIXO de 1,2× — a partícula de projeto é arrastada para o overflow"),hi:!vAscOK},
+    {k:"Por que não usar um fator de floculação",v:"Seria fácil multiplicar a velocidade de Stokes por 4 ou 5 alegando que o floco sedimenta mais rápido, e a área cairia na mesma proporção. Só que esse fator depende do floculante, da dose e da mistura — não é propriedade do sólido. O critério aqui é o conservador: a água sobe mais devagar que a partícula NÃO floculada de "+ve(dProj,0)+" µm. A floculação entra como margem, não como premissa."},
+
     {sec:"3 — ÁREA DO ESPESSADOR: TRÊS CRITÉRIOS"},
     {k:"(a) Carga de sólidos",v:"A = S/Cs = "+ve(S/1000,3)+"/"+ve(Cs,2)+" = "+ve(A1,1)+" m²   →   D = "+ve(Math.sqrt(4*A1/Math.PI),2)+" m"},
     {k:"(b) HIDRÁULICO — velocidade ascensional",v:"A = Q_ov/v = "+ve(Qov,1)+"/"+ve(vAsc,2)+" = "+ve(A2,1)+" m²   →   D = "+ve(Math.sqrt(4*A2/Math.PI),2)+" m",hi:true},
@@ -2886,19 +2983,31 @@ function espessadorCalc(){
     {k:"Verificação no diâmetro adotado",v:"carga de sólidos "+ve(CsReal,3)+" t/(m²·h) vs "+ve(Cs,2)+"   ·   velocidade ascensional "+ve(vAscReal,2)+" m/h vs "+ve(vAsc,2)+"   ·   vertedouro "+ve(vVert,2)+" m³/(m·h) vs 10"},
 
     {sec:"4 — GEOMETRIA E VOLUMES"},
-    {k:"Profundidade lateral  ·  cone  ·  total",v:ve(hLat,2)+" m   +   "+ve(hCone,2)+" m (1:"+incCone+")   =   "+ve(hTot,2)+" m"},
+    {k:"PROFUNDIDADE LATERAL",v:ve(hLat,2)+" m   "+(hLatIn>0?"(imposta pelo usuário)":"(dimensionada — calculada em "+ve(hCalc,2)+" m e arredondada para cima)")+"   ·   cone "+ve(hCone,2)+" m (1:"+incCone+")   ·   TOTAL "+ve(hTot,2)+" m",hi:true},
+    {k:"Composição da profundidade",v:"compressão "+ve(hComp,2)+" m   +   alimentação "+ve(hAlim,2)+" m   +   clarificação "+ve(hClar,2)+" m   +   borda livre "+ve(blEsp,2)+" m   =   "+ve(hCalc,2)+" m"},
+    {k:"De onde vem a zona de compressão",v:"É a única parcela que depende do processo. Mantendo "+ve(tComp,1)+" h de sólidos no leito, o inventário é "+ve(invSol,2)+" t, que a "+ve(Cbed,1)+" % (média entre alimentação e underflow, ρ "+ve(rhoBed,0)+" kg/m³) ocupa "+ve(Vbed,1)+" m³. O cone absorve "+ve(Math.min(Vbed,Vcone),1)+" m³ e o restante sobe "+ve(hComp,2)+" m no cilindro."},
+    {k:"Comparação com a prática",v:hPratica?"a lateral fica na faixa usual de 3 a 4 m dos espessadores convencionais":"a lateral calculada ("+ve(hLat,2)+" m) fica abaixo dos 3 a 4 m usuais. O cálculo atende, mas tanque raso deixa pouca folga para a oscilação da interface: adotar 3,0 m dá tolerância operacional por pouco aço a mais",hi:!hPratica},
+    {k:"Verificação da profundidade",v:hLatOK?"APROVADA — a lateral adotada comporta as quatro zonas":"REPROVADA — a lateral adotada é menor que os "+ve(hCalc,2)+" m exigidos: o leito invade a zona de clarificação e o overflow arrasta sólido",hi:!hLatOK},
     {k:"Volume e tempo de retenção",v:ve(Vesp,1)+" m³   →   "+ve(tRetE,1)+" h na vazão de purga"},
     {k:"Poço de alimentação (feedwell)",v:"Ø "+ve(Dfeed,2)+" m   (0,22·D)   —  dissipa a energia do jato sem quebrar o floco. Feedwell subdimensionado destrói o floco que a floculação custou a formar, e é causa comum de espessador que 'não funciona' sem motivo aparente.",hi:true},
     {k:"Massa específica da lama alimentada",v:ve(rhoLam,0)+" kg/m³   a "+ve(Cfeed,2)+" % de sólidos"},
 
     {sec:"5 — UNDERFLOW E OVERFLOW"},
-    {k:"UNDERFLOW",v:ve(Cu,0)+" % de sólidos   →   "+ve(Wu,0)+" kg/h de polpa   ·   ρ = "+ve(rhoU,0)+" kg/m³   →   "+ve(Vu,2)+" m³/h",hi:true},
+    {k:"UNDERFLOW — massa",v:ve(Cu,0)+" % de sólidos em massa   →   "+ve(Wu,0)+" kg/h de polpa   ·   ρ = "+ve(rhoU,0)+" kg/m³",hi:true},
+    {k:"UNDERFLOW — VOLUME DE POLPA",v:ve(Vu,2)+" m³/h   =   "+ve(VuDia,1)+" m³/dia em "+ve(hDia,0)+" h de operação   ·   V = (S/C_u)/ρ_polpa",hi:true},
+    {k:"Composição do volume do underflow",v:"sólido "+ve(VsolU,3)+" m³/h   +   água "+ve(VaguaU,2)+" m³/h   ·   fração volumétrica de sólidos "+ve(phiU*100,1)+" %   —  a "+ve(Cu,0)+" % em massa o sólido ocupa só "+ve(phiU*100,1)+" % do volume, porque ele é "+ve(rhos/1000,2)+" vezes mais denso que a água"},
+    {k:"Sensibilidade à concentração pedida",v:"a 20 % o underflow seria "+ve((S/0.20)/(1/((0.20/rhos)+(0.80/1000))),1)+" m³/h; a 30 %, "+ve((S/0.30)/(1/((0.30/rhos)+(0.70/1000))),1)+" m³/h; a 40 %, "+ve((S/0.40)/(1/((0.40/rhos)+(0.60/1000))),1)+" m³/h. Cada ponto de concentração a mais reduz o volume a bombear e a água que sai do circuito."},
     {k:"OVERFLOW clarificado",v:ve(Qov,1)+" m³/h   —  retorna ao circuito de água do lavador",hi:true},
     {k:"⚠ Retirada do underflow",v:"Retirar devagar demais compacta a lama no cone e a bomba deixa de puxar; rápido demais arrasta água e derruba a concentração. O controle é por INTERFACE, medida por sonda de leito, e não por vazão fixa."},
 
     {sec:"6 — RAKE E ACIONAMENTO"},
     {k:"Velocidade periférica  ·  rotação",v:ve(nRake,1)+" m/min   →   "+ve(rpmRake,3)+" rpm   (faixa usual 3 a 9 m/min)"},
-    {k:"TORQUE DE PROJETO",v:ve(Tq/1000,1)+" kN·m   —  K·D² com K = "+Kt+" N·m/m² para underflow de "+ve(Cu,0)+" %. Exigir do fabricante o torque garantido e a curva de partida.",hi:true},
+    {k:"CLASSE DO MECANISMO",v:"K = "+ve(Kt,0)+" N·m/m²  ("+ve(KtImp,0)+" lb·ft/ft², como vem nos catálogos)   ·   classe "+clsNome.toUpperCase()+"   "+(clsKt==="auto"?"(automática pela concentração do underflow)":"(imposta pelo usuário)")+"   ·   "+(clsOK?"cobre o exigido para "+ve(Cu,0)+" % de underflow (K mínimo "+ve(KtAuto,0)+")":"ABAIXO do exigido para "+ve(Cu,0)+" % de underflow, que pede K mínimo "+ve(KtAuto,0)+" N·m/m²"),hi:!clsOK},
+    {k:"TORQUE NOMINAL DO MECANISMO",v:ve(Tq/1000,1)+" kN·m   =   K·D²   —  é por este número que o espessador é especificado e vendido, não pela potência",hi:true},
+    {k:"Escalonamento da proteção",v:"alarme em "+ve(Talarme/1000,1)+" kN·m (100 %)   ·   desarme em "+ve(Tdesarme/1000,1)+" kN·m (120 %)   ·   pico estrutural "+ve(Tpico/1000,1)+" kN·m (250 %)"},
+    {k:"Verificação do redutor no desarme",v:"o redutor precisa entregar "+ve(Tdesarme/1000,1)+" kN·m sem escorregar a proteção   ·   selecionado para "+ve(acE.Tsel/1000,1)+" kN·m de torque de seleção   ·   "+((acE.Tsel>=Tdesarme)?"APROVADO":"REPROVADO — subir a classe do redutor ou reduzir K"),hi:!(acE.Tsel>=Tdesarme)},
+    {k:"Braço do rake",v:String(nBracos)+" braços   ·   força de arraste no pico "+ve(Fbraco/1000,1)+" kN por braço a "+ve(rEf,2)+" m do centro   ·   flexão no engaste "+ve(Mbraco/1000,1)+" kN·m   →   Wx "+ve(WxBraco,0)+" cm³   →   "+txtPerfil(pBraco.best),hi:!bracoOK},
+    {k:"Velocidade periférica do rake",v:ve(nRake,1)+" m/min = "+ve(vPerRake,3)+" m/s   ·   "+(vRakeOK?"dentro da faixa de 3 a 12 m/min":"FORA da faixa: devagar demais não arrasta o leito, rápido demais ressuspende o sólido já adensado"),hi:!vRakeOK},
     {k:"Potência no eixo",v:ve(Ppar,3)+" kW   —  T·ω na rotação de "+ve(rpmRake,3)+" rpm. Rake é acionamento de torque, não de potência: o número pequeno aqui não deve enganar, quem dimensiona o redutor é o torque de "+ve(Tq/1000,1)+" kN·m."},
     {k:"⚠ Proteção de torque",v:"Alarme e desarme por torque são OBRIGATÓRIOS, com sistema de levantamento do rake. Sem eles, uma compactação por parada de energia quebra o mecanismo — e o conserto exige esvaziar o espessador.",hi:true},
 
@@ -2928,7 +3037,7 @@ function espessadorCalc(){
     {k:"⚠ PRÉ-DIMENSIONAMENTO",v:"A área por carga de sólidos e por velocidade ascensional são regras de projeto consagradas, mas o ensaio de sedimentação com a lama real é o que fecha o diâmetro. O torque do rake e a curva de floculação vêm do fabricante e do ensaio de jarro.",hi:true}
   ]);
 
-  OUT.geo={tipo:"espessador",MEM:MEME,nRep:nRe,nVer:nVe,S:S,Sd:Sd,QG:QG,Cin:Cin,eta:eta,QL:QL,pPur:pPur,Qp:Qp,Qrec:Qrec,
+  OUT.geo={tipo:"espessador",MEM:MEME,nRep:nRe,nVer:nVe,VuDia:VuDia,vStk:vStk,dProj:dProj,hComp:hComp,hAlim:hAlim,hClar:hClar,blEsp:blEsp,Kt:Kt,Tdesarme:Tdesarme,pBraco:pBraco.best.n,nBracos:nBracos,S:S,Sd:Sd,QG:QG,Cin:Cin,eta:eta,QL:QL,pPur:pPur,Qp:Qp,Qrec:Qrec,
     Ctq:Ctq,ctqOK:ctqOK,rhos:rhos,pFino:pFino,A1:A1,A2:A2,A3:A3,Areq:Areq,gov:gov,Dreq:Dreq,Desp:Desp,Aesp:Aesp,
     CsReal:CsReal,vAscReal:vAscReal,vVert:vVert,Cu:Cu,Wu:Wu,Vu:Vu,rhoU:rhoU,Qov:Qov,hLat:hLat,hCone:hCone,hTot:hTot,
     Vesp:Vesp,tRet:tRetE,Dfeed:Dfeed,Tq:Tq,Pmot:Pmot,rpmRake:rpmRake,Ppar:Ppar,acE:acE,PCEi:PCE.Pinst,PCEa:PCE.Pabs,PCEn:PCE.nInv,motE:txtAciona(acE),invE:acE.inv,Wfloc:Wfloc,WflocG:WflocG,Vsol:Vsol,tCost:tCostC,pSolo:pSolo,
@@ -6794,7 +6903,7 @@ const CALCS={
       {id:"epCmax",label:"Concentração MÁXIMA admitida na recirculação (bicos)",unidade:"% massa",tipo:"number",valor:2,step:"0.5"},
       {tipo:"head",label:"Caracterização do sólido"},
       {id:"epRhoS",label:"Massa específica REAL do sólido",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
-      {id:"epFino",label:"Fração abaixo de 0,106 mm",unidade:"%",tipo:"number",valor:79.27,step:"0.5"},
+      {id:"epFino",label:"Fração abaixo de 106 µm",unidade:"%",tipo:"number",valor:79.27,step:"0.5"},
       {id:"epT",label:"Temperatura da lama",unidade:"°C",tipo:"number",valor:50,step:"5"},
       {id:"epPH",label:"pH da lama",tipo:"number",valor:7.5,step:"0.5"},
       {tipo:"head",label:"Critérios de dimensionamento"},
@@ -6803,13 +6912,22 @@ const CALCS={
         {v:"0.15",t:"0,15 t/(m²·h) — usual em lama metalúrgica"},
         {v:"0.20",t:"0,20 t/(m²·h)"},
         {v:"0.25",t:"0,25 t/(m²·h) — agressivo, exige floculação boa"}]},
-      {id:"epVasc",label:"Velocidade ascensional admissível (overflow)",unidade:"m/h",tipo:"number",valor:1.5,step:"0.1"},
+      {id:"epVasc",label:"VELOCIDADE ASCENSIONAL admissível (0 = pelo cálculo)",unidade:"m/h",tipo:"number",valor:0,step:"0.1"},
+      {id:"epDproj",label:"Partícula de projeto para o overflow (a menor que se quer reter)",unidade:"µm",tipo:"number",valor:20,step:"1"},
       {id:"epAu",label:"Área unitária de ENSAIO (0 = sem ensaio)",unidade:"m²/(t/d)",tipo:"number",valor:0,step:"0.1"},
       {id:"epCu",label:"Concentração alvo do UNDERFLOW",unidade:"% massa",tipo:"number",valor:30,step:"1"},
       {id:"epFloc",label:"Dose de floculante",unidade:"g/t de sólidos",tipo:"number",valor:5,step:"0.5"},
       {tipo:"head",label:"Geometria e estrutura"},
       {id:"epD",label:"DIÂMETRO ADOTADO (0 = pelo cálculo)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
-      {id:"epHlat",label:"Profundidade lateral",unidade:"m",tipo:"number",valor:3.2,step:"0.1"},
+      {id:"epHlat",label:"PROFUNDIDADE LATERAL (0 = pelo cálculo)",unidade:"m",tipo:"number",valor:0,step:"0.1"},
+      {id:"epTcomp",label:"Tempo de compactação do leito (define a zona de compressão)",unidade:"h",tipo:"number",valor:3,step:"0.5"},
+      {id:"epBL",label:"Borda livre acima do vertedouro",unidade:"m",tipo:"number",valor:0.30,step:"0.05"},
+      {id:"epClasse",label:"Classe de torque do mecanismo (fator K)",tipo:"select",valor:"auto",opcoes:[
+        {v:"auto",t:"AUTOMÁTICO — pela concentração do underflow"},
+        {v:"220",t:"Leve — K 220 N·m/m² (15 lb·ft/ft²) — lama fina, underflow diluído"},
+        {v:"440",t:"Média — K 440 N·m/m² (30 lb·ft/ft²) — lama metalúrgica usual"},
+        {v:"660",t:"Pesada — K 660 N·m/m² (45 lb·ft/ft²) — underflow denso, sólido abrasivo"},
+        {v:"1460",t:"Extrapesada — K 1.460 N·m/m² (100 lb·ft/ft²) — rejeito espessado, pasta"}]},
       {id:"epCone",label:"Inclinação do cone de fundo",tipo:"select",valor:"6",opcoes:[
         {v:"4",t:"1:4 — mais íngreme, lama fina"},
         {v:"6",t:"1:6 — usual"},
@@ -13617,13 +13735,19 @@ function gerarRelatorio(){
       cH(cxE-rE2,cxE+rE2,yTopE-18,"D "+G.Desp.toFixed(2)+" m");
       cV(cxE-rE2-6,yTopE,yTrE,"h "+G.hLat.toFixed(2)+" m");
       cV(cxE-rE2-14,yTopE,yFuE,"H "+G.hTot.toFixed(2)+" m");
-      cH(cxE-rF,cxE+rF,yTopE+hL2*0.55,"feedwell "+G.Dfeed.toFixed(2)+" m");
+      /* a cota do feedwell caia dentro do casco: vira legenda com linha de chamada */
+      doc.setDrawColor(120,140,165); doc.setLineWidth(0.25);
+      doc.line(cxE+rF,yTopE-5,cxE+rE2+10,yTopE-5);
       /* legendas do desenho confinadas a coluna esquerda: a tabela comeca em x = 118 */
-      nt(XL,yFuE+16,"overflow "+G.Qov.toFixed(1)+" m3/h",40,140,190,5.6);
-      nt(XL,yFuE+19.6,"vertedouro "+G.vVert.toFixed(1)+" m3/(m.h)",40,140,190,5.6);
-      nt(XL,yFuE+23.2,"alimentacao "+G.Qp.toFixed(1)+" m3/h ("+G.pPur.toFixed(0)+"%)",40,140,90,5.6);
-      nt(XL,yFuE+12,"underflow "+G.Vu.toFixed(2)+" m3/h a "+G.Cu.toFixed(0)+"%  ·  cone 1:"+G.incCone,150,90,50,5.6);
-      ntc(cxE,yFuE+30,"ELEVACAO",20,60,100,7.0);
+      nt(cxE+rE2+11,yTopE-4,"feedwell "+G.Dfeed.toFixed(2)+" m",30,60,95,5.4);
+      nt(XL,yFuE+18,"underflow "+G.Vu.toFixed(2)+" m3/h a "+G.Cu.toFixed(0)+"%  =  "+G.VuDia.toFixed(0)+" m3/dia",150,90,50,5.6);
+      nt(XL,yFuE+21.6,"overflow "+G.Qov.toFixed(1)+" m3/h  ·  vertedouro "+G.vVert.toFixed(1)+" m3/(m.h)",40,140,190,5.6);
+      nt(XL,yFuE+25.2,"alimentacao "+G.Qp.toFixed(1)+" m3/h ("+G.pPur.toFixed(0)+"%)  ·  cone 1:"+G.incCone,40,140,90,5.6);
+      nt(XL,yFuE+28.8,"v ascensional "+G.vAsc.toFixed(2)+" m3/(m2.h)  ·  Stokes "+G.vStk.toFixed(2)+" m/h em "+G.dProj.toFixed(0)+" um",40,140,190,5.6);
+      nt(XL,yFuE+32.4,"lateral: compr "+G.hComp.toFixed(2)+" + alim "+G.hAlim.toFixed(2)+" + clarif "+G.hClar.toFixed(2)+" + bl "+G.blEsp.toFixed(2)+" m",90,90,90,5.6);
+      nt(XL,yFuE+36,"rake: K "+G.Kt.toFixed(0)+" N.m/m2  ·  T "+(G.Tq/1000).toFixed(1)+" kN.m  ·  desarme "+(G.Tdesarme/1000).toFixed(1)+" kN.m",150,90,50,5.6);
+      nt(XL,yFuE+39.6,"braco do rake: "+G.pBraco+"  ·  "+G.nBracos+" bracos",150,90,50,5.6);
+      ntc(cxE,yFuE+47,"ELEVACAO",20,60,100,7.0);
 
       /* ---- tabela, coluna direita ---- */
       doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
