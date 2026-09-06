@@ -1,8 +1,8 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "2.3.2",
-    "atualizado_em": "2026-08-31",
+    "versao": "2.4.0",
+    "atualizado_em": "2026-09-06",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       {
@@ -68,7 +68,8 @@
       {
         "grupo": "Limpeza de Gases",
         "subgrupos": [
-          "Ciclone de Gás de Topo de Forno"
+          "Ciclone de Gás de Topo de Forno",
+          "Lavador Úmido (torre, Venturi e separador)"
         ]
       },
       {
@@ -141,7 +142,8 @@
         "Dosagem Química e Floculador": "Chemical Dosing and Flocculator",
         "Tanque Agitador Cilíndrico": "Cylindrical Agitated Tank",
         "Tanque Agitador Retangular": "Rectangular Agitated Tank",
-        "Sistema de Elevação de Porta": "Door Hoisting System"
+        "Sistema de Elevação de Porta": "Door Hoisting System",
+        "Lavador Úmido (torre, Venturi e separador)": "Wet Scrubber (quench, Venturi and separator)"
       }
     }
   },
@@ -839,6 +841,35 @@
       "resumo_en": "Furnace door hoist: counterweight balance, DAIDO chains and redundant ropes, pad-eyes, main shaft with diagrams, open gearing, SEW gearmotor and brake.",
       "grupo_en": "Furnace Mechanisms",
       "subgrupo_en": "Door Hoisting System"
+    },
+    {
+      "id": "lavador-umido-gas",
+      "grupo": "Limpeza de Gases",
+      "subgrupo": "Lavador Úmido (torre, Venturi e separador)",
+      "subtipo": "Fase úmida da limpeza de gás de alto-forno: têmpera, Venturi, separador de gotas e selo",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Lavador Úmido de Gás de Alto-Forno",
+      "calculadora": "lavador_umido",
+      "descricao": "Pré-dimensionamento da fase úmida da limpeza de gás, na sequência em que o gás a percorre. Começa pela têmpera: o gás quente encontra a água e cede calor sensível evaporando água até a saturação adiabática — não é troca de calor com parede, é troca de massa, e é essa mudança de estado que encolhe a vazão volumétrica e viabiliza um Venturi pequeno. Segue para o Venturi, onde a captura da partícula fina é paga em perda de carga, com a eficiência calculada pelo modelo de Calvert integrado sobre a distribuição do pó. O ponto de operação não é arbitrado: a rotina busca o par razão líquido/gás e velocidade de garganta que atinge a meta com a MENOR perda de carga, porque a eficiência cresce linearmente com a água e o ΔP cresce com o quadrado da velocidade — água é mais barata que pressão. Depois verifica o separador ciclônico de gotas pelo diâmetro de corte, dimensiona o selo hidráulico pela pressão de topo e fecha a conta de perda de carga do sistema inteiro, incluindo a do ciclone a montante, contra a pressão disponível no forno, indicando se há necessidade de exaustor. Devolve ainda o balanço hídrico completo — água evaporada, purga, reposição e bombas — e trata o alcatrão como dado selecionável, com as consequências sobre temperatura mínima, materiais e lama.",
+      "referencia": "Saturação adiabática por balanço entálpico com pressão de vapor por Magnus-Tetens. Diâmetro médio de gota por Nukiyama-Tanasawa. Penetração do Venturi pelo modelo de Calvert (1970), integrada sobre distribuição log-normal, com fator de molhabilidade entre 0,25 e 0,50. Perda de carga do Venturi pela quantidade de movimento transferida às gotas, ΔP = ρ_L·v²·(L/G). Torre de aspersão por captura em contracorrente com eficiência de impactação em gota isolada, com crédito de coleta limitado por decisão de projeto. Separador ciclônico verificado pelo diâmetro de corte. ABNT NBR 12019 e US EPA Method 5 para particulado; CEN/TS 15439 para alcatrão; NR-20, NR-33 e NR-12 para segurança; CONAMA 382/436 para emissão; ABNT NBR 8800 e NBR 6118 para estrutura.",
+      "resumo": "Lavador úmido: têmpera por saturação adiabática, Venturi otimizado em L/G e velocidade, separador de gotas, selo hidráulico, perda de carga do sistema e balanço hídrico.",
+      "normas": [
+        "NBR 12019",
+        "US EPA M5",
+        "CEN/TS 15439",
+        "CONAMA 382",
+        "CONAMA 436",
+        "NBR 8800",
+        "NBR 6118",
+        "NR-12",
+        "NR-20",
+        "NR-33",
+        "SEW"
+      ],
+      "modelo_en": "Blast Furnace Gas Wet Scrubber",
+      "resumo_en": "Wet scrubber: adiabatic quench, Venturi optimised on L/G and throat velocity, droplet separator, hydraulic seal, system pressure drop and water balance.",
+      "grupo_en": "Gas Cleaning",
+      "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
     }
   ]
 }

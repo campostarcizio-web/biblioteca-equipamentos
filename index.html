@@ -6638,7 +6638,460 @@ function portaFornoCalc(){
 }
 
 
+/* ===================== LAVADOR ÚMIDO DE GÁS DE ALTO-FORNO =====================
+   Base: resfriamento adiabático por balanço entálpico até a saturação; diâmetro
+   de gota de Nukiyama-Tanasawa; penetração do Venturi pelo modelo de Calvert
+   (1970) integrada sobre distribuição log-normal do pó; torre de aspersão por
+   captura em contracorrente. Perda de carga do Venturi pela transferência de
+   quantidade de movimento às gotas.                                          */
+
+/* Pressão de vapor da água (Pa), Magnus-Tetens, T em °C */
+function lvPsat(T){ return 610.94*Math.exp(17.625*T/(T+243.04)); }
+/* Calor latente de vaporização (kJ/kg) */
+function lvLambda(T){ return 2501-2.361*T; }
+/* Viscosidade do gás por Sutherland (Pa.s), T em °C */
+function lvMuGas(T){ var Tk=T+273.15; return 1.716e-5*Math.pow(Tk/273.15,1.5)*(273.15+111)/(Tk+111); }
+/* Fator de escorregamento de Cunningham; d em m, T em °C, P em Pa */
+function lvCunn(d,T,P){
+  var lam=6.6e-8*(101325/P)*((T+273.15)/293.15);      // caminho livre médio
+  return 1+ (lam/d)*(2.514+0.8*Math.exp(-0.55*d/lam));
+}
+/* Diâmetro médio de Sauter das gotas, Nukiyama-Tanasawa (µm).
+   v em m/s (relativa gás-líquido), LG em L/m3, sigma em N/m, muL em Pa.s     */
+function lvGota(v,LG,sigma,muL,rhoL){
+  var vc=v*100;                       // cm/s
+  var sg=sigma*1000;                  // dyn/cm
+  var rl=rhoL/1000;                   // g/cm3
+  var ml=muL*10;                      // poise
+  var QLQG=LG/1000;                   // m3/m3
+  var t1=(58600/Math.max(vc,1))*Math.sqrt(sg/rl);
+  var t2=597*Math.pow(ml/Math.sqrt(sg*rl),0.45)*Math.pow(1000*QLQG,1.5);
+  return t1+t2;                       // µm
+}
+/* Penetração de Calvert para uma partícula de diâmetro d (m) no Venturi.
+   dd em m, vt em m/s, LG em L/m3, f = fator de molhabilidade (0,25 a 0,50).  */
+function lvCalvert(d,dd,vt,LG,muG,rhoP,rhoL,f,T,P){
+  var Cc=lvCunn(d,T,P);
+  var Kpo=d*d*Cc*rhoP*vt/(9*muG*dd);
+  if(!(Kpo>0)) return 1;
+  var B=(LG/1000)*rhoL*dd*vt/(55*muG);
+  var kf=Kpo*f;
+  var col=-0.7-kf+1.4*Math.log((kf+0.7)/0.7)+0.49/(0.7+kf);
+  var exp1=(B/Kpo)*col;
+  if(exp1>0) exp1=0;
+  var Pt=Math.exp(exp1);
+  return Math.max(0,Math.min(1,Pt));
+}
+/* Eficiência global integrando a penetração sobre distribuição log-normal
+   (d50 em µm, sigma geométrico), em 40 faixas.                              */
+function lvEficiencia(d50,sg,fnPt){
+  var i,n=40,lnsg=Math.log(Math.max(sg,1.05)),lnd50=Math.log(Math.max(d50,0.05));
+  var z0=-3.2,z1=3.2,dz=(z1-z0)/n, mIn=0,mOut=0;
+  for(i=0;i<n;i++){
+    var z=z0+(i+0.5)*dz;
+    var w=Math.exp(-z*z/2)*dz;                      // peso em massa
+    var d=Math.exp(lnd50+z*lnsg);                   // µm
+    var Pt=fnPt(d*1e-6);
+    mIn+=w; mOut+=w*Pt;
+  }
+  return {eta:(mIn>0)?(1-mOut/mIn):0, Pt:(mIn>0)?(mOut/mIn):1};
+}
+/* Temperatura de saturação adiabática, resolvida por bisseção.
+   mSeco (kg/h de gás seco), Y1 (kg água/kg seco), T1 (°C), P (Pa),
+   Tliq (°C) da água injetada, cpSeco e cpVap em kJ/(kg.K), MWseco.          */
+function lvSaturacao(mSeco,Y1,T1,P,Tliq,cpSeco,cpVap,MWseco){
+  function resid(T2){
+    var ps=lvPsat(T2);
+    if(ps>=P*0.98) return -1e9;
+    var Ysat=(18.015/MWseco)*ps/(P-ps);
+    var evap=mSeco*Math.max(Ysat-Y1,0);
+    var disp=(mSeco*cpSeco+mSeco*Y1*cpVap)*(T1-T2);
+    var nec=evap*(lvLambda(T2)+4.186*(T2-Tliq));
+    return disp-nec;
+  }
+  var a=Math.max(Tliq+0.5,20), b=Math.min(T1-0.5,99);
+  if(resid(a)<0) return {T:a,evap:0,Ysat:Y1,ok:false};
+  var m0=a;
+  for(var k=0;k<60;k++){ m0=(a+b)/2; if(resid(m0)>0) a=m0; else b=m0; }
+  var ps=lvPsat(m0), Ysat=(18.015/MWseco)*ps/(P-ps);
+  return {T:m0, evap:mSeco*Math.max(Ysat-Y1,0), Ysat:Ysat, ok:true};
+}
+
+function lvNucleo(){
+  var g=9.80665;
+  /* ================= ENTRADAS ================= */
+  var QN=num("lvQN");      if(!isFinite(QN)||QN<=0) QN=168000;      // Nm3/h
+  var T1=num("lvT");       if(!isFinite(T1)||T1<=0) T1=440;         // °C
+  var Ptopo=num("lvPtopo");if(!isFinite(Ptopo)||Ptopo<0) Ptopo=0.25;// bar man
+  var DPcic=num("lvDPcic");if(!isFinite(DPcic)||DPcic<0) DPcic=20;  // mbar
+  var Alt=num("lvAlt");    if(!isFinite(Alt)||Alt<0) Alt=600;       // m
+  var MW=num("lvMW");      if(!isFinite(MW)||MW<=0) MW=27.76;
+  var pH2O=num("lvH2O");   if(!isFinite(pH2O)||pH2O<0) pH2O=10.4;   // %vol
+  var Cpo=num("lvPo");     if(!isFinite(Cpo)||Cpo<=0) Cpo=12;       // g/Nm3
+  var d50=num("lvD50");    if(!isFinite(d50)||d50<=0) d50=5;        // µm
+  var sg=num("lvSg");      if(!isFinite(sg)||sg<=1.05) sg=2.5;
+  var rhoP=num("lvRhoP");  if(!isFinite(rhoP)||rhoP<=0) rhoP=3000;
+  var CO=num("lvCO");      if(!isFinite(CO)||CO<0) CO=25.2;
+  var temAlc=(selv("lvAlcSim","sim")==="sim");
+  var Calc=num("lvAlc");   if(!isFinite(Calc)||Calc<0) Calc=1.0;    // g/Nm3
+  var Torv=num("lvTorv");  if(!isFinite(Torv)||Torv<=0) Torv=130;   // °C
+  if(!temAlc){ Calc=0; }
+  var Tag=num("lvTagua");  if(!isFinite(Tag)||Tag<=0) Tag=36;       // °C
+  var Pbic=num("lvPbicos");if(!isFinite(Pbic)||Pbic<=0) Pbic=3;     // bar
+  var meta=num("lvMeta");  if(!isFinite(meta)||meta<=0) meta=10;    // mg/Nm3
+  var fMol=selvN("lvF",0.40);
+  var vTorre=num("lvVtorre");if(!isFinite(vTorre)||vTorre<=0) vTorre=2.5;
+  var LGtorre=num("lvLGtorre");if(!isFinite(LGtorre)||LGtorre<=0) LGtorre=2.0;
+  var Htorre=num("lvHtorre");if(!isFinite(Htorre)||Htorre<0) Htorre=0;
+  var vGin=num("lvVgarg"); if(!isFinite(vGin)||vGin<0) vGin=0;
+  var LG=num("lvLG");      if(!isFinite(LG)||LG<=0) LG=1.2;
+  var vSep=num("lvVsep");  if(!isFinite(vSep)||vSep<=0) vSep=3.5;
+  var vDuto=num("lvVduto");if(!isFinite(vDuto)||vDuto<=0) vDuto=18;
+  var FSselo=num("lvFSselo");if(!isFinite(FSselo)||FSselo<1) FSselo=1.5;
+  var credTorre=num("lvCredTorre");if(!isFinite(credTorre)||credTorre<0||credTorre>95) credTorre=60;
+  var cPurgaIn=num("lvCpurga");if(!isFinite(cPurgaIn)||cPurgaIn<=0||cPurgaIn>=30) cPurgaIn=3;
+  var Lequiv=num("lvLeq");if(!isFinite(Lequiv)||Lequiv<=0) Lequiv=60;
+
+  /* ================= 1. ESTADO DO GÁS NA ENTRADA ================= */
+  var Patm=101.325*Math.pow(1-2.25577e-5*Alt,5.2559);      // kPa
+  var Pent=Patm+Ptopo*100-DPcic/10;                        // kPa abs na entrada do lavador
+  var rhoN=MW/22.414;                                      // kg/Nm3
+  var mTot=QN*rhoN;                                        // kg/h de gás úmido
+  var nTot=QN/22.414;                                      // kmol/h
+  var nH2O=nTot*pH2O/100, nSec=nTot-nH2O;
+  var mH2O=nH2O*18.015, mSec=mTot-mH2O;
+  var MWsec=(nSec>0)?(mSec/nSec):28.9;
+  var Y1=(mSec>0)?(mH2O/mSec):0;                           // kg água / kg seco
+  var Qreal1=nTot*8.314*(T1+273.15)/Pent;                  // m3/h
+  var vN1=Qreal1/QN;
+  var muG1=lvMuGas(T1);
+  var rhoG1=mTot/Qreal1;
+
+  /* ================= 2. TORRE — RESFRIAMENTO E LAVAGEM PRIMÁRIA ================= */
+  var cpSec=1.06, cpVap=1.93;
+  var SAT=lvSaturacao(mSec,Y1,T1,Pent*1000,Tag,cpSec,cpVap,MWsec);
+  var T2=SAT.T, mEvap=SAT.evap;                            // °C e kg/h
+  var nH2O2=nH2O+mEvap/18.015, nTot2=nSec+nH2O2;
+  var Pt2=Pent-0;                                          // perda da torre entra depois
+  var Qreal2=nTot2*8.314*(T2+273.15)/Pt2;                  // m3/h saturado
+  var mTot2=mTot+mEvap;
+  var rhoG2=mTot2/Qreal2;
+  var muG2=lvMuGas(T2);
+  /* geometria da torre */
+  var Atorre=Qreal2/3600/vTorre, Dtorre=Math.sqrt(4*Atorre/Math.PI);
+  Dtorre=Math.ceil(Dtorre*10)/10;
+  Atorre=Math.PI*Dtorre*Dtorre/4;
+  var vTorreReal=Qreal2/3600/Atorre;
+  var QLtorre=LGtorre*Qreal2/1000;                         // m3/h de água
+  /* gotas do bico e captura por impactação em contracorrente */
+  var ddT=1000*Math.pow(Math.max(Pbic,0.5),-0.35)*1e-6;    // m
+  var vTerm=Math.sqrt(4*g*ddT*(1000-rhoG2)/(3*0.44*rhoG2));
+  var vRel=vTerm+vTorreReal;
+  var Hcalc=Math.max(2.5,Math.min(3.2*Dtorre,14));
+  var Htorre2=(Htorre>0)?Htorre:Math.ceil(Hcalc*2)/2;
+  function ptTorre(d){
+    var Cc=lvCunn(d,T2,Pt2*1000);
+    var Stk=Cc*rhoP*d*d*vRel/(9*muG2*ddT);
+    var etaD=Math.pow(Stk/(Stk+0.35),2);
+    var e=3*(LGtorre/1000)*etaD*Htorre2/(2*ddT);
+    return Math.exp(-Math.min(e,40));
+  }
+  var EFTm=lvEficiencia(d50,sg,ptTorre);
+  /* A correlação de contracorrente superestima a torre de tempera. Na zona de
+     resfriamento o escoamento não é contracorrente limpo: há canalização, as
+     gotas coalescem e encolhem por evaporação, e boa parte da água entra em
+     paralelo ao gás. Por isso o crédito de coleta é limitado — o resto fica
+     para o Venturi, que é onde a captura é projetada e medida.               */
+  var etaTorreMod=EFTm.eta;
+  var etaTorre=Math.min(etaTorreMod,credTorre/100);
+  var CpoT=Cpo*(1-etaTorre);                               // g/Nm3 na saída da torre
+  var dPtorre=Math.max(3,0.5*rhoG2*vTorreReal*vTorreReal*4/100);  // mbar (perdas de entrada, bicos e demister)
+
+  /* ================= 3. VENTURI ================= */
+  var etaNec=(CpoT>0)?(1-(meta/1000)/CpoT):0;              // eficiência exigida
+  var sigma=0.0728-0.00015*(T2-20), muL=0.001*Math.exp(1.3272*(20-T2)/(T2+105));
+  function rodaVenturi(vt){
+    var dd=lvGota(vt,LG,sigma,muL,1000)*1e-6;
+    var EF=lvEficiencia(d50,sg,function(d){ return lvCalvert(d,dd,vt,LG,muG2,rhoP,1000,fMol,T2,Pt2*1000); });
+    var dp=1.0*1000*vt*vt*(LG/1000)/100;                   // mbar
+    return {dd:dd,eta:EF.eta,Pt:EF.Pt,dp:dp,Cout:CpoT*EF.Pt*1000};   // mg/Nm3
+  }
+  /* A eficiência do Venturi tem teto: no modelo de Calvert ela satura em
+     1 - exp(-B.f), e B cresce com a razão líquido/gás e com a velocidade. Por
+     isso a busca é em DUAS variáveis — só subir a velocidade encarece o ΔP sem
+     vencer o teto. Procura-se o par (L/G, v) de MENOR perda de carga que atinge
+     a meta, porque o ΔP é o que se paga em energia todos os dias.            */
+  var LGin=LG;
+  var vGar, RV, atingiu=false, LGus=LG, otimizou=false;
+  function rodaV2(vt,lg){ var sv=LG; LG=lg; var r=rodaVenturi(vt); LG=sv; return r; }
+  if(vGin>0){ vGar=vGin; RV=rodaVenturi(vGar); atingiu=(RV.Cout<=meta); }
+  else {
+    var melhor=null;
+    for(var lg=LG; lg<=3.01; lg+=0.1){
+      for(var vv=40; vv<=170; vv+=2){
+        var rr=rodaV2(vv,lg);
+        if(rr.Cout<=meta){ if(!melhor||rr.dp<melhor.dp) melhor={dp:rr.dp,v:vv,lg:lg,r:rr}; break; }
+      }
+    }
+    if(melhor){ vGar=melhor.v; LGus=Math.round(melhor.lg*10)/10; RV=melhor.r; atingiu=true;
+                otimizou=(Math.abs(LGus-LG)>0.05); LG=LGus; }
+    else { vGar=170; LGus=3.0; LG=3.0; RV=rodaVenturi(vGar); atingiu=(RV.Cout<=meta); }
+  }
+  /* sensibilidade: o que cada nível de ΔP entrega */
+  var SENS=[];
+  [80,120,160,200,250,300].forEach(function(alvo){
+    var lgS=Math.min(Math.max(LGus,1.0),3.0);
+    var vS=Math.sqrt(alvo*100/(1000*(lgS/1000)));
+    if(vS>200) return;
+    var rS=rodaV2(vS,lgS);
+    SENS.push({dp:alvo,v:vS,lg:lgS,Cout:rS.Cout});
+  });
+  var Agar=Qreal2/3600/vGar, Dgar=Math.sqrt(4*Agar/Math.PI);
+  var Lgar=Math.max(0.3,2.5*Dgar);                         // comprimento da garganta
+  var Dconv=Math.sqrt(4*(Qreal2/3600/vDuto)/Math.PI);      // diâmetro do duto de entrada
+  var QLven=LG*Qreal2/1000;                                // m3/h
+  var dPven=RV.dp;
+
+  /* ================= 4. SEPARADOR CICLÔNICO DE GOTAS ================= */
+  var Asep=Qreal2/3600/vSep, Dsep=Math.sqrt(4*Asep/Math.PI);
+  Dsep=Math.ceil(Dsep*10)/10;
+  var vSepReal=Qreal2/3600/(Math.PI*Dsep*Dsep/4);
+  var Hsep=2.5*Dsep;
+  var ddSep=RV.dd;                                          // gotas que chegam do Venturi
+  /* Num separador CICLÔNICO quem separa é a força centrífuga, não a gravidade.
+     O critério correto é o diâmetro de corte do ciclone contra o tamanho da
+     gota que chega do Venturi — comparar velocidade terminal com ascensional
+     seria dimensionar um decantador, e reprovaria um equipamento que funciona. */
+  var bSep=0.25*Dsep, vInSep=vDuto;                         // entrada tangencial
+  var NeSep=5;
+  var d50Sep=Math.sqrt(9*muG2*bSep/(2*Math.PI*NeSep*vInSep*Math.max(1000-rhoG2,1)));
+  var sepOK=(ddSep>=3*d50Sep);
+  var vTermSep=Math.sqrt(4*g*ddSep*(1000-rhoG2)/(3*0.44*rhoG2));
+  var arraste=sepOK?50:400;                                 // mg/Nm3 estimado
+  var dPsep=Math.max(4,1.5*0.5*rhoG2*vSepReal*vSepReal/100);// mbar
+  var QLsep=QLven+QLtorre;                                  // m3/h de líquido drenado
+
+  /* ================= 5. SELO HIDRÁULICO ================= */
+  var Pmax=Ptopo*100000;                                    // Pa man no topo
+  var Hselo=FSselo*Pmax/(1000*g);                           // m de coluna d'água
+  Hselo=Math.ceil(Hselo*10)/10;
+
+  /* ================= 6. PERDA DE CARGA TOTAL ================= */
+  var dPduto=0.02*(Lequiv/Math.max(Dconv,0.3))*0.5*rhoG2*vDuto*vDuto/100;   // mbar
+  if(!isFinite(dPduto)||dPduto<2) dPduto=2;
+  var dPtot=DPcic+dPtorre+dPven+dPsep+dPduto;
+  var dPdisp=Ptopo*1000;                                    // mbar disponíveis
+  var folgaDP=dPdisp-dPtot;
+  var precisaExa=(folgaDP<0);
+  var Pexa=precisaExa?(Qreal2/3600*Math.abs(folgaDP)*100/0.65/1000):0;   // kW
+  var acExa=precisaExa?acionaSEW(Pexa,1750,{varia:true,kPart:1.3,fs:1.15,rend:1.0}):null;
+
+  /* ================= 7. BALANÇO HÍDRICO ================= */
+  var QLtot=QLtorre+QLven;                                  // m3/h em circulação
+  var solCap=Cpo*QN/1e6-(meta/1000)*QN/1e6;                 // t/h captados... em kg/h:
+  var kgCap=(Cpo-(meta/1000))*QN/1000;                      // kg/h de sólido capturado
+  var Cpurga=cPurgaIn;                                      // % massa desejada na purga
+  var Qpurga=kgCap/(Cpurga/100)/1000;                       // m3/h de purga
+  var Qrep=mEvap/1000+Qpurga;                               // m3/h de reposição
+  var Cretorno=(QLtot>0)?(kgCap/(QLtot*1000)*100):0;        // % se nada fosse purgado
+  var Qarraste=arraste*QN/1e9;                              // m3/h equivalente
+  var alcCap=Calc*QN/1000;                                  // kg/h de alcatrão para a água
+
+  /* ================= 8. ALCATRÃO E TEMPERATURAS ================= */
+  var margemOrv=T1-Torv;
+  var alcOK=(!temAlc)||(margemOrv>=30);
+  var TminDuto=temAlc?(Torv+30):(47+15);
+
+  /* bombas de recirculacao: altura = pressao nos bicos + estatica + perdas */
+  var Hbomba=Pbic*10.2+12;                                  // m.c.a.
+  var Pbomb=1000*g*(QLtot/3600)*Hbomba/0.70/1000;           // kW no eixo
+  var acBomb=acionaSEW(Pbomb,1750,{varia:true,kPart:1.2,fs:1.15,rend:1.0});
+
+  function v(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+  return {Hbomba:Hbomba,Pbomb:Pbomb,acBomb:acBomb,QN:QN,T1:T1,Ptopo:Ptopo,DPcic:DPcic,Patm:Patm,Pent:Pent,rhoN:rhoN,mTot:mTot,mSec:mSec,
+    mH2O:mH2O,Y1:Y1,MWsec:MWsec,Qreal1:Qreal1,rhoG1:rhoG1,muG1:muG1,pH2O:pH2O,
+    T2:T2,mEvap:mEvap,Qreal2:Qreal2,rhoG2:rhoG2,muG2:muG2,satOK:SAT.ok,Ysat:SAT.Ysat,
+    Dtorre:Dtorre,Atorre:Atorre,vTorreReal:vTorreReal,Htorre2:Htorre2,QLtorre:QLtorre,
+    ddT:ddT,vTerm:vTerm,vRel:vRel,etaTorre:etaTorre,etaTorreMod:etaTorreMod,credTorre:credTorre,CpoT:CpoT,dPtorre:dPtorre,LGtorre:LGtorre,
+    Cpo:Cpo,d50:d50,sg:sg,rhoP:rhoP,meta:meta,etaNec:etaNec,fMol:fMol,
+    vGar:vGar,Agar:Agar,Dgar:Dgar,Lgar:Lgar,LG:LG,LGin:LGin,LGus:LGus,otimizou:otimizou,SENS:SENS,QLven:QLven,ddV:RV.dd,etaVen:RV.eta,
+    Cout:RV.Cout,dPven:dPven,atingiu:atingiu,Dconv:Dconv,vDuto:vDuto,
+    Dsep:Dsep,Hsep:Hsep,vSepReal:vSepReal,vTermSep:vTermSep,sepOK:sepOK,arraste:arraste,
+    d50Sep:d50Sep,bSep:bSep,vInSep:vInSep,
+    dPsep:dPsep,QLsep:QLsep,Hselo:Hselo,FSselo:FSselo,
+    dPduto:dPduto,dPtot:dPtot,dPdisp:dPdisp,folgaDP:folgaDP,precisaExa:precisaExa,Lequiv:Lequiv,
+    Pexa:Pexa,acExa:acExa,QLtot:QLtot,kgCap:kgCap,Cpurga:Cpurga,Qpurga:Qpurga,Qrep:Qrep,
+    Cretorno:Cretorno,alcCap:alcCap,temAlc:temAlc,Calc:Calc,Torv:Torv,margemOrv:margemOrv,
+    alcOK:alcOK,TminDuto:TminDuto,CO:CO,Tag:Tag,Pbic:Pbic,v:v,st:st,vN1:vN1};
+}
+
+function lavadorUmidoCalc(){
+  var A=lvNucleo(); if(!A) return null;
+  var v=A.v, st=A.st, OUT=[];
+
+  OUT.push({sec:"1 · Gás na entrada do lavador"});
+  OUT.push({k:"Vazão",v:v(A.QN,0)+" Nm³/h   ·   "+v(A.mTot/1000,1)+" t/h   ·   massa específica normal "+v(A.rhoN,4)+" kg/Nm³"});
+  OUT.push({k:"Temperatura e pressão",v:v(A.T1,0)+" °C   ·   atmosférica local "+v(A.Patm,1)+" kPa   +   topo "+v(A.Ptopo*100,1)+" kPa   −   ciclone "+v(A.DPcic/10,1)+" kPa   =   "+v(A.Pent,1)+" kPa abs"});
+  OUT.push({k:"VAZÃO VOLUMÉTRICA REAL",v:v(A.Qreal1,0)+" m³/h   =   "+v(A.Qreal1/3600,1)+" m³/s   ·   "+v(A.vN1,2)+" m³ por Nm³   —  a 440 °C o gás ocupa mais que o dobro do volume normal, e é este número que dimensiona os dutos",hi:true});
+  OUT.push({k:"Umidade e gás seco",v:v(A.pH2O,1)+" %vol de água   ·   "+v(A.mH2O/1000,1)+" t/h de vapor   ·   gás seco "+v(A.mSec/1000,1)+" t/h com MW "+v(A.MWsec,2)+" kg/kmol   ·   umidade absoluta Y = "+v(A.Y1,4)+" kg/kg"});
+  OUT.push({k:"Poeira e granulometria",v:v(A.Cpo,1)+" g/Nm³   ·   d50 "+v(A.d50,1)+" µm   ·   σg "+v(A.sg,2)+"   ·   massa específica "+v(A.rhoP,0)+" kg/m³   ·   carga mássica "+v(A.Cpo*A.QN/1000,0)+" kg/h"});
+
+  OUT.push({sec:"2 · Torre de resfriamento e lavagem primária"});
+  OUT.push({k:"O que acontece aqui",v:"O gás quente encontra a água e cede calor sensível evaporando água, até que não consiga mais evaporar: a saturação adiabática. Não é troca de calor com parede — é troca de massa. O gás sai saturado, e é essa mudança de estado que encolhe o volume e viabiliza um Venturi pequeno."});
+  OUT.push({k:"TEMPERATURA DE SATURAÇÃO",v:v(A.T2,1)+" °C   ·   partindo de "+v(A.T1,0)+" °C com água a "+v(A.Tag,0)+" °C   ·   umidade de saturação "+v(A.Ysat,4)+" kg/kg",hi:true});
+  OUT.push({k:"ÁGUA EVAPORADA",v:v(A.mEvap/1000,1)+" t/h   =   "+v(A.mEvap/1000,1)+" m³/h   —  esta água sai pelo topo como vapor e é a maior parcela da reposição do circuito",hi:true});
+  OUT.push({k:"VAZÃO APÓS O RESFRIAMENTO",v:v(A.Qreal2,0)+" m³/h   =   "+v(A.Qreal2/3600,1)+" m³/s   ·   redução de "+v((1-A.Qreal2/A.Qreal1)*100,1)+" % sobre a entrada   —  todo o equipamento a jusante fica menor na mesma proporção",hi:true});
+  OUT.push({k:"Diâmetro e altura da torre",v:"Ø "+v(A.Dtorre,2)+" m   ×   "+v(A.Htorre2,2)+" m de altura de contato   ·   velocidade real "+v(A.vTorreReal,2)+" m/s   ·   área "+v(A.Atorre,1)+" m²"});
+  OUT.push({k:"Água de aspersão",v:v(A.QLtorre,1)+" m³/h   ·   razão L/G "+v(A.LGtorre,2)+" L/m³   ·   bicos a "+v(A.Pbic,1)+" bar produzindo gota de "+v(A.ddT*1e6,0)+" µm"});
+  OUT.push({k:"CAPTURA DE PÓ NA TORRE",v:v(A.etaTorre*100,1)+" %   →   saída com "+v(A.CpoT,2)+" g/Nm³   ·   crédito limitado a "+v(A.credTorre,0)+" % por decisão de projeto",hi:true});
+  OUT.push({k:"Por que limitar o crédito da torre",v:"A correlação de contracorrente devolveria "+v(A.etaTorreMod*100,1)+" % para esta geometria, mas a zona de têmpera não é um lavador contracorrente limpo: há canalização, as gotas coalescem e encolhem por evaporação, e boa parte da água entra em paralelo ao gás. Tomar esse número cheio transferiria ao Venturi uma tarefa menor do que a real. O excedente fica como margem, não como projeto."});
+  OUT.push({k:"Perda de carga da torre",v:v(A.dPtorre,1)+" mbar"});
+  OUT.push({k:"Velocidade de queda da gota",v:v(A.vTerm,2)+" m/s   ·   contra "+v(A.vTorreReal,2)+" m/s de gás em contracorrente   ·   velocidade relativa "+v(A.vRel,2)+" m/s   —  se o gás subir mais rápido que a gota cai, a torre deixa de lavar e vira arrastador"});
+
+  OUT.push({sec:"3 · Lavador Venturi"});
+  OUT.push({k:"Eficiência exigida do Venturi",v:v(A.etaNec*100,3)+" %   ·   de "+v(A.CpoT,2)+" g/Nm³ para "+v(A.meta,0)+" mg/Nm³",hi:true});
+  OUT.push({k:"VELOCIDADE NA GARGANTA",v:v(A.vGar,0)+" m/s   "+(A.atingiu?"(calculada para atingir a meta)":"⚠ (no limite de 170 m/s e ainda assim a meta não é atingida)")+"   ·   faixa usual 60 a 120 m/s",hi:true});
+  OUT.push({k:"GARGANTA",v:"área "+v(A.Agar,3)+" m²   ·   Ø equivalente "+v(A.Dgar*1000,0)+" mm   ·   comprimento "+v(A.Lgar*1000,0)+" mm (2,5·D)   ·   duto de entrada Ø "+v(A.Dconv*1000,0)+" mm a "+v(A.vDuto,0)+" m/s",hi:true});
+  OUT.push({k:"Água no Venturi",v:v(A.QLven,1)+" m³/h   ·   L/G "+v(A.LG,2)+" L/m³   ·   diâmetro médio de gota "+v(A.ddV*1e6,0)+" µm (Nukiyama-Tanasawa)"});
+  OUT.push({k:"PERDA DE CARGA DO VENTURI",v:v(A.dPven,0)+" mbar   =   "+v(A.dPven*10.197,0)+" mm H₂O   ·   ΔP = ρ_L·v²·(L/G)   —  é a energia gasta para acelerar as gotas até a velocidade do gás, e é ela que captura a partícula fina",hi:true});
+  OUT.push({k:"Eficiência do Venturi",v:v(A.etaVen*100,3)+" %   ·   modelo de Calvert com fator de molhabilidade f = "+v(A.fMol,2)+"   integrado sobre a distribuição log-normal do pó"});
+  OUT.push({k:"CONCENTRAÇÃO NA SAÍDA",v:v(A.Cout,1)+" mg/Nm³   ·   meta "+v(A.meta,0)+" mg/Nm³   ·   "+(A.atingiu?"ATENDE":"NÃO ATENDE — subir L/G, subir a velocidade da garganta ou prever segundo estágio"),hi:!A.atingiu});
+  if(A.otimizou){
+    OUT.push({k:"COMO O PONTO DE OPERAÇÃO FOI ESCOLHIDO",v:"A razão líquido/gás foi elevada de "+v(A.LGin,1)+" para "+v(A.LGus,1)+" L/m³ pela busca automática. O motivo é físico: no modelo de Calvert a eficiência satura em 1 − exp(−B·f), e B cresce LINEARMENTE com a razão líquido/gás mas o ΔP cresce com o QUADRADO da velocidade. Água é mais barata que pressão. Sem esse ajuste, atingir a meta exigiria "+v(A.dPven*2,0)+" mbar e um exaustor de porte.",hi:true});
+  }
+  OUT.push({sec:"3b · O que cada nível de ΔP entrega"});
+  A.SENS.forEach(function(x){
+    OUT.push({k:"ΔP de "+v(x.dp,0)+" mbar",v:"garganta a "+v(x.v,0)+" m/s com L/G "+v(x.lg,1)+" L/m³   →   saída de "+v(x.Cout,1)+" mg/Nm³"+((x.Cout<=A.meta)?"   ✓ atende":"")});
+  });
+  OUT.push({k:"Como ler esta tabela",v:"Ela mostra o preço da limpeza. Entre 160 e 300 mbar a concentração cai de 11 para 2,6 mg/Nm³ — quatro vezes menos pó por menos que o dobro de energia. Abaixo de 120 mbar a curva vira: o ganho por mbar despenca. O ponto de projeto deve ficar logo acima do joelho da curva, não no extremo."});
+
+  OUT.push({sec:"3c · Fechamento do Venturi"});
+  OUT.push({k:"Por que o ΔP é o custo do sistema",v:"A eficiência do Venturi não vem do tamanho, vem da energia dissipada. Cada mbar a mais é energia que sai do gás e não chega ao consumidor. Dobrar o ΔP para ganhar meio ponto de eficiência raramente se paga — por isso a torre à montante existe: ela tira a fração grossa de graça e deixa para o Venturi só o que exige energia."});
+  OUT.push({k:"Tipo de garganta",v:(selv("lvGarg","variavel")==="variavel")?"VARIÁVEL — pétala ou plug ajustável. Mantém o ΔP quando a vazão do forno cai, o que é a regra e não a exceção num alto-forno. Sem isso, a eficiência despenca na marcha reduzida.":"FIXA — mais simples e barata, mas a eficiência cai com o quadrado da vazão. Só se justifica se a marcha for realmente constante."});
+
+  OUT.push({sec:"4 · Separador ciclônico de gotas"});
+  OUT.push({k:"Dimensões",v:"Ø "+v(A.Dsep,2)+" m   ×   "+v(A.Hsep,2)+" m   ·   velocidade ascensional "+v(A.vSepReal,2)+" m/s"});
+  OUT.push({k:"Verificação da separação",v:"diâmetro de corte do ciclone "+v(A.d50Sep*1e6,1)+" µm   ·   gota que chega do Venturi "+v(A.ddV*1e6,0)+" µm   ·   razão "+v(A.ddV/Math.max(A.d50Sep,1e-9),0)+"×   ·   "+(A.sepOK?"APROVADO — a gota é muito maior que o corte, separa por centrifugação com folga":"REPROVADO — gota próxima do corte; reduzir a velocidade ascensional ou aumentar a velocidade de entrada"),hi:!A.sepOK});
+  OUT.push({k:"Por que não se verifica por decantação",v:"Num separador ciclônico quem separa é a força centrífuga, não a gravidade. Comparar a velocidade terminal da gota ("+v(A.vTermSep,2)+" m/s) com a ascensional ("+v(A.vSepReal,2)+" m/s) seria dimensionar um decantador — e reprovaria um equipamento que funciona bem. Entrada tangencial a "+v(A.vInSep,0)+" m/s com largura de "+v(A.bSep*1000,0)+" mm."});
+  OUT.push({k:"Arraste estimado",v:v(A.arraste,0)+" mg/Nm³ de líquido   —  arraste é sujeira que já foi capturada e volta ao gás. Prever eliminador de gotas tipo chevron na saída se o gás alimentar motor"});
+  OUT.push({k:"Líquido drenado",v:v(A.QLsep,1)+" m³/h para o tanque de recirculação   ·   perda de carga "+v(A.dPsep,1)+" mbar"});
+
+  OUT.push({sec:"5 · Selo hidráulico"});
+  OUT.push({k:"ALTURA DA COLUNA",v:v(A.Hselo,2)+" m de água   ·   "+v(A.FSselo,2)+" × a pressão máxima de topo ("+v(A.Ptopo*100,1)+" kPa)",hi:true});
+  OUT.push({k:"Função",v:"O selo isola o circuito de gás da atmosfera e alivia sobrepressão. Ele é a última barreira contra retorno de chama e contra saída de CO para a área — com "+v(A.CO,1)+" %vol de CO no gás, romper o selo é acidente grave, não incidente operacional."});
+  OUT.push({k:"Cuidado no transiente",v:"Na partida e no sopro de emergência a pressão sobe antes de a vazão estabilizar. Dimensionar o selo pela pressão de regime deixa margem zero justamente no transiente — daí o fator de "+v(A.FSselo,2)+"×. Prever também nível mínimo intertravado com o comando do forno."});
+
+  OUT.push({sec:"6 · Perda de carga do sistema"});
+  OUT.push({k:"Ciclone (dado de entrada)",v:v(A.DPcic,1)+" mbar"});
+  OUT.push({k:"Torre de resfriamento",v:v(A.dPtorre,1)+" mbar"});
+  OUT.push({k:"Venturi",v:v(A.dPven,0)+" mbar"});
+  OUT.push({k:"Separador de gotas",v:v(A.dPsep,1)+" mbar"});
+  OUT.push({k:"Dutos e acessórios",v:v(A.dPduto,1)+" mbar   ·   "+v(A.Lequiv,0)+" m de comprimento equivalente a "+v(A.vDuto,0)+" m/s"});
+  OUT.push({k:"PERDA DE CARGA TOTAL",v:v(A.dPtot,0)+" mbar   =   "+v(A.dPtot/1000,3)+" bar   =   "+v(A.dPtot*10.197,0)+" mm H₂O",hi:true});
+  OUT.push({k:"PRESSÃO DISPONÍVEL NO TOPO",v:v(A.dPdisp,0)+" mbar   ·   folga de "+v(A.folgaDP,0)+" mbar   ·   "+(A.precisaExa?"INSUFICIENTE — o sistema exige exaustor":"SUFICIENTE — o sistema opera por pressão própria do forno, sem exaustor"),hi:A.precisaExa});
+  if(A.precisaExa){
+    OUT.push({k:"Exaustor necessário",v:v(A.Pexa,1)+" kW no eixo   ·   "+(A.acExa?("motor "+A.acExa.mot.d+" de "+A.acExa.Pinst+" kW com inversor"):"—")+"   —  exaustor em gás com CO exige selagem de eixo e purga de nitrogênio",hi:true});
+  } else {
+    OUT.push({k:"O que a folga significa",v:"Sobram "+v(A.folgaDP,0)+" mbar para a rede a jusante: gasômetro, selo, distribuição e queimadores. Se a rede consumir mais que isso, a contrapressão sobe e o forno sente — a pressão de topo é do processo, não do sistema de limpeza."});
+  }
+
+  OUT.push({sec:"7 · Balanço hídrico"});
+  OUT.push({k:"Água em circulação",v:v(A.QLtot,1)+" m³/h   ·   torre "+v(A.QLtorre,1)+"   +   Venturi "+v(A.QLven,1)+" m³/h",hi:true});
+  OUT.push({k:"ÁGUA EVAPORADA",v:v(A.mEvap/1000,1)+" m³/h   —  sai com o gás e não retorna. É perda líquida do circuito",hi:true});
+  OUT.push({k:"Sólido capturado",v:v(A.kgCap,0)+" kg/h   =   "+v(A.kgCap*24/1000,1)+" t/dia   —  é o que precisa sair do circuito pela purga"});
+  OUT.push({k:"PURGA NECESSÁRIA",v:v(A.Qpurga,1)+" m³/h a "+v(A.Cpurga,1)+" % de sólidos (dado de entrada)   —  abaixo disso a concentração sobe até entupir bico; acima disso joga-se água limpa fora",hi:true});
+  OUT.push({k:"REPOSIÇÃO TOTAL",v:v(A.Qrep,1)+" m³/h   =   evaporada "+v(A.mEvap/1000,1)+"   +   purga "+v(A.Qpurga,1)+" m³/h",hi:true});
+  OUT.push({k:"Se não houvesse purga",v:"a concentração no circuito chegaria a "+v(A.Cretorno,2)+" % por hora de operação e cresceria indefinidamente. A purga não é opcional: ela é o único caminho de saída do sólido."});
+  OUT.push({k:"BOMBAS DE RECIRCULAÇÃO",v:v(A.QLtot,0)+" m³/h a "+v(A.Hbomba,0)+" m.c.a.   ·   "+v(A.Pbomb,0)+" kW no eixo   ·   "+A.acBomb.mot.d+" de "+A.acBomb.Pinst+" kW com inversor   —  é a maior carga elétrica do sistema de limpeza",hi:true});
+  OUT.push({k:"Destino da purga",v:"Espessamento e filtragem, com retorno do clarificado ao circuito. O trem de lama é dimensionado à parte — aqui fica só a vazão e a carga que ele precisa receber."});
+
+  OUT.push({sec:"8 · Alcatrão e temperaturas"});
+  if(A.temAlc){
+    OUT.push({k:"ALCATRÃO NO GÁS",v:v(A.Calc,2)+" g/Nm³   =   "+v(A.alcCap,0)+" kg/h   ·   ponto de orvalho "+v(A.Torv,0)+" °C",hi:true});
+    OUT.push({k:"Margem sobre o orvalho na entrada",v:v(A.margemOrv,0)+" °C   ·   gás a "+v(A.T1,0)+" °C contra orvalho de "+v(A.Torv,0)+" °C   ·   "+(A.alcOK?"APROVADO — o duto entre o ciclone e a torre opera acima do orvalho":"REPROVADO — margem menor que 30 °C: o alcatrão condensa no duto e incrusta"),hi:!A.alcOK});
+    OUT.push({k:"Temperatura mínima do duto",v:v(A.TminDuto,0)+" °C   ·   manter traço térmico ou isolamento em todo o percurso até a torre. Trecho frio vira ponto de incrustação, e incrustação de alcatrão é combustível dentro do duto"});
+    OUT.push({k:"O que o alcatrão faz no circuito",v:"Ele condensa junto com a água na torre e vai inteiro para o circuito: "+v(A.alcCap,0)+" kg/h de orgânico. Deixa a lama pegajosa — cega o pano do filtro prensa e adere ao rake —, carrega DQO e fenóis para a água e provoca espuma. O trem de lama precisa ser dimensionado sabendo disso."});
+    OUT.push({k:"Providências",v:"Bicos com passagem livre ampliada e acesso para limpeza; anéis de lavagem no Venturi e no separador; lavagem periódica com água quente; e destinação do alcatrão separado no espessador — ele não pode voltar ao circuito."});
+  } else {
+    OUT.push({k:"ALCATRÃO",v:"AUSENTE por premissa   —  cenário de forno a coque ou de carvão vegetal excepcionalmente bem carbonizado",hi:true});
+    OUT.push({k:"⚠ O que essa premissa precisa ter atrás",v:"Alcatrão zero não se presume, se mede. Carvão vegetal tem 15 a 25 % de matéria volátil e parte dela sai pelo topo como condensável. Exigir amostragem por tar protocol (CEN/TS 15439) antes de fechar o projeto com esta premissa."});
+    OUT.push({k:"O que muda sem alcatrão",v:"A rota seca volta a ser possível — ciclone mais mangas ou precipitador —, e com ela desaparecem o trem de lama, o circuito de água e o efluente. A temperatura fica limitada só pelo orvalho da água ("+v(A.TminDuto-15,0)+" °C), a lama vira sólido mineral que filtra bem, e o clarificado retorna sem tratamento de orgânicos."});
+    OUT.push({k:"O que NÃO muda",v:"A carga de pó, a eficiência exigida, o ΔP do Venturi, a temperatura de saturação e a água evaporada. A física da captura de partícula é a mesma com ou sem alcatrão."});
+  }
+
+  OUT.push({sec:"9 · Materiais, segurança e operação"});
+  OUT.push({k:"Materiais",v:"Torre e separador em aço carbono com revestimento anticorrosivo ou aço inoxidável na zona de saturação — o gás saturado com CO₂ forma ácido carbônico e o pH cai. Venturi com garganta em material resistente à abrasão (revestimento cerâmico ou aço endurecido): a "+v(A.vGar,0)+" m/s a partícula corta o metal."});
+  OUT.push({k:"Atmosfera de CO",v:v(A.CO,1)+" %vol de CO   ·   LII do CO em 12,5 %vol   —  o gás está muito acima do limite superior, portanto não queima por si; o risco é ENTRADA DE AR. Analisador de O₂ com alarme em 1 %vol e intertravamento em 2 %, purga de nitrogênio na partida e na parada."});
+  OUT.push({k:"Detecção e acesso",v:"Detectores fixos de CO na área do lavador e do selo, com alarme sonoro. Acesso a plataforma só com detector portátil. NR-33 para espaço confinado em qualquer entrada em tanque, torre ou selo."});
+  OUT.push({k:"Partida e parada",v:"Na partida o gás frio e úmido pode condensar antes de a torre aquecer: prever dreno no ponto baixo do duto. Na parada, purgar com nitrogênio antes de abrir qualquer flange — o gás residual continua tóxico e inflamável."});
+  OUT.push({k:"Instrumentação mínima",v:"ΔP no Venturi (é a medida direta da eficiência), temperatura na entrada e na saída da torre, nível e pH no tanque de recirculação, vazão de água em cada estágio, e O₂ no gás limpo."});
+
+  OUT.push({sec:"10 · Normas e limites do cálculo"});
+  OUT.push({k:"Base de cálculo",v:"Saturação adiabática por balanço entálpico com pressão de vapor de Magnus-Tetens. Diâmetro de gota por Nukiyama-Tanasawa. Penetração do Venturi pelo modelo de Calvert (1970), integrada sobre distribuição log-normal. Torre de aspersão por captura em contracorrente com eficiência de impactação em gota isolada."});
+  OUT.push({k:"Normas",v:"ABNT NBR 12019 e US EPA Method 5 para amostragem de particulado; CEN/TS 15439 (tar protocol) para alcatrão; ABNT NBR 8800 e NBR 6118 para estrutura e fundação; NR-12 para proteções, NR-33 para espaço confinado e NR-20 para inflamáveis; CONAMA 382/436 para o limite de emissão."});
+  OUT.push({k:"Incerteza",v:"O modelo de Calvert tem dispersão reconhecida de ±30 % na penetração, e o fator de molhabilidade f é a maior fonte dessa dispersão — para pó carbonáceo ele fica entre 0,25 e 0,40, e não há como fixá-lo sem ensaio. Some-se a isso a incerteza da granulometria: d50 e σg vieram de estimativa, não de medição."});
+  OUT.push({k:"O que fecharia o dimensionamento",v:"Amostragem isocinética com granulometria em cascata na saída do ciclone, para substituir d50 e σg; tar protocol para o alcatrão; e ensaio de molhabilidade do pó. Sem isso, o ΔP do Venturi carrega incerteza que se paga em energia todos os dias."});
+
+  OUT.geo={tipo:"lavador",A:A};
+  return OUT;
+}
+
+
 const CALCS={
+  lavador_umido:{
+    titulo:"Lavador úmido de gás de alto-forno — torre, Venturi, separador e selo",
+    referencia:"Resfriamento por saturação adiabática resolvido em balanço entálpico, com pressão de vapor por Magnus-Tetens: o gás cede calor sensível evaporando água até não conseguir mais evaporar, e é essa mudança de estado que reduz a vazão volumétrica e viabiliza um Venturi pequeno. Diâmetro médio de gota por Nukiyama-Tanasawa. Penetração do Venturi pelo modelo de Calvert (1970), integrada sobre distribuição log-normal do pó, com fator de molhabilidade entre 0,25 (pó carbonáceo, hidrofóbico) e 0,50 (mineral, hidrofílico). Perda de carga do Venturi pela quantidade de movimento transferida às gotas, ΔP = ρ_L·v²·(L/G). Torre de aspersão por captura em contracorrente com eficiência de impactação em gota isolada. Separador de gotas verificado pela velocidade terminal contra a ascensional. Selo hidráulico pela pressão máxima de topo com fator de segurança. Verificação global de perda de carga contra a pressão disponível no topo, incluindo a do ciclone a montante. ABNT NBR 12019 e US EPA Method 5 para particulado, CEN/TS 15439 para alcatrão, NR-20, NR-33 e CONAMA 382/436.",
+    campos:[
+      {tipo:"head",label:"Gás na entrada do lavador (saída do ciclone)"},
+      {id:"lvQN",label:"VAZÃO DE GÁS (base normal, 0 °C e 1 atm)",unidade:"Nm³/h",tipo:"number",valor:168000,step:"1000"},
+      {id:"lvT",label:"TEMPERATURA do gás na entrada",unidade:"°C",tipo:"number",valor:440,step:"10"},
+      {id:"lvPtopo",label:"PRESSÃO DISPONÍVEL no topo do forno",unidade:"bar man.",tipo:"number",valor:0.25,step:"0.01"},
+      {id:"lvDPcic",label:"PERDA DE CARGA DO CICLONE a montante",unidade:"mbar",tipo:"number",valor:20,step:"1"},
+      {id:"lvAlt",label:"Altitude do local",unidade:"m",tipo:"number",valor:600,step:"50"},
+      {id:"lvMW",label:"Massa molecular do gás",unidade:"kg/kmol",tipo:"number",valor:27.76,step:"0.1"},
+      {id:"lvH2O",label:"Umidade do gás na entrada",unidade:"%vol",tipo:"number",valor:10.4,step:"0.5"},
+      {id:"lvCO",label:"Teor de CO (segurança)",unidade:"%vol",tipo:"number",valor:25.2,step:"0.5"},
+      {tipo:"head",label:"Poeira a coletar"},
+      {id:"lvPo",label:"POEIRA na entrada do lavador",unidade:"g/Nm³",tipo:"number",valor:12,step:"0.5"},
+      {id:"lvD50",label:"d50 do pó que sai do ciclone",unidade:"µm",tipo:"number",valor:5,step:"0.5"},
+      {id:"lvSg",label:"Desvio geométrico da distribuição σg",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"lvRhoP",label:"Massa específica REAL das partículas",unidade:"kg/m³",tipo:"number",valor:3000,step:"50"},
+      {id:"lvF",label:"Molhabilidade do pó (fator f de Calvert)",tipo:"select",valor:"0.40",opcoes:[
+        {v:"0.25",t:"0,25 — pó carbonáceo, hidrofóbico (carvão vegetal)"},
+        {v:"0.40",t:"0,40 — misto óxido e carbono (usual em guseira)"},
+        {v:"0.50",t:"0,50 — mineral, hidrofílico"}]},
+      {id:"lvMeta",label:"META de concentração na saída",unidade:"mg/Nm³",tipo:"number",valor:10,step:"5"},
+      {tipo:"head",label:"Alcatrão"},
+      {id:"lvAlcSim",label:"Há alcatrão no gás?",tipo:"select",valor:"sim",opcoes:[
+        {v:"sim",t:"SIM — carvão vegetal, condensáveis presentes"},
+        {v:"nao",t:"NÃO — forno a coque ou carvão bem carbonizado (exige medição)"}]},
+      {id:"lvAlc",label:"Teor de alcatrão",unidade:"g/Nm³",tipo:"number",valor:1.0,step:"0.1"},
+      {id:"lvTorv",label:"Ponto de orvalho do alcatrão",unidade:"°C",tipo:"number",valor:130,step:"5"},
+      {tipo:"head",label:"Água de processo"},
+      {id:"lvTagua",label:"Temperatura da água de processo",unidade:"°C",tipo:"number",valor:36,step:"1"},
+      {id:"lvPbicos",label:"Pressão nos bicos de aspersão",unidade:"bar",tipo:"number",valor:3,step:"0.5"},
+      {tipo:"head",label:"Torre de resfriamento e lavagem primária"},
+      {id:"lvVtorre",label:"Velocidade do gás na torre",unidade:"m/s",tipo:"number",valor:2.5,step:"0.1"},
+      {id:"lvLGtorre",label:"Razão líquido/gás na torre",unidade:"L/m³",tipo:"number",valor:2.0,step:"0.1"},
+      {id:"lvHtorre",label:"Altura de contato (0 = pelo cálculo)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
+      {id:"lvCredTorre",label:"CRÉDITO MÁXIMO de coleta atribuído à torre",unidade:"%",tipo:"number",valor:60,step:"5"},
+      {tipo:"head",label:"Lavador Venturi"},
+      {id:"lvVgarg",label:"VELOCIDADE NA GARGANTA (0 = calcular pela meta)",unidade:"m/s",tipo:"number",valor:0,step:"5"},
+      {id:"lvLG",label:"Razão líquido/gás no Venturi",unidade:"L/m³",tipo:"number",valor:1.2,step:"0.1"},
+      {id:"lvGarg",label:"Tipo de garganta",tipo:"select",valor:"variavel",opcoes:[
+        {v:"variavel",t:"VARIÁVEL — mantém o ΔP na marcha reduzida"},
+        {v:"fixa",t:"FIXA — mais simples; eficiência cai com a vazão"}]},
+      {tipo:"head",label:"Separador, selo e dutos"},
+      {id:"lvVsep",label:"Velocidade ascensional no separador de gotas",unidade:"m/s",tipo:"number",valor:3.5,step:"0.1"},
+      {id:"lvVduto",label:"Velocidade nos dutos de gás",unidade:"m/s",tipo:"number",valor:18,step:"1"},
+      {id:"lvFSselo",label:"Fator de segurança do selo hidráulico",tipo:"number",valor:1.5,step:"0.1"},
+      {id:"lvLeq",label:"Comprimento equivalente de dutos",unidade:"m",tipo:"number",valor:60,step:"5"},
+      {id:"lvCpurga",label:"Concentração de sólidos na PURGA",unidade:"% massa",tipo:"number",valor:3,step:"0.5"}
+    ],
+    calcular:lavadorUmidoCalc
+  },
+
   porta_forno:{
     titulo:"Sistema de elevação de porta de forno — corrente, cabo, eixo e acionamento",
     referencia:"Classificação do mecanismo, coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e coeficientes de segurança conforme ABNT NBR 8400 e FEM 1.001. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1, ISO 606), dimensionadas para a carga total do ponto com coeficiente de elevação crítica. Cabos de aço com carga de ruptura por construção e verificação da relação D/d das polias conforme DIN 15020, com inspeção e descarte pela ABNT NBR ISO 4309. Redundância real: corrente e cabo, cada um capaz de sustentar sozinho a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo principal resolvido como viga sobre dois mancais por integração numérica, com momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI, verificação da flecha no engrenamento e da torção específica. Engrenagens abertas por Lewis com fator de velocidade de Barth e verificação da velocidade tangencial. Motoredutor e freio de mola SEW-EURODRIVE (série BE), com o freio dimensionado sem crédito de rendimento do redutor. NR-12 para o dispositivo de retenção independente.",
@@ -12884,6 +13337,140 @@ function gerarRelatorio(){
         styles:{fontSize:6.5,cellPadding:1.3,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
         headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.7},
         columnStyles:{0:{cellWidth:33},1:{cellWidth:65},2:{cellWidth:84}}});
+    } else if(G.tipo==="lavador"){
+      var A=G.A;
+      var XW=15, XV=196, ZW=116;
+      function fxW(x,w){ return Math.max(XW,Math.min(XV-w,x)); }
+      function ntW(x,y,t,r,g2,b2,fs){ var f=fs||5.6; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxW(x,w2),y); }
+      function ntcW(x,y,t,r,g2,b2,fs){ var f=fs||5.6; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XW+w2/2,Math.min(XV-w2/2,x)),y,{align:"center"}); }
+      function setaW(x1,y1,x2,y2,r,g2,b2){
+        doc.setDrawColor(r,g2,b2); doc.setLineWidth(0.7); doc.line(x1,y1,x2,y2);
+        var a=Math.atan2(y2-y1,x2-x1);
+        doc.line(x2,y2,x2-3*Math.cos(a-0.4),y2-3*Math.sin(a-0.4));
+        doc.line(x2,y2,x2-3*Math.cos(a+0.4),y2-3*Math.sin(a+0.4));
+      }
+      ntcW(105,27,"LAVADOR UMIDO  ·  "+(A.QN/1000).toFixed(0)+" mil Nm3/h  ·  "+A.T1.toFixed(0)+" a "+A.T2.toFixed(0)+" °C",20,60,100,9.0);
+      ntcW(105,32,"Venturi "+A.vGar.toFixed(0)+" m/s  ·  L/G "+A.LG.toFixed(1)+" L/m3  ·  dP "+A.dPven.toFixed(0)+" mbar  ·  saida "+A.Cout.toFixed(1)+" mg/Nm3",90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XW,35.5,XV,35.5);
+
+      /* ---- TORRE ---- */
+      var xT=24, wT=20, yT=48, hT=52;
+      doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
+      doc.rect(xT,yT,wT,hT,"FD");
+      doc.setFillColor(245,250,255); doc.setDrawColor(150,175,205); doc.setLineWidth(0.3);
+      var q1;
+      for(q1=0;q1<4;q1++){ doc.circle(xT+4+q1*4,yT+8,0.9,"FD"); }
+      doc.setDrawColor(40,140,190); doc.setLineWidth(0.4);
+      for(q1=0;q1<5;q1++){ doc.line(xT+3+q1*3.5,yT+10,xT+2+q1*3.5,yT+hT-6); }
+      ntcW(xT+wT/2,yT-3,"TORRE",20,60,100,6.0);
+      ntcW(xT+wT/2,yT+hT+4,"D "+A.Dtorre.toFixed(1)+" x H "+A.Htorre2.toFixed(1)+" m",60,60,60,5.2);
+      /* entrada de gas quente */
+      setaW(XW+1,yT+hT-8,xT,yT+hT-8,180,80,40);
+      ntW(XW,yT+hT-11,A.T1.toFixed(0)+" °C",180,80,40,5.2);
+      /* ---- VENTURI ---- */
+      var xV=52, yV=50, wV=14;
+      doc.setFillColor(232,241,250); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
+      doc.line(xV,yV,xV+wV,yV);
+      doc.line(xV,yV,xV+wV*0.36,yV+14); doc.line(xV+wV,yV,xV+wV*0.64,yV+14);
+      doc.line(xV+wV*0.36,yV+14,xV+wV*0.36,yV+22); doc.line(xV+wV*0.64,yV+14,xV+wV*0.64,yV+22);
+      doc.line(xV+wV*0.36,yV+22,xV-1,yV+44); doc.line(xV+wV*0.64,yV+22,xV+wV+1,yV+44);
+      doc.setFillColor(40,140,190); doc.setDrawColor(40,140,190); doc.setLineWidth(0.5);
+      doc.line(xV-4,yV+8,xV+wV*0.36-0.5,yV+16); doc.line(xV+wV+4,yV+8,xV+wV*0.64+0.5,yV+16);
+      ntcW(xV+wV/2,yV-3,"VENTURI",20,60,100,6.0);
+      ntcW(xV+wV/2,yV+50,"garganta "+(A.Dgar*1000).toFixed(0)+" mm",60,60,60,5.2);
+      ntcW(xV+wV/2,yV+54,A.vGar.toFixed(0)+" m/s  ·  "+A.dPven.toFixed(0)+" mbar",180,80,40,5.2);
+      setaW(xT+wT,yT+6,xV,yV+4,40,140,190);
+      ntW(xT+wT+1,yT-6,A.T2.toFixed(0)+" °C saturado",40,140,190,5.0);
+      /* ---- SEPARADOR ---- */
+      var xS=80, wS=20, yS=48, hS=40;
+      doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
+      doc.rect(xS,yS,wS,hS,"FD");
+      doc.setFillColor(226,238,248);
+      doc.triangle(xS,yS+hS,xS+wS,yS+hS,xS+wS/2,yS+hS+9,"F");
+      doc.setDrawColor(30,60,95); doc.line(xS,yS+hS,xS+wS/2,yS+hS+9); doc.line(xS+wS,yS+hS,xS+wS/2,yS+hS+9);
+      doc.setDrawColor(120,150,180); doc.setLineWidth(0.35);
+      for(q1=0;q1<3;q1++){ doc.circle(xS+wS/2,yS+10+q1*7,5-q1*1.2,"S"); }
+      ntcW(xS+wS/2,yS-3,"SEPARADOR",20,60,100,6.0);
+      ntcW(xS+wS/2,yS+hS+14,"D "+A.Dsep.toFixed(1)+" m",60,60,60,5.2);
+      setaW(xV+wV+1,yV+44,xS,yS+6,40,140,190);
+      /* saida de gas limpo */
+      setaW(xS+wS,yS+5,xS+wS+12,yS+5,40,140,90);
+      ntW(xS+wS+1,yS+2,"gas limpo",40,140,90,5.2);
+      ntW(xS+wS+1,yS+9,A.Cout.toFixed(1)+" mg/Nm3",40,140,90,5.2);
+      /* ---- SELO ---- */
+      var xL=80, yL=108, wL=20, hL=16;
+      doc.setFillColor(214,232,244); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
+      doc.rect(xL,yL,wL,hL,"FD");
+      doc.setDrawColor(40,120,190); doc.setLineWidth(0.5);
+      doc.line(xL+1,yL+4,xL+wL-1,yL+4);
+      ntcW(xL+wL/2,yL-2,"SELO HIDRAULICO",20,60,100,5.6);
+      ntW(xL+wL+2,yL+9,"coluna "+A.Hselo.toFixed(2)+" m",60,60,60,5.2);
+      doc.setDrawColor(150,90,50); doc.setLineWidth(0.6);
+      doc.line(xS+wS/2,yS+hS+9,xS+wS/2,yL);
+      /* ---- circuito de agua ---- */
+      doc.setDrawColor(40,140,190); doc.setLineWidth(0.5); doc.setLineDashPattern([1.4,1.4],0);
+      doc.line(xT+wT/2,yT+hT+8,xT+wT/2,132.5); doc.line(xT+wT/2,132.5,30,132.5);
+      doc.setLineDashPattern([],0);
+      doc.setFillColor(214,232,244); doc.setDrawColor(30,60,95); doc.setLineWidth(0.5);
+      doc.rect(30,128,28,9,"FD");
+      ntcW(44,133.6,"TANQUE DE RECIRCULACAO",20,60,100,4.4);
+      doc.setFillColor(120,130,145); doc.setDrawColor(50,50,50);
+      doc.circle(24,132.5,3,"FD");
+      ntW(XW,141.5,"bomba "+A.QLtot.toFixed(0)+" m3/h  ·  "+A.acBomb.Pinst+" kW",25,60,110,5.0);
+      setaW(58,132.5,68,132.5,150,90,50);
+      ntW(69,133.8,"purga "+A.Qpurga.toFixed(0)+" m3/h",150,90,50,4.8);
+      /* ---- legenda ---- */
+      var yLg=150;
+      ntW(XW,yLg,     "entrada "+A.QN.toFixed(0)+" Nm3/h a "+A.T1.toFixed(0)+" °C  ·  "+A.Cpo.toFixed(1)+" g/Nm3",180,80,40,5.4);
+      ntW(XW,yLg+4,   "saturacao a "+A.T2.toFixed(1)+" °C  ·  evapora "+(A.mEvap/1000).toFixed(1)+" m3/h de agua",40,140,190,5.4);
+      ntW(XW,yLg+8,   "vazao real: "+(A.Qreal1/1000).toFixed(0)+" mil -> "+(A.Qreal2/1000).toFixed(0)+" mil m3/h",40,140,190,5.4);
+      ntW(XW,yLg+12,  "captura: torre "+(A.etaTorre*100).toFixed(0)+" %  ·  Venturi "+(A.etaVen*100).toFixed(2)+" %",25,60,110,5.4);
+      ntW(XW,yLg+16,  "dP total "+A.dPtot.toFixed(0)+" mbar de "+A.dPdisp.toFixed(0)+" disponiveis",25,60,110,5.4);
+      ntW(XW,yLg+20,  A.precisaExa?"EXIGE EXAUSTOR":"opera por pressao propria do forno, sem exaustor",A.precisaExa?180:40,A.precisaExa?60:140,A.precisaExa?60:90,5.4);
+      ntW(XW,yLg+24,  "agua: circula "+A.QLtot.toFixed(0)+"  ·  repoe "+A.Qrep.toFixed(0)+" m3/h",40,140,190,5.4);
+      ntW(XW,yLg+28,  A.temAlc?("alcatrao "+A.Calc.toFixed(1)+" g/Nm3  ·  orvalho "+A.Torv.toFixed(0)+" °C"):"sem alcatrao (premissa a medir)",150,90,50,5.4);
+      ntcW(60,yLg+36,"FLUXOGRAMA DO LAVADOR",20,60,100,6.4);
+
+      /* ---- tabela ---- */
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZW,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:[
+          [san("Vazao normal"),san((A.QN/1000).toFixed(0))+" mil Nm3/h"],
+          [san("Temperatura entrada"),san(A.T1.toFixed(0))+" °C"],
+          [san("Vazao real entrada"),san((A.Qreal1/1000).toFixed(0))+" mil m3/h"],
+          [san("SATURACAO"),san(A.T2.toFixed(1))+" °C"],
+          [san("Agua evaporada"),san((A.mEvap/1000).toFixed(1))+" m3/h"],
+          [san("Vazao apos torre"),san((A.Qreal2/1000).toFixed(0))+" mil m3/h"],
+          [san("TORRE"),"D "+san(A.Dtorre.toFixed(1))+" x "+san(A.Htorre2.toFixed(1))+" m"],
+          [san("Agua na torre"),san(A.QLtorre.toFixed(0))+" m3/h (L/G "+san(A.LGtorre.toFixed(1))+")"],
+          [san("Captura na torre"),san((A.etaTorre*100).toFixed(0))+" %"],
+          [san("Po apos torre"),san(A.CpoT.toFixed(2))+" g/Nm3"],
+          [san("VENTURI garganta"),san((A.Dgar*1000).toFixed(0))+" mm"],
+          [san("Velocidade"),san(A.vGar.toFixed(0))+" m/s"],
+          [san("Razao L/G"),san(A.LG.toFixed(1))+" L/m3"],
+          [san("Agua no Venturi"),san(A.QLven.toFixed(0))+" m3/h"],
+          [san("Gota media"),san((A.ddV*1e6).toFixed(0))+" um"],
+          [san("dP do Venturi"),san(A.dPven.toFixed(0))+" mbar"],
+          [san("Eficiencia"),san((A.etaVen*100).toFixed(3))+" %"],
+          [san("SAIDA"),san(A.Cout.toFixed(1))+" mg/Nm3 "+(A.atingiu?"OK":"NAO ATENDE")],
+          [san("SEPARADOR"),"D "+san(A.Dsep.toFixed(1))+" x "+san(A.Hsep.toFixed(1))+" m"],
+          [san("Corte de gota"),san((A.d50Sep*1e6).toFixed(1))+" um"],
+          [san("SELO"),san(A.Hselo.toFixed(2))+" m de coluna"],
+          [san("dP TOTAL"),san(A.dPtot.toFixed(0))+" mbar"],
+          [san("dP disponivel"),san(A.dPdisp.toFixed(0))+" mbar"],
+          [san("Exaustor"),A.precisaExa?san("NECESSARIO"):san("dispensavel")],
+          [san("AGUA em circulacao"),san(A.QLtot.toFixed(0))+" m3/h"],
+          [san("Purga"),san(A.Qpurga.toFixed(1))+" m3/h a "+san(A.Cpurga.toFixed(1))+" %"],
+          [san("Reposicao"),san(A.Qrep.toFixed(1))+" m3/h"],
+          [san("Bombas"),san(A.acBomb.mot.d)+" - "+san(A.acBomb.Pinst.toFixed(0))+" kW"],
+          [san("Solido capturado"),san(A.kgCap.toFixed(0))+" kg/h"],
+          [san("Alcatrao"),A.temAlc?(san(A.Calc.toFixed(1))+" g/Nm3"):san("ausente")]
+        ],
+        styles:{fontSize:5.8,cellPadding:0.85,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.0},
+        columnStyles:{0:{cellWidth:36},1:{cellWidth:36}}});
     } else if(G.tipo==="rosca"){
       /* =============== CROQUI DO TRANSPORTADOR HELICOIDAL =============== */
       var XS=15, XE=196, ZS=126;
