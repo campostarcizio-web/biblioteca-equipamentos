@@ -1,875 +1,914 @@
 {
-  "meta": {
-    "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "2.4.0",
-    "atualizado_em": "2026-09-06",
-    "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
-    "menu": [
-      {
-        "grupo": "Transportadores",
-        "subgrupos": [
-          "Correia Transportadora Convencional",
-          "Flexowell",
-          "Arraste Tubular",
-          "Elevador de Canecas",
-          "Helicoidal"
-        ]
-      },
-      {
-        "grupo": "Silos",
-        "subgrupos": [
-          "Silo Circular",
-          "Silo Retangular"
-        ]
-      },
-      {
-        "grupo": "Moegas",
-        "subgrupos": [
-          "Moega de Alimentação"
-        ]
-      },
-      {
-        "grupo": "Britadores",
-        "subgrupos": [
-          "Britador de Mandíbulas",
-          "Britador Cônico",
-          "Britador de Impacto",
-          "Britador de Martelos"
-        ]
-      },
-      {
-        "grupo": "Peneiras",
-        "subgrupos": [
-          "Peneira Vibratória Horizontal",
-          "Peneira Vibratória Inclinada",
-          "Peneira Vibratória Banana (CBS)"
-        ]
-      },
-      {
-        "grupo": "Alimentadores",
-        "subgrupos": [
-          "Calha Vibratória (saída de silo)",
-          "Alimentador de Correia (moega de alimentação)"
-        ]
-      },
-      {
-        "grupo": "Ativadores de Silo",
-        "subgrupos": [
-          "Cone Vibratório Circular",
-          "Cone Vibratório Retangular"
-        ]
-      },
-      {
-        "grupo": "Utilidades e Segurança",
-        "subgrupos": [
-          "Flare (tocha de queima)"
-        ]
-      },
-      {
-        "grupo": "Limpeza de Gases",
-        "subgrupos": [
-          "Ciclone de Gás de Topo de Forno",
-          "Lavador Úmido (torre, Venturi e separador)"
-        ]
-      },
-      {
-        "grupo": "Tratamento de Lama",
-        "subgrupos": [
-          "Tanque de Recirculação / Coleta",
-          "Tanque de Lama Espessada",
-          "Tanque de Filtrado",
-          "Dosagem Química e Floculador",
-          "Espessador",
-          "Filtro Prensa"
-        ]
-      },
-      {
-        "grupo": "Tanques de Agitadores",
-        "subgrupos": [
-          "Tanque Agitador Cilíndrico",
-          "Tanque Agitador Retangular"
-        ]
-      },
-      {
-        "grupo": "Mecanismos de Forno",
-        "subgrupos": [
-          "Sistema de Elevação de Porta"
-        ]
-      }
-    ],
-    "i18n": {
-      "grupos": {
-        "Transportadores": "Conveyors",
-        "Silos": "Silos",
-        "Moegas": "Hoppers",
-        "Britadores": "Crushers",
-        "Peneiras": "Screens",
-        "Alimentadores": "Feeders",
-        "Ativadores de Silo": "Bin Activators",
-        "Utilidades e Segurança": "Utilities & Safety",
-        "Limpeza de Gases": "Gas Cleaning",
-        "Tratamento de Lama": "Sludge Treatment",
-        "Tanques de Agitadores": "Agitated Tanks",
-        "Mecanismos de Forno": "Furnace Mechanisms"
-      },
-      "subgrupos": {
-        "Correia Transportadora Convencional": "Conventional Belt Conveyor",
-        "Flexowell": "Flexowell",
-        "Arraste Tubular": "Tubular Drag",
-        "Elevador de Canecas": "Bucket Elevator",
-        "Helicoidal": "Screw",
-        "Silo Circular": "Circular Silo",
-        "Silo Retangular": "Rectangular Silo",
-        "Moega de Alimentação": "Feed Hopper",
-        "Britador de Mandíbulas": "Jaw Crusher",
-        "Britador Cônico": "Cone Crusher",
-        "Britador de Impacto": "Impact Crusher",
-        "Britador de Martelos": "Hammer Crusher",
-        "Peneira Vibratória Horizontal": "Horizontal Screen",
-        "Peneira Vibratória Inclinada": "Inclined Screen",
-        "Peneira Vibratória Banana (CBS)": "Banana Screen (CBS)",
-        "Calha Vibratória (saída de silo)": "Vibrating Trough (silo outlet)",
-        "Alimentador de Correia (moega de alimentação)": "Belt Feeder (feed hopper)",
-        "Cone Vibratório Circular": "Circular Bin Activator",
-        "Cone Vibratório Retangular": "Rectangular Bin Activator",
-        "Flare (tocha de queima)": "Flare Stack",
-        "Ciclone de Gás de Topo de Forno": "Furnace Top-Gas Cyclone",
-        "Espessador": "Thickener",
-        "Tanque de Recirculação / Coleta": "Recirculation / Collection Tank",
-        "Tanque de Lama Espessada": "Thickened Sludge Tank",
-        "Tanque de Filtrado": "Filtrate Tank",
-        "Filtro Prensa": "Filter Press",
-        "Dosagem Química e Floculador": "Chemical Dosing and Flocculator",
-        "Tanque Agitador Cilíndrico": "Cylindrical Agitated Tank",
-        "Tanque Agitador Retangular": "Rectangular Agitated Tank",
-        "Sistema de Elevação de Porta": "Door Hoisting System",
-        "Lavador Úmido (torre, Venturi e separador)": "Wet Scrubber (quench, Venturi and separator)"
-      }
-    }
+ "meta": {
+  "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
+  "versao": "2.5.0",
+  "atualizado_em": "2026-09-07",
+  "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
+  "menu": [
+   {
+    "grupo": "Transportadores",
+    "subgrupos": [
+     "Correia Transportadora Convencional",
+     "Flexowell",
+     "Arraste Tubular",
+     "Elevador de Canecas",
+     "Helicoidal"
+    ]
+   },
+   {
+    "grupo": "Silos",
+    "subgrupos": [
+     "Silo Circular",
+     "Silo Retangular"
+    ]
+   },
+   {
+    "grupo": "Moegas",
+    "subgrupos": [
+     "Moega de Alimentação"
+    ]
+   },
+   {
+    "grupo": "Britadores",
+    "subgrupos": [
+     "Britador de Mandíbulas",
+     "Britador Cônico",
+     "Britador de Impacto",
+     "Britador de Martelos"
+    ]
+   },
+   {
+    "grupo": "Peneiras",
+    "subgrupos": [
+     "Peneira Vibratória Horizontal",
+     "Peneira Vibratória Inclinada",
+     "Peneira Vibratória Banana (CBS)"
+    ]
+   },
+   {
+    "grupo": "Alimentadores",
+    "subgrupos": [
+     "Calha Vibratória (saída de silo)",
+     "Alimentador de Correia (moega de alimentação)"
+    ]
+   },
+   {
+    "grupo": "Ativadores de Silo",
+    "subgrupos": [
+     "Cone Vibratório Circular",
+     "Cone Vibratório Retangular"
+    ]
+   },
+   {
+    "grupo": "Utilidades e Segurança",
+    "subgrupos": [
+     "Flare (tocha de queima)"
+    ]
+   },
+   {
+    "grupo": "Limpeza de Gases",
+    "subgrupos": [
+     "Ciclone de Gás de Topo de Forno",
+     "Lavador Úmido (torre, Venturi e separador)"
+    ]
+   },
+   {
+    "grupo": "Tratamento de Lama",
+    "subgrupos": [
+     "Tanque de Recirculação / Coleta",
+     "Tanque de Lama Espessada",
+     "Tanque de Filtrado",
+     "Dosagem Química e Floculador",
+     "Espessador",
+     "Filtro Prensa"
+    ]
+   },
+   {
+    "grupo": "Tanques de Agitadores",
+    "subgrupos": [
+     "Tanque Agitador Cilíndrico",
+     "Tanque Agitador Retangular"
+    ]
+   },
+   {
+    "grupo": "Mecanismos de Forno",
+    "subgrupos": [
+     "Sistema de Elevação de Porta"
+    ]
+   },
+   {
+    "grupo": "Carbonização",
+    "subgrupos": [
+     "Planta de Carbonização (forno, fornalha e pátio)"
+    ]
+   }
+  ],
+  "i18n": {
+   "grupos": {
+    "Transportadores": "Conveyors",
+    "Silos": "Silos",
+    "Moegas": "Hoppers",
+    "Britadores": "Crushers",
+    "Peneiras": "Screens",
+    "Alimentadores": "Feeders",
+    "Ativadores de Silo": "Bin Activators",
+    "Utilidades e Segurança": "Utilities & Safety",
+    "Limpeza de Gases": "Gas Cleaning",
+    "Tratamento de Lama": "Sludge Treatment",
+    "Tanques de Agitadores": "Agitated Tanks",
+    "Mecanismos de Forno": "Furnace Mechanisms"
+   },
+   "subgrupos": {
+    "Correia Transportadora Convencional": "Conventional Belt Conveyor",
+    "Flexowell": "Flexowell",
+    "Arraste Tubular": "Tubular Drag",
+    "Elevador de Canecas": "Bucket Elevator",
+    "Helicoidal": "Screw",
+    "Silo Circular": "Circular Silo",
+    "Silo Retangular": "Rectangular Silo",
+    "Moega de Alimentação": "Feed Hopper",
+    "Britador de Mandíbulas": "Jaw Crusher",
+    "Britador Cônico": "Cone Crusher",
+    "Britador de Impacto": "Impact Crusher",
+    "Britador de Martelos": "Hammer Crusher",
+    "Peneira Vibratória Horizontal": "Horizontal Screen",
+    "Peneira Vibratória Inclinada": "Inclined Screen",
+    "Peneira Vibratória Banana (CBS)": "Banana Screen (CBS)",
+    "Calha Vibratória (saída de silo)": "Vibrating Trough (silo outlet)",
+    "Alimentador de Correia (moega de alimentação)": "Belt Feeder (feed hopper)",
+    "Cone Vibratório Circular": "Circular Bin Activator",
+    "Cone Vibratório Retangular": "Rectangular Bin Activator",
+    "Flare (tocha de queima)": "Flare Stack",
+    "Ciclone de Gás de Topo de Forno": "Furnace Top-Gas Cyclone",
+    "Espessador": "Thickener",
+    "Tanque de Recirculação / Coleta": "Recirculation / Collection Tank",
+    "Tanque de Lama Espessada": "Thickened Sludge Tank",
+    "Tanque de Filtrado": "Filtrate Tank",
+    "Filtro Prensa": "Filter Press",
+    "Dosagem Química e Floculador": "Chemical Dosing and Flocculator",
+    "Tanque Agitador Cilíndrico": "Cylindrical Agitated Tank",
+    "Tanque Agitador Retangular": "Rectangular Agitated Tank",
+    "Sistema de Elevação de Porta": "Door Hoisting System",
+    "Lavador Úmido (torre, Venturi e separador)": "Wet Scrubber (quench, Venturi and separator)"
+   }
+  }
+ },
+ "equipamentos": [
+  {
+   "id": "carbonizacao-madeira",
+   "grupo": "Carbonização",
+   "subgrupo": "Planta de Carbonização (forno, fornalha e pátio)",
+   "subtipo": "Produção de carvão vegetal: reator, balanço térmico, queima dos gases, pátio e equipe",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Planta de Carbonização de Madeira",
+   "calculadora": "carbonizacao",
+   "descricao": "Pré-dimensionamento completo de uma planta de carvão vegetal a partir da produção alvo de carvão. O cálculo é conduzido por um balanço de massa e energia escrito por quilo de madeira seca carregada, e a pergunta que ele responde é sempre a mesma: de onde vem o calor. De um lado a demanda — aquecer a madeira, evaporar a umidade, levar até a temperatura final e somar o calor de reação da pirólise. Do outro a energia recuperável dos voláteis, afetada pela eficiência de transferência energética e pelo aproveitamento dos condensáveis de cada concepção. A diferença é fechada queimando uma fração da própria carga, e essa fração — resultado do cálculo, não arbitragem — é o que separa um rabo-quente de uma retorta. Sete concepções são comparadas lado a lado na mesma madeira e na mesma temperatura: alvenaria rabo-quente, retangular JG com fornalha, container metálico, retorta vertical contínua, reator rotativo horizontal, reator vertical de leito móvel e reator de rosca helicoidal com aquecimento indireto, cada uma com sua eficiência de transferência energética explícita. Devolve rendimento gravimétrico, consumo específico em estéreos por tonelada, carbono fixo e análise imediata do carvão, número e dimensões dos fornos ou reatores, secagem ao ar da madeira, fornalha de queima dos gases com câmara de combustão e chaminé por tiragem natural, emissão de metano evitada, área de pátio e estoques, e equipe operacional.",
+   "referencia": "Balanço de massa e energia por quilo de madeira seca carregada, com a fração da carga queimada obtida do fechamento entre demanda térmica e energia disponível nos voláteis. Rendimento gravimétrico, carbono fixo, voláteis e partição em carvão, água de reação, alcatrão e gás não condensável por curvas consolidadas de pirólise lenta de eucalipto contra a temperatura final. Poder calorífico da biomassa pela correlação de Channiwala e Parikh (2002). Secagem ao ar por aproximação exponencial da umidade de equilíbrio com constante corrigida pelo diâmetro da tora. Transporte no reator rotativo pela equação de Sullivan. Verificação de área de troca e de fluxo térmico específico nas concepções de aquecimento indireto. Câmara de combustão pelo maior entre taxa de liberação volumétrica e tempo de residência, com temperatura adiabática de chama por iteração no calor específico. Chaminé por tiragem natural. ABNT NBR 6922, NBR 6923, NBR 8112 e NBR 11179; CONAMA 382 e 436; NR-33, NR-15 e NR-12.",
+   "resumo": "Carbonização: balanço térmico que define a fração da carga queimada, sete concepções de reator comparadas por eficiência de transferência energética, fornalha de gases, chaminé, pátio e equipe.",
+   "normas": [
+    "NBR 6922",
+    "NBR 6923",
+    "NBR 8112",
+    "NBR 11179",
+    "NBR 11941",
+    "CONAMA 382",
+    "CONAMA 436",
+    "NBR 8800",
+    "NBR 6118",
+    "NBR 12693",
+    "NR-12",
+    "NR-15",
+    "NR-33",
+    "SEW"
+   ],
+   "modelo_en": "Wood Carbonisation Plant",
+   "resumo_en": "Charcoal making: energy balance setting the burned charge fraction, seven reactor concepts compared by heat transfer efficiency, gas furnace, stack, yard and crew.",
+   "grupo_en": "Carbonisation",
+   "subgrupo_en": "Carbonisation Plant (kiln, furnace and yard)"
   },
-  "equipamentos": [
-    {
-      "id": "transportador-flexowell",
-      "grupo": "Transportadores",
-      "subgrupo": "Flexowell",
-      "subtipo": "Transportador de correia de alto ângulo / vertical (FLEXOWELL®)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Transportador Flexowell",
-      "calculadora": "flexowell",
-      "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo e vertical. A POTÊNCIA segue a ISO 5048 e a DIN 22101, com coeficiente de atrito fictício f entre 0,020 e 0,030 selecionável, coeficiente de comprimento C, cos δ real da geometria e resistências secundárias calculadas por componentes — aceleração do material no carregamento, atrito nas guias e limpadores — em vez de percentual fixo. O resultado é confrontado com a aferição física da potência de elevação (Q·g·H), que é o piso incontornável do transportador. A MASSA DA CORREIA é obtida por composição: carcaça com coberturas, as duas paredes onduladas por tabela de catálogo e as travessas pela seção e pelo passo — adotar valor único erra nas duas pontas, porque a correia vai de cerca de 12 a 100 kg/m conforme a parede. Verifica a VELOCIDADE ADMISSÍVEL em função do ângulo, acima da qual o material rola de volta no bolsão; o DIÂMETRO MÍNIMO DO TAMBOR pelos dois critérios simultâneos de carcaça e de altura da parede ondulada; o CONTRA-RECUO, comparando a componente gravitacional do material com a resistência ao rolamento e dando o torque de retenção no eixo do tambor e na entrada do redutor — item de segurança, pois transportador de alto ângulo carregado desce ao perder o acionamento; a flecha e o espaçamento de roletes; e os raios mínimos de curva côncava, pelo critério de levantamento da correia, e convexa, pelo limite da parede ondulada, indicando os roletes de retenção quando o raio praticável fica abaixo do de levantamento. Entrega ainda pesos vazio e em operação, cargas distribuídas por metro, cargas pontuais na cabeça e na cauda, cargas horizontais do acionamento e do esticador, e a ancoragem longitudinal a transferir à fundação. Croqui com os três trechos, as duas curvas, o bolsão em corte e todas as cargas. Presets de material incluindo briquete ferroso e briquete carbonoso.",
-      "referencia": "Catálogo ContiTech FLEXOWELL® (paredes L/N/S/ES, travessas T, carcaça têxtil e cabo de aço); potência conforme ISO 5048 e DIN 22101 — resistência principal Fp = f·L·g·[qRO+qRU+(2qB+qG)·cosδ] com coeficiente de comprimento C, resistência de elevação Fst = qG·g·H e secundárias por componentes; flecha entre roletes a = √(8·T2·f/(g·(qB+qG))); raio côncavo de não levantamento R ≥ T1/(qB·g); acionamento SEW-EURODRIVE. Massa da correia, curva de capacidade por ângulo, raios mínimos de curva e diâmetro mínimo de tambor devem ser confirmados na folha de dados do fabricante — são específicos da parede ondulada.",
-      "resumo": "Correia de parede ondulada para alto ângulo: capacidade, potência ISO 5048, contra-recuo, tambor mínimo, curvas e cargas nos apoios.",
-      "normas": [
-        "ISO 5048",
-        "DIN 22101",
-        "CEMA"
-      ],
-      "modelo_en": "Flexowell Conveyor",
-      "resumo_en": "Corrugated sidewall belt for steep lifts: capacity, ISO 5048 power, backstop, minimum pulley, curve radii and support loads.",
-      "grupo_en": "Conveyors",
-      "subgrupo_en": "Flexowell"
-    },
-    {
-      "id": "transportador-correia",
-      "grupo": "Transportadores",
-      "subgrupo": "Correia Transportadora Convencional",
-      "subtipo": "Transportador de correia",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Transportador de Correia",
-      "calculadora": "belt_conveyor",
-      "descricao": "Roteiro completo do Manual FAÇO de Transportadores de Correia, passo a passo, com todos os dados de entrada selecionáveis a partir das tabelas do manual: material e inclinação máxima (Tab. 1-01/1-02), velocidade (1-05), largura por capacidade e granulometria (1-04/1-06), série de roletes com força radial, carga dinâmica e vida útil (1-07 a 1-14), espaçamento e flecha (1-15/1-16), potência pelo Método Prático (1-17 a 1-20) com verificação CEMA, tensões T1/T2/T3 pelos quatro casos das págs. 1.49-1.50, seleção da correia (Tad = Tu·B·n₁), esticador e contrapeso com curso e com o peso do tambor esticador estimado pela geometria (casca, discos, cubos e eixo dimensionado por tensão e flecha) (1-33, 1.67, 2-55 a 2-57) capacidade máxima 100% da seção (geometria CEMA × Tab. 1-04) como base do acionamento, tração máxima na partida com a correia cheia (destravamento + inércia das massas em movimento) e seleção de motor e redutor pelo maior entre o regime contínuo e o pico de partida (1-34).",
-      "referencia": "Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34 e 2-55 a 2-57; verificação cruzada pelo método CEMA; ABNT NBR 6172/6177",
-      "resumo": "Correia transportadora convencional: roteiro FAÇO passo a passo, com roletes, tensões, contrapeso, capacidade máxima 100% e tração de partida para o acionamento.",
-      "normas": [
-        "Manual FAÇO — Transportadores de Correia",
-        "CEMA",
-        "NBR 6172",
-        "NBR 6177",
-        "ISO 5048"
-      ],
-      "modelo_en": "Belt Conveyor",
-      "resumo_en": "Conventional belt conveyor: full step-by-step FAÇO routine with idlers, tensions, counterweight, 100% cross-section capacity and starting tension for drive sizing.",
-      "grupo_en": "Conveyors",
-      "subgrupo_en": "Conventional Belt Conveyor"
-    },
-    {
-      "id": "transportador-helicoidal",
-      "grupo": "Transportadores",
-      "subgrupo": "Helicoidal",
-      "subtipo": "Transportador helicoidal (rosca sem-fim)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Transportador Helicoidal",
-      "calculadora": "screw_conveyor",
-      "descricao": "Pré-dimensionamento de transportador helicoidal: a partir da vazão de projeto, calcula a vazão volumétrica, o diâmetro recomendado da rosca, a capacidade real e a potência de acionamento.",
-      "referencia": "CEMA / KWS Screw Conveyor Engineering Guide; DIN 15262 / ISO 7119",
-      "resumo": "Transportador helicoidal: da vazão de projeto ao diâmetro recomendado da rosca, com rotação, grau de enchimento, capacidade real e potência de acionamento.",
-      "normas": [
-        "CEMA",
-        "DIN 15262",
-        "ISO 7119"
-      ],
-      "modelo_en": "Screw Conveyor",
-      "resumo_en": "Screw conveyor: from design throughput to recommended screw diameter, with speed, trough loading, actual capacity and drive power.",
-      "grupo_en": "Conveyors",
-      "subgrupo_en": "Screw"
-    },
-    {
-      "id": "transportador-arraste-tubular",
-      "grupo": "Transportadores",
-      "subgrupo": "Arraste Tubular",
-      "subtipo": "Transportador de arraste tubular (corrente de elos redondos)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Transportador de Arraste Tubular",
-      "calculadora": "arraste_tubular",
-      "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do diâmetro nominal do tubo em polegadas conforme norma ASME B36.10 (4\" a 16\", Sch 40), taxa de preenchimento do tubo definida pelo usuário (seção útil = seção do tubo × taxa), presets de material incluindo briquete ferroso autoredutor (1,70 t/m³ · 60 mm), briquete carbonoso (1,30 t/m³ · 120 mm), briquete carbonoso e briquete ferroso (HBI), verificação do dimensional da peça contra o diâmetro do tubo, velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
-      "referencia": "Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40); capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente; catálogo Schrage Rohrkettensystem (velocidades de corrente e rodas dentadas); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)",
-      "resumo": "Arraste tubular de corrente com discos: diâmetro do tubo, taxa de preenchimento, seleção da corrente, potência, peso total e cargas pontuais nos apoios.",
-      "normas": [
-        "ASME B36.10",
-        "NBR 8800",
-        "SEW"
-      ],
-      "modelo_en": "Tubular Drag Conveyor",
-      "resumo_en": "Tubular chain-and-disc drag: pipe diameter, fill rate, chain selection, power, total weight and point loads at the supports.",
-      "grupo_en": "Conveyors",
-      "subgrupo_en": "Tubular Drag"
-    },
-    {
-      "id": "transportador-canecas",
-      "grupo": "Transportadores",
-      "subgrupo": "Elevador de Canecas",
-      "subtipo": "Elevador de canecas (transportador vertical)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Elevador de Canecas",
-      "calculadora": "elevador_canecas",
-      "descricao": "Pré-dimensionamento de elevador de canecas (transportador vertical): capacidade e seleção da caneca pelo catálogo, velocidade e tipo de descarga (centrífuga ou contínua), potência (elevação + resistência de escavação no boot), tração e seleção da correia (EP) ou da corrente central, e acionamento SEW. Tração e descarga selecionáveis.",
-      "referencia": "Método CEMA (Bucket Elevators) e velocidades de descarga; canecas tipo 4B / Tapco / Maxi-Lift (volume e espaçamento); referência de mineração pesada BEUMER (elevadores de correia) e AUMUND (corrente central forjada, tipo BWZ); acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)",
-      "resumo": "Elevador de canecas: seleção da caneca pelo catálogo, velocidade e tipo de descarga, potência com resistência de escavação, tração e seleção da tração.",
-      "normas": [
-        "CEMA",
-        "NBR 6172",
-        "SEW"
-      ],
-      "modelo_en": "Bucket Elevator",
-      "resumo_en": "Bucket elevator: bucket selection from catalogue, speed and discharge type, power including digging resistance, tension and traction selection.",
-      "grupo_en": "Conveyors",
-      "subgrupo_en": "Bucket Elevator"
-    },
-    {
-      "id": "britador-mandibulas",
-      "grupo": "Britadores",
-      "subgrupo": "Britador de Mandíbulas",
-      "subtipo": "Britador de mandíbulas (1 eixo, britagem por compressão)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Britador de Mandíbulas",
-      "calculadora": "britador_mandibulas",
-      "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade pela tabela do catálogo Série C (interpolada por APF) com verificação pela fórmula de Taggart, e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
-      "referencia": "Lei de Bond (3ª teoria da cominuição); fórmula de capacidade de Taggart; regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução; catálogo Metso/FAÇO Nordberg Série C; referências Wills' Mineral Processing Technology, Gupta & Yan (Mineral Processing Design and Operations), 911Metallurgist e AMIT-135",
-      "resumo": "Britador de mandíbulas primário: seleção da boca pelo catálogo, razão de redução, capacidade com verificação por Taggart e potência pela lei de Bond.",
-      "normas": [
-        "Bond",
-        "Taggart",
-        "Metso"
-      ],
-      "modelo_en": "Jaw Crusher",
-      "resumo_en": "Primary jaw crusher: feed opening from catalogue, reduction ratio, capacity cross-checked by Taggart and power by Bond's law.",
-      "grupo_en": "Crushers",
-      "subgrupo_en": "Jaw Crusher"
-    },
-    {
-      "id": "britador-conico",
-      "grupo": "Britadores",
-      "subgrupo": "Britador Cônico",
-      "subtipo": "Britador cônico (giratório secundário/terciário, britagem por compressão)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Britador Cônico",
-      "calculadora": "britador_conico",
-      "descricao": "Pré-dimensionamento de britador cônico (secundário/terciário, por compressão): seleção da câmara (Standard/grossa para secundário; Cabeça curta/fina para terciário) e do modelo pelo catálogo (Nordberg HP/MP), verificação da alimentação (F_máx ≤ boca da câmara), razão de redução e produto (APF → P80), capacidade pela tabela do catálogo (interpolada por APF, corrigida pela densidade) e potência pela lei de Bond com Work Index por material. Compara a potência calculada de Bond com a do motor de catálogo.",
-      "referencia": "Lei de Bond (3ª teoria da cominuição); método de capacidade do Manual de Britagem Metso/FAÇO (Q = QT·A·B·C·D) e tabela de capacidade × APF dos cones MP800/MP1000; catálogo Nordberg cônicos HP/MP (boca, câmara, potência); regras de câmara e razão de redução (secundário 4:1–6:1; terciário 2:1–5:1); referências Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist e AMIT-135",
-      "resumo": "Britador cônico secundário e terciário: seleção do modelo pelo catálogo, razão de redução, granulometria do produto, capacidade e potência pela lei de Bond.",
-      "normas": [
-        "Bond",
-        "Metso",
-        "Taggart"
-      ],
-      "modelo_en": "Cone Crusher",
-      "resumo_en": "Secondary and tertiary cone crusher: model selection from catalogue, reduction ratio, product size, capacity and power by Bond's law.",
-      "grupo_en": "Crushers",
-      "subgrupo_en": "Cone Crusher"
-    },
-    {
-      "id": "britador-impacto",
-      "grupo": "Britadores",
-      "subgrupo": "Britador de Impacto",
-      "subtipo": "Britador de impacto de eixo horizontal (HSI), primário/secundário",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Britador de Impacto",
-      "calculadora": "britador_impacto",
-      "descricao": "Pré-dimensionamento de britador de impacto de eixo horizontal (HSI): seleção do modelo pelo catálogo (Nordberg Série NP, faixa primária/secundária), alimentação e alta razão de redução (10:1 a 25:1, produto cúbico), capacidade de catálogo, rotor e velocidade periférica, e potência pela lei de Bond (com Work Index por material), comparada à potência instalada do modelo. Indicado para materiais não-abrasivos (calcário, concreto reciclado).",
-      "referencia": "Lei de Bond / Work Index de impacto (CWi); catálogo Metso Nordberg Série NP (HSI) — boca, alimentação máx., rotor, potência e capacidade; faixa de redução e velocidade de rotor conforme literatura (Wills, 911Metallurgist, AMIT-135, Sandvik)",
-      "resumo": "Britador de impacto: seleção do modelo pelo catálogo, razão de redução, granulometria do produto, capacidade e potência, com verificação por rotor.",
-      "normas": [
-        "Bond",
-        "Metso"
-      ],
-      "modelo_en": "Impact Crusher",
-      "resumo_en": "Impact crusher: model selection from catalogue, reduction ratio, product size, capacity and power, with rotor duty check.",
-      "grupo_en": "Crushers",
-      "subgrupo_en": "Impact Crusher"
-    },
-    {
-      "id": "britador-martelo",
-      "grupo": "Britadores",
-      "subgrupo": "Britador de Martelos",
-      "subtipo": "Britador de martelos (rotor com martelos pivotados e grelha)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Britador de Martelos",
-      "calculadora": "britador_martelo",
-      "descricao": "Pré-dimensionamento de britador de martelos (rotor com martelos pivotados, placa de impacto e grelha de saída): seleção do modelo pelo catálogo (classe FLSmidth EV / hammer crusher), produto controlado pela abertura da grelha, altíssima razão de redução (10:1 a 50:1, single-stage), velocidade periférica recomendada em função da grelha e do material, capacidade de catálogo e potência pela lei de Bond. Indicado para materiais de baixa abrasividade (calcário, gesso, carvão, cal).",
-      "referencia": "Lei de Bond; produto pela abertura da grelha; tabela de velocidade periférica × grelha (manual Metso/FAÇO moinhos de martelos); catálogo classe FLSmidth EV (até 2,5 m de alimentação, 2200 t/h, 500-2500 kW); refs. Wills, 911Metallurgist, AMIT-135, MEKA, Hazemag",
-      "resumo": "Britador de martelos: seleção do modelo, razão de redução, capacidade e potência, com verificação da energia por martelo e da velocidade periférica.",
-      "normas": [
-        "Bond",
-        "Metso"
-      ],
-      "modelo_en": "Hammer Crusher",
-      "resumo_en": "Hammer crusher: model selection, reduction ratio, capacity and power, with energy per hammer and rotor tip speed checks.",
-      "grupo_en": "Crushers",
-      "subgrupo_en": "Hammer Crusher"
-    },
-    {
-      "id": "peneira-horizontal",
-      "grupo": "Peneiras",
-      "subgrupo": "Peneira Vibratória Horizontal",
-      "subtipo": "Peneira vibratória horizontal (movimento linear, multideck)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Peneira Vibratória Horizontal",
-      "calculadora": "peneira_horizontal",
-      "descricao": "Pré-dimensionamento de peneira vibratória horizontal (movimento linear) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento linear). Seleciona o modelo Metso pela área ativa, verifica largura mínima e espessura da camada e indica a eficiência esperada. Os fatores de correção do material ajustam o rendimento da peneira.",
-      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): fórmula de área A=(T·P)/(C·M·K·Qn), gráficos B (capacidade básica C), C (fator M) e D (fator K), tabelas Q1–Q6 e áreas ativas dos modelos; método VSMA (Vibrating Screen Manufacturers Association); refs. Wills' Mineral Processing Technology e Gupta & Yan",
-      "resumo": "Peneira vibratória horizontal: área necessária pelos fatores de correção, seleção do modelo pelo catálogo, número de decks, potência e espessura do leito.",
-      "normas": [
-        "Metso",
-        "VSMA"
-      ],
-      "modelo_en": "Horizontal Vibrating Screen",
-      "resumo_en": "Horizontal vibrating screen: required area from correction factors, model selection from catalogue, deck count, power and bed depth.",
-      "grupo_en": "Screens",
-      "subgrupo_en": "Horizontal Screen"
-    },
-    {
-      "id": "peneira-inclinada",
-      "grupo": "Peneiras",
-      "subgrupo": "Peneira Vibratória Inclinada",
-      "subtipo": "Peneira vibratória inclinada (movimento circular, 15–20°)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Peneira Vibratória Inclinada",
-      "calculadora": "peneira_inclinada",
-      "descricao": "Pré-dimensionamento de peneira vibratória inclinada (movimento circular, inclinação típica 15–20°) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento circular, Q6 = 1,0). Seleciona o modelo pela área ativa em dois catálogos — Simplex SXPI (2010 a 6024, com dimensões e área do deck, potência em CV, número máximo de decks e peso do equipamento por número de decks) e Metso SH/XH — com opção de escolher o modelo manualmente e de fixar a linha de catálogo. Verifica a espessura da camada na descarga, a compatibilidade da inclinação com a faixa da linha SXPI (16° a 20°) e o número de decks contra o máximo do modelo. Os presets de material preenchem densidade, forma da partícula e tipo de tela, e incluem briquete ferroso (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete carbonoso (120 × 108 × 87 mm · 1,3 t/m³) — para os quais é indicada tela de poliuretano/borracha, de modo a reduzir a degradação da peça — com verificação da relação entre a abertura e o dimensional do briquete.",
-      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabelas Q1–Q6 (movimento circular Q6=1,0); método VSMA. Catálogo Simplex Equipamentos — Peneiras Inclinadas SXPI (livre oscilação circular, inclinações de 16° a 20°, 880 rpm, 1 a 4 decks, telas de aço, borracha ou poliuretano): tabela de modelos 2010 a 6024 com dimensões e área do deck, potência em CV e peso por número de decks. Catálogo Metso de peneiras inclinadas SH/XH (5'×14' a 8'×20', inclinação 18–20°)",
-      "resumo": "Peneira vibratória inclinada: área necessária pelos fatores de correção, seleção pelo catálogo Simplex SXPI, decks, potência e espessura do leito.",
-      "normas": [
-        "Simplex SXPI",
-        "VSMA",
-        "Metso"
-      ],
-      "modelo_en": "Inclined Vibrating Screen",
-      "resumo_en": "Inclined vibrating screen: required area from correction factors, selection from the Simplex SXPI range, decks, power and bed depth.",
-      "grupo_en": "Screens",
-      "subgrupo_en": "Inclined Screen"
-    },
-    {
-      "id": "peneira-banana",
-      "grupo": "Peneiras",
-      "subgrupo": "Peneira Vibratória Banana (CBS)",
-      "subtipo": "Peneira banana de inclinação variável (movimento circular)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Peneira Vibratória Banana (CBS)",
-      "calculadora": "peneira_banana",
-      "descricao": "Pré-dimensionamento de peneira vibratória tipo banana (linha Metso CBS, inclinação variável — deck mais íngreme na entrada e suave na descarga) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6. O diferencial da banana é o Q6, que varia com o % de material passante (0,30→1,0 a 0,70→1,4), refletindo a alta capacidade da peneira quando há muito passante na alimentação. Seleciona o modelo Metso CBS pela área ativa e verifica a espessura da camada. Os fatores de correção do material ajustam o rendimento da peneira.",
-      "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabela Q6 da peneira banana CBS (por % de material passante) e catálogo de peneiras banana CBS (5'×14' a 10'×24'); exemplo resolvido de peneira banana CBS de dois decks; método VSMA",
-      "resumo": "Peneira vibratória banana (CBS): área necessária, seleção do modelo, decks e potência, com os ângulos de entrada e saída da geometria multi-inclinação.",
-      "normas": [
-        "CBS",
-        "VSMA",
-        "Metso"
-      ],
-      "modelo_en": "Banana Screen (CBS)",
-      "resumo_en": "Banana vibrating screen (CBS): required area, model selection, decks and power, with the entry and exit angles of the multi-slope deck.",
-      "grupo_en": "Screens",
-      "subgrupo_en": "Banana Screen (CBS)"
-    },
-    {
-      "id": "calha-vibratoria",
-      "grupo": "Alimentadores",
-      "subgrupo": "Calha Vibratória (saída de silo)",
-      "subtipo": "Calha / alimentador vibratório sob boca de silo (retomada e alimentação controlada)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Calha Vibratória",
-      "calculadora": "calha_vibratoria",
-      "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo em três linhas de catálogo — calhas CV, alimentadores suspensos MVS e alimentadores Vibraline (36\"×60\" a 84\"×120\") — informa comprimento e área útil da mesa, inclinação e tempo de residência, calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco. Inclui presets de material que preenchem densidade, maior bloco e os fatores φ1 e φ2 — brita, calcário, minério granulado e fino, pelota, sínter, carvão úmido e seco, coque, briquete ferroso (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete carbonoso (120 × 108 × 87 mm · 1,3 t/m³) — com alerta específico de degradação para os briquetes, que são peças prensadas e friáveis.",
-      "referencia": "Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: fórmula de capacidade Q = 3600·φ1·φ2·V·L·H (pág. 1-9), curva de velocidade V (rpm × amplitude), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada e fator de inclinação; catálogos de calhas vibratórias CV (pág. 1-16), alimentadores vibratórios suspensos MVS (pág. 1-14) e alimentadores Vibraline (pág. 1-19, capacidade referida a 10° de inclinação)",
-      "resumo": "Calha vibratória para saída de silo: vazão e espessura do leito, seleção do modelo, amplitude e força centrífuga, molas, potência e peso total estimado.",
-      "normas": [
-        "OLI",
-        "NBR 8800"
-      ],
-      "modelo_en": "Vibrating Feeder Trough",
-      "resumo_en": "Vibrating trough under silo: throughput and bed depth, model selection, amplitude and centrifugal force, springs, power and total weight.",
-      "grupo_en": "Feeders",
-      "subgrupo_en": "Vibrating Trough (silo outlet)"
-    },
-    {
-      "id": "alimentador-correia",
-      "grupo": "Alimentadores",
-      "subgrupo": "Alimentador de Correia (moega de alimentação)",
-      "subtipo": "Alimentador de correia sob moega de alimentação (retomada de finos e úmidos, dosagem contínua)",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Alimentador de Correia",
-      "calculadora": "alimentador_correia",
-      "descricao": "Pré-dimensionamento de alimentador de correia sob MOEGA DE ALIMENTAÇÃO, pelo método do Manual de Britagem Metso/FAÇO (págs. 1-20 a 1-23). Alimentadores de correia são empregados principalmente na retomada de materiais finos e úmidos sob moegas, silos ou pilhas, onde o alimentador vibratório não é recomendado, e aceitam variador contínuo de velocidade para dosagem precisa. O cálculo segue o mesmo critério dos transportadores de correia, exceto na determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), que inclui as parcelas específicas de cisalhamento do material (Ps) e de atrito nas guias laterais (Pfs). A calculadora determina: altura da camada D = Q/(γ·V·B·3600) com a verificação D ≤ B/2; a relação entre pressões lateral e vertical Ka = (1−sen θ)/(1+sen θ); as cinco parcelas da tensão efetiva com o percentual de cada uma; a potência no tambor, no eixo e de seleção, o torque de saída e o motoredutor SEW (série R e industriais M/X); as tensões de operação T1 e T2, a largura da correia, a carcaça EP requerida e o diâmetro mínimo do tambor de acionamento. Traz as tabelas do manual de coeficiente de atrito interno (fm), de atrito com o aço (fsm), de velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s) e de peso da correia Wb (Plylon / HDRN), além de presets de material incluindo briquete ferroso e briquete carbonoso (valores estimados de forma conservadora, sinalizados como fora do manual). Calculadora independente — não depende de nenhuma outra. Inclui a verificação da RESISTÊNCIA MECÂNICA REQUERIDA DO BRIQUETE: a carga de pico sobre um briquete isolado é obtida da tensão aparente do leito corrigida pela fração de sólidos (σ_sólido = σv/φs) e pelo fator de concentração de cadeias de força, do que resulta a resistência mínima à compressão em kgf/briquete, N e daN; acrescenta a verificação de impacto na descarga (energia, velocidade e força de parada sobre leito amortecedor e sobre fundo de aço nu), que em geral governa a quebra, e a verificação de cisalhamento e abrasão na extração. Permite lançar a resistência medida em ensaio para conclusão da verificação, com referências ISO 4700 (compressão), ASTM D440 (queda / drop shatter) e ASTM D441 (tamboramento). A moega de alimentação é entrada diretamente pelos seus dimensionais — a e b no topo, altura h e abertura de descarga c × d sobre o alimentador — e dela saem o volume útil pelo tronco de pirâmide V = (h/3)·(A1 + A2 + √(A1·A2)), a massa de material contida V·ρ, a autonomia para a vazão de projeto, o número de ciclos de abastecimento (pá-carregadeira, caminhão basculante ou chute contínuo) e os ângulos das paredes convergentes. A carga vertical sobre a abertura é obtida por Janssen aplicado à própria moega, com saturação em γ·Rh/(K·μ): o atrito nas paredes sustenta parte da coluna, e a carga no alimentador fica bem abaixo do peso total do material contido. Verifica a coerência entre a abertura da moega e a geometria do alimentador (c vs L2, d vs largura entre guias).",
-      "referencia": "Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da tensão efetiva Te = Pe + P1 + Ps + Pfs + Ph, com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H; altura de camada D = Q/(γ·V·B·3600) com D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); figura de definição de L, L1, L2, L3, H, B e D (pág. 1-21); tabelas de coeficiente de atrito interno e de atrito com o aço e velocidades máximas recomendadas (pág. 1-22); tabela de peso da correia Wb, tipos Plylon e HDRN (pág. 1-23). Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; catálogo SEW-EURODRIVE (motoredutores série R e redutores industriais M/X); resistência mecânica do briquete: carga de pico por cadeias de força sobre a fração sólida do leito, impacto na descarga e cisalhamento na extração — ISO 4700, ASTM D440, ASTM D441",
-      "resumo": "Alimentador de correia sob moega, pelo Manual de Britagem: tensão efetiva, largura, correia, acionamento e resistência mecânica requerida do briquete.",
-      "normas": [
-        "Manual FAÇO",
-        "EN 1991-4",
-        "NBR 8800"
-      ],
-      "modelo_en": "Belt Feeder",
-      "resumo_en": "Belt feeder under hopper, by the Metso crushing manual: effective tension, width, belt, drive and required briquette strength.",
-      "grupo_en": "Feeders",
-      "subgrupo_en": "Belt Feeder (feed hopper)"
-    },
-    {
-      "id": "silo-circular",
-      "grupo": "Silos",
-      "subgrupo": "Silo Circular",
-      "subtipo": "Silo cilíndrico com tremonha cônica",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Silo Circular",
-      "calculadora": "silo_circular",
-      "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis. Roteiro completo (Etapas 1-14): caracterização do minério (com presets, incluindo briquete ferroso e briquete carbonoso), capacidade (massa e volume útil), Flow Function (Jenike), regime de fluxo, ângulo da moega e descarga mínima, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas, anéis de reforço, montantes verticais, moega (tração meridional), descarga excêntrica e fadiga/dinâmica (impacto, frequência natural e ressonância) — conforme Jenike, EN 1991-4 e ABNT NBR 8800.",
-      "referencia": "A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; ABNT NBR 8800 (estrutura)",
-      "resumo": "Silo circular: capacidade e autonomia, regime de fluxo por Jenike, abertura anti-arco, pressões de Janssen, chapa, anéis, montantes e tremonha cônica.",
-      "normas": [
-        "Jenike",
-        "EN 1991-4",
-        "NBR 8800"
-      ],
-      "modelo_en": "Circular Silo",
-      "resumo_en": "Circular silo: capacity and live time, Jenike flow regime, anti-arching outlet, Janssen pressures, plate, rings, columns and conical hopper.",
-      "grupo_en": "Silos",
-      "subgrupo_en": "Circular Silo"
-    },
-    {
-      "id": "silo-retangular",
-      "grupo": "Silos",
-      "subgrupo": "Silo Retangular",
-      "subtipo": "Silo prismático com tremonha piramidal",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Silo Retangular",
-      "calculadora": "silo_retangular",
-      "descricao": "Pré-dimensionamento EXECUTIVO de silo prismático (seção retangular) com tremonha piramidal ou em cunha. FLUXO: ábaco de Jenike para o ângulo de tremonha (cônico e plano) com verificação do ângulo de vale, abertura anti-arco, diâmetro de rathole quando o fluxo de massa não é atingível, e vazão de descarga por Beverloo comparada à produção. AÇÕES: classes de esbeltez e de avaliação da EN 1991-4, três casos de carga com limites superior e inferior de K e μ, carga localizada (patch load), ações térmicas, pressões de tremonha por Walker/Enstad e pressão de switch na transição. VENTO E SISMO: NBR 6123 com força global de arrasto e momento de tombamento, e NBR 15421 com cortante sísmico de base — a ação lateral governante é identificada. ESTRUTURA (NBR 8800): chapa por ELU e ELS (flecha), escalonada por faixa de altura, verificação de flambagem local da parede sob a compressão de atrito, cintas e enrijecedores com o vão real entre montantes, ANEL DE TRANSIÇÃO dimensionado à flexão e tração, montantes em combinação ELU com vento/sismo e curva de flambagem, tração de arrancamento, placa de base, chumbadores e comprimento de ancoragem, verificação de fadiga e frequência natural. Entrega ainda: revestimento interno com efeito no atrito de parede, dispositivos anti-arco, reações por montante para o projeto de fundação, interface com o alimentador (σv e Fv na boca), pesos discriminados e croqui executivo com elevação, planta e seis tabelas de dados construtivos. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo. A boca é tratada como retangular Bw × Bl também na tremonha piramidal — antes os recuos das paredes usavam Bw nas duas direções, o que tratava a boca como quadrada e produzia um ângulo de vale mais raso que o real.",
-      "referencia": "A. W. Jenike (Bulletin 123) — Flow Function, ábaco de fluxo de massa (θ × δ × φw) para tremonha cônica e plana, abertura anti-arco e diâmetro de rathole; correlação de Beverloo para a vazão de descarga por gravidade. EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez, limites superior e inferior de K e μ com os três casos de carga, carga localizada, pressões de tremonha por Walker/Enstad no enchimento e na descarga, pressão de switch na transição e ações térmicas. ABNT NBR 6123 (vento: S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). ABNT NBR 15421 (sismo). ABNT NBR 8800 (estrutura: combinações de ELU e ELS, chapa a flexão e flecha, enrijecedores, cintas, anel de transição, montantes com curva de flambagem, flambagem local da parede, placa de base, chumbadores e fadiga pelo Anexo K / EN 1993-1-9)",
-      "resumo": "Silo retangular executivo: fluxo por Jenike, vazão por Beverloo, casos de carga da EN 1991-4, chapa, cintas, montantes, vento, sismo, base e fadiga.",
-      "normas": [
-        "EN 1991-4",
-        "NBR 8800",
-        "NBR 6123"
-      ],
-      "modelo_en": "Rectangular Silo",
-      "resumo_en": "Rectangular silo: Jenike flow, Beverloo discharge, EN 1991-4 load cases, plate, ring beams, columns, wind, seismic, base and fatigue.",
-      "grupo_en": "Silos",
-      "subgrupo_en": "Rectangular Silo"
-    },
-    {
-      "id": "moega-alimentacao",
-      "grupo": "Moegas",
-      "subgrupo": "Moega de Alimentação",
-      "subtipo": "Moega de alimentação piramidal ou em cunha sobre estrutura metálica",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Moega de Alimentação",
-      "calculadora": "moega_alimentacao",
-      "descricao": "Dimensionamento executivo de MOEGA DE ALIMENTAÇÃO PIRAMIDAL OU EM CUNHA (fenda), a partir de cinco cotas: A e B no topo, altura H e boca de descarga C × D, com colarinho reto opcional e apoio sobre montantes metálicos. O roteiro abre pela geometria e pelo ÂNGULO DE VALE — a aresta de encontro de duas faces é sempre mais rasa que qualquer face isolada (cot²αv = cot²αA + cot²αB), e é ela, e não o ângulo que se lê no desenho de uma face, que decide se há fluxo de massa. Segue com volume geométrico e útil, massa armazenada, autonomia para a vazão de projeto e ciclos de abastecimento; regime de fluxo pelo ábaco de Jenike com margem de 3°, abertura mínima anti-arco, diâmetro de tubulação (rathole) quando o regime é de funil e arco mecânico por granulometria; vazão de descarga por gravidade pela correlação de Beverloo para fenda, comparada com a vazão de projeto para verificar se a boca estrangula. As ações seguem a EN 1991-4 e a NBR 11700: classes de esbeltez e de avaliação da ação, três casos de carga com os limites superior e inferior de K e μ, sobrecarga do montículo, carga localizada (patch load) e, na tremonha, o atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)) com o fator de enchimento Ff e o expoente n, do que resultam as pressões normal e de atrito ao longo da parede e a pressão de switch na transição. A verificação estrutural pela NBR 8800 cobre chapa a flexão e a tração meridional, enrijecedores com espaçamento otimizado por massa, cinta de borda, anel de transição, vigas de apoio, montantes com curva de flambagem, placa de base, chumbadores e reações na fundação, com vento pela NBR 6123 e sismo pela NBR 15421. Acrescenta o que é próprio da moega de recepção: grelha de proteção dimensionada por carga concentrada de bloco com amplificação dinâmica, impacto da descarga de concha ou caçamba, carga por roda, sobrecarga de tráfego e força de choque em batentes e defensas. Fecha com fadiga na transição, recomendação de revestimento e dispositivos de ativação, e os dados de interface para a calculadora do alimentador de correia. Presets de material incluindo briquete ferroso e briquete carbonoso. Permite escolher entre moega PIRAMIDAL, que converge nas duas direções e cujo ângulo de vale governa, e moega EM CUNHA (fenda), que converge só na direção B com paredes de topo verticais e fenda em todo o comprimento A — nesta não existe vale, o ábaco aplicável é o plano, o fator H(θ) e o critério de arco mecânico caem pela metade e S = 1 na formulação da tremonha, do que resulta uma exigência de ângulo muito menor e, quase sempre, a solução mais econômica quando a pirâmide não atinge fluxo de massa. O regime de escoamento é decidido pela GEOMETRIA e não pelo rótulo escolhido: quando a boca é um rasgo (relação maior que 3:1) e as paredes de topo são íngremes o bastante para não formarem vale ativo, aplica-se o ábaco PLANO e quem governa é a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Uma moega piramidal com boca alongada e topos quase verticais é, para efeito de escoamento, uma cunha, e não deve ser cobrada pelo ábaco cônico.",
-      "referencia": "GEOMETRIA: tronco de pirâmide com ângulo de vale por cot²αv = cot²αA + cot²αB. FLUXO: A. W. Jenike (Bulletin 123) — ábaco de fluxo de massa (θ × δ × φw) axissimétrico e plano, com o regime aplicável decidido pela geometria da boca (relação de rasgo ≥ 3:1 e inclinação das paredes de topo), margem de projeto de 3°, abertura anti-arco B = H(θ)·σc/γ e diâmetro de tubulação Df = G(δ)·σc/γ; vazão de descarga por gravidade pela correlação de Beverloo para fenda. AÇÕES: EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez e de avaliação da ação, limites superior e inferior de K e μ (a_K = a_μ = 1,15) com os três casos de carga, carga localizada (patch load), e tremonha pelo atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)), fator de enchimento Ff = 1 − b/(1 + tanβ/μ_heff) com b = 0,2, expoente n = S·(Ff·μ_heff·cotβ + Ff) − 2 e pv(x) medido a partir do vértice virtual, com pnf = Ff·pv e ptf = μ_heff·Ff·pv; pressão de switch pela amplificação clássica de Jenike (2×) na transição. VENTO: ABNT NBR 6123. SISMO: ABNT NBR 15421. EQUIPAMENTO MÓVEL: grelha com carga concentrada e amplificação dinâmica, impacto de descarga, carga de roda, sobrecarga de tráfego e choque em defensas. ESTRUTURA: ABNT NBR 8800 — ELU e ELS, chapa, enrijecedores, cinta, anel de transição, vigas, montantes com curva de flambagem, placa de base, chumbadores e fadiga (Anexo K / EN 1993-1-9).",
-      "resumo": "Moega piramidal ou em cunha a partir de A, B, H, C e D: ângulo de vale, regime de fluxo, pressões da EN 1991-4, chapa, estrutura, grelha e cargas móveis.",
-      "normas": [
-        "EN 1991-4",
-        "NBR 8800",
-        "NBR 6123"
-      ],
-      "modelo_en": "Feed Hopper",
-      "resumo_en": "Pyramidal or wedge hopper from A, B, H, C and D: valley angle, flow regime, EN 1991-4 pressures, plate, structure, grizzly and mobile loads.",
-      "grupo_en": "Hoppers",
-      "subgrupo_en": "Feed Hopper"
-    },
-    {
-      "id": "cone-vibratorio-circular",
-      "grupo": "Ativadores de Silo",
-      "subgrupo": "Cone Vibratório Circular",
-      "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Cone Vibratório Circular",
-      "calculadora": "cone_vibratorio_circular",
-      "descricao": "Seção circular ou oval — área calculada como elipse (π/4 · A · B). É a forma padrão de fábrica e a que distribui melhor a vibração no tronco. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo.",
-      "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível",
-      "resumo": "Cone vibratório circular sob silo: volume útil, ângulo exigido com bônus de vibração, abertura anti-arco, motovibradores e verificação dos tirantes.",
-      "normas": [
-        "Jenike",
-        "OLI",
-        "NBR 8800"
-      ],
-      "modelo_en": "Circular Bin Activator",
-      "resumo_en": "Circular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
-      "grupo_en": "Bin Activators",
-      "subgrupo_en": "Circular Bin Activator"
-    },
-    {
-      "id": "cone-vibratorio-retangular",
-      "grupo": "Ativadores de Silo",
-      "subgrupo": "Cone Vibratório Retangular",
-      "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Cone Vibratório Retangular",
-      "calculadora": "cone_vibratorio_retangular",
-      "descricao": "Seção retangular — área calculada como A · B. O ângulo governante é o ÂNGULO DE VALE do canto, sempre mais raso que o das faces, e é ele que decide o escoamento. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo.",
-      "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível",
-      "resumo": "Cone vibratório retangular sob silo: volume útil, ângulo exigido com bônus de vibração, abertura anti-arco, motovibradores e verificação dos tirantes.",
-      "normas": [
-        "Jenike",
-        "OLI",
-        "NBR 8800"
-      ],
-      "modelo_en": "Rectangular Bin Activator",
-      "resumo_en": "Rectangular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
-      "grupo_en": "Bin Activators",
-      "subgrupo_en": "Rectangular Bin Activator"
-    },
-    {
-      "id": "flare",
-      "grupo": "Utilidades e Segurança",
-      "subgrupo": "Flare (tocha de queima)",
-      "subtipo": "Tocha elevada — alívio de emergência ou queima contínua de gás de processo",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Flare (Tocha de Queima)",
-      "calculadora": "flare",
-      "descricao": "Flare de emergência ou de queima contínua de gás de processo, com o caso de gás de topo de mini alto-forno a carvão vegetal + briquete ferroso já carregado (Rev. 1, com consumidores de processo): ponta por Mach, velocidade admissível e pressão disponível na fonte, contrapressão, chama e radiação (API 521) com verificação do posto ocupado mais próximo e altura adotada separada da mínima, dispersão com a tocha apagada, vaso separador com o líquido calculado pela condensação, selagem e purga, pilotos (API 537), estabilidade de chama em gás de baixo PCI, balanço da planta e verificação de turndown com ou sem marcha reduzida e opção de bico estagiado, casco dimensionado virole a virole, helicoide supressor de vórtices, patamares de acesso e escada com o acréscimo de vento dos acessórios, tubulações de serviço, bicos de gás auxiliar, vento (NBR 6123), sismo (NBR 15421), anel de base, nervuras, chumbadores e bloco de fundação, com croqui de detalhamento mecânico para o projetista.",
-      "referencia": "API STD 521 — Pressure-relieving and Depressuring Systems: contingências de alívio, velocidade de saída na ponta (Mach 0,2 contínuo · 0,5 em emergência), Mach ≤ 0,2 no header, contrapressão admissível por tipo de válvula, comprimento de chama (Figura 8, ajuste de Beychok L = 0,0059·Q^0,478 com Q em Btu/h), inclinação da chama pelo vento, radiação térmica D = √(τ·F·Q/(4π·K)) com os níveis de 1,58 / 4,73 / 6,31 / 9,46 kW/m² acrescidos da parcela solar de 0,79 a 1,04 kW/m², e vaso separador com remoção de gotas de 300 a 600 µm e 20 a 30 min de retenção. API STD 537 — Flare Details: número de pilotos por diâmetro de ponta, ignição e detecção de chama, selos de velocidade e molecular. ABNT NBR 6123 (vento); velocidade crítica de vórtices por Strouhal St = 0,20 e número de Scruton; ABNT NBR 15421 (sismo); ABNT NBR 8800 (casco, base e chumbadores).",
-      "resumo": "Flare: ponta, radiação, turndown, casco por viroles, helicoide, plataformas, tubulações, bicos, base e fundação.",
-      "normas": [
-        "API 521",
-        "API 537",
-        "NBR 6123",
-        "NBR 15421",
-        "NBR 6120",
-        "NBR 6118",
-        "NBR 14718",
-        "NR-35",
-        "AWS D1.1",
-        "IEC 60079"
-      ],
-      "modelo_en": "Flare Stack",
-      "resumo_en": "Flare: tip, radiation, turndown, shell courses, strakes, platforms, piping, burners, base ring and foundation.",
-      "grupo_en": "Utilities & Safety",
-      "subgrupo_en": "Flare Stack"
-    },
-    {
-      "id": "ciclone-gas",
-      "grupo": "Limpeza de Gases",
-      "subgrupo": "Ciclone de Gás de Topo de Forno",
-      "subtipo": "Ciclone de corpo único, entrada tangencial, operação a quente com revestimento refratário",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Ciclone de Limpeza de Gás",
-      "calculadora": "ciclone_gas",
-      "descricao": "Pré-dimensionamento de ciclone de corpo único para limpeza primária de gás de topo de forno, operando a quente. Dimensiona o diâmetro do corpo pela velocidade de entrada de projeto (ou aceita o diâmetro imposto e devolve a velocidade), com as proporções tabeladas de três famílias geométricas — Stairmand alta eficiência, Swift alta eficiência e Lapple uso geral — e devolve boca de entrada, tubo de saída com imersão, altura de cilindro e cone, ângulo do cone e saída de pó. Calcula as propriedades do gás na condição real de operação, com massa específica por gás ideal e viscosidade pela correlação de Sutherland, e explicita o fator de expansão sobre a base normal, porque dimensionar pela vazão normalizada subdimensiona o corpo nessa mesma proporção. O diâmetro de corte sai da formulação de Lapple/Shepherd e a eficiência fracionária da curva de Lapple, integrada sobre a distribuição log-normal do pó para devolver a eficiência global e a concentração na saída, comparada com o alvo especificado. Traz a perda de carga por número de cabeças de velocidade da família, a potência de ventilação associada, e a comparação das três famílias na mesma base. Dimensiona a descarga de pó com tolva-pulmão e válvula estanque, alertando que vazamento de ar pela descarga custa mais eficiência que qualquer refinamento de geometria e forma mistura explosiva em gás com CO. Na parte quente, calcula a espessura de refratário por condução unidimensional para a temperatura de pele alvo, a perda térmica pelas paredes, a dilatação térmica do corpo e a chapa do casco, e verifica metal dusting na janela de 400 a 800 °C com CO elevado — que é a razão de ser do refratário nesse serviço, e não apenas a conservação de calor.",
-      "referencia": "Geometrias padronizadas de Stairmand (alta eficiência), Swift (alta eficiência) e Lapple (uso geral), com as proporções clássicas sobre o diâmetro do corpo. Diâmetro de corte pela formulação de Lapple/Shepherd d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))), com Ne = (1/a)·[h+(H−h)/2] voltas efetivas; eficiência fracionária pela curva de Lapple η(d) = 1/(1+(d50/d)²), integrada sobre distribuição log-normal em massa. Perda de carga por número de cabeças de velocidade ΔP = ½·ρ·v²·NH. Propriedades do gás por gás ideal e viscosidade pela correlação de Sutherland. Espessura de refratário por condução unidimensional com resistências convectivas interna e externa. Metal dusting conforme a janela de 400 a 800 °C em atmosfera rica em CO (reação de Boudouard reversa 2CO → C + CO₂).",
-      "resumo": "Ciclone a quente: gás na condição real, geometria por família, corte d50, eficiência, dutos, perda de carga do sistema, descarga de pó, refratário, metal dusting e verificações normativas.",
-      "normas": [
-        "VDI 3676",
-        "NR-13",
-        "NBR 6123",
-        "NBR 8800",
-        "NBR 12019",
-        "ISO 9096",
-        "NBR IEC 60079",
-        "API 936",
-        "EJMA",
-        "AWS D1.1"
-      ],
-      "modelo_en": "Gas Cleaning Cyclone",
-      "resumo_en": "Hot cyclone: actual gas conditions, geometry family, d50 cut size, efficiency, pressure drop, dust discharge, refractory and metal dusting.",
-      "grupo_en": "Gas Cleaning",
-      "subgrupo_en": "Furnace Top-Gas Cyclone"
-    },
-    {
-      "id": "espessador",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Espessador",
-      "subtipo": "Espessador circular de lama de lavador úmido, com rake e floculação",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Espessador de Lama",
-      "calculadora": "espessador",
-      "descricao": "Pré-dimensionamento de espessador circular para lama de sistema de limpeza de gases a úmido. Parte do balanço de sólidos do lavador — vazão de gás, poeira na entrada e eficiência de captura — e do balanço do circuito de água, no qual a fração purgada da recirculação define ao mesmo tempo a carga hidráulica do espessador e a concentração de sólidos que retorna aos bicos do lavador: purgar menos encolhe o espessador pelo critério hidráulico e concentra o circuito na mesma proporção, e a calculadora mostra as duas colunas lado a lado para que o compromisso seja escolhido com número. A área sai do maior entre três critérios — carga de sólidos, velocidade ascensional do overflow e área unitária de ensaio de sedimentação —, apontando qual governa, porque em lama diluída o critério hidráulico costuma governar e surpreender. Calcula underflow e overflow por balanço, verifica carga no vertedouro, dimensiona a geometria com cone, poço de alimentação e volume útil, o torque do rake por K·D² com a potência de acionamento, o consumo de floculante e o preparo da solução, e fecha com a chapa do costado por pressão hidrostática, as massas e a pressão média no solo.",
-      "referencia": "Balanço de sólidos S = Q_G·C_ent·η e balanço do circuito de recirculação. Área do espessador pelo maior entre: carga de sólidos A = S/Cs, com Cs de 0,10 a 0,25 t/(m²·h) para lama metalúrgica fina; critério hidráulico A = Q_overflow/v_ascensional; e área unitária de ensaio de sedimentação pelos métodos de Coe-Clevenger e Talmage-Fitch. Sedimentação livre verificada por Stokes. Torque do rake por K·D². Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; estrutura pela ABNT NBR 8800; passarela e guarda-corpo pela ABNT NBR 14718 e NR-12; fundação pela ABNT NBR 6118.",
-      "resumo": "Espessador: balanço do lavador, purga × recirculação, área por três critérios, underflow, rake, floculante, costado e fundação.",
-      "normas": [
-        "NBR 7821",
-        "API 650",
-        "NBR 8800",
-        "NBR 14718",
-        "NBR 6118",
-        "NR-12",
-        "Coe-Clevenger",
-        "Talmage-Fitch"
-      ],
-      "modelo_en": "Sludge Thickener",
-      "resumo_en": "Thickener: scrubber balance, bleed vs recirculation, area by three criteria, underflow, rake, flocculant, shell and foundation.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Thickener"
-    },
-    {
-      "id": "tanque-recirculacao",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Tanque de Recirculação / Coleta",
-      "subtipo": "Tanque agitado de mistura completa que recebe o dreno do separador do lavador",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Tanque de Recirculação / Coleta",
-      "calculadora": "tanque_lama",
-      "descricao": "Tanque agitado de mistura completa a jusante do separador do lavador Venturi. Recebe o dreno, alimenta a recirculação ao lavador e a purga ao tratamento. NÃO pré-adensa e NÃO separa: a retirada sai com a mesma concentração do interior, e é assim que o balanço de sólidos fecha em regime. Dimensiona o volume útil pelo tempo de retenção, a rotação mínima de suspensão pela correlação de Zwietering e a potência de agitação pelo maior entre esse critério e a potência específica de prática, verificando a velocidade de ponta do impelidor. Calcula o tempo até a formação de leito com o agitador parado, que é a janela operacional para religar antes de compactar, e dimensiona o declive do fundo, o poço de sucção e os bocais. Fecha com a chapa do costado por pressão hidrostática, as massas, a pressão no solo, e a verificação de vento e tombamento com o tanque vazio.",
-      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
-      "resumo": "Tanque de recirculação: volume, agitação por Zwietering, sedimentação em parada, bocais, costado, vento e ancoragem.",
-      "normas": [
-        "NBR 7821",
-        "API 650",
-        "NBR 6123",
-        "NBR 8800",
-        "NBR 6118",
-        "NR-12",
-        "Zwietering"
-      ],
-      "modelo_en": "Recirculation Tank",
-      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Recirculation / Collection Tank"
-    },
-    {
-      "id": "tanque-lama-espessada",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Tanque de Lama Espessada",
-      "subtipo": "Pulmão entre o espessador contínuo e o filtro prensa em batelada",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Tanque de Lama Espessada",
-      "calculadora": "tanque_lama",
-      "descricao": "Tanque agitado que funciona como pulmão entre o espessador, que opera de forma contínua, e o filtro prensa, que opera em batelada. Existe por causa dessa incompatibilidade: subdimensioná-lo obriga o espessador a acompanhar o ciclo do filtro, o que ele não faz. Opera com lama de 20 a 40 % de sólidos, e por isso a exigência de agitação é bem maior que a do tanque de recirculação. Dimensiona volume pelo tempo de pulmão, rotação de suspensão por Zwietering, potência de agitação, sedimentação em parada, fundo, poço de sucção, bocais, costado, massas, fundação, vento e ancoragem.",
-      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
-      "resumo": "Tanque de lama espessada: pulmão para o ciclo do filtro, agitação intensa, costado e fundação.",
-      "normas": [
-        "NBR 7821",
-        "API 650",
-        "NBR 6123",
-        "NBR 8800",
-        "NBR 6118",
-        "NR-12",
-        "Zwietering"
-      ],
-      "modelo_en": "Thickened Sludge Tank",
-      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Thickened Sludge Tank"
-    },
-    {
-      "id": "tanque-filtrado",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Tanque de Filtrado",
-      "subtipo": "Recebe o filtrado do filtro prensa, que sai em golpes, e devolve ao circuito",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Tanque de Filtrado",
-      "calculadora": "tanque_lama",
-      "descricao": "Tanque que recebe o filtrado do filtro prensa. O filtrado sai em golpes, acompanhando o ciclo do filtro, e por isso o tanque precisa de volume de amortecimento equivalente a um a dois ciclos completos. O filtrado não é água limpa: carrega finos que passaram pelo pano, sobretudo no início do ciclo, e por isso o retorno recomendado é ao espessador e não direto ao circuito de água limpa. Dimensiona volume, agitação leve, sedimentação em parada, fundo com dreno, bocais, costado, massas, fundação, vento e ancoragem.",
-      "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
-      "resumo": "Tanque de filtrado: amortecimento do ciclo do filtro, agitação leve, costado e fundação.",
-      "normas": [
-        "NBR 7821",
-        "API 650",
-        "NBR 6123",
-        "NBR 8800",
-        "NBR 6118",
-        "NR-12",
-        "Zwietering"
-      ],
-      "modelo_en": "Filtrate Tank",
-      "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Filtrate Tank"
-    },
-    {
-      "id": "filtro-prensa",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Filtro Prensa",
-      "subtipo": "Filtro prensa de placas e câmaras, com ou sem membrana de prensagem",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Filtro Prensa de Placas",
-      "calculadora": "filtro_prensa",
-      "descricao": "Pré-dimensionamento de filtro prensa de placas para desaguamento de lama espessada. É o único equipamento de batelada num trem contínuo, e é essa incompatibilidade que define o projeto: o volume de câmaras sai do ciclo e não da vazão instantânea, e o tanque de lama espessada existe para absorver a diferença — a calculadora devolve o volume mínimo desse pulmão. Fecha o balanço entre lama espessada, torta e filtrado, calcula o volume de câmaras, o número de placas e a área filtrante pela geometria adotada, e decompõe o ciclo em enchimento, filtração, prensagem, sopro e descarga, verificando se ele cabe no ciclo adotado e se a capacidade diária atende. O tempo de filtração sai da equação de Ruth com a resistência específica da torta, que é grandeza de ensaio de folha. Dimensiona a bomba de alimentação de deslocamento positivo, as utilidades por batelada, a força de fechamento, a massa de torta por descarga, o espaço de abertura e a carga no piso, e trata a reserva como item de disponibilidade, porque o filtro parado interrompe todo o desaguamento.",
-      "referencia": "Balanço de massa entre lama espessada, torta e filtrado. Volume de câmaras pelo ciclo de batelada; número de câmaras e área filtrante pela geometria de placa e espessura adotadas. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Bomba de alimentação de deslocamento positivo com curva pressão × vazão declinante. NR-12 para proteções, comandos bimanuais e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico de manuseio de panos; ABNT NBR 10004 para a classificação da torta; NR-35 para trabalho em altura.",
-      "resumo": "Filtro prensa: balanço, câmaras e área, ciclo completo, bomba, pulmão mínimo, fechamento e arranjo.",
-      "normas": [
-        "NR-12",
-        "NBR 6118",
-        "NBR 8800",
-        "NBR 10004",
-        "NR-35",
-        "Ruth/Darcy"
-      ],
-      "modelo_en": "Plate Filter Press",
-      "resumo_en": "Filter press: mass balance, chambers and area, full cycle, feed pump, minimum buffer, closing force and layout.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Filter Press"
-    },
-    {
-      "id": "floculador",
-      "grupo": "Tratamento de Lama",
-      "subgrupo": "Dosagem Química e Floculador",
-      "subtipo": "Floculador mecanizado de câmaras em série, com preparo e dosagem de floculante",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Floculador e Dosagem Química",
-      "calculadora": "floculador",
-      "descricao": "Pré-dimensionamento do floculador mecanizado e do conjunto de preparo e dosagem química que o alimenta. O parâmetro de projeto é o gradiente de velocidade G, e o que se especifica é o produto de Camp G·t: abaixo de 20.000 o floco não cresce, acima de 100.000 ele é destruído tanto quanto formado. As câmaras são dimensionadas em série com gradiente DECRESCENTE, porque a primeira precisa formar núcleos pequenos e resistentes e as seguintes precisam deixá-los crescer — o inverso produz floco grande e frágil que é quebrado adiante. Para cada câmara devolve o gradiente, a potência, a rotação, a velocidade de ponta e o motoredutor SEW selecionado, com inversor em todas porque a dose e o G ótimos mudam com a concentração da lama. No lado químico, calcula o consumo de floculante ativo, a solução de preparo, o volume dos tanques em paralelo, o tempo de maturação e a água de diluição em linha, alertando que superdosagem reestabiliza o coloide e piora a sedimentação. Fecha com a estrutura das câmaras, a pressão no solo e o plano de cargas do conjunto, com carga instalada, carga absorvida e fator de demanda.",
-      "referencia": "Gradiente de velocidade G = √(P/(µ·V)) e produto de Camp G·t entre 20.000 e 100.000, com câmaras em série e gradiente decrescente. Potência por câmara P = G²·µ·V; rotação por P = Np·ρ·N³·D⁵ e verificação da velocidade de ponta abaixo de 1,0 m/s nas câmaras finais. Dosagem por dose específica sobre a massa de sólidos, preparo entre 0,1 e 0,5 %, maturação de 30 a 60 min e diluição em linha para 0,05 a 0,1 % no ponto de aplicação. Motores DRN e redutores da série R de catálogo SEW-EURODRIVE, com redutor industrial MC/X quando o torque excede a série, verificação da relação de transmissão e da necessidade de inversor. ABNT NBR 12216 como referência de projeto de floculação; NBR 7821, NBR 8800 e NBR 6118 para estrutura e fundação; NR-12 para acionamentos; NR-20 e FISPQ para os químicos.",
-      "resumo": "Floculador: câmaras em série com G decrescente, G·t, motoredutores SEW por câmara, preparo e dosagem, estrutura e plano de cargas.",
-      "normas": [
-        "NBR 12216",
-        "NBR 7821",
-        "NBR 8800",
-        "NBR 6118",
-        "NR-12",
-        "NR-20",
-        "SEW"
-      ],
-      "modelo_en": "Flocculator and Chemical Dosing",
-      "resumo_en": "Flocculator: tapered-G chambers in series, Camp number, SEW gearmotors per chamber, preparation and dosing, structure and load list.",
-      "grupo_en": "Sludge Treatment",
-      "subgrupo_en": "Chemical Dosing and Flocculator"
-    },
-    {
-      "id": "tanque-agitador-redondo",
-      "grupo": "Tanques de Agitadores",
-      "subgrupo": "Tanque Agitador Cilíndrico",
-      "subtipo": "Tanque cilíndrico com agitador vertical, impelidores em série no mesmo eixo",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Tanque Agitador Cilíndrico",
-      "calculadora": "tanque_agitador_redondo",
-      "descricao": "Pré-dimensionamento completo do sistema de agitação de um tanque cilíndrico. A partir do volume necessário, do tempo de autonomia e do diâmetro e altura adotados, a rotina define quantos impelidores o eixo comporta, de que tipo, com que diâmetro e largura de pá, em que cota, e com que rotação. A rotação não é arbitrada: vem da correlação de Zwietering para suspensão completa, que é a condição em que nenhuma partícula fica parada no fundo — abaixo dela forma-se leito, e o tanque deixa de ser um tanque agitado para virar um decantador. A viscosidade da polpa sai da tabela de meios líquidos da referência ou da correlação de Thomas sobre a concentração de sólidos, com entrada manual de densidade e viscosidade quando o meio não consta da lista. Com a rotação e a geometria fechadas, o Número de Reynolds define o regime, o Número de Potência é lido das curvas do Handbook para a família de impelidor escolhida (com e sem defletores) e a potência sai de P = Np·ρ·N³·D⁵. Devolve ainda a capacidade de bombeamento, a velocidade da massa líquida contra a tabela de resultado da agitação, o torque, o eixo por momento equivalente com verificação de velocidade crítica, a espessura da pá, os defletores, o costado, a viga de apoio, o motor e o redutor SEW com indicação de inversor, e o plano de cargas.",
-      "referencia": "Potência por P = Np·ρ·N³·D⁵, com Np das curvas Np × Re levantadas das tabelas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook (Engineering Equipment Users Association, Londres). Rotação de suspensão completa por Zwietering (1958). Viscosidade por tabela de meios líquidos ou correlação de Thomas. Proporções de impelidores e defletores conforme DIN 28131 e DIN 28138. Número e posição dos impelidores pela tabela de folga e espaçamento. Eixo por momento equivalente e velocidade crítica; costado pela NBR 7821 / API 650; viga de apoio pela NBR 8800; base pela NBR 6118 e NBR 6122; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções; NBR ISO 21940-11 para balanceamento.",
-      "resumo": "Tanque cilíndrico agitado: número, tipo e dimensões dos impelidores, rotação por Zwietering, potência, torque, eixo, motor e redutor SEW e plano de cargas.",
-      "normas": [
-        "DIN 28131",
-        "DIN 28138",
-        "NBR 7821",
-        "API 650",
-        "NBR 8800",
-        "NBR 6118",
-        "NBR 6122",
-        "NBR ISO 21940-11",
-        "NBR ISO 13857",
-        "NR-12",
-        "ANSI/AGMA 6013",
-        "SEW"
-      ],
-      "modelo_en": "Cylindrical Agitated Tank",
-      "resumo_en": "Cylindrical agitated tank: impeller count, type and dimensions, Zwietering just-suspended speed, power, torque, shaft, SEW drive and load list.",
-      "grupo_en": "Agitated Tanks",
-      "subgrupo_en": "Cylindrical Agitated Tank"
-    },
-    {
-      "id": "tanque-agitador-retangular",
-      "grupo": "Tanques de Agitadores",
-      "subgrupo": "Tanque Agitador Retangular",
-      "subtipo": "Tanque retangular com agitadores verticais distribuídos ao longo do comprimento",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Tanque Agitador Retangular",
-      "calculadora": "tanque_agitador_retangular",
-      "descricao": "Pré-dimensionamento do sistema de agitação de um tanque retangular, onde o problema não é dimensionar um agitador e sim decidir quantos. Um agitador vertical gera um campo de simetria circular; num tanque alongado ele cobre bem uma zona aproximadamente quadrada em planta e deixa o fundo parado fora dela. A rotina parte do comprimento, da largura e da altura, calcula a faixa de quantidade de agitadores que mantém a velocidade de suspensão em todo o comprimento, representa a zona de cada um por um diâmetro equivalente e aplica sobre ele as correlações de tanque cilíndrico. Verifica a proporção da zona, o passo entre eixos, a folga entre a pá e a parede lateral e — o critério que decide o arranjo — a velocidade da corrente de fundo entre dois agitadores, que é onde o sólido assenta quando faltam agitadores. Devolve o tipo, a quantidade, o diâmetro e a largura dos impelidores por eixo, a rotação por Zwietering, a potência por agitador e total, o torque, o eixo, o motor e o redutor SEW por agitador com indicação de inversor e escalonamento de partida, a chapa das paredes com os enrijecedores verticais, as vigas de apoio e o plano de cargas.",
-      "referencia": "Zona de influência de cada agitador representada pelo diâmetro equivalente Teq = √(4·B·Lz/π), com Lz = L/n. Critérios de cobertura: Lz/B entre 0,80 e 1,25, passo entre eixos até 1,5·B e velocidade da corrente de fundo acima de 0,30 m/s. Potência por P = Np·ρ·N³·D⁵ com Np das curvas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook; rotação por Zwietering (1958) sobre Teq. Tanque retangular tratado como auto-defletado. Chapa das paredes por flexão entre enrijecedores, enrijecedores verticais sob carga hidrostática triangular e vigas de apoio conforme ABNT NBR 8800; base pela NBR 6118 e NBR 6122; impelidores conforme DIN 28131; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções.",
-      "resumo": "Tanque retangular agitado: quantidade de agitadores ao longo do comprimento, impelidores por eixo, rotação por Zwietering, potência total, estrutura e acionamentos SEW.",
-      "normas": [
-        "DIN 28131",
-        "NBR 8800",
-        "NBR 6118",
-        "NBR 6122",
-        "NBR 8681",
-        "NBR ISO 21940-11",
-        "NBR ISO 13857",
-        "NR-12",
-        "ANSI/AGMA 6013",
-        "SEW"
-      ],
-      "modelo_en": "Rectangular Agitated Tank",
-      "resumo_en": "Rectangular agitated tank: number of agitators along the length, impellers per shaft, Zwietering speed, total power, structure and SEW drives.",
-      "grupo_en": "Agitated Tanks",
-      "subgrupo_en": "Rectangular Agitated Tank"
-    },
-    {
-      "id": "porta-forno-elevacao",
-      "grupo": "Mecanismos de Forno",
-      "subgrupo": "Sistema de Elevação de Porta",
-      "subtipo": "Elevação vertical de porta de forno com contrapeso, correntes de rolos e cabos redundantes",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Sistema de Elevação de Porta de Forno",
-      "calculadora": "porta_forno",
-      "descricao": "Pré-dimensionamento completo do mecanismo que levanta a porta de um forno de aciaria: correntes, cabos, olhais, eixo principal, engrenagens abertas, motoredutor com freio e a estrutura que apoia o conjunto. O ponto de partida é o balanço porta × contrapeso, que decide quanto o acionamento realmente levanta — e que precisa deixar a porta tendendo a fechar, porque essa é a posição segura em falta de energia. As correntes seguem a série ANSI RS do catálogo DAIDO e os cabos de aço são o segundo caminho de carga: em elevação sobre área de circulação, cada elemento é dimensionado para a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada e desaparece no instante em que um deles falha. O eixo principal é resolvido como viga sobre dois mancais por integração numérica, com o carregamento real das rodas dentadas e da coroa — inclusive quando a coroa fica em balanço fora dos mancais —, e o diâmetro é escolhido pelo critério que efetivamente governa, que quase nunca é a tensão e sim a flecha no engrenamento e a torção que faz um lado da porta subir antes do outro. O freio SEW é dimensionado pela porta inteira e não pelo desbalanço, porque é justamente na perda do contrapeso que ele precisa funcionar. Devolve croqui da elevação frontal, diagramas de momento, torque e flecha do eixo, e detalhes cotados do olhal e da roda dentada.",
-      "referencia": "ABNT NBR 8400 e FEM 1.001 para a classificação do mecanismo, o coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e os coeficientes de segurança. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1 e ISO 606), com indicação da corrente de placas (ANSI/ASME B29.8, série BL) como alternativa usual em elevação. Cabos de aço com carga de ruptura por construção, relação D/d das polias pela DIN 15020 e inspeção pela ABNT NBR ISO 4309. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo por momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI e torção específica limitada a 0,25°/m. Engrenagens abertas por Lewis com fator de velocidade de Barth. Motoredutor e freio de mola SEW-EURODRIVE série BE. NR-12, ABNT NBR ISO 13857 e NBR 14153 para retenção independente e circuito de segurança.",
-      "resumo": "Elevação de porta de forno: balanço com contrapeso, correntes DAIDO e cabos redundantes, olhais, eixo principal com diagramas, engrenagens, motoredutor e freio SEW.",
-      "normas": [
-        "NBR 8400",
-        "FEM 1.001",
-        "ANSI/ASME B29.1",
-        "ANSI/ASME B29.8",
-        "ISO 606",
-        "DIN 15020",
-        "NBR ISO 4309",
-        "NBR 8800",
-        "NBR 8681",
-        "NBR 6118",
-        "NBR 6122",
-        "NR-12",
-        "NBR ISO 13857",
-        "NBR 14153",
-        "SEW"
-      ],
-      "modelo_en": "Furnace Door Hoisting System",
-      "resumo_en": "Furnace door hoist: counterweight balance, DAIDO chains and redundant ropes, pad-eyes, main shaft with diagrams, open gearing, SEW gearmotor and brake.",
-      "grupo_en": "Furnace Mechanisms",
-      "subgrupo_en": "Door Hoisting System"
-    },
-    {
-      "id": "lavador-umido-gas",
-      "grupo": "Limpeza de Gases",
-      "subgrupo": "Lavador Úmido (torre, Venturi e separador)",
-      "subtipo": "Fase úmida da limpeza de gás de alto-forno: têmpera, Venturi, separador de gotas e selo",
-      "fabricante": "Pré-dimensionamento",
-      "modelo": "Lavador Úmido de Gás de Alto-Forno",
-      "calculadora": "lavador_umido",
-      "descricao": "Pré-dimensionamento da fase úmida da limpeza de gás, na sequência em que o gás a percorre. Começa pela têmpera: o gás quente encontra a água e cede calor sensível evaporando água até a saturação adiabática — não é troca de calor com parede, é troca de massa, e é essa mudança de estado que encolhe a vazão volumétrica e viabiliza um Venturi pequeno. Segue para o Venturi, onde a captura da partícula fina é paga em perda de carga, com a eficiência calculada pelo modelo de Calvert integrado sobre a distribuição do pó. O ponto de operação não é arbitrado: a rotina busca o par razão líquido/gás e velocidade de garganta que atinge a meta com a MENOR perda de carga, porque a eficiência cresce linearmente com a água e o ΔP cresce com o quadrado da velocidade — água é mais barata que pressão. Depois verifica o separador ciclônico de gotas pelo diâmetro de corte, dimensiona o selo hidráulico pela pressão de topo e fecha a conta de perda de carga do sistema inteiro, incluindo a do ciclone a montante, contra a pressão disponível no forno, indicando se há necessidade de exaustor. Devolve ainda o balanço hídrico completo — água evaporada, purga, reposição e bombas — e trata o alcatrão como dado selecionável, com as consequências sobre temperatura mínima, materiais e lama.",
-      "referencia": "Saturação adiabática por balanço entálpico com pressão de vapor por Magnus-Tetens. Diâmetro médio de gota por Nukiyama-Tanasawa. Penetração do Venturi pelo modelo de Calvert (1970), integrada sobre distribuição log-normal, com fator de molhabilidade entre 0,25 e 0,50. Perda de carga do Venturi pela quantidade de movimento transferida às gotas, ΔP = ρ_L·v²·(L/G). Torre de aspersão por captura em contracorrente com eficiência de impactação em gota isolada, com crédito de coleta limitado por decisão de projeto. Separador ciclônico verificado pelo diâmetro de corte. ABNT NBR 12019 e US EPA Method 5 para particulado; CEN/TS 15439 para alcatrão; NR-20, NR-33 e NR-12 para segurança; CONAMA 382/436 para emissão; ABNT NBR 8800 e NBR 6118 para estrutura.",
-      "resumo": "Lavador úmido: têmpera por saturação adiabática, Venturi otimizado em L/G e velocidade, separador de gotas, selo hidráulico, perda de carga do sistema e balanço hídrico.",
-      "normas": [
-        "NBR 12019",
-        "US EPA M5",
-        "CEN/TS 15439",
-        "CONAMA 382",
-        "CONAMA 436",
-        "NBR 8800",
-        "NBR 6118",
-        "NR-12",
-        "NR-20",
-        "NR-33",
-        "SEW"
-      ],
-      "modelo_en": "Blast Furnace Gas Wet Scrubber",
-      "resumo_en": "Wet scrubber: adiabatic quench, Venturi optimised on L/G and throat velocity, droplet separator, hydraulic seal, system pressure drop and water balance.",
-      "grupo_en": "Gas Cleaning",
-      "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
-    }
-  ]
+  {
+   "id": "transportador-flexowell",
+   "grupo": "Transportadores",
+   "subgrupo": "Flexowell",
+   "subtipo": "Transportador de correia de alto ângulo / vertical (FLEXOWELL®)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Transportador Flexowell",
+   "calculadora": "flexowell",
+   "descricao": "Pré-dimensionamento de transportador de correia de parede ondulada (FLEXOWELL® ContiTech) para alto ângulo e vertical. A POTÊNCIA segue a ISO 5048 e a DIN 22101, com coeficiente de atrito fictício f entre 0,020 e 0,030 selecionável, coeficiente de comprimento C, cos δ real da geometria e resistências secundárias calculadas por componentes — aceleração do material no carregamento, atrito nas guias e limpadores — em vez de percentual fixo. O resultado é confrontado com a aferição física da potência de elevação (Q·g·H), que é o piso incontornável do transportador. A MASSA DA CORREIA é obtida por composição: carcaça com coberturas, as duas paredes onduladas por tabela de catálogo e as travessas pela seção e pelo passo — adotar valor único erra nas duas pontas, porque a correia vai de cerca de 12 a 100 kg/m conforme a parede. Verifica a VELOCIDADE ADMISSÍVEL em função do ângulo, acima da qual o material rola de volta no bolsão; o DIÂMETRO MÍNIMO DO TAMBOR pelos dois critérios simultâneos de carcaça e de altura da parede ondulada; o CONTRA-RECUO, comparando a componente gravitacional do material com a resistência ao rolamento e dando o torque de retenção no eixo do tambor e na entrada do redutor — item de segurança, pois transportador de alto ângulo carregado desce ao perder o acionamento; a flecha e o espaçamento de roletes; e os raios mínimos de curva côncava, pelo critério de levantamento da correia, e convexa, pelo limite da parede ondulada, indicando os roletes de retenção quando o raio praticável fica abaixo do de levantamento. Entrega ainda pesos vazio e em operação, cargas distribuídas por metro, cargas pontuais na cabeça e na cauda, cargas horizontais do acionamento e do esticador, e a ancoragem longitudinal a transferir à fundação. Croqui com os três trechos, as duas curvas, o bolsão em corte e todas as cargas. Presets de material incluindo briquete ferroso e briquete carbonoso.",
+   "referencia": "Catálogo ContiTech FLEXOWELL® (paredes L/N/S/ES, travessas T, carcaça têxtil e cabo de aço); potência conforme ISO 5048 e DIN 22101 — resistência principal Fp = f·L·g·[qRO+qRU+(2qB+qG)·cosδ] com coeficiente de comprimento C, resistência de elevação Fst = qG·g·H e secundárias por componentes; flecha entre roletes a = √(8·T2·f/(g·(qB+qG))); raio côncavo de não levantamento R ≥ T1/(qB·g); acionamento SEW-EURODRIVE. Massa da correia, curva de capacidade por ângulo, raios mínimos de curva e diâmetro mínimo de tambor devem ser confirmados na folha de dados do fabricante — são específicos da parede ondulada.",
+   "resumo": "Correia de parede ondulada para alto ângulo: capacidade, potência ISO 5048, contra-recuo, tambor mínimo, curvas e cargas nos apoios.",
+   "normas": [
+    "ISO 5048",
+    "DIN 22101",
+    "CEMA"
+   ],
+   "modelo_en": "Flexowell Conveyor",
+   "resumo_en": "Corrugated sidewall belt for steep lifts: capacity, ISO 5048 power, backstop, minimum pulley, curve radii and support loads.",
+   "grupo_en": "Conveyors",
+   "subgrupo_en": "Flexowell"
+  },
+  {
+   "id": "transportador-correia",
+   "grupo": "Transportadores",
+   "subgrupo": "Correia Transportadora Convencional",
+   "subtipo": "Transportador de correia",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Transportador de Correia",
+   "calculadora": "belt_conveyor",
+   "descricao": "Roteiro completo do Manual FAÇO de Transportadores de Correia, passo a passo, com todos os dados de entrada selecionáveis a partir das tabelas do manual: material e inclinação máxima (Tab. 1-01/1-02), velocidade (1-05), largura por capacidade e granulometria (1-04/1-06), série de roletes com força radial, carga dinâmica e vida útil (1-07 a 1-14), espaçamento e flecha (1-15/1-16), potência pelo Método Prático (1-17 a 1-20) com verificação CEMA, tensões T1/T2/T3 pelos quatro casos das págs. 1.49-1.50, seleção da correia (Tad = Tu·B·n₁), esticador e contrapeso com curso e com o peso do tambor esticador estimado pela geometria (casca, discos, cubos e eixo dimensionado por tensão e flecha) (1-33, 1.67, 2-55 a 2-57) capacidade máxima 100% da seção (geometria CEMA × Tab. 1-04) como base do acionamento, tração máxima na partida com a correia cheia (destravamento + inércia das massas em movimento) e seleção de motor e redutor pelo maior entre o regime contínuo e o pico de partida (1-34).",
+   "referencia": "Manual FAÇO de Transportadores de Correia (Allis Mineral Systems / Svedala), 4ª ed. — Tab. 1-01 a 1-34 e 2-55 a 2-57; verificação cruzada pelo método CEMA; ABNT NBR 6172/6177",
+   "resumo": "Correia transportadora convencional: roteiro FAÇO passo a passo, com roletes, tensões, contrapeso, capacidade máxima 100% e tração de partida para o acionamento.",
+   "normas": [
+    "Manual FAÇO — Transportadores de Correia",
+    "CEMA",
+    "NBR 6172",
+    "NBR 6177",
+    "ISO 5048"
+   ],
+   "modelo_en": "Belt Conveyor",
+   "resumo_en": "Conventional belt conveyor: full step-by-step FAÇO routine with idlers, tensions, counterweight, 100% cross-section capacity and starting tension for drive sizing.",
+   "grupo_en": "Conveyors",
+   "subgrupo_en": "Conventional Belt Conveyor"
+  },
+  {
+   "id": "transportador-helicoidal",
+   "grupo": "Transportadores",
+   "subgrupo": "Helicoidal",
+   "subtipo": "Transportador helicoidal (rosca sem-fim)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Transportador Helicoidal",
+   "calculadora": "screw_conveyor",
+   "descricao": "Pré-dimensionamento de transportador helicoidal: a partir da vazão de projeto, calcula a vazão volumétrica, o diâmetro recomendado da rosca, a capacidade real e a potência de acionamento.",
+   "referencia": "CEMA / KWS Screw Conveyor Engineering Guide; DIN 15262 / ISO 7119",
+   "resumo": "Transportador helicoidal: da vazão de projeto ao diâmetro recomendado da rosca, com rotação, grau de enchimento, capacidade real e potência de acionamento.",
+   "normas": [
+    "CEMA",
+    "DIN 15262",
+    "ISO 7119"
+   ],
+   "modelo_en": "Screw Conveyor",
+   "resumo_en": "Screw conveyor: from design throughput to recommended screw diameter, with speed, trough loading, actual capacity and drive power.",
+   "grupo_en": "Conveyors",
+   "subgrupo_en": "Screw"
+  },
+  {
+   "id": "transportador-arraste-tubular",
+   "grupo": "Transportadores",
+   "subgrupo": "Arraste Tubular",
+   "subtipo": "Transportador de arraste tubular (corrente de elos redondos)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Transportador de Arraste Tubular",
+   "calculadora": "arraste_tubular",
+   "descricao": "Pré-dimensionamento de transportador de arraste tubular (tubo + corrente de elos redondos com discos): seleção do diâmetro nominal do tubo em polegadas conforme norma ASME B36.10 (4\" a 16\", Sch 40), taxa de preenchimento do tubo definida pelo usuário (seção útil = seção do tubo × taxa), presets de material incluindo briquete ferroso autoredutor (1,70 t/m³ · 60 mm), briquete carbonoso (1,30 t/m³ · 120 mm), briquete carbonoso e briquete ferroso (HBI), verificação do dimensional da peça contra o diâmetro do tubo, velocidade da corrente, tração na corrente (atrito do material e da corrente, elevação e curvas leves), potência, seleção da corrente de elos redondos (carga de ruptura ÷ fator de segurança) e acionamento SEW. Geometria com trecho horizontal inferior, trecho inclinado e trecho horizontal superior.",
+   "referencia": "Tubos de aço conforme ASME B36.10 / ANSI (diâmetros nominais em polegadas, Sch 40); capacidade pela seção útil (seção do tubo × taxa de preenchimento) × velocidade da corrente; catálogo Schrage Rohrkettensystem (velocidades de corrente e rodas dentadas); correntes de elos redondos RUD; método de tração em transportadores contínuos de corrente; acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)",
+   "resumo": "Arraste tubular de corrente com discos: diâmetro do tubo, taxa de preenchimento, seleção da corrente, potência, peso total e cargas pontuais nos apoios.",
+   "normas": [
+    "ASME B36.10",
+    "NBR 8800",
+    "SEW"
+   ],
+   "modelo_en": "Tubular Drag Conveyor",
+   "resumo_en": "Tubular chain-and-disc drag: pipe diameter, fill rate, chain selection, power, total weight and point loads at the supports.",
+   "grupo_en": "Conveyors",
+   "subgrupo_en": "Tubular Drag"
+  },
+  {
+   "id": "transportador-canecas",
+   "grupo": "Transportadores",
+   "subgrupo": "Elevador de Canecas",
+   "subtipo": "Elevador de canecas (transportador vertical)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Elevador de Canecas",
+   "calculadora": "elevador_canecas",
+   "descricao": "Pré-dimensionamento de elevador de canecas (transportador vertical): capacidade e seleção da caneca pelo catálogo, velocidade e tipo de descarga (centrífuga ou contínua), potência (elevação + resistência de escavação no boot), tração e seleção da correia (EP) ou da corrente central, e acionamento SEW. Tração e descarga selecionáveis.",
+   "referencia": "Método CEMA (Bucket Elevators) e velocidades de descarga; canecas tipo 4B / Tapco / Maxi-Lift (volume e espaçamento); referência de mineração pesada BEUMER (elevadores de correia) e AUMUND (corrente central forjada, tipo BWZ); acionamento SEW-EURODRIVE (motoredutores série R e, acima da série R, redutores industriais MC e X..e)",
+   "resumo": "Elevador de canecas: seleção da caneca pelo catálogo, velocidade e tipo de descarga, potência com resistência de escavação, tração e seleção da tração.",
+   "normas": [
+    "CEMA",
+    "NBR 6172",
+    "SEW"
+   ],
+   "modelo_en": "Bucket Elevator",
+   "resumo_en": "Bucket elevator: bucket selection from catalogue, speed and discharge type, power including digging resistance, tension and traction selection.",
+   "grupo_en": "Conveyors",
+   "subgrupo_en": "Bucket Elevator"
+  },
+  {
+   "id": "britador-mandibulas",
+   "grupo": "Britadores",
+   "subgrupo": "Britador de Mandíbulas",
+   "subtipo": "Britador de mandíbulas (1 eixo, britagem por compressão)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Britador de Mandíbulas",
+   "calculadora": "britador_mandibulas",
+   "descricao": "Pré-dimensionamento de britador de mandíbulas (primário, por compressão): seleção da boca/modelo pelo catálogo (Nordberg Série C), razão de redução e produto (APF → P80), capacidade pela tabela do catálogo Série C (interpolada por APF) com verificação pela fórmula de Taggart, e potência pela lei de Bond, com Work Index por material (presets editáveis). Compara a potência calculada de Bond com a do motor de catálogo.",
+   "referencia": "Lei de Bond (3ª teoria da cominuição); fórmula de capacidade de Taggart; regras de seleção de boca (F_máx ≤ 0,8·gape) e razão de redução; catálogo Metso/FAÇO Nordberg Série C; referências Wills' Mineral Processing Technology, Gupta & Yan (Mineral Processing Design and Operations), 911Metallurgist e AMIT-135",
+   "resumo": "Britador de mandíbulas primário: seleção da boca pelo catálogo, razão de redução, capacidade com verificação por Taggart e potência pela lei de Bond.",
+   "normas": [
+    "Bond",
+    "Taggart",
+    "Metso"
+   ],
+   "modelo_en": "Jaw Crusher",
+   "resumo_en": "Primary jaw crusher: feed opening from catalogue, reduction ratio, capacity cross-checked by Taggart and power by Bond's law.",
+   "grupo_en": "Crushers",
+   "subgrupo_en": "Jaw Crusher"
+  },
+  {
+   "id": "britador-conico",
+   "grupo": "Britadores",
+   "subgrupo": "Britador Cônico",
+   "subtipo": "Britador cônico (giratório secundário/terciário, britagem por compressão)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Britador Cônico",
+   "calculadora": "britador_conico",
+   "descricao": "Pré-dimensionamento de britador cônico (secundário/terciário, por compressão): seleção da câmara (Standard/grossa para secundário; Cabeça curta/fina para terciário) e do modelo pelo catálogo (Nordberg HP/MP), verificação da alimentação (F_máx ≤ boca da câmara), razão de redução e produto (APF → P80), capacidade pela tabela do catálogo (interpolada por APF, corrigida pela densidade) e potência pela lei de Bond com Work Index por material. Compara a potência calculada de Bond com a do motor de catálogo.",
+   "referencia": "Lei de Bond (3ª teoria da cominuição); método de capacidade do Manual de Britagem Metso/FAÇO (Q = QT·A·B·C·D) e tabela de capacidade × APF dos cones MP800/MP1000; catálogo Nordberg cônicos HP/MP (boca, câmara, potência); regras de câmara e razão de redução (secundário 4:1–6:1; terciário 2:1–5:1); referências Wills' Mineral Processing Technology, Gupta & Yan, 911Metallurgist e AMIT-135",
+   "resumo": "Britador cônico secundário e terciário: seleção do modelo pelo catálogo, razão de redução, granulometria do produto, capacidade e potência pela lei de Bond.",
+   "normas": [
+    "Bond",
+    "Metso",
+    "Taggart"
+   ],
+   "modelo_en": "Cone Crusher",
+   "resumo_en": "Secondary and tertiary cone crusher: model selection from catalogue, reduction ratio, product size, capacity and power by Bond's law.",
+   "grupo_en": "Crushers",
+   "subgrupo_en": "Cone Crusher"
+  },
+  {
+   "id": "britador-impacto",
+   "grupo": "Britadores",
+   "subgrupo": "Britador de Impacto",
+   "subtipo": "Britador de impacto de eixo horizontal (HSI), primário/secundário",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Britador de Impacto",
+   "calculadora": "britador_impacto",
+   "descricao": "Pré-dimensionamento de britador de impacto de eixo horizontal (HSI): seleção do modelo pelo catálogo (Nordberg Série NP, faixa primária/secundária), alimentação e alta razão de redução (10:1 a 25:1, produto cúbico), capacidade de catálogo, rotor e velocidade periférica, e potência pela lei de Bond (com Work Index por material), comparada à potência instalada do modelo. Indicado para materiais não-abrasivos (calcário, concreto reciclado).",
+   "referencia": "Lei de Bond / Work Index de impacto (CWi); catálogo Metso Nordberg Série NP (HSI) — boca, alimentação máx., rotor, potência e capacidade; faixa de redução e velocidade de rotor conforme literatura (Wills, 911Metallurgist, AMIT-135, Sandvik)",
+   "resumo": "Britador de impacto: seleção do modelo pelo catálogo, razão de redução, granulometria do produto, capacidade e potência, com verificação por rotor.",
+   "normas": [
+    "Bond",
+    "Metso"
+   ],
+   "modelo_en": "Impact Crusher",
+   "resumo_en": "Impact crusher: model selection from catalogue, reduction ratio, product size, capacity and power, with rotor duty check.",
+   "grupo_en": "Crushers",
+   "subgrupo_en": "Impact Crusher"
+  },
+  {
+   "id": "britador-martelo",
+   "grupo": "Britadores",
+   "subgrupo": "Britador de Martelos",
+   "subtipo": "Britador de martelos (rotor com martelos pivotados e grelha)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Britador de Martelos",
+   "calculadora": "britador_martelo",
+   "descricao": "Pré-dimensionamento de britador de martelos (rotor com martelos pivotados, placa de impacto e grelha de saída): seleção do modelo pelo catálogo (classe FLSmidth EV / hammer crusher), produto controlado pela abertura da grelha, altíssima razão de redução (10:1 a 50:1, single-stage), velocidade periférica recomendada em função da grelha e do material, capacidade de catálogo e potência pela lei de Bond. Indicado para materiais de baixa abrasividade (calcário, gesso, carvão, cal).",
+   "referencia": "Lei de Bond; produto pela abertura da grelha; tabela de velocidade periférica × grelha (manual Metso/FAÇO moinhos de martelos); catálogo classe FLSmidth EV (até 2,5 m de alimentação, 2200 t/h, 500-2500 kW); refs. Wills, 911Metallurgist, AMIT-135, MEKA, Hazemag",
+   "resumo": "Britador de martelos: seleção do modelo, razão de redução, capacidade e potência, com verificação da energia por martelo e da velocidade periférica.",
+   "normas": [
+    "Bond",
+    "Metso"
+   ],
+   "modelo_en": "Hammer Crusher",
+   "resumo_en": "Hammer crusher: model selection, reduction ratio, capacity and power, with energy per hammer and rotor tip speed checks.",
+   "grupo_en": "Crushers",
+   "subgrupo_en": "Hammer Crusher"
+  },
+  {
+   "id": "peneira-horizontal",
+   "grupo": "Peneiras",
+   "subgrupo": "Peneira Vibratória Horizontal",
+   "subtipo": "Peneira vibratória horizontal (movimento linear, multideck)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Peneira Vibratória Horizontal",
+   "calculadora": "peneira_horizontal",
+   "descricao": "Pré-dimensionamento de peneira vibratória horizontal (movimento linear) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento linear). Seleciona o modelo Metso pela área ativa, verifica largura mínima e espessura da camada e indica a eficiência esperada. Os fatores de correção do material ajustam o rendimento da peneira.",
+   "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): fórmula de área A=(T·P)/(C·M·K·Qn), gráficos B (capacidade básica C), C (fator M) e D (fator K), tabelas Q1–Q6 e áreas ativas dos modelos; método VSMA (Vibrating Screen Manufacturers Association); refs. Wills' Mineral Processing Technology e Gupta & Yan",
+   "resumo": "Peneira vibratória horizontal: área necessária pelos fatores de correção, seleção do modelo pelo catálogo, número de decks, potência e espessura do leito.",
+   "normas": [
+    "Metso",
+    "VSMA"
+   ],
+   "modelo_en": "Horizontal Vibrating Screen",
+   "resumo_en": "Horizontal vibrating screen: required area from correction factors, model selection from catalogue, deck count, power and bed depth.",
+   "grupo_en": "Screens",
+   "subgrupo_en": "Horizontal Screen"
+  },
+  {
+   "id": "peneira-inclinada",
+   "grupo": "Peneiras",
+   "subgrupo": "Peneira Vibratória Inclinada",
+   "subtipo": "Peneira vibratória inclinada (movimento circular, 15–20°)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Peneira Vibratória Inclinada",
+   "calculadora": "peneira_inclinada",
+   "descricao": "Pré-dimensionamento de peneira vibratória inclinada (movimento circular, inclinação típica 15–20°) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura desejada, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6 (posição do deck, forma da partícula, via úmida, umidade, área aberta da tela e movimento circular, Q6 = 1,0). Seleciona o modelo pela área ativa em dois catálogos — Simplex SXPI (2010 a 6024, com dimensões e área do deck, potência em CV, número máximo de decks e peso do equipamento por número de decks) e Metso SH/XH — com opção de escolher o modelo manualmente e de fixar a linha de catálogo. Verifica a espessura da camada na descarga, a compatibilidade da inclinação com a faixa da linha SXPI (16° a 20°) e o número de decks contra o máximo do modelo. Os presets de material preenchem densidade, forma da partícula e tipo de tela, e incluem briquete ferroso (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete carbonoso (120 × 108 × 87 mm · 1,3 t/m³) — para os quais é indicada tela de poliuretano/borracha, de modo a reduzir a degradação da peça — com verificação da relação entre a abertura e o dimensional do briquete.",
+   "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabelas Q1–Q6 (movimento circular Q6=1,0); método VSMA. Catálogo Simplex Equipamentos — Peneiras Inclinadas SXPI (livre oscilação circular, inclinações de 16° a 20°, 880 rpm, 1 a 4 decks, telas de aço, borracha ou poliuretano): tabela de modelos 2010 a 6024 com dimensões e área do deck, potência em CV e peso por número de decks. Catálogo Metso de peneiras inclinadas SH/XH (5'×14' a 8'×20', inclinação 18–20°)",
+   "resumo": "Peneira vibratória inclinada: área necessária pelos fatores de correção, seleção pelo catálogo Simplex SXPI, decks, potência e espessura do leito.",
+   "normas": [
+    "Simplex SXPI",
+    "VSMA",
+    "Metso"
+   ],
+   "modelo_en": "Inclined Vibrating Screen",
+   "resumo_en": "Inclined vibrating screen: required area from correction factors, selection from the Simplex SXPI range, decks, power and bed depth.",
+   "grupo_en": "Screens",
+   "subgrupo_en": "Inclined Screen"
+  },
+  {
+   "id": "peneira-banana",
+   "grupo": "Peneiras",
+   "subgrupo": "Peneira Vibratória Banana (CBS)",
+   "subtipo": "Peneira banana de inclinação variável (movimento circular)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Peneira Vibratória Banana (CBS)",
+   "calculadora": "peneira_banana",
+   "descricao": "Pré-dimensionamento de peneira vibratória tipo banana (linha Metso CBS, inclinação variável — deck mais íngreme na entrada e suave na descarga) pelo método de área da VSMA/Metso: área necessária A = (T·P)/(C·M·K·Qn), com capacidade básica C pela abertura, fator de material retido M (oversize), fator K (% < ½ da abertura) e fatores de correção Qn = Q1·Q2·Q3·Q4·Q5·Q6. O diferencial da banana é o Q6, que varia com o % de material passante (0,30→1,0 a 0,70→1,4), refletindo a alta capacidade da peneira quando há muito passante na alimentação. Seleciona o modelo Metso CBS pela área ativa e verifica a espessura da camada. Os fatores de correção do material ajustam o rendimento da peneira.",
+   "referencia": "Manual de Britagem Metso/FAÇO — Peneiras e Grelhas (Seleção e Dimensionamento): A=(T·P)/(C·M·K·Qn), gráficos B/C/D (C, M, K), tabela Q6 da peneira banana CBS (por % de material passante) e catálogo de peneiras banana CBS (5'×14' a 10'×24'); exemplo resolvido de peneira banana CBS de dois decks; método VSMA",
+   "resumo": "Peneira vibratória banana (CBS): área necessária, seleção do modelo, decks e potência, com os ângulos de entrada e saída da geometria multi-inclinação.",
+   "normas": [
+    "CBS",
+    "VSMA",
+    "Metso"
+   ],
+   "modelo_en": "Banana Screen (CBS)",
+   "resumo_en": "Banana vibrating screen (CBS): required area, model selection, decks and power, with the entry and exit angles of the multi-slope deck.",
+   "grupo_en": "Screens",
+   "subgrupo_en": "Banana Screen (CBS)"
+  },
+  {
+   "id": "calha-vibratoria",
+   "grupo": "Alimentadores",
+   "subgrupo": "Calha Vibratória (saída de silo)",
+   "subtipo": "Calha / alimentador vibratório sob boca de silo (retomada e alimentação controlada)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Calha Vibratória",
+   "calculadora": "calha_vibratoria",
+   "descricao": "Pré-dimensionamento de calha/alimentador vibratório instalado sob a boca do silo, para descarga contínua e controlada: capacidade pela fórmula Q = 3600·φ1·φ2·V·L·H (Manual de Britagem Metso/FAÇO), com fator de granulometria φ1, fator de umidade φ2, velocidade do material V pela curva rotação × amplitude (3–7 mm), largura da mesa L e altura de camada H limitada pela granulometria (≤0,5·L / 0,3·L / 0,2·L). Seleciona o modelo em três linhas de catálogo — calhas CV, alimentadores suspensos MVS e alimentadores Vibraline (36\"×60\" a 84\"×120\") — informa comprimento e área útil da mesa, inclinação e tempo de residência, calcula a abertura de comporta (camada) necessária e a motorização, e verifica o tamanho máximo do bloco. Inclui presets de material que preenchem densidade, maior bloco e os fatores φ1 e φ2 — brita, calcário, minério granulado e fino, pelota, sínter, carvão úmido e seco, coque, briquete ferroso (57 × 57 × 37,5 mm · 1,7 t/m³) e briquete carbonoso (120 × 108 × 87 mm · 1,3 t/m³) — com alerta específico de degradação para os briquetes, que são peças prensadas e friáveis.",
+   "referencia": "Manual de Britagem Metso/FAÇO — Alimentadores e Calhas Vibratórias: fórmula de capacidade Q = 3600·φ1·φ2·V·L·H (pág. 1-9), curva de velocidade V (rpm × amplitude), fatores φ1 (granulometria) e φ2 (umidade), limites de altura de camada e fator de inclinação; catálogos de calhas vibratórias CV (pág. 1-16), alimentadores vibratórios suspensos MVS (pág. 1-14) e alimentadores Vibraline (pág. 1-19, capacidade referida a 10° de inclinação)",
+   "resumo": "Calha vibratória para saída de silo: vazão e espessura do leito, seleção do modelo, amplitude e força centrífuga, molas, potência e peso total estimado.",
+   "normas": [
+    "OLI",
+    "NBR 8800"
+   ],
+   "modelo_en": "Vibrating Feeder Trough",
+   "resumo_en": "Vibrating trough under silo: throughput and bed depth, model selection, amplitude and centrifugal force, springs, power and total weight.",
+   "grupo_en": "Feeders",
+   "subgrupo_en": "Vibrating Trough (silo outlet)"
+  },
+  {
+   "id": "alimentador-correia",
+   "grupo": "Alimentadores",
+   "subgrupo": "Alimentador de Correia (moega de alimentação)",
+   "subtipo": "Alimentador de correia sob moega de alimentação (retomada de finos e úmidos, dosagem contínua)",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Alimentador de Correia",
+   "calculadora": "alimentador_correia",
+   "descricao": "Pré-dimensionamento de alimentador de correia sob MOEGA DE ALIMENTAÇÃO, pelo método do Manual de Britagem Metso/FAÇO (págs. 1-20 a 1-23). Alimentadores de correia são empregados principalmente na retomada de materiais finos e úmidos sob moegas, silos ou pilhas, onde o alimentador vibratório não é recomendado, e aceitam variador contínuo de velocidade para dosagem precisa. O cálculo segue o mesmo critério dos transportadores de correia, exceto na determinação da TENSÃO EFETIVA Te = Pe + P1 + Ps + Pfs + Ph (kgf), que inclui as parcelas específicas de cisalhamento do material (Ps) e de atrito nas guias laterais (Pfs). A calculadora determina: altura da camada D = Q/(γ·V·B·3600) com a verificação D ≤ B/2; a relação entre pressões lateral e vertical Ka = (1−sen θ)/(1+sen θ); as cinco parcelas da tensão efetiva com o percentual de cada uma; a potência no tambor, no eixo e de seleção, o torque de saída e o motoredutor SEW (série R e industriais M/X); as tensões de operação T1 e T2, a largura da correia, a carcaça EP requerida e o diâmetro mínimo do tambor de acionamento. Traz as tabelas do manual de coeficiente de atrito interno (fm), de atrito com o aço (fsm), de velocidades máximas recomendadas (abrasivo 0,3 m/s · não abrasivo 0,5 m/s) e de peso da correia Wb (Plylon / HDRN), além de presets de material incluindo briquete ferroso e briquete carbonoso (valores estimados de forma conservadora, sinalizados como fora do manual). Calculadora independente — não depende de nenhuma outra. Inclui a verificação da RESISTÊNCIA MECÂNICA REQUERIDA DO BRIQUETE: a carga de pico sobre um briquete isolado é obtida da tensão aparente do leito corrigida pela fração de sólidos (σ_sólido = σv/φs) e pelo fator de concentração de cadeias de força, do que resulta a resistência mínima à compressão em kgf/briquete, N e daN; acrescenta a verificação de impacto na descarga (energia, velocidade e força de parada sobre leito amortecedor e sobre fundo de aço nu), que em geral governa a quebra, e a verificação de cisalhamento e abrasão na extração. Permite lançar a resistência medida em ensaio para conclusão da verificação, com referências ISO 4700 (compressão), ASTM D440 (queda / drop shatter) e ASTM D441 (tamboramento). A moega de alimentação é entrada diretamente pelos seus dimensionais — a e b no topo, altura h e abertura de descarga c × d sobre o alimentador — e dela saem o volume útil pelo tronco de pirâmide V = (h/3)·(A1 + A2 + √(A1·A2)), a massa de material contida V·ρ, a autonomia para a vazão de projeto, o número de ciclos de abastecimento (pá-carregadeira, caminhão basculante ou chute contínuo) e os ângulos das paredes convergentes. A carga vertical sobre a abertura é obtida por Janssen aplicado à própria moega, com saturação em γ·Rh/(K·μ): o atrito nas paredes sustenta parte da coluna, e a carga no alimentador fica bem abaixo do peso total do material contido. Verifica a coerência entre a abertura da moega e a geometria do alimentador (c vs L2, d vs largura entre guias).",
+   "referencia": "Manual de Britagem Metso/FAÇO — ALIMENTADORES DE CORREIA, págs. 1-20 a 1-23: determinação da tensão efetiva Te = Pe + P1 + Ps + Pfs + Ph, com Pe = L·(Kx + Ky·Wb + 0,02·Wb) + 45,4; P1 = Ky·(1,2·B²·γ·L2 + B·D·L3·γ); Ps = (1,2·B − D)·γ·L1·fm·B; Pfs = D·γ·Ka·fsm·[(2,4·B − D)·L1 + D·L3] + 8,93·L; Ph = B·D·γ·H; altura de camada D = Q/(γ·V·B·3600) com D ≤ B/2; Ka = (1 − sen θ)/(1 + sen θ); figura de definição de L, L1, L2, L3, H, B e D (pág. 1-21); tabelas de coeficiente de atrito interno e de atrito com o aço e velocidades máximas recomendadas (pág. 1-22); tabela de peso da correia Wb, tipos Plylon e HDRN (pág. 1-23). Tensões de operação, seleção da correia e dos tambores conforme o capítulo de transportadores de correia; catálogo SEW-EURODRIVE (motoredutores série R e redutores industriais M/X); resistência mecânica do briquete: carga de pico por cadeias de força sobre a fração sólida do leito, impacto na descarga e cisalhamento na extração — ISO 4700, ASTM D440, ASTM D441",
+   "resumo": "Alimentador de correia sob moega, pelo Manual de Britagem: tensão efetiva, largura, correia, acionamento e resistência mecânica requerida do briquete.",
+   "normas": [
+    "Manual FAÇO",
+    "EN 1991-4",
+    "NBR 8800"
+   ],
+   "modelo_en": "Belt Feeder",
+   "resumo_en": "Belt feeder under hopper, by the Metso crushing manual: effective tension, width, belt, drive and required briquette strength.",
+   "grupo_en": "Feeders",
+   "subgrupo_en": "Belt Feeder (feed hopper)"
+  },
+  {
+   "id": "silo-circular",
+   "grupo": "Silos",
+   "subgrupo": "Silo Circular",
+   "subtipo": "Silo cilíndrico com tremonha cônica",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Silo Circular",
+   "calculadora": "silo_circular",
+   "descricao": "Pré-dimensionamento de silo cilíndrico com tremonha cônica para armazenagem de granéis. Roteiro completo (Etapas 1-14): caracterização do minério (com presets, incluindo briquete ferroso e briquete carbonoso), capacidade (massa e volume útil), Flow Function (Jenike), regime de fluxo, ângulo da moega e descarga mínima, geometria (corpo + moega cônica), raio hidráulico, pressões de Janssen, fatores de descarga (EN 1991-4), distribuição de pressões, chapas, anéis de reforço, montantes verticais, moega (tração meridional), descarga excêntrica e fadiga/dinâmica (impacto, frequência natural e ressonância) — conforme Jenike, EN 1991-4 e ABNT NBR 8800.",
+   "referencia": "A. W. Jenike (Flow Function, fluxo de massa/funil, descarga anti-arco); EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700; ABNT NBR 8800 (estrutura)",
+   "resumo": "Silo circular: capacidade e autonomia, regime de fluxo por Jenike, abertura anti-arco, pressões de Janssen, chapa, anéis, montantes e tremonha cônica.",
+   "normas": [
+    "Jenike",
+    "EN 1991-4",
+    "NBR 8800"
+   ],
+   "modelo_en": "Circular Silo",
+   "resumo_en": "Circular silo: capacity and live time, Jenike flow regime, anti-arching outlet, Janssen pressures, plate, rings, columns and conical hopper.",
+   "grupo_en": "Silos",
+   "subgrupo_en": "Circular Silo"
+  },
+  {
+   "id": "silo-retangular",
+   "grupo": "Silos",
+   "subgrupo": "Silo Retangular",
+   "subtipo": "Silo prismático com tremonha piramidal",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Silo Retangular",
+   "calculadora": "silo_retangular",
+   "descricao": "Pré-dimensionamento EXECUTIVO de silo prismático (seção retangular) com tremonha piramidal ou em cunha. FLUXO: ábaco de Jenike para o ângulo de tremonha (cônico e plano) com verificação do ângulo de vale, abertura anti-arco, diâmetro de rathole quando o fluxo de massa não é atingível, e vazão de descarga por Beverloo comparada à produção. AÇÕES: classes de esbeltez e de avaliação da EN 1991-4, três casos de carga com limites superior e inferior de K e μ, carga localizada (patch load), ações térmicas, pressões de tremonha por Walker/Enstad e pressão de switch na transição. VENTO E SISMO: NBR 6123 com força global de arrasto e momento de tombamento, e NBR 15421 com cortante sísmico de base — a ação lateral governante é identificada. ESTRUTURA (NBR 8800): chapa por ELU e ELS (flecha), escalonada por faixa de altura, verificação de flambagem local da parede sob a compressão de atrito, cintas e enrijecedores com o vão real entre montantes, ANEL DE TRANSIÇÃO dimensionado à flexão e tração, montantes em combinação ELU com vento/sismo e curva de flambagem, tração de arrancamento, placa de base, chumbadores e comprimento de ancoragem, verificação de fadiga e frequência natural. Entrega ainda: revestimento interno com efeito no atrito de parede, dispositivos anti-arco, reações por montante para o projeto de fundação, interface com o alimentador (σv e Fv na boca), pesos discriminados e croqui executivo com elevação, planta e seis tabelas de dados construtivos. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo. A boca é tratada como retangular Bw × Bl também na tremonha piramidal — antes os recuos das paredes usavam Bw nas duas direções, o que tratava a boca como quadrada e produzia um ângulo de vale mais raso que o real.",
+   "referencia": "A. W. Jenike (Bulletin 123) — Flow Function, ábaco de fluxo de massa (θ × δ × φw) para tremonha cônica e plana, abertura anti-arco e diâmetro de rathole; correlação de Beverloo para a vazão de descarga por gravidade. EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez, limites superior e inferior de K e μ com os três casos de carga, carga localizada, pressões de tremonha por Walker/Enstad no enchimento e na descarga, pressão de switch na transição e ações térmicas. ABNT NBR 6123 (vento: S1, S2 pela Tabela 2, S3, coeficiente de arrasto e força global). ABNT NBR 15421 (sismo). ABNT NBR 8800 (estrutura: combinações de ELU e ELS, chapa a flexão e flecha, enrijecedores, cintas, anel de transição, montantes com curva de flambagem, flambagem local da parede, placa de base, chumbadores e fadiga pelo Anexo K / EN 1993-1-9)",
+   "resumo": "Silo retangular executivo: fluxo por Jenike, vazão por Beverloo, casos de carga da EN 1991-4, chapa, cintas, montantes, vento, sismo, base e fadiga.",
+   "normas": [
+    "EN 1991-4",
+    "NBR 8800",
+    "NBR 6123"
+   ],
+   "modelo_en": "Rectangular Silo",
+   "resumo_en": "Rectangular silo: Jenike flow, Beverloo discharge, EN 1991-4 load cases, plate, ring beams, columns, wind, seismic, base and fatigue.",
+   "grupo_en": "Silos",
+   "subgrupo_en": "Rectangular Silo"
+  },
+  {
+   "id": "moega-alimentacao",
+   "grupo": "Moegas",
+   "subgrupo": "Moega de Alimentação",
+   "subtipo": "Moega de alimentação piramidal ou em cunha sobre estrutura metálica",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Moega de Alimentação",
+   "calculadora": "moega_alimentacao",
+   "descricao": "Dimensionamento executivo de MOEGA DE ALIMENTAÇÃO PIRAMIDAL OU EM CUNHA (fenda), a partir de cinco cotas: A e B no topo, altura H e boca de descarga C × D, com colarinho reto opcional e apoio sobre montantes metálicos. O roteiro abre pela geometria e pelo ÂNGULO DE VALE — a aresta de encontro de duas faces é sempre mais rasa que qualquer face isolada (cot²αv = cot²αA + cot²αB), e é ela, e não o ângulo que se lê no desenho de uma face, que decide se há fluxo de massa. Segue com volume geométrico e útil, massa armazenada, autonomia para a vazão de projeto e ciclos de abastecimento; regime de fluxo pelo ábaco de Jenike com margem de 3°, abertura mínima anti-arco, diâmetro de tubulação (rathole) quando o regime é de funil e arco mecânico por granulometria; vazão de descarga por gravidade pela correlação de Beverloo para fenda, comparada com a vazão de projeto para verificar se a boca estrangula. As ações seguem a EN 1991-4 e a NBR 11700: classes de esbeltez e de avaliação da ação, três casos de carga com os limites superior e inferior de K e μ, sobrecarga do montículo, carga localizada (patch load) e, na tremonha, o atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)) com o fator de enchimento Ff e o expoente n, do que resultam as pressões normal e de atrito ao longo da parede e a pressão de switch na transição. A verificação estrutural pela NBR 8800 cobre chapa a flexão e a tração meridional, enrijecedores com espaçamento otimizado por massa, cinta de borda, anel de transição, vigas de apoio, montantes com curva de flambagem, placa de base, chumbadores e reações na fundação, com vento pela NBR 6123 e sismo pela NBR 15421. Acrescenta o que é próprio da moega de recepção: grelha de proteção dimensionada por carga concentrada de bloco com amplificação dinâmica, impacto da descarga de concha ou caçamba, carga por roda, sobrecarga de tráfego e força de choque em batentes e defensas. Fecha com fadiga na transição, recomendação de revestimento e dispositivos de ativação, e os dados de interface para a calculadora do alimentador de correia. Presets de material incluindo briquete ferroso e briquete carbonoso. Permite escolher entre moega PIRAMIDAL, que converge nas duas direções e cujo ângulo de vale governa, e moega EM CUNHA (fenda), que converge só na direção B com paredes de topo verticais e fenda em todo o comprimento A — nesta não existe vale, o ábaco aplicável é o plano, o fator H(θ) e o critério de arco mecânico caem pela metade e S = 1 na formulação da tremonha, do que resulta uma exigência de ângulo muito menor e, quase sempre, a solução mais econômica quando a pirâmide não atinge fluxo de massa. O regime de escoamento é decidido pela GEOMETRIA e não pelo rótulo escolhido: quando a boca é um rasgo (relação maior que 3:1) e as paredes de topo são íngremes o bastante para não formarem vale ativo, aplica-se o ábaco PLANO e quem governa é a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Uma moega piramidal com boca alongada e topos quase verticais é, para efeito de escoamento, uma cunha, e não deve ser cobrada pelo ábaco cônico.",
+   "referencia": "GEOMETRIA: tronco de pirâmide com ângulo de vale por cot²αv = cot²αA + cot²αB. FLUXO: A. W. Jenike (Bulletin 123) — ábaco de fluxo de massa (θ × δ × φw) axissimétrico e plano, com o regime aplicável decidido pela geometria da boca (relação de rasgo ≥ 3:1 e inclinação das paredes de topo), margem de projeto de 3°, abertura anti-arco B = H(θ)·σc/γ e diâmetro de tubulação Df = G(δ)·σc/γ; vazão de descarga por gravidade pela correlação de Beverloo para fenda. AÇÕES: EN 1991-4 (Eurocode 1, Parte 4) e ABNT NBR 11700 — classes de esbeltez e de avaliação da ação, limites superior e inferior de K e μ (a_K = a_μ = 1,15) com os três casos de carga, carga localizada (patch load), e tremonha pelo atrito mobilizado μ_heff = min(tanφw ; (1−K)/(2·tanβ)), fator de enchimento Ff = 1 − b/(1 + tanβ/μ_heff) com b = 0,2, expoente n = S·(Ff·μ_heff·cotβ + Ff) − 2 e pv(x) medido a partir do vértice virtual, com pnf = Ff·pv e ptf = μ_heff·Ff·pv; pressão de switch pela amplificação clássica de Jenike (2×) na transição. VENTO: ABNT NBR 6123. SISMO: ABNT NBR 15421. EQUIPAMENTO MÓVEL: grelha com carga concentrada e amplificação dinâmica, impacto de descarga, carga de roda, sobrecarga de tráfego e choque em defensas. ESTRUTURA: ABNT NBR 8800 — ELU e ELS, chapa, enrijecedores, cinta, anel de transição, vigas, montantes com curva de flambagem, placa de base, chumbadores e fadiga (Anexo K / EN 1993-1-9).",
+   "resumo": "Moega piramidal ou em cunha a partir de A, B, H, C e D: ângulo de vale, regime de fluxo, pressões da EN 1991-4, chapa, estrutura, grelha e cargas móveis.",
+   "normas": [
+    "EN 1991-4",
+    "NBR 8800",
+    "NBR 6123"
+   ],
+   "modelo_en": "Feed Hopper",
+   "resumo_en": "Pyramidal or wedge hopper from A, B, H, C and D: valley angle, flow regime, EN 1991-4 pressures, plate, structure, grizzly and mobile loads.",
+   "grupo_en": "Hoppers",
+   "subgrupo_en": "Feed Hopper"
+  },
+  {
+   "id": "cone-vibratorio-circular",
+   "grupo": "Ativadores de Silo",
+   "subgrupo": "Cone Vibratório Circular",
+   "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Cone Vibratório Circular",
+   "calculadora": "cone_vibratorio_circular",
+   "descricao": "Seção circular ou oval — área calculada como elipse (π/4 · A · B). É a forma padrão de fábrica e a que distribui melhor a vibração no tronco. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo.",
+   "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível",
+   "resumo": "Cone vibratório circular sob silo: volume útil, ângulo exigido com bônus de vibração, abertura anti-arco, motovibradores e verificação dos tirantes.",
+   "normas": [
+    "Jenike",
+    "OLI",
+    "NBR 8800"
+   ],
+   "modelo_en": "Circular Bin Activator",
+   "resumo_en": "Circular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
+   "grupo_en": "Bin Activators",
+   "subgrupo_en": "Circular Bin Activator"
+  },
+  {
+   "id": "cone-vibratorio-retangular",
+   "grupo": "Ativadores de Silo",
+   "subgrupo": "Cone Vibratório Retangular",
+   "subtipo": "Ativador de silo (descarregador vibratório) com cone defletor e motovibrador",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Cone Vibratório Retangular",
+   "calculadora": "cone_vibratorio_retangular",
+   "descricao": "Seção retangular — área calculada como A · B. O ângulo governante é o ÂNGULO DE VALE do canto, sempre mais raso que o das faces, e é ele que decide o escoamento. Pré-dimensionamento de CONE VIBRATÓRIO (ativador de silo / descarregador vibratório): tronco suspenso por molas sob a boca do silo, com cone defletor interno anti-arco, manga flexível de vedação e motovibrador(es). A partir dos dimensionais A e B da entrada, da altura H e dos dimensionais C e D da descarga, calcula o VOLUME ÚTIL do cone (tronco menos o volume ocupado pelo defletor) e a massa de material contida. Verifica o ângulo das paredes contra o exigido pelo ábaco de Jenike com bônus de vibração, a abertura anti-arco (estática e com vibração) e a vazão de descarga por Beverloo. Dimensiona a vibração pela força centrífuga Fc = ka · m_vib · g, com a massa vibrante composta pela estrutura mais a parcela participante do material, e verifica a amplitude pico a pico App = 2·Me/m_vib contra a faixa útil de 1 a 4 mm. Apresenta DUAS OPÇÕES DE ACIONAMENTO — um motovibrador (vibração circular) e dois motovibradores contra-rotativos (vibração linear dirigida) — com a força centrífuga, o momento estático e a potência instalada de cada uma, selecionadas em catálogo por número de polos e frequência da rede. Fecha com as molas de isolamento (rigidez, número, flecha estática e transmissibilidade ao silo) e as cargas estática e dinâmica no flange do silo. O regime de escoamento é decidido pela GEOMETRIA da boca e não pelo tipo declarado no formulário: quando a boca é um rasgo (relação ≥ 3:1) e a parede que fecha o seu comprimento é mais íngreme que o exigido pelo ábaco cônico, aplica-se o ábaco PLANO e quem governa passa a ser a face convergente; fora disso aplica-se o axissimétrico e governa a aresta de vale. Ambas as condições são necessárias — uma boca alongada com paredes de topo rasas continua formando vale ativo.",
+   "referencia": "A. W. Jenike (abertura anti-arco e ângulo de tremonha, com bônus de vibração); correlação de Beverloo (vazão de descarga); teoria de vibração forçada por massa excêntrica: Fc = Me·ω², amplitude App = 2·Me/m_vib e transmissibilidade T = 1/(r²−1) para o isolamento por molas; catálogo de motovibradores tipo Italvibras MVSI e OLI MVE (força centrífuga × rotação × potência, 2 a 8 polos, 50 e 60 Hz); prática de fabricantes de ativadores de silo (bin activators) quanto ao fator de aceleração, ao cone defletor e à manga flexível",
+   "resumo": "Cone vibratório retangular sob silo: volume útil, ângulo exigido com bônus de vibração, abertura anti-arco, motovibradores e verificação dos tirantes.",
+   "normas": [
+    "Jenike",
+    "OLI",
+    "NBR 8800"
+   ],
+   "modelo_en": "Rectangular Bin Activator",
+   "resumo_en": "Rectangular bin activator: live volume, required angle with vibration credit, anti-arching outlet, motovibrators and tie-rod check.",
+   "grupo_en": "Bin Activators",
+   "subgrupo_en": "Rectangular Bin Activator"
+  },
+  {
+   "id": "flare",
+   "grupo": "Utilidades e Segurança",
+   "subgrupo": "Flare (tocha de queima)",
+   "subtipo": "Tocha elevada — alívio de emergência ou queima contínua de gás de processo",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Flare (Tocha de Queima)",
+   "calculadora": "flare",
+   "descricao": "Flare de emergência ou de queima contínua de gás de processo, com o caso de gás de topo de mini alto-forno a carvão vegetal + briquete ferroso já carregado (Rev. 1, com consumidores de processo): ponta por Mach, velocidade admissível e pressão disponível na fonte, contrapressão, chama e radiação (API 521) com verificação do posto ocupado mais próximo e altura adotada separada da mínima, dispersão com a tocha apagada, vaso separador com o líquido calculado pela condensação, selagem e purga, pilotos (API 537), estabilidade de chama em gás de baixo PCI, balanço da planta e verificação de turndown com ou sem marcha reduzida e opção de bico estagiado, casco dimensionado virole a virole, helicoide supressor de vórtices, patamares de acesso e escada com o acréscimo de vento dos acessórios, tubulações de serviço, bicos de gás auxiliar, vento (NBR 6123), sismo (NBR 15421), anel de base, nervuras, chumbadores e bloco de fundação, com croqui de detalhamento mecânico para o projetista.",
+   "referencia": "API STD 521 — Pressure-relieving and Depressuring Systems: contingências de alívio, velocidade de saída na ponta (Mach 0,2 contínuo · 0,5 em emergência), Mach ≤ 0,2 no header, contrapressão admissível por tipo de válvula, comprimento de chama (Figura 8, ajuste de Beychok L = 0,0059·Q^0,478 com Q em Btu/h), inclinação da chama pelo vento, radiação térmica D = √(τ·F·Q/(4π·K)) com os níveis de 1,58 / 4,73 / 6,31 / 9,46 kW/m² acrescidos da parcela solar de 0,79 a 1,04 kW/m², e vaso separador com remoção de gotas de 300 a 600 µm e 20 a 30 min de retenção. API STD 537 — Flare Details: número de pilotos por diâmetro de ponta, ignição e detecção de chama, selos de velocidade e molecular. ABNT NBR 6123 (vento); velocidade crítica de vórtices por Strouhal St = 0,20 e número de Scruton; ABNT NBR 15421 (sismo); ABNT NBR 8800 (casco, base e chumbadores).",
+   "resumo": "Flare: ponta, radiação, turndown, casco por viroles, helicoide, plataformas, tubulações, bicos, base e fundação.",
+   "normas": [
+    "API 521",
+    "API 537",
+    "NBR 6123",
+    "NBR 15421",
+    "NBR 6120",
+    "NBR 6118",
+    "NBR 14718",
+    "NR-35",
+    "AWS D1.1",
+    "IEC 60079"
+   ],
+   "modelo_en": "Flare Stack",
+   "resumo_en": "Flare: tip, radiation, turndown, shell courses, strakes, platforms, piping, burners, base ring and foundation.",
+   "grupo_en": "Utilities & Safety",
+   "subgrupo_en": "Flare Stack"
+  },
+  {
+   "id": "ciclone-gas",
+   "grupo": "Limpeza de Gases",
+   "subgrupo": "Ciclone de Gás de Topo de Forno",
+   "subtipo": "Ciclone de corpo único, entrada tangencial, operação a quente com revestimento refratário",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Ciclone de Limpeza de Gás",
+   "calculadora": "ciclone_gas",
+   "descricao": "Pré-dimensionamento de ciclone de corpo único para limpeza primária de gás de topo de forno, operando a quente. Dimensiona o diâmetro do corpo pela velocidade de entrada de projeto (ou aceita o diâmetro imposto e devolve a velocidade), com as proporções tabeladas de três famílias geométricas — Stairmand alta eficiência, Swift alta eficiência e Lapple uso geral — e devolve boca de entrada, tubo de saída com imersão, altura de cilindro e cone, ângulo do cone e saída de pó. Calcula as propriedades do gás na condição real de operação, com massa específica por gás ideal e viscosidade pela correlação de Sutherland, e explicita o fator de expansão sobre a base normal, porque dimensionar pela vazão normalizada subdimensiona o corpo nessa mesma proporção. O diâmetro de corte sai da formulação de Lapple/Shepherd e a eficiência fracionária da curva de Lapple, integrada sobre a distribuição log-normal do pó para devolver a eficiência global e a concentração na saída, comparada com o alvo especificado. Traz a perda de carga por número de cabeças de velocidade da família, a potência de ventilação associada, e a comparação das três famílias na mesma base. Dimensiona a descarga de pó com tolva-pulmão e válvula estanque, alertando que vazamento de ar pela descarga custa mais eficiência que qualquer refinamento de geometria e forma mistura explosiva em gás com CO. Na parte quente, calcula a espessura de refratário por condução unidimensional para a temperatura de pele alvo, a perda térmica pelas paredes, a dilatação térmica do corpo e a chapa do casco, e verifica metal dusting na janela de 400 a 800 °C com CO elevado — que é a razão de ser do refratário nesse serviço, e não apenas a conservação de calor.",
+   "referencia": "Geometrias padronizadas de Stairmand (alta eficiência), Swift (alta eficiência) e Lapple (uso geral), com as proporções clássicas sobre o diâmetro do corpo. Diâmetro de corte pela formulação de Lapple/Shepherd d50 = √(9·µ·b/(2π·Ne·v·(ρp−ρg))), com Ne = (1/a)·[h+(H−h)/2] voltas efetivas; eficiência fracionária pela curva de Lapple η(d) = 1/(1+(d50/d)²), integrada sobre distribuição log-normal em massa. Perda de carga por número de cabeças de velocidade ΔP = ½·ρ·v²·NH. Propriedades do gás por gás ideal e viscosidade pela correlação de Sutherland. Espessura de refratário por condução unidimensional com resistências convectivas interna e externa. Metal dusting conforme a janela de 400 a 800 °C em atmosfera rica em CO (reação de Boudouard reversa 2CO → C + CO₂).",
+   "resumo": "Ciclone a quente: gás na condição real, geometria por família, corte d50, eficiência, dutos, perda de carga do sistema, descarga de pó, refratário, metal dusting e verificações normativas.",
+   "normas": [
+    "VDI 3676",
+    "NR-13",
+    "NBR 6123",
+    "NBR 8800",
+    "NBR 12019",
+    "ISO 9096",
+    "NBR IEC 60079",
+    "API 936",
+    "EJMA",
+    "AWS D1.1"
+   ],
+   "modelo_en": "Gas Cleaning Cyclone",
+   "resumo_en": "Hot cyclone: actual gas conditions, geometry family, d50 cut size, efficiency, pressure drop, dust discharge, refractory and metal dusting.",
+   "grupo_en": "Gas Cleaning",
+   "subgrupo_en": "Furnace Top-Gas Cyclone"
+  },
+  {
+   "id": "espessador",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Espessador",
+   "subtipo": "Espessador circular de lama de lavador úmido, com rake e floculação",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Espessador de Lama",
+   "calculadora": "espessador",
+   "descricao": "Pré-dimensionamento de espessador circular para lama de sistema de limpeza de gases a úmido. Parte do balanço de sólidos do lavador — vazão de gás, poeira na entrada e eficiência de captura — e do balanço do circuito de água, no qual a fração purgada da recirculação define ao mesmo tempo a carga hidráulica do espessador e a concentração de sólidos que retorna aos bicos do lavador: purgar menos encolhe o espessador pelo critério hidráulico e concentra o circuito na mesma proporção, e a calculadora mostra as duas colunas lado a lado para que o compromisso seja escolhido com número. A área sai do maior entre três critérios — carga de sólidos, velocidade ascensional do overflow e área unitária de ensaio de sedimentação —, apontando qual governa, porque em lama diluída o critério hidráulico costuma governar e surpreender. Calcula underflow e overflow por balanço, verifica carga no vertedouro, dimensiona a geometria com cone, poço de alimentação e volume útil, o torque do rake por K·D² com a potência de acionamento, o consumo de floculante e o preparo da solução, e fecha com a chapa do costado por pressão hidrostática, as massas e a pressão média no solo.",
+   "referencia": "Balanço de sólidos S = Q_G·C_ent·η e balanço do circuito de recirculação. Área do espessador pelo maior entre: carga de sólidos A = S/Cs, com Cs de 0,10 a 0,25 t/(m²·h) para lama metalúrgica fina; critério hidráulico A = Q_overflow/v_ascensional; e área unitária de ensaio de sedimentação pelos métodos de Coe-Clevenger e Talmage-Fitch. Sedimentação livre verificada por Stokes. Torque do rake por K·D². Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; estrutura pela ABNT NBR 8800; passarela e guarda-corpo pela ABNT NBR 14718 e NR-12; fundação pela ABNT NBR 6118.",
+   "resumo": "Espessador: balanço do lavador, purga × recirculação, área por três critérios, underflow, rake, floculante, costado e fundação.",
+   "normas": [
+    "NBR 7821",
+    "API 650",
+    "NBR 8800",
+    "NBR 14718",
+    "NBR 6118",
+    "NR-12",
+    "Coe-Clevenger",
+    "Talmage-Fitch"
+   ],
+   "modelo_en": "Sludge Thickener",
+   "resumo_en": "Thickener: scrubber balance, bleed vs recirculation, area by three criteria, underflow, rake, flocculant, shell and foundation.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Thickener"
+  },
+  {
+   "id": "tanque-recirculacao",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Tanque de Recirculação / Coleta",
+   "subtipo": "Tanque agitado de mistura completa que recebe o dreno do separador do lavador",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Tanque de Recirculação / Coleta",
+   "calculadora": "tanque_lama",
+   "descricao": "Tanque agitado de mistura completa a jusante do separador do lavador Venturi. Recebe o dreno, alimenta a recirculação ao lavador e a purga ao tratamento. NÃO pré-adensa e NÃO separa: a retirada sai com a mesma concentração do interior, e é assim que o balanço de sólidos fecha em regime. Dimensiona o volume útil pelo tempo de retenção, a rotação mínima de suspensão pela correlação de Zwietering e a potência de agitação pelo maior entre esse critério e a potência específica de prática, verificando a velocidade de ponta do impelidor. Calcula o tempo até a formação de leito com o agitador parado, que é a janela operacional para religar antes de compactar, e dimensiona o declive do fundo, o poço de sucção e os bocais. Fecha com a chapa do costado por pressão hidrostática, as massas, a pressão no solo, e a verificação de vento e tombamento com o tanque vazio.",
+   "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+   "resumo": "Tanque de recirculação: volume, agitação por Zwietering, sedimentação em parada, bocais, costado, vento e ancoragem.",
+   "normas": [
+    "NBR 7821",
+    "API 650",
+    "NBR 6123",
+    "NBR 8800",
+    "NBR 6118",
+    "NR-12",
+    "Zwietering"
+   ],
+   "modelo_en": "Recirculation Tank",
+   "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Recirculation / Collection Tank"
+  },
+  {
+   "id": "tanque-lama-espessada",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Tanque de Lama Espessada",
+   "subtipo": "Pulmão entre o espessador contínuo e o filtro prensa em batelada",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Tanque de Lama Espessada",
+   "calculadora": "tanque_lama",
+   "descricao": "Tanque agitado que funciona como pulmão entre o espessador, que opera de forma contínua, e o filtro prensa, que opera em batelada. Existe por causa dessa incompatibilidade: subdimensioná-lo obriga o espessador a acompanhar o ciclo do filtro, o que ele não faz. Opera com lama de 20 a 40 % de sólidos, e por isso a exigência de agitação é bem maior que a do tanque de recirculação. Dimensiona volume pelo tempo de pulmão, rotação de suspensão por Zwietering, potência de agitação, sedimentação em parada, fundo, poço de sucção, bocais, costado, massas, fundação, vento e ancoragem.",
+   "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+   "resumo": "Tanque de lama espessada: pulmão para o ciclo do filtro, agitação intensa, costado e fundação.",
+   "normas": [
+    "NBR 7821",
+    "API 650",
+    "NBR 6123",
+    "NBR 8800",
+    "NBR 6118",
+    "NR-12",
+    "Zwietering"
+   ],
+   "modelo_en": "Thickened Sludge Tank",
+   "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Thickened Sludge Tank"
+  },
+  {
+   "id": "tanque-filtrado",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Tanque de Filtrado",
+   "subtipo": "Recebe o filtrado do filtro prensa, que sai em golpes, e devolve ao circuito",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Tanque de Filtrado",
+   "calculadora": "tanque_lama",
+   "descricao": "Tanque que recebe o filtrado do filtro prensa. O filtrado sai em golpes, acompanhando o ciclo do filtro, e por isso o tanque precisa de volume de amortecimento equivalente a um a dois ciclos completos. O filtrado não é água limpa: carrega finos que passaram pelo pano, sobretudo no início do ciclo, e por isso o retorno recomendado é ao espessador e não direto ao circuito de água limpa. Dimensiona volume, agitação leve, sedimentação em parada, fundo com dreno, bocais, costado, massas, fundação, vento e ancoragem.",
+   "referencia": "Volume útil por tempo de retenção. Rotação mínima de suspensão de sólidos pela correlação de Zwietering N_js = S·ν^0,1·d_p^0,2·[g·(ρs−ρL)/ρL]^0,45·X^0,13/D_imp^0,85, com o fator S conforme o impelidor, e potência por P = Np·ρ·N³·D_imp⁵; adota-se o maior entre esse critério e a potência específica de prática. Sedimentação com o agitador parado verificada por Stokes. Costado por pressão hidrostática conforme ABNT NBR 7821 e API 650; vento pela ABNT NBR 6123, com o tombamento verificado no caso de tanque VAZIO, que é o crítico; ancoragem e fundação pela ABNT NBR 8800 e NBR 6118; acionamento do agitador pela NR-12.",
+   "resumo": "Tanque de filtrado: amortecimento do ciclo do filtro, agitação leve, costado e fundação.",
+   "normas": [
+    "NBR 7821",
+    "API 650",
+    "NBR 6123",
+    "NBR 8800",
+    "NBR 6118",
+    "NR-12",
+    "Zwietering"
+   ],
+   "modelo_en": "Filtrate Tank",
+   "resumo_en": "Agitated sludge tank: volume, Zwietering suspension, settling on shutdown, shell, wind and anchorage.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Filtrate Tank"
+  },
+  {
+   "id": "filtro-prensa",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Filtro Prensa",
+   "subtipo": "Filtro prensa de placas e câmaras, com ou sem membrana de prensagem",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Filtro Prensa de Placas",
+   "calculadora": "filtro_prensa",
+   "descricao": "Pré-dimensionamento de filtro prensa de placas para desaguamento de lama espessada. É o único equipamento de batelada num trem contínuo, e é essa incompatibilidade que define o projeto: o volume de câmaras sai do ciclo e não da vazão instantânea, e o tanque de lama espessada existe para absorver a diferença — a calculadora devolve o volume mínimo desse pulmão. Fecha o balanço entre lama espessada, torta e filtrado, calcula o volume de câmaras, o número de placas e a área filtrante pela geometria adotada, e decompõe o ciclo em enchimento, filtração, prensagem, sopro e descarga, verificando se ele cabe no ciclo adotado e se a capacidade diária atende. O tempo de filtração sai da equação de Ruth com a resistência específica da torta, que é grandeza de ensaio de folha. Dimensiona a bomba de alimentação de deslocamento positivo, as utilidades por batelada, a força de fechamento, a massa de torta por descarga, o espaço de abertura e a carga no piso, e trata a reserva como item de disponibilidade, porque o filtro parado interrompe todo o desaguamento.",
+   "referencia": "Balanço de massa entre lama espessada, torta e filtrado. Volume de câmaras pelo ciclo de batelada; número de câmaras e área filtrante pela geometria de placa e espessura adotadas. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Bomba de alimentação de deslocamento positivo com curva pressão × vazão declinante. NR-12 para proteções, comandos bimanuais e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico de manuseio de panos; ABNT NBR 10004 para a classificação da torta; NR-35 para trabalho em altura.",
+   "resumo": "Filtro prensa: balanço, câmaras e área, ciclo completo, bomba, pulmão mínimo, fechamento e arranjo.",
+   "normas": [
+    "NR-12",
+    "NBR 6118",
+    "NBR 8800",
+    "NBR 10004",
+    "NR-35",
+    "Ruth/Darcy"
+   ],
+   "modelo_en": "Plate Filter Press",
+   "resumo_en": "Filter press: mass balance, chambers and area, full cycle, feed pump, minimum buffer, closing force and layout.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Filter Press"
+  },
+  {
+   "id": "floculador",
+   "grupo": "Tratamento de Lama",
+   "subgrupo": "Dosagem Química e Floculador",
+   "subtipo": "Floculador mecanizado de câmaras em série, com preparo e dosagem de floculante",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Floculador e Dosagem Química",
+   "calculadora": "floculador",
+   "descricao": "Pré-dimensionamento do floculador mecanizado e do conjunto de preparo e dosagem química que o alimenta. O parâmetro de projeto é o gradiente de velocidade G, e o que se especifica é o produto de Camp G·t: abaixo de 20.000 o floco não cresce, acima de 100.000 ele é destruído tanto quanto formado. As câmaras são dimensionadas em série com gradiente DECRESCENTE, porque a primeira precisa formar núcleos pequenos e resistentes e as seguintes precisam deixá-los crescer — o inverso produz floco grande e frágil que é quebrado adiante. Para cada câmara devolve o gradiente, a potência, a rotação, a velocidade de ponta e o motoredutor SEW selecionado, com inversor em todas porque a dose e o G ótimos mudam com a concentração da lama. No lado químico, calcula o consumo de floculante ativo, a solução de preparo, o volume dos tanques em paralelo, o tempo de maturação e a água de diluição em linha, alertando que superdosagem reestabiliza o coloide e piora a sedimentação. Fecha com a estrutura das câmaras, a pressão no solo e o plano de cargas do conjunto, com carga instalada, carga absorvida e fator de demanda.",
+   "referencia": "Gradiente de velocidade G = √(P/(µ·V)) e produto de Camp G·t entre 20.000 e 100.000, com câmaras em série e gradiente decrescente. Potência por câmara P = G²·µ·V; rotação por P = Np·ρ·N³·D⁵ e verificação da velocidade de ponta abaixo de 1,0 m/s nas câmaras finais. Dosagem por dose específica sobre a massa de sólidos, preparo entre 0,1 e 0,5 %, maturação de 30 a 60 min e diluição em linha para 0,05 a 0,1 % no ponto de aplicação. Motores DRN e redutores da série R de catálogo SEW-EURODRIVE, com redutor industrial MC/X quando o torque excede a série, verificação da relação de transmissão e da necessidade de inversor. ABNT NBR 12216 como referência de projeto de floculação; NBR 7821, NBR 8800 e NBR 6118 para estrutura e fundação; NR-12 para acionamentos; NR-20 e FISPQ para os químicos.",
+   "resumo": "Floculador: câmaras em série com G decrescente, G·t, motoredutores SEW por câmara, preparo e dosagem, estrutura e plano de cargas.",
+   "normas": [
+    "NBR 12216",
+    "NBR 7821",
+    "NBR 8800",
+    "NBR 6118",
+    "NR-12",
+    "NR-20",
+    "SEW"
+   ],
+   "modelo_en": "Flocculator and Chemical Dosing",
+   "resumo_en": "Flocculator: tapered-G chambers in series, Camp number, SEW gearmotors per chamber, preparation and dosing, structure and load list.",
+   "grupo_en": "Sludge Treatment",
+   "subgrupo_en": "Chemical Dosing and Flocculator"
+  },
+  {
+   "id": "tanque-agitador-redondo",
+   "grupo": "Tanques de Agitadores",
+   "subgrupo": "Tanque Agitador Cilíndrico",
+   "subtipo": "Tanque cilíndrico com agitador vertical, impelidores em série no mesmo eixo",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Tanque Agitador Cilíndrico",
+   "calculadora": "tanque_agitador_redondo",
+   "descricao": "Pré-dimensionamento completo do sistema de agitação de um tanque cilíndrico. A partir do volume necessário, do tempo de autonomia e do diâmetro e altura adotados, a rotina define quantos impelidores o eixo comporta, de que tipo, com que diâmetro e largura de pá, em que cota, e com que rotação. A rotação não é arbitrada: vem da correlação de Zwietering para suspensão completa, que é a condição em que nenhuma partícula fica parada no fundo — abaixo dela forma-se leito, e o tanque deixa de ser um tanque agitado para virar um decantador. A viscosidade da polpa sai da tabela de meios líquidos da referência ou da correlação de Thomas sobre a concentração de sólidos, com entrada manual de densidade e viscosidade quando o meio não consta da lista. Com a rotação e a geometria fechadas, o Número de Reynolds define o regime, o Número de Potência é lido das curvas do Handbook para a família de impelidor escolhida (com e sem defletores) e a potência sai de P = Np·ρ·N³·D⁵. Devolve ainda a capacidade de bombeamento, a velocidade da massa líquida contra a tabela de resultado da agitação, o torque, o eixo por momento equivalente com verificação de velocidade crítica, a espessura da pá, os defletores, o costado, a viga de apoio, o motor e o redutor SEW com indicação de inversor, e o plano de cargas.",
+   "referencia": "Potência por P = Np·ρ·N³·D⁵, com Np das curvas Np × Re levantadas das tabelas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook (Engineering Equipment Users Association, Londres). Rotação de suspensão completa por Zwietering (1958). Viscosidade por tabela de meios líquidos ou correlação de Thomas. Proporções de impelidores e defletores conforme DIN 28131 e DIN 28138. Número e posição dos impelidores pela tabela de folga e espaçamento. Eixo por momento equivalente e velocidade crítica; costado pela NBR 7821 / API 650; viga de apoio pela NBR 8800; base pela NBR 6118 e NBR 6122; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções; NBR ISO 21940-11 para balanceamento.",
+   "resumo": "Tanque cilíndrico agitado: número, tipo e dimensões dos impelidores, rotação por Zwietering, potência, torque, eixo, motor e redutor SEW e plano de cargas.",
+   "normas": [
+    "DIN 28131",
+    "DIN 28138",
+    "NBR 7821",
+    "API 650",
+    "NBR 8800",
+    "NBR 6118",
+    "NBR 6122",
+    "NBR ISO 21940-11",
+    "NBR ISO 13857",
+    "NR-12",
+    "ANSI/AGMA 6013",
+    "SEW"
+   ],
+   "modelo_en": "Cylindrical Agitated Tank",
+   "resumo_en": "Cylindrical agitated tank: impeller count, type and dimensions, Zwietering just-suspended speed, power, torque, shaft, SEW drive and load list.",
+   "grupo_en": "Agitated Tanks",
+   "subgrupo_en": "Cylindrical Agitated Tank"
+  },
+  {
+   "id": "tanque-agitador-retangular",
+   "grupo": "Tanques de Agitadores",
+   "subgrupo": "Tanque Agitador Retangular",
+   "subtipo": "Tanque retangular com agitadores verticais distribuídos ao longo do comprimento",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Tanque Agitador Retangular",
+   "calculadora": "tanque_agitador_retangular",
+   "descricao": "Pré-dimensionamento do sistema de agitação de um tanque retangular, onde o problema não é dimensionar um agitador e sim decidir quantos. Um agitador vertical gera um campo de simetria circular; num tanque alongado ele cobre bem uma zona aproximadamente quadrada em planta e deixa o fundo parado fora dela. A rotina parte do comprimento, da largura e da altura, calcula a faixa de quantidade de agitadores que mantém a velocidade de suspensão em todo o comprimento, representa a zona de cada um por um diâmetro equivalente e aplica sobre ele as correlações de tanque cilíndrico. Verifica a proporção da zona, o passo entre eixos, a folga entre a pá e a parede lateral e — o critério que decide o arranjo — a velocidade da corrente de fundo entre dois agitadores, que é onde o sólido assenta quando faltam agitadores. Devolve o tipo, a quantidade, o diâmetro e a largura dos impelidores por eixo, a rotação por Zwietering, a potência por agitador e total, o torque, o eixo, o motor e o redutor SEW por agitador com indicação de inversor e escalonamento de partida, a chapa das paredes com os enrijecedores verticais, as vigas de apoio e o plano de cargas.",
+   "referencia": "Zona de influência de cada agitador representada pelo diâmetro equivalente Teq = √(4·B·Lz/π), com Lz = L/n. Critérios de cobertura: Lz/B entre 0,80 e 1,25, passo entre eixos até 1,5·B e velocidade da corrente de fundo acima de 0,30 m/s. Potência por P = Np·ρ·N³·D⁵ com Np das curvas do livro MIXERS AND AGITATORS — E.E.U.A. Handbook; rotação por Zwietering (1958) sobre Teq. Tanque retangular tratado como auto-defletado. Chapa das paredes por flexão entre enrijecedores, enrijecedores verticais sob carga hidrostática triangular e vigas de apoio conforme ABNT NBR 8800; base pela NBR 6118 e NBR 6122; impelidores conforme DIN 28131; acionamentos SEW-EURODRIVE com fator de serviço ANSI/AGMA 6013; NR-12 e NBR ISO 13857 para proteções.",
+   "resumo": "Tanque retangular agitado: quantidade de agitadores ao longo do comprimento, impelidores por eixo, rotação por Zwietering, potência total, estrutura e acionamentos SEW.",
+   "normas": [
+    "DIN 28131",
+    "NBR 8800",
+    "NBR 6118",
+    "NBR 6122",
+    "NBR 8681",
+    "NBR ISO 21940-11",
+    "NBR ISO 13857",
+    "NR-12",
+    "ANSI/AGMA 6013",
+    "SEW"
+   ],
+   "modelo_en": "Rectangular Agitated Tank",
+   "resumo_en": "Rectangular agitated tank: number of agitators along the length, impellers per shaft, Zwietering speed, total power, structure and SEW drives.",
+   "grupo_en": "Agitated Tanks",
+   "subgrupo_en": "Rectangular Agitated Tank"
+  },
+  {
+   "id": "porta-forno-elevacao",
+   "grupo": "Mecanismos de Forno",
+   "subgrupo": "Sistema de Elevação de Porta",
+   "subtipo": "Elevação vertical de porta de forno com contrapeso, correntes de rolos e cabos redundantes",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Sistema de Elevação de Porta de Forno",
+   "calculadora": "porta_forno",
+   "descricao": "Pré-dimensionamento completo do mecanismo que levanta a porta de um forno de aciaria: correntes, cabos, olhais, eixo principal, engrenagens abertas, motoredutor com freio e a estrutura que apoia o conjunto. O ponto de partida é o balanço porta × contrapeso, que decide quanto o acionamento realmente levanta — e que precisa deixar a porta tendendo a fechar, porque essa é a posição segura em falta de energia. As correntes seguem a série ANSI RS do catálogo DAIDO e os cabos de aço são o segundo caminho de carga: em elevação sobre área de circulação, cada elemento é dimensionado para a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada e desaparece no instante em que um deles falha. O eixo principal é resolvido como viga sobre dois mancais por integração numérica, com o carregamento real das rodas dentadas e da coroa — inclusive quando a coroa fica em balanço fora dos mancais —, e o diâmetro é escolhido pelo critério que efetivamente governa, que quase nunca é a tensão e sim a flecha no engrenamento e a torção que faz um lado da porta subir antes do outro. O freio SEW é dimensionado pela porta inteira e não pelo desbalanço, porque é justamente na perda do contrapeso que ele precisa funcionar. Devolve croqui da elevação frontal, diagramas de momento, torque e flecha do eixo, e detalhes cotados do olhal e da roda dentada.",
+   "referencia": "ABNT NBR 8400 e FEM 1.001 para a classificação do mecanismo, o coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e os coeficientes de segurança. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1 e ISO 606), com indicação da corrente de placas (ANSI/ASME B29.8, série BL) como alternativa usual em elevação. Cabos de aço com carga de ruptura por construção, relação D/d das polias pela DIN 15020 e inspeção pela ABNT NBR ISO 4309. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo por momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI e torção específica limitada a 0,25°/m. Engrenagens abertas por Lewis com fator de velocidade de Barth. Motoredutor e freio de mola SEW-EURODRIVE série BE. NR-12, ABNT NBR ISO 13857 e NBR 14153 para retenção independente e circuito de segurança.",
+   "resumo": "Elevação de porta de forno: balanço com contrapeso, correntes DAIDO e cabos redundantes, olhais, eixo principal com diagramas, engrenagens, motoredutor e freio SEW.",
+   "normas": [
+    "NBR 8400",
+    "FEM 1.001",
+    "ANSI/ASME B29.1",
+    "ANSI/ASME B29.8",
+    "ISO 606",
+    "DIN 15020",
+    "NBR ISO 4309",
+    "NBR 8800",
+    "NBR 8681",
+    "NBR 6118",
+    "NBR 6122",
+    "NR-12",
+    "NBR ISO 13857",
+    "NBR 14153",
+    "SEW"
+   ],
+   "modelo_en": "Furnace Door Hoisting System",
+   "resumo_en": "Furnace door hoist: counterweight balance, DAIDO chains and redundant ropes, pad-eyes, main shaft with diagrams, open gearing, SEW gearmotor and brake.",
+   "grupo_en": "Furnace Mechanisms",
+   "subgrupo_en": "Door Hoisting System"
+  },
+  {
+   "id": "lavador-umido-gas",
+   "grupo": "Limpeza de Gases",
+   "subgrupo": "Lavador Úmido (torre, Venturi e separador)",
+   "subtipo": "Fase úmida da limpeza de gás de alto-forno: têmpera, Venturi, separador de gotas e selo",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Lavador Úmido de Gás de Alto-Forno",
+   "calculadora": "lavador_umido",
+   "descricao": "Pré-dimensionamento da fase úmida da limpeza de gás, na sequência em que o gás a percorre. Começa pela têmpera: o gás quente encontra a água e cede calor sensível evaporando água até a saturação adiabática — não é troca de calor com parede, é troca de massa, e é essa mudança de estado que encolhe a vazão volumétrica e viabiliza um Venturi pequeno. Segue para o Venturi, onde a captura da partícula fina é paga em perda de carga, com a eficiência calculada pelo modelo de Calvert integrado sobre a distribuição do pó. O ponto de operação não é arbitrado: a rotina busca o par razão líquido/gás e velocidade de garganta que atinge a meta com a MENOR perda de carga, porque a eficiência cresce linearmente com a água e o ΔP cresce com o quadrado da velocidade — água é mais barata que pressão. Depois verifica o separador ciclônico de gotas pelo diâmetro de corte, dimensiona o selo hidráulico pela pressão de topo e fecha a conta de perda de carga do sistema inteiro, incluindo a do ciclone a montante, contra a pressão disponível no forno, indicando se há necessidade de exaustor. Devolve ainda o balanço hídrico completo — água evaporada, purga, reposição e bombas — e trata o alcatrão como dado selecionável, com as consequências sobre temperatura mínima, materiais e lama.",
+   "referencia": "Saturação adiabática por balanço entálpico com pressão de vapor por Magnus-Tetens. Diâmetro médio de gota por Nukiyama-Tanasawa. Penetração do Venturi pelo modelo de Calvert (1970), integrada sobre distribuição log-normal, com fator de molhabilidade entre 0,25 e 0,50. Perda de carga do Venturi pela quantidade de movimento transferida às gotas, ΔP = ρ_L·v²·(L/G). Torre de aspersão por captura em contracorrente com eficiência de impactação em gota isolada, com crédito de coleta limitado por decisão de projeto. Separador ciclônico verificado pelo diâmetro de corte. ABNT NBR 12019 e US EPA Method 5 para particulado; CEN/TS 15439 para alcatrão; NR-20, NR-33 e NR-12 para segurança; CONAMA 382/436 para emissão; ABNT NBR 8800 e NBR 6118 para estrutura.",
+   "resumo": "Lavador úmido: têmpera por saturação adiabática, Venturi otimizado em L/G e velocidade, separador de gotas, selo hidráulico, perda de carga do sistema e balanço hídrico.",
+   "normas": [
+    "NBR 12019",
+    "US EPA M5",
+    "CEN/TS 15439",
+    "CONAMA 382",
+    "CONAMA 436",
+    "NBR 8800",
+    "NBR 6118",
+    "NR-12",
+    "NR-20",
+    "NR-33",
+    "SEW"
+   ],
+   "modelo_en": "Blast Furnace Gas Wet Scrubber",
+   "resumo_en": "Wet scrubber: adiabatic quench, Venturi optimised on L/G and throat velocity, droplet separator, hydraulic seal, system pressure drop and water balance.",
+   "grupo_en": "Gas Cleaning",
+   "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
+  }
+ ],
+ "versao": "2.5.0"
 }
