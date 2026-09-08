@@ -7972,13 +7972,13 @@ function carbonizacaoCalc(){
    alfa  razão de atrito lateral de Aoki-Velloso, %
    C     coeficiente de ponta de Décourt-Quaresma, kPa                        */
 var FD_SOLO={
-  areia:{n:"Areia e areia siltosa",sig:0.020,Es:3.5,phi0:28,dphi:0.40,K:1000,alfa:1.4,C:400,coes:0,nu:0.30,
+  areia:{n:"Areia e areia siltosa",sig:0.020,Es:3.5,phi0:28,dphi:0.40,K:1000,alfa:1.4,C:400,coes:0,nu:0.30,g0:16.0,dg:0.25,gmax:20.5,
     obs:"Recalque imediato e praticamente instantâneo. A tensão admissível cresce com o confinamento, e por isso a cota de assentamento importa."},
-  silte:{n:"Silte e silte arenoso",sig:0.018,Es:3.0,phi0:25,dphi:0.35,K:550,alfa:2.2,C:250,coes:5,nu:0.33,
+  silte:{n:"Silte e silte arenoso",sig:0.018,Es:3.0,phi0:25,dphi:0.35,K:550,alfa:2.2,C:250,coes:5,nu:0.33,g0:15.5,dg:0.25,gmax:20.0,
     obs:"Comportamento intermediário e o mais difícil de prever. Silte saturado perde resistência rapidamente com a escavação aberta."},
-  argila:{n:"Argila e argila siltosa",sig:0.015,Es:2.5,phi0:18,dphi:0.25,K:200,alfa:6.0,C:120,coes:15,nu:0.40,
+  argila:{n:"Argila e argila siltosa",sig:0.015,Es:2.5,phi0:18,dphi:0.25,K:200,alfa:6.0,C:120,coes:15,nu:0.40,g0:15.0,dg:0.30,gmax:20.0,
     obs:"Além do recalque imediato há o de adensamento, que continua por meses. Em argila mole a sapata quase sempre perde para a estaca."},
-  aterro:{n:"Aterro compactado controlado",sig:0.016,Es:2.8,phi0:26,dphi:0.30,K:600,alfa:2.0,C:200,coes:3,nu:0.32,
+  aterro:{n:"Aterro compactado controlado",sig:0.016,Es:2.8,phi0:26,dphi:0.30,K:600,alfa:2.0,C:200,coes:3,nu:0.32,g0:17.0,dg:0.15,gmax:20.0,
     obs:"Só pode receber fundação direta se houver controle de compactação documentado. Aterro sem controle não é solo de fundação, é volume."}
 };
 var FD_SOLO_ORD=["areia","silte","argila","aterro"];
@@ -8044,6 +8044,14 @@ function fdSigmaNSPT(S,N,prof,gama){
 }
 function fdEsNSPT(S,N){ return S.Es*Math.max(2,Math.min(40,N))*1000; }   /* kPa */
 function fdPhiNSPT(S,N){ return Math.min(42,S.phi0+S.dphi*Math.max(2,Math.min(40,N))); }
+/* Peso específico natural estimado pelo tipo de solo e pela compacidade lida no
+   NSPT. Areia fofa pesa perto de 16 kN/m³ e areia compacta chega a 20; usar um
+   valor único para os dois é o mesmo erro de usar uma tensão admissível única.
+   Este peso entra duas vezes no cálculo: no confinamento que ajuda a tensão
+   admissível e no peso de terra sobre a sapata, que é quem segura o tombamento. */
+function fdGamaNSPT(S,N){
+  return Math.min(S.gmax,S.g0+S.dg*Math.max(2,Math.min(40,N)));
+}
 
 function fdNucleo(){
   var g=9.80665;
@@ -8072,7 +8080,9 @@ function fdNucleo(){
   var Nspt=Math.max(1,Math.min(60,nz("fdNspt",8)));
   var sigIn=num("fdSigAdm"); if(!isFinite(sigIn)||sigIn<0) sigIn=0;
   var prof=Math.max(0.50,Math.min(8.0,nz("fdProf",1.5)));
-  var gama=Math.max(10,Math.min(30,nz("fdGama",18)));
+  var gamaIn=num("fdGama"); if(!isFinite(gamaIn)||gamaIn<=0) gamaIn=0;
+  var calcGama=(gamaIn<=0);
+  var gama=calcGama?fdGamaNSPT(S,Nspt):Math.max(10,Math.min(30,gamaIn));
   var NA=num("fdNA"); if(!isFinite(NA)||NA<0) NA=0;
   var EsIn=num("fdEs"); if(!isFinite(EsIn)||EsIn<0) EsIn=0;
 
@@ -8146,8 +8156,13 @@ function fdNucleo(){
       var Atop=Math.min(A*0.85,Math.pow(b0+0.20,2));
       var Vsap=A*h0+(h-h0)*(A+Atop+Math.sqrt(A*Atop))/3;
       var Wsap=Vsap*25;
+      /* Abaixo do nível d'água o solo pesa menos o empuxo: é o peso submerso que
+         segura a sapata, não o natural. Ignorar isso superestima o tombamento. */
       var hsolo=Math.max(0,prof-h);
-      var Wsolo=Math.max(0,(A-Atop))*hsolo*gama;
+      var hSub=(NA>0&&NA<prof)?Math.max(0,prof-Math.max(NA,h)):0;
+      var hSec=Math.max(0,hsolo-hSub);
+      var gamaMed=(hsolo>0)?((hSec*gama+hSub*Math.max(6,gama-10))/hsolo):gama;
+      var Wsolo=Math.max(0,(A-Atop))*hsolo*gamaMed;
       var Ntot=Nk+Wsap+Wsolo;
       var Mtot=Mk+Vk*(h+hPed);
       var e=Mtot/Math.max(Ntot,0.1);
@@ -8156,7 +8171,8 @@ function fdNucleo(){
       else { xcont=Math.max(0.01,3*(B/2-e)); smax=2*Ntot/(L*xcont); smin=0; descola=(B-xcont)/B*100; }
       var d=h-cob/1000-0.010;
       var R={B:B,L:L,A:A,h:h,h0:h0,Vsap:Vsap,Wsap:Wsap,Wsolo:Wsolo,Ntot:Ntot,Mtot:Mtot,
-             e:e,smax:smax,smin:smin,descola:descola,xcont:xcont,b0:b0,d:d};
+             e:e,smax:smax,smin:smin,descola:descola,xcont:xcont,b0:b0,d:d,
+             gamaMed:gamaMed,hSub:hSub,hsolo:hsolo};
       R.rigida=(h>=(B-b0)/3-0.001);
       /* armadura pelo método das bielas */
       var Td=Nd*(B-b0)/(8*Math.max(d,0.05));
@@ -8386,6 +8402,168 @@ function fdNucleo(){
   var lista=(viaveis.length>0)?viaveis:CMP;
   for(var iv=0;iv<lista.length;iv++){ if(!recomend||lista[iv].idx<recomend.idx) recomend=lista[iv]; }
 
+  /* ===================== 9. LISTA DE MATERIAIS =====================
+     O quadro de ferro é montado posição a posição, com o comprimento de corte
+     de cada barra — que é o comprimento reto mais os ganchos, e não a dimensão
+     da peça. É essa diferença que faz a lista de compra não bater com a
+     estimativa por taxa de armadura.                                          */
+  var MAT=(function(){
+    function pesoLin(db){ return fdArea(db)*7850/1e6; }        /* kg/m         */
+    function bitPara(As,nMin,dbMin){
+      var mel=null;
+      for(var i=0;i<FD_BIT.length;i++){
+        var db=FD_BIT[i]; if(db<(dbMin||0)) continue;
+        var ab=fdArea(db), n=Math.max(nMin||2,Math.ceil(As/ab));
+        if(!mel||n*ab<mel.Asef) mel={db:db,n:n,Asef:n*ab};
+      }
+      return mel||{db:10,n:nMin||4,Asef:(nMin||4)*fdArea(10)};
+    }
+    var FER=[], CON=[], SER=[];
+    var cobm=cob/1000;
+    /* --- arranques e estribos do pedestal, comuns às três soluções --- */
+    /* Pedestal: se for curto e largo ele não é pilar, é bloco parcialmente
+       carregado. A taxa de 0,4 % da NBR 6118 vale para pilar; num bloco ela
+       produziria uma gaiola absurda e sem função, porque a carga desce por
+       compressão direta. O que importa ali é a FRETAGEM sob a chapa.          */
+    var pedPilar=(hPed/bPed>=2.0);
+    var AsPed=pedPilar?(0.004*bPed*bPed*1e6):0;
+    var armPed=pedPilar?bitPara(AsPed,4,10)
+                       :{db:12.5,n:(bPed>0.45?8:4),Asef:(bPed>0.45?8:4)*fdArea(12.5)};
+    var dbEst=(armPed.db<=12.5)?6.3:8.0;
+    var nEst=Math.ceil(hPed/0.15)+1;
+    var lEst=4*(bPed-2*cobm)+2*0.07;                           /* perímetro + ganchos */
+
+    if(tipo==="sapata"&&SAP){
+      var gan=Math.max(0.10,Math.min(0.25,SAP.h-2*cobm-0.02));
+      var lBar=SAP.B-2*cobm+2*gan;
+      FER.push({pos:"N1",el:"Sapata, malha inferior direção X",db:SAP.arm.db,n:SAP.arm.n,c:lBar});
+      FER.push({pos:"N2",el:"Sapata, malha inferior direção Y",db:SAP.arm.db,n:SAP.arm.n,c:lBar});
+      var lArr=hPed+(SAP.h-2*cobm)+0.30;
+      FER.push({pos:"N3",el:"Pedestal, arranques verticais"+(pedPilar?" (taxa de pilar 0,4 %)":" (construtiva — o pedestal é bloco, não pilar)"),db:armPed.db,n:armPed.n,c:lArr});
+      FER.push({pos:"N4",el:"Pedestal, estribos",db:dbEst,n:nEst,c:lEst});
+      var lFret=4*(bPed-2*cobm-0.05)+2*0.07;
+      FER.push({pos:"N5",el:"Pedestal, fretagem sob a chapa (4 camadas a 5 cm)",db:dbEst,n:4,c:lFret});
+      /* concreto e serviços */
+      var Vlastro=Math.pow(SAP.B+0.10,2)*0.05;
+      var Aforma=4*SAP.B*SAP.h0
+                +4*((SAP.B+bPed)/2)*Math.sqrt(Math.pow((SAP.B-bPed)/2,2)+Math.pow(SAP.h-SAP.h0,2))
+                +4*bPed*hPed;
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — sapata",un:"m³",q:SAP.Vsap});
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — pedestal",un:"m³",q:bPed*bPed*hPed});
+      CON.push({d:"Concreto magro C15 — lastro de 5 cm",un:"m³",q:Vlastro});
+      SER.push({d:"Escavação mecanizada",un:"m³",q:SAP.Vesc});
+      SER.push({d:"Reaterro compactado",un:"m³",q:Math.max(0,SAP.Vesc-SAP.Vsap-Vlastro-bPed*bPed*hPed)});
+      SER.push({d:"Fôrma de madeira",un:"m²",q:Aforma});
+      SER.push({d:"Lona plástica sob o lastro",un:"m²",q:Math.pow(SAP.B+0.10,2)});
+    } else if(tipo==="estaca"&&EST){
+      var dEmb=Math.max(0.15,1.5*EST.D);
+      var armBl=bitPara(Math.max(EST.AsUsa,0.0015*EST.dimB*1000*EST.hBloco*1000),4,8);
+      if(EST.n>1){
+        var ganB=Math.max(0.10,Math.min(0.30,EST.hBloco-2*cobm-0.02));
+        var lTir=EST.dimB-2*cobm+2*ganB;
+        FER.push({pos:"N1",el:"Bloco, tirante inferior direção X",db:armBl.db,n:armBl.n,c:lTir});
+        FER.push({pos:"N2",el:"Bloco, tirante inferior direção Y",db:armBl.db,n:armBl.n,c:EST.dimL-2*cobm+2*ganB});
+      } else {
+        FER.push({pos:"N1",el:"Bloco, malha construtiva direção X",db:armBl.db,n:armBl.n,c:EST.dimB-2*cobm+0.30});
+        FER.push({pos:"N2",el:"Bloco, malha construtiva direção Y",db:armBl.db,n:armBl.n,c:EST.dimL-2*cobm+0.30});
+      }
+      var AsPele=0.001*EST.dimB*1000*EST.hBloco*1000;
+      var armPele=bitPara(AsPele,4,8);
+      FER.push({pos:"N3",el:"Bloco, armadura de pele e suspensão",db:armPele.db,n:armPele.n,c:2*(EST.dimB+EST.dimL)/2});
+      var lArrB=hPed+(EST.hBloco-2*cobm)+0.30;
+      FER.push({pos:"N4",el:"Pedestal, arranques verticais"+(pedPilar?" (taxa de pilar 0,4 %)":" (construtiva — o pedestal é bloco, não pilar)"),db:armPed.db,n:armPed.n,c:lArrB});
+      FER.push({pos:"N5",el:"Pedestal, estribos",db:dbEst,n:nEst,c:lEst});
+      /* gaiola da estaca */
+      var AsGai=0.005*EST.Ap*1e6;
+      var armGai=bitPara(AsGai,4,10);
+      var lGai=Math.min(EST.L,6)+dEmb+0.20;
+      FER.push({pos:"N6",el:"Estaca, armadura longitudinal (por estaca)",db:armGai.db,n:armGai.n*EST.n,c:lGai});
+      var nEstG=Math.ceil(Math.min(EST.L,6)/0.20)+1;
+      FER.push({pos:"N7",el:"Estaca, estribos helicoidais (por estaca)",db:6.3,n:nEstG*EST.n,c:Math.PI*(EST.D-2*0.04)});
+      var VlastroB=EST.dimB*EST.dimL*0.05;
+      var AformaB=2*(EST.dimB+EST.dimL)*EST.hBloco+4*bPed*hPed;
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — bloco",un:"m³",q:EST.Vconc_bloco});
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — estacas ("+EST.n+" x "+EST.L.toFixed(1)+" m)",un:"m³",q:EST.n*EST.Ap*EST.L});
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — pedestal",un:"m³",q:bPed*bPed*hPed});
+      CON.push({d:"Concreto magro C15 — lastro de 5 cm",un:"m³",q:VlastroB});
+      SER.push({d:"Perfuração de estaca "+E.n,un:"m",q:EST.n*EST.L});
+      SER.push({d:"Escavação do bloco",un:"m³",q:EST.dimB*EST.dimL*1.3*prof});
+      SER.push({d:"Reaterro compactado",un:"m³",q:Math.max(0,EST.dimB*EST.dimL*1.3*prof-EST.Vconc_bloco)});
+      SER.push({d:"Fôrma de madeira",un:"m²",q:AformaB});
+      SER.push({d:"Arrasamento e preparo de cabeça de estaca",un:"un",q:EST.n});
+    } else {
+      /* A NBR 6122 permite o fuste NÃO ARMADO quando a tensão no concreto fica
+         abaixo de 5 MPa e não há tração. Armar 0,5 % de um fuste que trabalha a
+         2 % da sua capacidade é gastar aço para não fazer nada — o que se põe
+         ali é armadura de LIGAÇÃO com o pedestal, e só.                       */
+      var eTub=Mk/Math.max(Nk,0.1);
+      var tracTub=(eTub>TUB.Df/8)||(!TUB.fusteOK);
+      var lLig=1.50;
+      var AsFus=tracTub?(0.005*TUB.Af*1e6):0;
+      var armFus=tracTub?bitPara(AsFus,6,10):{db:armPed.db,n:armPed.n,Asef:armPed.Asef};
+      var compFus=tracTub?(TUB.Lfuste+hPed+0.30):(lLig+hPed+0.30);
+      var trEst=tracTub?TUB.Lfuste:lLig;
+      FER.push({pos:"N1",el:"Fuste, armadura "+(tracTub?"longitudinal (há tração — fuste armado)":"de ligação com o pedestal (fuste não armado, NBR 6122)"),db:armFus.db,n:armFus.n,c:compFus});
+      var nEstF=Math.ceil(trEst/0.20)+1;
+      FER.push({pos:"N2",el:"Fuste, estribos no trecho armado",db:6.3,n:nEstF,c:Math.PI*(TUB.Df-2*cobm)});
+      FER.push({pos:"N3",el:"Base, armadura construtiva em malha",db:10,n:Math.max(6,Math.ceil(TUB.Db/0.20)),c:TUB.Db-2*cobm});
+      FER.push({pos:"N4",el:"Pedestal, estribos",db:dbEst,n:nEst,c:lEst});
+      var AformaT=Math.PI*TUB.Df*Math.min(TUB.Lfuste,0.60)+4*bPed*hPed;
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — fuste",un:"m³",q:TUB.Vfuste});
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — base alargada e rodapé",un:"m³",q:TUB.Vcone+TUB.Vrod});
+      CON.push({d:"Concreto C"+fck.toFixed(0)+" — pedestal",un:"m³",q:bPed*bPed*hPed});
+      SER.push({d:"Escavação manual de tubulão",un:"m³",q:TUB.Vesc});
+      SER.push({d:"Alargamento manual da base",un:"un",q:1});
+      SER.push({d:"Fôrma de madeira (colarinho e pedestal)",un:"m²",q:AformaT});
+      SER.push({d:"Escoramento do fuste e ventilação forçada (NR-18)",un:"vb",q:1});
+    }
+
+    /* --- fecha o quadro de ferro --- */
+    var acoTot=0, porBit={};
+    for(var i=0;i<FER.length;i++){
+      var f=FER[i];
+      f.pl=pesoLin(f.db);
+      f.compTot=f.n*f.c;
+      f.peso=f.compTot*f.pl;
+      acoTot+=f.peso;
+      var key=f.db.toFixed(1);
+      if(!porBit[key]) porBit[key]={db:f.db,comp:0,peso:0};
+      porBit[key].comp+=f.compTot; porBit[key].peso+=f.peso;
+    }
+    var BIT=[]; for(var k2 in porBit) BIT.push(porBit[k2]);
+    BIT.sort(function(a,b){return a.db-b.db;});
+    var acoPerda=acoTot*1.10;                                  /* 10 % de perda */
+
+    /* --- concreto com perda --- */
+    var concEst=0, concMagro=0;
+    for(var j=0;j<CON.length;j++){
+      if(CON[j].d.indexOf("magro")>=0) concMagro+=CON[j].q; else concEst+=CON[j].q;
+    }
+    var concPerda=concEst*1.08;
+
+    /* --- chumbadores e acessórios --- */
+    var lChum=hef+hPed*0+0.15+0.12;                            /* ancorado + saliência + rosca */
+    lChum=hef+0.25;
+    var pesoChum=fdArea(CH.d)*7850/1e6*lChum;
+    var Vgraute=Bch*Bch*0.04*1.25;
+    var ACS=[
+      {d:"Chumbador "+ck+" classe "+CH.cl+" com "+(lChum*1000).toFixed(0)+" mm",un:"un",q:nCh},
+      {d:"Porca sextavada "+ck+" (2 por chumbador: nivelamento e fixação)",un:"un",q:nCh*2},
+      {d:"Arruela lisa "+ck,un:"un",q:nCh*2},
+      {d:"Placa de ancoragem "+(3*CH.d).toFixed(0)+" x "+(3*CH.d).toFixed(0)+" x 8 mm",un:"un",q:nCh},
+      {d:"Gabarito de posicionamento dos chumbadores",un:"un",q:1},
+      {d:"Grãute de retração compensada, camada de 40 mm",un:"m³",q:Vgraute},
+      {d:"Espaçador plástico de cobrimento "+cob.toFixed(0)+" mm",un:"un",q:Math.ceil(4*(tipo==="sapata"&&SAP?SAP.A:(tipo==="estaca"&&EST?EST.dimB*EST.dimL:TUB.Ab)))},
+      {d:"Arame recozido nº 18",un:"kg",q:acoTot*0.015}
+    ];
+
+    return {FER:FER,BIT:BIT,CON:CON,SER:SER,ACS:ACS,pedPilar:pedPilar,tracTub:(typeof tracTub!=="undefined")?tracTub:null,
+      acoTot:acoTot,acoPerda:acoPerda,concEst:concEst,concMagro:concMagro,concPerda:concPerda,
+      pesoChum:pesoChum,lChum:lChum,Vgraute:Vgraute,
+      taxaArm:(tipo==="sapata"&&SAP)?(acoTot/Math.max(SAP.Vsap+bPed*bPed*hPed,0.01)):
+              (tipo==="estaca"&&EST)?(acoTot/Math.max(EST.Vconc,0.01)):(acoTot/Math.max(TUB.Vtot,0.01))};
+  })();
+
   /* ===================== 8. VERIFICAÇÕES ===================== */
   function nv(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
   var VER=[];
@@ -8426,9 +8604,9 @@ function fdNucleo(){
     Tch_kN:Tch_kN,TchRd:TchRd,Vch_kN:Vch_kN,VchRd:VchRd,intCh:intCh,chOK:chOK,ancOK:ancOK,
     chumbTracao:chumbTracao,
     S:S,sk:sk,modoS:modoS,Nspt:Nspt,sigAdm:sigAdm,calcSig:calcSig,SG:SG,Es:Es,phi:phi,coes:coes,
-    prof:prof,gama:gama,NA:NA,temNA:temNA,recAdm:recAdm,
+    prof:prof,gama:gama,calcGama:calcGama,NA:NA,temNA:temNA,recAdm:recAdm,
     fck:fck,fyk:fyk,fcd:fcd,fyd:fyd,agr:agr,cob:cob,
-    tipo:tipo,SAP:SAP,EST:EST,TUB:TUB,E:E,ek:ek,metodo:metodo,CMP:CMP,recomend:recomend};
+    tipo:tipo,SAP:SAP,EST:EST,TUB:TUB,E:E,ek:ek,metodo:metodo,CMP:CMP,recomend:recomend,MAT:MAT};
 }
 
 function fundacaoCalc(){
@@ -8455,7 +8633,9 @@ function fundacaoCalc(){
     OUT.push({k:"TENSÃO ADMISSÍVEL DO LAUDO",v:v(A.sigAdm,0)+" kPa   =   "+v(A.sigAdm/1000,3)+" MPa   ·   valor informado"+(A.temNA?"   ·   reduzida em 15 % pela presença de água":""),hi:true});
   }
   OUT.push({k:"Parâmetros derivados",v:"módulo de deformabilidade "+v(A.Es/1000,0)+" MPa   ·   ângulo de atrito "+v(A.phi,1)+"°   ·   coesão "+v(A.coes,0)+" kPa   ·   coeficiente de Poisson "+v(S.nu,2)});
-  OUT.push({k:"Cota de assentamento e água",v:v(A.prof,2)+" m abaixo do terreno   ·   peso específico do solo "+v(A.gama,1)+" kN/m³   ·   "+(A.NA>0?("nível d'água a "+v(A.NA,2)+" m"+(A.temNA?" — interfere na fundação":" — abaixo da zona de influência")):"nível d'água não informado")});
+  OUT.push({k:"PESO ESPECÍFICO DO SOLO",v:v(A.gama,1)+" kN/m³"+(A.calcGama?("   ·   estimado pelo tipo de solo e pela compacidade lida no NSPT de "+v(A.Nspt,0)+" golpes"):"   ·   valor informado")+"   —  este número entra duas vezes: no confinamento que ajuda a tensão admissível e no peso de terra sobre a sapata, que é quem segura o tombamento",hi:true});
+  OUT.push({k:"Cota de assentamento e água",v:v(A.prof,2)+" m abaixo do terreno   ·   "+(A.NA>0?("nível d'água a "+v(A.NA,2)+" m"+(A.temNA?" — interfere na fundação":" — abaixo da zona de influência")):"nível d'água não informado")});
+  if(A.SAP&&A.SAP.hSub>0) OUT.push({k:"Efeito da água no peso de terra",v:v(A.SAP.hSub,2)+" m de solo submerso sobre a sapata, num total de "+v(A.SAP.hsolo,2)+" m   ·   peso específico médio "+v(A.SAP.gamaMed,1)+" kN/m³ contra "+v(A.gama,1)+" kN/m³ natural   —  abaixo do lençol o solo perde o empuxo e pesa cerca de 10 kN/m³ a menos; ignorar isso superestima a segurança ao tombamento"});
 
   /* ---------------------------------------------------------------- 3 */
   OUT.push({sec:"3 · Interface com o pilar metálico"});
@@ -8552,15 +8732,72 @@ function fundacaoCalc(){
   }
   OUT.push({k:"O que a comparação normalmente mostra nesta faixa de carga",v:"Com menos de 100 kN por apoio e solo de capacidade razoável, a sapata rasa vence quase sempre, e por uma margem grande. A estaca só entra quando o solo superficial não presta ou quando há água. O tubulão perde por um motivo que não é estrutural: o diâmetro mínimo de acesso obriga um volume de concreto que a carga não pede."});
 
+  /* ---------------------------------------------------------------- LISTA */
+  var M=A.MAT, nA=A.nApoios;
+  OUT.push({sec:"6 · Lista de materiais — quadro de ferro"});
+  OUT.push({k:"BASE DO SOMATÓRIO",v:v(nA,0)+" apoios   ·   fundação padronizada pelo pior caso e repetida   ·   as colunas mostram a quantidade POR APOIO e o TOTAL DA OBRA",hi:true});
+  OUT.push({k:"Como ler o quadro de ferro",v:"O comprimento de cada posição é o COMPRIMENTO DE CORTE, não a dimensão da peça: já inclui os ganchos e desconta o cobrimento nas duas pontas. É por isso que a lista de compra nunca bate com a estimativa feita por taxa de armadura — e é o comprimento de corte que vai para a bancada de dobra."});
+  for(var im=0;im<M.FER.length;im++){
+    var F1=M.FER[im];
+    OUT.push({k:F1.pos+" · "+F1.el,
+      v:"Ø "+v(F1.db,1)+" mm   ·   "+v(F1.n,0)+" barras de "+v(F1.c,2)+" m   =   "+v(F1.compTot,2)+" m por apoio   ·   "+v(F1.peso,2)+" kg por apoio   ·   TOTAL "+v(F1.n*nA,0)+" barras, "+v(F1.compTot*nA,1)+" m, "+v(F1.peso*nA,1)+" kg"});
+  }
+  OUT.push({sec:"6b · Aço por bitola — o que se compra"});
+  for(var ib2=0;ib2<M.BIT.length;ib2++){
+    var B1=M.BIT[ib2];
+    var barras12=Math.ceil(B1.comp*nA*1.10/12);
+    OUT.push({k:"Aço CA-"+v(A.fyk/10,0)+"   Ø "+v(B1.db,1)+" mm",
+      v:v(B1.comp,1)+" m e "+v(B1.peso,2)+" kg por apoio   ·   TOTAL "+v(B1.comp*nA,0)+" m e "+v(B1.peso*nA,1)+" kg   ·   com 10 % de perda: "+v(B1.peso*nA*1.10,1)+" kg   =   "+v(barras12,0)+" barras de 12 m",hi:true});
+  }
+  OUT.push({k:"AÇO TOTAL",v:v(M.acoTot,1)+" kg por apoio   ·   "+v(M.acoTot*nA,0)+" kg líquidos na obra   ·   "+v(M.acoPerda*nA,0)+" kg a comprar com 10 % de perda de corte e dobra   =   "+v(M.acoPerda*nA/1000,2)+" t",hi:true});
+  OUT.push({k:"Armadura do pedestal",v:M.pedPilar?"O pedestal tem altura maior que duas vezes o lado e foi armado como PILAR, com a taxa mínima de 0,4 % da NBR 6118.":"O pedestal é curto e largo — altura de "+v(A.hPed,2)+" m contra "+v(A.bPed,2)+" m de lado. Não é pilar, é bloco parcialmente carregado: a carga desce por compressão direta e a taxa de 0,4 % produziria uma gaiola sem função. A armadura vertical é construtiva, e quem realmente trabalha é a FRETAGEM sob a chapa de base, que confina o concreto onde a carga entra concentrada."});
+  OUT.push({k:"Taxa de armadura",v:v(M.taxaArm,0)+" kg de aço por m³ de concreto   —  em fundação de estrutura leve essa taxa costuma ficar entre 40 e 80 kg/m³; abaixo disso a peça está sendo governada pela armadura mínima, que é exatamente o caso aqui"});
+
+  OUT.push({sec:"6c · Concreto e serviços"});
+  for(var ic2=0;ic2<M.CON.length;ic2++){
+    var C3=M.CON[ic2];
+    OUT.push({k:C3.d,v:v(C3.q,3)+" "+C3.un+" por apoio   ·   TOTAL "+v(C3.q*nA,2)+" "+C3.un});
+  }
+  OUT.push({k:"CONCRETO ESTRUTURAL TOTAL",v:v(M.concEst,3)+" m³ por apoio   ·   "+v(M.concEst*nA,2)+" m³ na obra   ·   com 8 % de perda: "+v(M.concPerda*nA,2)+" m³ a pedir na usina",hi:true});
+  if(M.concMagro>0) OUT.push({k:"Concreto magro total",v:v(M.concMagro*nA,2)+" m³   ·   com perda "+v(M.concMagro*nA*1.10,2)+" m³"});
+  OUT.push({k:"Insumos equivalentes se o concreto for feito em obra",v:"cerca de "+v(M.concPerda*nA*350,0)+" kg de cimento ("+v(M.concPerda*nA*350/50,0)+" sacos de 50 kg)   ·   "+v(M.concPerda*nA*0.70,1)+" m³ de areia   ·   "+v(M.concPerda*nA*0.83,1)+" m³ de brita   —  consumo típico de um C"+v(A.fck,0)+"; para volume desta ordem, concreto usinado costuma sair mais barato e mais confiável que betoneira"});
+  for(var is2=0;is2<M.SER.length;is2++){
+    var S3=M.SER[is2];
+    OUT.push({k:S3.d,v:v(S3.q,2)+" "+S3.un+" por apoio   ·   TOTAL "+v(S3.q*nA,1)+" "+S3.un});
+  }
+
+  OUT.push({sec:"6d · Chumbadores, grãute e acessórios"});
+  for(var ia2=0;ia2<M.ACS.length;ia2++){
+    var Q1=M.ACS[ia2];
+    OUT.push({k:Q1.d,v:v(Q1.q,(Q1.un==="un"?0:3))+" "+Q1.un+" por apoio   ·   TOTAL "+v(Q1.q*nA,(Q1.un==="un"?0:2))+" "+Q1.un});
+  }
+  OUT.push({k:"Massa de aço dos chumbadores",v:v(M.pesoChum,2)+" kg cada, com "+v(M.lChum*1000,0)+" mm de comprimento   ·   "+v(M.pesoChum*A.nCh,2)+" kg por apoio   ·   TOTAL "+v(M.pesoChum*A.nCh*nA,1)+" kg",hi:true});
+  OUT.push({k:"Onde o chumbador costuma dar problema",v:"Não é na resistência: é na posição. Um erro de cinco milímetros no gabarito impede o encaixe da chapa de base, e o conserto em campo é corte e re-soldagem de chumbador, que anula a ancoragem calculada. O gabarito metálico é item de material, não de conveniência, e deve ser conferido antes da concretagem e depois dela."});
+
+  OUT.push({sec:"6e · Resumo de compra para "+v(nA,0)+" apoios"});
+  OUT.push({k:"CONCRETO",v:v(M.concPerda*nA,2)+" m³ estrutural C"+v(A.fck,0)+(M.concMagro>0?("   +   "+v(M.concMagro*nA*1.10,2)+" m³ de magro C15"):""),hi:true});
+  OUT.push({k:"AÇO CA-"+v(A.fyk/10,0),v:v(M.acoPerda*nA,0)+" kg   =   "+v(M.acoPerda*nA/1000,2)+" t   ·   distribuídos em "+v(M.BIT.length,0)+" bitola(s)",hi:true});
+  var vf=0,ve=0,vr=0;
+  for(var iq=0;iq<M.SER.length;iq++){
+    if(M.SER[iq].d.indexOf("Fôrma")>=0) vf+=M.SER[iq].q;
+    if(M.SER[iq].d.indexOf("Escavação")>=0) ve+=M.SER[iq].q;
+    if(M.SER[iq].d.indexOf("Reaterro")>=0) vr+=M.SER[iq].q;
+  }
+  OUT.push({k:"FÔRMA",v:v(vf*nA,1)+" m²   ·   considerar 3 reaproveitamentos: "+v(vf*nA/3,1)+" m² de chapa a comprar",hi:true});
+  OUT.push({k:"MOVIMENTO DE TERRA",v:v(ve*nA,1)+" m³ de escavação   ·   "+v(vr*nA,1)+" m³ de reaterro   ·   "+v(Math.max(0,ve-vr)*nA,1)+" m³ de bota-fora",hi:true});
+  OUT.push({k:"CHUMBADORES",v:v(A.nCh*nA,0)+" unidades "+A.ck+" classe "+A.CH.cl+"   ·   "+v(A.nCh*nA*2,0)+" porcas e "+v(A.nCh*nA*2,0)+" arruelas   ·   "+v(A.nCh*nA,0)+" placas de ancoragem   ·   "+v(nA,0)+" gabaritos",hi:true});
+  OUT.push({k:"GRÃUTE",v:v(M.Vgraute*nA,3)+" m³   =   cerca de "+v(M.Vgraute*nA*2100,0)+" kg   ·   sacos de 25 kg: "+v(Math.ceil(M.Vgraute*nA*2100/25),0)+" un",hi:true});
+  OUT.push({k:"O que esta lista NÃO cobre",v:"Não estão aqui: vigas de travamento, se o arranjo exigir; impermeabilização do topo do pedestal; aterro de regularização do terreno; e a mobilização de equipamento, que num serviço de "+v(nA,0)+" apoios costuma pesar mais no orçamento que todo o material listado acima. A lista é de insumo, não é orçamento."});
+
   /* ---------------------------------------------------------------- 8 */
-  OUT.push({sec:"6 · Verificações"});
+  OUT.push({sec:"7 · Verificações"});
   for(var iw=0;iw<A.VER.length;iw++){
     OUT.push({k:A.VER[iw].o,v:A.VER[iw].r+"   ·   "+(A.VER[iw].av?"ATENÇÃO":st(A.VER[iw].ok)),hi:!A.VER[iw].ok});
   }
   OUT.push({k:"RESULTADO GERAL",v:(A.nRep===0?"APROVADO nos "+(A.nVer-A.nAv)+" itens verificados":"ATENÇÃO — "+A.nRep+" de "+(A.nVer-A.nAv)+" itens REPROVADOS")+(A.nAv>0?"   ·   mais "+A.nAv+" item(ns) de atenção construtiva":""),hi:(A.nRep>0)});
 
   /* ---------------------------------------------------------------- 9 */
-  OUT.push({sec:"7 · Normas e limites do cálculo"});
+  OUT.push({sec:"8 · Normas e limites do cálculo"});
   OUT.push({k:"Base de cálculo",v:"Tensão admissível estimada por correlação com o NSPT ou informada por laudo. Distribuição de pressões na base com excentricidade, incluindo contato parcial quando a resultante sai do núcleo central. Sapata rígida verificada pela NBR 6118 22.6.1 e armada pelo método das bielas do item 22.6.4.1, com armadura mínima de 0,15 %. Estabilidade ao tombamento e ao deslizamento com fatores de segurança da NBR 6122. Recalque imediato pela teoria da elasticidade com módulo correlacionado ao NSPT. Capacidade de estaca por Aoki-Velloso (1975) ou Décourt-Quaresma (1978), com fator de segurança global 2,0. Bloco de coroamento pelo método das bielas de Blévot. Tubulão com fuste limitado a 5 MPa e base com talude a 60°. Chumbadores verificados à tração e ao cisalhamento com interação quadrática, e ancoragem pelo cone de arrancamento do concreto."});
   OUT.push({k:"Normas",v:"ABNT NBR 6122 para projeto e execução de fundações; NBR 6118 para o concreto estrutural; NBR 6484 para a sondagem SPT; NBR 8681 para as combinações de ações; NBR 8800 para a ligação com o pilar metálico; NBR 16903 para prova de carga estática. NR-18 para a segurança na escavação, com atenção especial ao tubulão a céu aberto."});
   OUT.push({k:"Incerteza",v:"A maior incerteza não está no concreto: está no solo. A correlação entre NSPT e tensão admissível tem dispersão que facilmente chega a ±40 %, e o NSPT mede a resistência à cravação de um amostrador, não a capacidade de carga de uma sapata. Um recalque calculado em "+(SAP?v(SAP.recalque,1):"—")+" mm pode ser metade ou o dobro disso. O laudo geotécnico com ensaios adequados é o que reduz essa faixa, e nenhuma calculadora substitui isso."});
@@ -8584,7 +8821,7 @@ const CALCS={
       {id:"fdNd",label:"Carga vertical de cálculo (0 = 1,4·Nk)",unidade:"kN",tipo:"number",valor:66.8,step:"1"},
       {id:"fdVd",label:"Cortante de cálculo (0 = 1,4·Vk)",unidade:"kN",tipo:"number",valor:6.25,step:"0.1"},
       {id:"fdMd",label:"Momento de cálculo (0 = 1,4·Mk)",unidade:"kN·m",tipo:"number",valor:4.69,step:"0.1"},
-      {id:"fdNapoios",label:"Número de apoios da obra",tipo:"number",valor:13,step:"1"},
+      {id:"fdNapoios",label:"QUANTIDADE TOTAL DE APOIOS — base do somatório de materiais",unidade:"un",tipo:"number",valor:13,step:"1"},
       {tipo:"head",label:"Solução de fundação"},
       {id:"fdTipo",label:"TIPO DE FUNDAÇÃO a detalhar",tipo:"select",valor:"sapata",opcoes:[
         {v:"sapata",t:"Sapata isolada — fundação direta"},
@@ -8604,7 +8841,7 @@ const CALCS={
       {id:"fdNspt",label:"NSPT MÉDIO no bulbo de tensões",unidade:"golpes",tipo:"number",valor:8,step:"1"},
       {id:"fdSigAdm",label:"TENSÃO ADMISSÍVEL do laudo (0 = estimar pelo NSPT)",unidade:"kPa",tipo:"number",valor:0,step:"10"},
       {id:"fdProf",label:"Cota de assentamento abaixo do terreno",unidade:"m",tipo:"number",valor:1.5,step:"0.1"},
-      {id:"fdGama",label:"Peso específico do solo",unidade:"kN/m³",tipo:"number",valor:18,step:"0.5"},
+      {id:"fdGama",label:"Peso específico do solo (0 = estimar pelo tipo e pelo NSPT)",unidade:"kN/m³",tipo:"number",valor:0,step:"0.5"},
       {id:"fdNA",label:"Nível d'água abaixo do terreno (0 = ausente)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
       {id:"fdEs",label:"Módulo de deformabilidade (0 = do NSPT)",unidade:"kPa",tipo:"number",valor:0,step:"1000"},
       {id:"fdRecAdm",label:"Recalque admissível",unidade:"mm",tipo:"number",valor:25,step:"5"},
@@ -15351,7 +15588,21 @@ function gerarRelatorio(){
         corpo.push([san("Concreto/apoio"),san(vc(TUB.Vtot,2))+" m3"]);
       }
       corpo.push([san("RECOMENDADA"),san(A.recomend?A.recomend.n.slice(0,22):"-")]);
-      corpo.push([san("Apoios"),san(vc(A.nApoios,0))]);
+      corpo.push([san("APOIOS"),san(vc(A.nApoios,0))+" un"]);
+      var MT=A.MAT, nAp=A.nApoios, vfo=0, veo=0;
+      for(var iq2=0;iq2<MT.SER.length;iq2++){
+        if(MT.SER[iq2].d.indexOf("Fôrma")>=0) vfo+=MT.SER[iq2].q;
+        if(MT.SER[iq2].d.indexOf("Escavação")>=0) veo+=MT.SER[iq2].q;
+      }
+      corpo.push([san("Concreto/apoio"),san(vc(MT.concEst,3))+" m3"]);
+      corpo.push([san("CONCRETO TOTAL"),san(vc(MT.concPerda*nAp,2))+" m3"]);
+      corpo.push([san("Aço/apoio"),san(vc(MT.acoTot,1))+" kg"]);
+      corpo.push([san("AÇO TOTAL"),san(vc(MT.acoPerda*nAp,0))+" kg"]);
+      corpo.push([san("Taxa de armadura"),san(vc(MT.taxaArm,0))+" kg/m3"]);
+      corpo.push([san("Fôrma total"),san(vc(vfo*nAp,1))+" m2"]);
+      corpo.push([san("Escavação total"),san(vc(veo*nAp,1))+" m3"]);
+      corpo.push([san("Chumbadores"),san(vc(A.nCh*nAp,0))+" un "+san(A.ck)]);
+      corpo.push([san("Grãute"),san(vc(MT.Vgraute*nAp*2100,0))+" kg"]);
       doc.autoTable({startY:40,theme:"grid",margin:{left:ZC,right:14},
         head:[[san("Resultado"),san("Valor")]],
         body:corpo,
