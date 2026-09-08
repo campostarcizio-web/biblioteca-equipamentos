@@ -1,7 +1,7 @@
 {
  "meta": {
   "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-  "versao": "2.6.0",
+  "versao": "2.7.0",
   "atualizado_em": "2026-09-08",
   "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
   "menu": [
@@ -101,6 +101,12 @@
     "subgrupos": [
      "Planta de Carbonização e Pirólise (biomassa, RSU e pneu)"
     ]
+   },
+   {
+    "grupo": "Fundações",
+    "subgrupos": [
+     "Fundação de Eletrocentro (sapata, estaca e tubulão)"
+    ]
    }
   ],
   "i18n": {
@@ -154,6 +160,33 @@
   }
  },
  "equipamentos": [
+  {
+   "id": "fundacao-eletrocentro",
+   "grupo": "Fundações",
+   "subgrupo": "Fundação de Eletrocentro (sapata, estaca e tubulão)",
+   "subtipo": "Dimensionamento pelo pior apoio, com as três soluções comparadas",
+   "fabricante": "Pré-dimensionamento",
+   "modelo": "Fundação de Eletrocentro",
+   "calculadora": "fundacao",
+   "descricao": "Dimensionamento da fundação a partir da envoltória do pior apoio de um plano de cargas, com as três soluções — sapata isolada, bloco sobre estacas e tubulão a céu aberto — calculadas sobre os mesmos dados e comparadas ao final por concreto, aço e escavação. A tensão admissível do solo pode vir do laudo geotécnico ou ser estimada por correlação com o NSPT. A sapata não para no primeiro critério atendido: ela cresce em passos de cinco centímetros até fechar simultaneamente tensão de borda com excentricidade, descolamento da base, condição de rigidez, compressão diagonal, ancoragem da armadura, tombamento, deslizamento e recalque — e o relatório informa qual dos oito governou o tamanho, que numa estrutura metálica leve com vento raramente é a tensão no solo. A armadura sai detalhada em bitola, quantidade, espaçamento e comprimento de ancoragem, com a redução permitida pela relação entre área calculada e área efetiva. As estacas são verificadas por Aoki-Velloso ou Décourt-Quaresma e o bloco pelo método das bielas. O tubulão expõe o motivo pelo qual perde nesta faixa de carga: o diâmetro mínimo de acesso obriga um volume de concreto que a carga não pede. Fecha com os chumbadores verificados à tração e ao cisalhamento e a ancoragem governada pelo cone de arrancamento do concreto.",
+   "referencia": "Envoltória do pior apoio combinando compressão, cortante e momento máximos de apoios diferentes. Tensão admissível por correlação com o NSPT ou informada por laudo. Distribuição de pressões com excentricidade, incluindo contato parcial fora do núcleo central e limite de um terço de descolamento. Sapata rígida pela ABNT NBR 6118 22.6.1 e armadura pelo método das bielas do item 22.6.4.1, com mínima de 0,15 % e ancoragem pelo item 9.4.2.5. Tombamento e deslizamento com fatores de 1,5 da NBR 6122, contando apenas a carga permanente. Recalque imediato pela teoria da elasticidade. Capacidade de estaca por Aoki-Velloso (1975) ou Décourt-Quaresma (1978) com fator global 2,0 e bloco pelas bielas de Blévot. Tubulão com fuste a 5 MPa, diâmetro mínimo de acesso de 0,70 m e base com talude a 60°. Chumbadores com interação quadrática e cone de arrancamento. ABNT NBR 6122, 6118, 6484, 8681, 8800 e 16903; NR-18.",
+   "resumo": "Fundação pelo pior apoio: sapata, bloco sobre estacas e tubulão dimensionados e comparados, com armadura detalhada, tombamento, deslizamento, recalque e chumbadores.",
+   "normas": [
+    "NBR 6122",
+    "NBR 6118",
+    "NBR 6484",
+    "NBR 8681",
+    "NBR 8800",
+    "NBR 16903",
+    "NBR 6120",
+    "NR-18",
+    "NR-35"
+   ],
+   "modelo_en": "Electrical Substation Building Foundation",
+   "resumo_en": "Foundation from the worst support: spread footing, pile cap and belled caisson sized and compared, with detailed reinforcement, overturning, sliding, settlement and anchor bolts.",
+   "grupo_en": "Foundations",
+   "subgrupo_en": "Substation Building Foundation (footing, piles and caisson)"
+  },
   {
    "id": "carbonizacao-madeira",
    "grupo": "Carbonização",
@@ -915,5 +948,5 @@
    "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
   }
  ],
- "versao": "2.6.0"
+ "versao": "2.7.0"
 }
