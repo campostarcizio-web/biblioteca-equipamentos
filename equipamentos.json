@@ -1,8 +1,8 @@
 {
  "meta": {
   "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-  "versao": "2.5.0",
-  "atualizado_em": "2026-09-07",
+  "versao": "2.6.0",
+  "atualizado_em": "2026-09-08",
   "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
   "menu": [
    {
@@ -99,7 +99,7 @@
    {
     "grupo": "Carbonização",
     "subgrupos": [
-     "Planta de Carbonização (forno, fornalha e pátio)"
+     "Planta de Carbonização e Pirólise (biomassa, RSU e pneu)"
     ]
    }
   ],
@@ -157,20 +157,22 @@
   {
    "id": "carbonizacao-madeira",
    "grupo": "Carbonização",
-   "subgrupo": "Planta de Carbonização (forno, fornalha e pátio)",
-   "subtipo": "Produção de carvão vegetal: reator, balanço térmico, queima dos gases, pátio e equipe",
+   "subgrupo": "Planta de Carbonização e Pirólise (biomassa, RSU e pneu)",
+   "subtipo": "Carvão vegetal, sólido carbonizado de RSU e negro de fumo de pneu, com recuperação de óleo",
    "fabricante": "Pré-dimensionamento",
-   "modelo": "Planta de Carbonização de Madeira",
+   "modelo": "Planta de Carbonização e Pirólise",
    "calculadora": "carbonizacao",
-   "descricao": "Pré-dimensionamento completo de uma planta de carvão vegetal a partir da produção alvo de carvão. O cálculo é conduzido por um balanço de massa e energia escrito por quilo de madeira seca carregada, e a pergunta que ele responde é sempre a mesma: de onde vem o calor. De um lado a demanda — aquecer a madeira, evaporar a umidade, levar até a temperatura final e somar o calor de reação da pirólise. Do outro a energia recuperável dos voláteis, afetada pela eficiência de transferência energética e pelo aproveitamento dos condensáveis de cada concepção. A diferença é fechada queimando uma fração da própria carga, e essa fração — resultado do cálculo, não arbitragem — é o que separa um rabo-quente de uma retorta. Sete concepções são comparadas lado a lado na mesma madeira e na mesma temperatura: alvenaria rabo-quente, retangular JG com fornalha, container metálico, retorta vertical contínua, reator rotativo horizontal, reator vertical de leito móvel e reator de rosca helicoidal com aquecimento indireto, cada uma com sua eficiência de transferência energética explícita. Devolve rendimento gravimétrico, consumo específico em estéreos por tonelada, carbono fixo e análise imediata do carvão, número e dimensões dos fornos ou reatores, secagem ao ar da madeira, fornalha de queima dos gases com câmara de combustão e chaminé por tiragem natural, emissão de metano evitada, área de pátio e estoques, e equipe operacional.",
-   "referencia": "Balanço de massa e energia por quilo de madeira seca carregada, com a fração da carga queimada obtida do fechamento entre demanda térmica e energia disponível nos voláteis. Rendimento gravimétrico, carbono fixo, voláteis e partição em carvão, água de reação, alcatrão e gás não condensável por curvas consolidadas de pirólise lenta de eucalipto contra a temperatura final. Poder calorífico da biomassa pela correlação de Channiwala e Parikh (2002). Secagem ao ar por aproximação exponencial da umidade de equilíbrio com constante corrigida pelo diâmetro da tora. Transporte no reator rotativo pela equação de Sullivan. Verificação de área de troca e de fluxo térmico específico nas concepções de aquecimento indireto. Câmara de combustão pelo maior entre taxa de liberação volumétrica e tempo de residência, com temperatura adiabática de chama por iteração no calor específico. Chaminé por tiragem natural. ABNT NBR 6922, NBR 6923, NBR 8112 e NBR 11179; CONAMA 382 e 436; NR-33, NR-15 e NR-12.",
-   "resumo": "Carbonização: balanço térmico que define a fração da carga queimada, sete concepções de reator comparadas por eficiência de transferência energética, fornalha de gases, chaminé, pátio e equipe.",
+   "descricao": "Pré-dimensionamento completo de uma planta de carbonização ou pirólise a partir da produção alvo de produto sólido, para três famílias de matéria-prima que se comportam de maneiras completamente diferentes: biomassa lignocelulósica, com pirólise exotérmica e energia concentrada no alcatrão; resíduo sólido urbano e CDR, com balanço térmico quase neutro e cinzas que se concentram integralmente no sólido; e borracha de pneu, com pirólise endotérmica e energia concentrada num óleo aromático de alto poder calorífico. O cálculo é conduzido por um balanço de massa e energia por quilo de matéria-prima seca carregada, no qual a fração da carga que precisa ser queimada para fechar o balanço é resultado e não arbitragem. Sete concepções de reator são comparadas lado a lado com os rendimentos de sólido, óleo e gás em porcentagem da massa seca, para escolher a tecnologia pelo produto que se quer vender. Inclui trem de condensação dos gases de pirólise em quatro estágios, dimensionado por faixa de orvalho de cada fração, com carga térmica, área de troca, água de resfriamento e tancagem do óleo — e mostra o que custa retirar o óleo do circuito de combustível do próprio reator. Devolve ainda a fornalha de queima do incondensável, a chaminé por tiragem natural, as emissões evitadas, o passivo de enxofre e de cloro, a área de pátio e a equipe operacional. A umidade é dado de entrada, a ser garantido por secador a montante.",
+   "referencia": "Curvas de partição dos produtos por família de matéria-prima contra a temperatura final, com as cinzas concentradas no sólido. Poder calorífico por Channiwala e Parikh (2002). Balanço por quilo de massa seca carregada com a fração queimada obtida do fechamento entre demanda e disponibilidade. Condensação em estágios por faixa de orvalho, área por média logarítmica e coeficientes globais de 60 a 350 W/m²·K; orvalho da água por Magnus-Tetens invertida. Reator indireto dimensionado pela área de parede, com coeficiente global de 30 W/m²·K e fluxo específico verificado contra a faixa praticável. Transporte no rotativo pela equação de Sullivan. Câmara de combustão pelo maior entre taxa de liberação e tempo de residência, com 1.100 °C e 2 s na presença de cloro. Chaminé por tiragem natural. ABNT NBR 6922, 6923, 8112, 11179 e 10004; CONAMA 316, 382 e 436; NR-33, NR-20, NR-15 e NR-12; ASME Seção VIII e TEMA para o trem de condensação.",
+   "resumo": "Carbonização e pirólise de biomassa, RSU e pneu: balanço térmico que define a carga queimada, sete concepções comparadas por rendimento de sólido, óleo e gás, condensador em estágios, fornalha, chaminé, pátio e equipe.",
    "normas": [
     "NBR 6922",
     "NBR 6923",
     "NBR 8112",
     "NBR 11179",
+    "NBR 10004",
     "NBR 11941",
+    "CONAMA 316",
     "CONAMA 382",
     "CONAMA 436",
     "NBR 8800",
@@ -178,13 +180,16 @@
     "NBR 12693",
     "NR-12",
     "NR-15",
+    "NR-20",
     "NR-33",
+    "ASME VIII",
+    "TEMA",
     "SEW"
    ],
-   "modelo_en": "Wood Carbonisation Plant",
-   "resumo_en": "Charcoal making: energy balance setting the burned charge fraction, seven reactor concepts compared by heat transfer efficiency, gas furnace, stack, yard and crew.",
+   "modelo_en": "Carbonisation and Pyrolysis Plant",
+   "resumo_en": "Carbonisation and pyrolysis of biomass, MSW and tyre rubber: energy balance setting the burned charge fraction, seven reactor concepts compared by solid, oil and gas yield, staged condenser, furnace, stack, yard and crew.",
    "grupo_en": "Carbonisation",
-   "subgrupo_en": "Carbonisation Plant (kiln, furnace and yard)"
+   "subgrupo_en": "Carbonisation and Pyrolysis Plant (biomass, MSW and tyre)"
   },
   {
    "id": "transportador-flexowell",
@@ -910,5 +915,5 @@
    "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
   }
  ],
- "versao": "2.5.0"
+ "versao": "2.6.0"
 }

@@ -7040,92 +7040,153 @@ function lavadorUmidoCalc(){
 
 
 /* ============================================================================
-   CARBONIZAÇÃO DA MADEIRA — base de dados e física
+   CARBONIZAÇÃO E PIRÓLISE — base de dados e física
    ----------------------------------------------------------------------------
-   A carbonização é, antes de tudo, um problema de energia: para transformar
-   madeira em carvão é preciso secar, aquecer e pirolisar, e o calor tem de vir
-   de algum lugar. Nos fornos de alvenaria ele vem da queima de parte da própria
-   carga — por isso o rendimento é baixo. Nos reatores modernos ele vem da queima
-   dos gases de pirólise numa fornalha externa — por isso o rendimento sobe. Toda
-   a diferença entre as concepções está em DOIS números: quanto do calor gerado
-   chega efetivamente à carga (eficiência de transferência energética) e quanto
-   dos condensáveis é recuperado em vez de virar fumaça.
+   Três famílias de matéria-prima, com comportamentos de pirólise que não têm
+   nada em comum além do nome do processo:
+
+   · LIGNOCELULÓSICA — celulose, hemicelulose e lignina. Pirólise líquida em
+     alcatrão e água de reação, exotérmica acima de 300 °C, produz muito carvão.
+   · RSU e CDR — mistura de celulósicos com plásticos. O plástico despolimeriza
+     de forma endotérmica e produz óleo; as cinzas, que são muitas, ficam todas
+     no sólido e o diluem. O sólido deixa de ser carvão e passa a ser rejeito.
+   · BORRACHA DE PNEU — elastômero vulcanizado com negro de fumo. Despolimeriza
+     endotermicamente em óleo aromático de alto poder calorífico; o sólido é o
+     próprio negro de fumo recuperado, não é carvão vegetal.
+
+   O que muda entre elas não é só o rendimento: é PARA ONDE VAI A ENERGIA. Na
+   madeira ela está no alcatrão; no pneu está no óleo e no gás; no RSU está
+   dividida. Essa é a razão de o condensador mudar completamente o balanço
+   térmico conforme a matéria-prima escolhida.
    ========================================================================== */
 
 /* --- Concepções de reator ---------------------------------------------------
    eta     eficiência de transferência energética — fração do calor liberado que
            chega à carga (o resto vai para parede, fumaça e resfriamento)
-   fAprov  fração dos voláteis (gás + alcatrão) efetivamente aproveitada como
-           combustível; o complemento sai como fumaça visível
-   fCin    fator de rendimento por taxa de aquecimento — pirólise rápida produz
-           menos carvão e mais líquido, mesmo na mesma temperatura final
+   fAprov  fração dos voláteis efetivamente aproveitada como combustível
+   fRecup  fração dos condensáveis fisicamente RECUPERÁVEL num condensador; é
+           baixa em tudo que dilui o gás de pirólise com gás de combustão, e
+           alta apenas no aquecimento indireto, onde o gás sai puro
+   fCin    fator de rendimento por taxa de aquecimento
    tipo    "bat" batelada  ·  "cont" contínuo
-*/
+   fech    reator fechado, apto a matéria-prima que exige controle de emissão   */
 var CB_TEC={
   alv_rabo:{n:"Forno de alvenaria rabo-quente",cur:"Rabo-quente",
     modo:"Autotérmico — queima parcial da própria carga, tiragem natural",
-    eta:0.25,fAprov:0.15,fCin:1.00,tipo:"bat",tCarb:120,tResf:72,tOper:24,Vst:12,
-    forma:"cupula",opUn:0.20,ctrl:"Nenhum — a marcha é lida pela cor da fumaça",
-    Dtip:3.0,Htip:2.6,
+    eta:0.25,fAprov:0.15,fRecup:0.00,fCin:1.00,tipo:"bat",fech:false,
+    tCarb:120,tResf:72,tOper:24,Vst:12,forma:"cupula",opUn:0.20,
+    ctrl:"Nenhum — a marcha é lida pela cor da fumaça",Dtip:3.0,Htip:2.6,
+    voc:"Carvão a custo mínimo de investimento, aceitando o pior rendimento",
     obs:"A fumaça branca e densa é o alcatrão sendo perdido: energia que não volta e emissão que não se controla. É a concepção de menor investimento e de menor rendimento."},
   alv_ret:{n:"Forno de alvenaria retangular / JG com fornalha",cur:"Retangular JG",
     modo:"Autotérmico com queima dos gases em fornalha acoplada",
-    eta:0.33,fAprov:0.35,fCin:1.00,tipo:"bat",tCarb:110,tResf:55,tOper:15,Vst:30,
-    forma:"retang",opUn:0.15,ctrl:"Termopares na parede e regulagem de tatus",
-    Ltip:9.0,Wtip:2.5,Htip:2.4,
+    eta:0.33,fAprov:0.35,fRecup:0.05,fCin:1.00,tipo:"bat",fech:false,
+    tCarb:110,tResf:55,tOper:15,Vst:30,forma:"retang",opUn:0.15,
+    ctrl:"Termopares na parede e regulagem de tatus",Ltip:9.0,Wtip:2.5,Htip:2.4,
+    voc:"Carvão com emissão controlada, sem pretensão de recuperar coprodutos",
     obs:"A fornalha resolve a emissão mas não muda o mecanismo: o calor continua vindo da queima de parte da carga. Ganho real de rendimento vem do controle de entrada de ar, não do queimador."},
   container:{n:"Forno container metálico com fornalha externa",cur:"Container",
     modo:"Semi-indireto — fornalha externa injetando gás quente na carga",
-    eta:0.50,fAprov:0.80,fCin:1.00,tipo:"bat",tCarb:28,tResf:16,tOper:4,Vst:20,
-    forma:"cilind",opUn:0.25,ctrl:"Termopares na carga e controle da fornalha",
-    Dtip:3.2,Htip:3.5,
+    eta:0.50,fAprov:0.80,fRecup:0.15,fCin:1.00,tipo:"bat",fech:false,
+    tCarb:28,tResf:16,tOper:4,Vst:20,forma:"cilind",opUn:0.25,
+    ctrl:"Termopares na carga e controle da fornalha",Dtip:3.2,Htip:3.5,
+    voc:"Carvão em escala com ciclo curto e rendimento alto",
     obs:"O ciclo cai de dias para horas porque a parede metálica troca calor e porque a carga e a descarga são feitas com o container fora da linha. É o primeiro degrau em que o rendimento passa de 30 %."},
   retorta:{n:"Retorta vertical contínua com recirculação de gases",cur:"Retorta vertical",
     modo:"Direto alotérmico — gases quentes da fornalha recirculados pela carga",
-    eta:0.68,fAprov:0.95,fCin:0.99,tipo:"cont",tRes:8,ench:0.85,LD:2.2,
-    forma:"vert",opUn:1.2,ctrl:"Perfil de temperatura por zona e vazão de recirculação",
+    eta:0.68,fAprov:0.95,fRecup:0.35,fCin:0.99,tipo:"cont",fech:true,
+    tRes:8,ench:0.85,LD:2.2,forma:"vert",opUn:1.2,
+    ctrl:"Perfil de temperatura por zona e vazão de recirculação",
+    voc:"Carvão em regime contínuo, com a melhor recuperação térmica para tora",
     obs:"Contracorrente sólido-gás em coluna: o gás quente entra embaixo e sai frio em cima, pré-aquecendo e secando a madeira que desce. É a concepção de maior recuperação térmica para tora."},
   rotativo:{n:"Reator rotativo horizontal (forno rotativo)",cur:"Rotativo",
     modo:"Contato direto gás-sólido em tambor rotativo levemente inclinado",
-    eta:0.60,fAprov:0.95,fCin:0.94,tipo:"cont",tRes:0.75,ench:0.12,LD:8.0,
-    forma:"rot",opUn:1.5,ctrl:"Rotação, inclinação e perfil de queimadores",
-    obs:"Exige cavaco ou lenha curta, não tora. O revolvimento uniformiza a carbonização mas a taxa de aquecimento alta reduz o rendimento em carvão e aumenta o líquido pirolenhoso."},
+    eta:0.60,fAprov:0.95,fRecup:0.40,fCin:0.94,tipo:"cont",fech:true,
+    tRes:0.75,ench:0.12,LD:8.0,forma:"rot",opUn:1.5,
+    ctrl:"Rotação, inclinação e perfil de queimadores",
+    voc:"Grande capacidade com granulometria variada, aceitando diluição do gás",
+    obs:"Exige cavaco ou lenha curta, não tora. O revolvimento uniformiza a carbonização mas a taxa de aquecimento alta reduz o rendimento em sólido e aumenta o líquido."},
   vertical:{n:"Reator vertical de leito móvel",cur:"Leito móvel",
     modo:"Direto em contracorrente — o gás sobe, o sólido desce por gravidade",
-    eta:0.70,fAprov:0.95,fCin:0.98,tipo:"cont",tRes:2.5,ench:0.90,LD:3.0,
-    forma:"vert",opUn:1.2,ctrl:"Vazão de extração inferior e zonas de injeção",
-    obs:"A maior eficiência de transferência de todas: o contato é íntimo e o gás sai pela madeira fria. O preço é a exigência de granulometria uniforme, sob pena de canalização do gás."},
+    eta:0.70,fAprov:0.95,fRecup:0.45,fCin:0.98,tipo:"cont",fech:true,
+    tRes:2.5,ench:0.90,LD:3.0,forma:"vert",opUn:1.2,
+    ctrl:"Vazão de extração inferior e zonas de injeção",
+    voc:"Máxima eficiência térmica com granulometria uniforme",
+    obs:"A maior eficiência de transferência de todas: o contato é íntimo e o gás sai pela carga fria. O preço é a exigência de granulometria uniforme, sob pena de canalização do gás."},
   rosca:{n:"Reator de rosca helicoidal com aquecimento indireto",cur:"Rosca / auger",
     modo:"Indireto — calor pela parede e pelo eixo, sem contato gás-sólido",
-    eta:0.42,fAprov:0.90,fCin:0.90,tipo:"cont",tRes:0.4,ench:0.30,LD:10.0,
-    forma:"rosca",opUn:1.0,ctrl:"Rotação da rosca e temperatura de parede por zona",
-    obs:"O gás de pirólise sai limpo e concentrado, sem diluição por gás de combustão — é a única concepção em que o alcatrão pode ser recuperado como produto. Em compensação, todo o calor entra por área de parede, e área não cresce na mesma proporção que a capacidade."}
+    eta:0.42,fAprov:0.90,fRecup:0.90,fCin:0.90,tipo:"cont",fech:true,
+    tRes:0.4,ench:0.30,LD:10.0,forma:"rosca",opUn:1.0,
+    ctrl:"Rotação da rosca e temperatura de parede por zona",
+    voc:"Recuperação de óleo e de gás como produtos, não como combustível",
+    obs:"O gás de pirólise sai limpo e concentrado, sem diluição por gás de combustão — é a única concepção em que o óleo pode ser recuperado com rendimento alto. Em compensação, todo o calor entra por área de parede, e área não cresce na mesma proporção que a capacidade."}
 };
 var CB_TEC_ORD=["alv_rabo","alv_ret","container","retorta","rotativo","vertical","rosca"];
 
-/* --- Madeira ---------------------------------------------------------------
-   db  densidade básica (kg de madeira seca por m³ sólido)
+/* --- Famílias de matéria-prima ---------------------------------------------
+   Cada família tem sua própria curva de partição dos produtos contra a
+   temperatura final, seu calor de reação e o poder calorífico dos produtos.
+   T     temperaturas de referência
+   S     rendimento em SÓLIDO, % da massa seca
+   AG    água de reação, % da massa seca
+   GN    gás não condensável, % da massa seca
+   (o óleo ou alcatrão é o complemento)                                       */
+var CB_FAM={
+  lig:{n:"Biomassa lignocelulósica",solNome:"carvão",oleoNome:"alcatrão e licor pirolenhoso",
+    T:[300,350,400,450,500,550,600,700],
+    S:[37.0,34.0,31.5,29.5,28.0,27.0,26.0,24.5],
+    AG:[16.0,18.0,19.5,20.0,20.5,21.0,21.5,22.0],
+    GN:[15.0,17.5,19.0,20.5,22.0,23.0,24.5,27.5],
+    MV:[29.0,24.0,20.0,16.0,13.0,11.0,9.0,6.0], fMV:1.00,
+    dH:-800, Topt:450, CFmeta:75, perdaF:8, dGranel:230, unSol:"mdc",
+    cpA:1.26,cpB:0.0029,
+    pciG0:3.0,pciGk:0.0065, pciO0:22.0,pciOk:0.0050, rhoOleo:1.05,
+    fPes:0.30,fMed:0.45,fLev:0.25, TorvP:230,TorvM:110,TorvL:55,
+    obs:"Pirólise exotérmica acima de 300 °C: a formação do carvão devolve calor e é isso que sustenta a marcha de um forno depois de iniciado. A energia da matéria-prima está concentrada no alcatrão, não no gás."},
+  rsu:{n:"Resíduo sólido urbano e CDR",solNome:"sólido carbonizado",oleoNome:"óleo de pirólise",
+    T:[350,400,450,500,550,600,700],
+    S:[42.0,38.0,35.0,32.0,30.0,29.0,27.0],
+    AG:[10.0,11.0,12.0,12.0,13.0,13.0,14.0],
+    GN:[14.0,17.0,20.0,24.0,27.0,30.0,35.0],
+    MV:[26.0,22.0,18.0,15.0,13.0,11.0,8.0], fMV:1.00,
+    dH:-200, Topt:500, CFmeta:25, perdaF:5, dGranel:400, unSol:"m³",
+    cpA:1.20,cpB:0.0028,
+    pciG0:5.0,pciGk:0.0080, pciO0:26.0,pciOk:0.0060, rhoOleo:0.95,
+    fPes:0.25,fMed:0.45,fLev:0.30, TorvP:210,TorvM:120,TorvL:60,
+    obs:"O balanço é quase neutro: a fração plástica despolimeriza consumindo calor e a celulósica carboniza liberando. As cinzas, que são muitas, ficam integralmente no sólido e o diluem — o produto sólido do RSU não é carvão, é um rejeito estabilizado."},
+  pneu:{n:"Borracha de pneu",solNome:"negro de fumo recuperado",oleoNome:"óleo de pirólise de pneu",
+    T:[350,400,450,500,550,600,700],
+    S:[48.0,42.0,39.0,38.0,37.0,36.0,35.0],
+    AG:[1.0,1.0,1.0,1.0,1.0,1.0,1.0],
+    GN:[6.0,8.0,10.0,12.0,14.0,17.0,22.0],
+    MV:[29.0,24.0,20.0,16.0,13.0,11.0,8.0], fMV:0.25,
+    dH:350, Topt:475, CFmeta:75, perdaF:3, dGranel:350, unSol:"m³",
+    cpA:1.55,cpB:0.0022,
+    pciG0:30.0,pciGk:0.0150, pciO0:40.0,pciOk:0.0030, rhoOleo:0.93,
+    fPes:0.20,fMed:0.50,fLev:0.30, TorvP:250,TorvM:150,TorvL:70,
+    obs:"Pirólise ENDOTÉRMICA: a despolimerização da borracha vulcanizada consome calor em vez de liberar. Em compensação, o gás não condensável tem poder calorífico de gás natural e sozinho paga a demanda térmica — é por isso que a pirólise de pneu fecha comercialmente com recuperação de óleo, e a de madeira não."}
+};
+
+/* --- Matérias-primas --------------------------------------------------------
+   db      massa específica: para lenhosos, kg secos por m³ SÓLIDO; para os
+           demais, kg secos por m³ A GRANEL (fEmp = 1)
    composição elementar em % da massa seca                                    */
 var CB_MAD={
-  euc_clone:{n:"Eucalipto clonal, 7 anos",db:500,C:49.0,H:6.0,O:44.0,N:0.30,cinz:0.70,fEmp:0.65,dTora:12},
-  euc_sem:{n:"Eucalipto de semente, acima de 10 anos",db:560,C:49.5,H:6.0,O:43.6,N:0.30,cinz:0.60,fEmp:0.68,dTora:18},
-  pinus:{n:"Pinus",db:400,C:50.5,H:6.2,O:42.6,N:0.10,cinz:0.60,fEmp:0.62,dTora:14},
-  cavaco:{n:"Cavaco de resíduo de serraria",db:450,C:49.0,H:6.1,O:44.0,N:0.20,cinz:0.70,fEmp:0.40,dTora:2},
-  bambu:{n:"Bambu",db:600,C:47.5,H:6.0,O:44.0,N:0.40,cinz:2.10,fEmp:0.55,dTora:8},
-  residuo:{n:"Resíduo florestal com casca",db:420,C:48.0,H:5.9,O:42.5,N:0.50,cinz:3.10,fEmp:0.45,dTora:6}
+  euc_clone:{n:"Eucalipto clonal, 7 anos",fam:"lig",db:500,C:49.0,H:6.0,O:44.0,N:0.30,S:0.02,Cl:0.01,cinz:0.70,fEmp:0.65,dTora:12,granel:false,Utip:30},
+  euc_sem:{n:"Eucalipto de semente, acima de 10 anos",fam:"lig",db:560,C:49.5,H:6.0,O:43.6,N:0.30,S:0.02,Cl:0.01,cinz:0.60,fEmp:0.68,dTora:18,granel:false,Utip:30},
+  pinus:{n:"Pinus",fam:"lig",db:400,C:50.5,H:6.2,O:42.6,N:0.10,S:0.02,Cl:0.01,cinz:0.60,fEmp:0.62,dTora:14,granel:false,Utip:30},
+  cavaco:{n:"Cavaco de resíduo de serraria",fam:"lig",db:450,C:49.0,H:6.1,O:44.0,N:0.20,S:0.02,Cl:0.01,cinz:0.70,fEmp:0.40,dTora:2,granel:false,Utip:25},
+  bambu:{n:"Bambu",fam:"lig",db:600,C:47.5,H:6.0,O:44.0,N:0.40,S:0.03,Cl:0.05,cinz:2.10,fEmp:0.55,dTora:8,granel:false,Utip:30},
+  residuo:{n:"Resíduo florestal com casca",fam:"lig",db:420,C:48.0,H:5.9,O:42.5,N:0.50,S:0.05,Cl:0.05,cinz:3.10,fEmp:0.45,dTora:6,granel:false,Utip:35},
+  rsu_bruto:{n:"RSU triturado, fração seca separada",fam:"rsu",db:180,C:45.0,H:5.8,O:26.0,N:1.10,S:0.30,Cl:0.70,cinz:21.1,fEmp:1.00,dTora:5,granel:true,Utip:35},
+  rsu_cdr:{n:"CDR — combustível derivado de resíduo",fam:"rsu",db:220,C:50.0,H:6.2,O:26.5,N:1.00,S:0.30,Cl:0.60,cinz:15.4,fEmp:1.00,dTora:3,granel:true,Utip:20},
+  rsu_plast:{n:"Rejeito rico em plástico, pós-triagem",fam:"rsu",db:150,C:58.0,H:7.5,O:20.0,N:0.60,S:0.20,Cl:1.20,cinz:12.5,fEmp:1.00,dTora:4,granel:true,Utip:15},
+  pneu_chip:{n:"Pneu triturado 20 a 50 mm, sem aço",fam:"pneu",db:320,C:82.0,H:7.0,O:2.80,N:0.40,S:1.80,Cl:0.02,cinz:6.00,fEmp:1.00,dTora:3.5,granel:true,Utip:1},
+  pneu_pow:{n:"Granulado de pneu 1 a 5 mm",fam:"pneu",db:450,C:83.0,H:7.1,O:2.50,N:0.40,S:1.70,Cl:0.02,cinz:5.30,fEmp:1.00,dTora:0.3,granel:true,Utip:1},
+  pneu_aco:{n:"Pneu picado com aço e têxtil",fam:"pneu",db:280,C:74.0,H:6.3,O:2.60,N:0.40,S:1.70,Cl:0.02,cinz:15.0,fEmp:1.00,dTora:5,granel:true,Utip:1.5}
 };
-var CB_MAD_ORD=["euc_clone","euc_sem","pinus","cavaco","bambu","residuo"];
-
-/* --- Curvas de pirólise lenta contra a temperatura final --------------------
-   Rendimento gravimétrico, carbono fixo, voláteis e partição dos produtos, em
-   % da massa de madeira SECA. Valores consolidados da literatura de pirólise
-   lenta de eucalipto (taxa da ordem de 1 a 5 °C/min).                        */
-var CB_T   =[300 ,350 ,400 ,450 ,500 ,550 ,600 ,700 ];
-var CB_RG  =[37.0,34.0,31.5,29.5,28.0,27.0,26.0,24.5];
-var CB_CF  =[68.0,73.0,77.0,81.0,84.0,86.0,88.0,91.0];
-var CB_MV  =[29.0,24.0,20.0,16.0,13.0,11.0, 9.0, 6.0];
-var CB_H2O =[16.0,18.0,19.5,20.0,20.5,21.0,21.5,22.0];
-var CB_GNC =[15.0,17.5,19.0,20.5,22.0,23.0,24.5,27.5];
+var CB_MAD_ORD=["euc_clone","euc_sem","pinus","cavaco","bambu","residuo",
+                "rsu_bruto","rsu_cdr","rsu_plast","pneu_chip","pneu_pow","pneu_aco"];
 
 function cbInterp(X,Y,x){
   if(x<=X[0]) return Y[0];
@@ -7139,101 +7200,136 @@ function cbInterp(X,Y,x){
   return Y[Y.length-1];
 }
 
-/* PCS pela correlação de Channiwala e Parikh (2002), em MJ/kg de massa seca */
+/* PCS pela correlação de Channiwala e Parikh (2002), MJ/kg de massa seca */
 function cbPCS(m){
-  return 0.3491*m.C+1.1783*m.H+0.1005*0-0.1034*m.O-0.0151*m.N-0.0211*m.cinz;
+  return 0.3491*m.C+1.1783*m.H+0.1005*(m.S||0)-0.1034*m.O-0.0151*m.N-0.0211*m.cinz;
 }
-/* PCI a partir do PCS: desconta a água formada na queima do hidrogênio */
 function cbPCI(m){ return cbPCS(m)-0.21978*m.H; }
 
-/* PCI dos produtos de pirólise contra a temperatura, MJ/kg */
-function cbPCIgas(T){ return Math.max(2.5,3.0+0.0065*(T-300)); }
-function cbPCIalc(T){ return 22.0+0.0050*(T-300); }
-/* PCI do carvão em função do carbono fixo e dos voláteis */
-function cbPCIcarv(CF,MV){ return 0.335*CF+0.140*MV; }
+/* PCI dos produtos, MJ/kg, por família e temperatura */
+function cbPCIgas(F,T){ return Math.max(2.0,Math.min(48,F.pciG0+F.pciGk*(T-300))); }
+function cbPCIoleo(F,T){ return Math.max(12,Math.min(45,F.pciO0+F.pciOk*(T-300))); }
+/* PCI do sólido a partir do carbono fixo e dos voláteis */
+function cbPCIsol(CF,MV){ return 0.335*CF+0.140*MV; }
 
-/* Calor específico da madeira seca, kJ/kg·K (TenWolde), média entre T1 e T2 */
-function cbCpMad(T1,T2){ var Tm=(T1+T2)/2; return 1.26+0.0029*Tm; }
+/* Calor específico da carga seca, kJ/kg·K, média entre T1 e T2 */
+function cbCpCarga(F,T1,T2){ var Tm=(T1+T2)/2; return F.cpA+F.cpB*Tm; }
 /* Calor específico do gás de combustão úmido, kJ/kg·K */
 function cbCpFlue(T,fH2O){ return 1.02+0.00022*T+0.85*fH2O; }
 
-/* Umidade de equilíbrio na secagem ao ar, base úmida em % */
-function cbSecagem(U0,Ue,dias,dCm){
-  var k=0.00941*Math.pow(12/Math.max(dCm,0.5),0.90);
-  var U=Ue+(U0-Ue)*Math.exp(-k*Math.max(dias,0));
-  return {U:U,k:k,t50:(U0>Ue)?Math.log(2)/k:0};
+/* Pressão de saturação da água, kPa (Magnus-Tetens), e o orvalho inverso */
+function cbPsat(T){ return 0.61094*Math.exp(17.625*T/(T+243.04))*10; }
+function cbTorvH2O(pkPa){
+  var p=Math.max(pkPa,0.01)/10, a=Math.log(p/0.61094);
+  return 243.04*a/(17.625-a);
 }
 
 /* ============================================================================
-   CARBONIZAÇÃO — balanço de massa e energia
+   BALANÇO DE MASSA E ENERGIA
    ----------------------------------------------------------------------------
-   O balanço é escrito por quilo de madeira SECA CARREGADA no reator, porque é
-   essa a base que não muda quando a umidade varia. Tudo o mais — rendimento,
-   consumo específico, número de fornos — sai daí.
-
-   A pergunta central é: de onde vem o calor? Escreve-se a demanda térmica de um
-   lado, a energia disponível nos voláteis do outro, e a diferença é fechada
-   queimando uma fração φ da própria madeira carregada. Essa fração é o que
-   separa um rabo-quente de uma retorta: não é a temperatura, não é o tempo, é
-   quanto da carga precisa virar cinza para que o resto vire carvão.
+   Escrito por quilo de matéria-prima SECA CARREGADA, porque é a única base que
+   não muda quando a umidade varia. A fração φ da carga que precisa ser queimada
+   para fechar o balanço é RESULTADO, não arbitragem — ela sai do confronto
+   entre a demanda térmica e a energia que sobra nos voláteis depois de retirar
+   o que o condensador leva embora como produto.
    ========================================================================== */
 
 function cbBalanco(tk,P){
-  var TC=CB_TEC[tk];
+  var TC=CB_TEC[tk], F=P.F;
   var Tc=P.Tcarb, w=P.w;
-  var RG0=cbInterp(CB_T,CB_RG,Tc)/100;
-  var CF =cbInterp(CB_T,CB_CF,Tc);
-  var MV =cbInterp(CB_T,CB_MV,Tc);
-  var yH =cbInterp(CB_T,CB_H2O,Tc)/100;
-  var yG =cbInterp(CB_T,CB_GNC,Tc)/100;
-  var yA =Math.max(0.05,1-RG0-yH-yG);
-  var RGb=RG0*TC.fCin;                       /* corrigido pela taxa de aquecimento */
+  var S0=cbInterp(F.T,F.S,Tc)/100;
+  var yH=cbInterp(F.T,F.AG,Tc)/100;
+  var yG=cbInterp(F.T,F.GN,Tc)/100;
+  var yA=Math.max(0.02,1-S0-yH-yG);
+  /* taxa de aquecimento: pirólise mais rápida converte sólido em líquido e gás.
+     O que sai do sólido tem de reaparecer nos outros produtos, senão o balanço
+     de massa não fecha — e um balanço que não fecha esconde erro em toda parte. */
+  var Sb=S0*TC.fCin;
+  var dS=S0-Sb;
+  yA=yA+dS*0.75; yG=yG+dS*0.25;
+
+  /* análise imediata do sólido: as cinzas da matéria-prima ficam todas nele */
+  var MVs=cbInterp(F.T,F.MV,Tc)*F.fMV;
+  var cinzS=Math.min(92,P.cinz/Math.max(Sb,0.01));
+  var CF=Math.max(3,100-cinzS-MVs);
 
   var Tgas=P.Tgas;
-  /* ---- demanda térmica, kJ por kg de madeira seca carregada ---- */
-  var q1=cbCpMad(25,105)*(105-25);           /* aquecer a madeira até a evaporação */
-  var q2=w*4.18*(100-25);                    /* aquecer a água ligada               */
-  var q3=w*2257;                             /* evaporar a água                     */
-  var q4=w*1.9*Math.max(0,Tgas-100);         /* superaquecer o vapor até a saída    */
-  var q5=cbCpMad(105,Tc)*(Tc-105);           /* aquecer a madeira seca até Tcarb    */
-  var q6=P.dHpir;                            /* calor de reação (negativo = exo)    */
+  /* ---- demanda térmica, kJ por kg de matéria-prima seca carregada ---- */
+  var q1=cbCpCarga(F,25,105)*(105-25);
+  var q2=w*4.18*(100-25);
+  var q3=w*2257;
+  var q4=w*1.9*Math.max(0,Tgas-100);
+  var q5=cbCpCarga(F,105,Tc)*(Tc-105);
+  var q6=P.dHpir;
   var Qdem=q1+q2+q3+q4+q5+q6;
 
-  /* ---- energia nos voláteis, kJ por kg de madeira seca ---- */
-  var Egas=yG*cbPCIgas(Tc)*1000;
-  var Ealc=yA*cbPCIalc(Tc)*1000;
-  var Elat=2442*(yH+w);                      /* água de reação + umidade da madeira */
-  var PCIutil=TC.fAprov*(Egas+Ealc)-Elat;
+  /* ---- energia nos voláteis ---- */
+  var pciG=cbPCIgas(F,Tc), pciO=cbPCIoleo(F,Tc);
+  var Egas=yG*pciG*1000;
+  var Eoleo=yA*pciO*1000;
+  /* quanto do óleo o condensador retira do circuito como PRODUTO */
+  var recC=P.cond?TC.fRecup:0;
+  var Eoleo_prod=Eoleo*recC;
+  var Eoleo_comb=Eoleo*(1-recC);
+  /* com condensador, a água também é retirada antes da fornalha (85 %) e deixa
+     de penalizar o poder calorífico da corrente que vai queimar               */
+  var fAguaResta=P.cond?0.15:1.00;
+  var Elat=2442*(yH+w)*fAguaResta;
+  var PCIutil=TC.fAprov*(Egas+Eoleo_comb)-Elat;
 
-  /* ---- fração da carga que precisa queimar para fechar o balanço ---- */
-  var PCIsec=P.PCIsec*1000;                  /* kJ/kg de madeira seca               */
+  /* ---- fração da carga queimada para fechar o balanço ---- */
+  var PCIsec=P.PCIsec*1000;
   var phi=(PCIsec-PCIutil>1)?((Qdem/TC.eta-PCIutil)/(PCIsec-PCIutil)):0.6;
   var excedente=false;
   if(phi<0){ phi=0; excedente=true; }
   if(phi>0.60) phi=0.60;
 
-  var RGf=(1-phi)*RGb;                       /* kg carvão / kg madeira seca carregada */
-  /* saldo térmico bruto: o que sobra no gás depois de atendida a demanda */
-  var Ebruto=PCIutil-Qdem/TC.eta;            /* kJ/kg madeira seca (>0 = excedente)  */
+  var Sf=(1-phi)*Sb;                          /* sólido por kg de carga seca */
+  var Ebruto=PCIutil-Qdem/TC.eta;
 
-  /* ---- corrente gasosa que deixa o reator ---- */
-  var mArInt=phi*P.PCIsec*0.336;             /* ar da combustão interna, kg/kg       */
-  var mStr=(1-phi)*(1-RGb)+w+phi*(1+mArInt);
-  var EStr=TC.fAprov*(1-phi)*(Egas+Ealc)-2442*((1-phi)*yH+w);
-  var PCIstr=(mStr>0)?(EStr/mStr):0;         /* kJ/kg de corrente                    */
-  var fH2Ostr=(mStr>0)?(((1-phi)*yH+w)/mStr):0;
+  /* ---- rendimentos dos três produtos, % da massa seca carregada ---- */
+  var rSol=Sf*100;
+  var rOleo=(1-phi)*yA*recC*100;              /* óleo efetivamente recuperado */
+  var rGas=(1-phi)*yG*100;
+  var rQueim=phi*100;
+  var rPerd=100-rSol-rOleo-rGas-rQueim;       /* óleo queimado, água e perdas */
 
-  return {tk:tk,TC:TC,RG0:RG0,RGb:RGb,RGf:RGf,CF:CF,MV:MV,yH:yH,yG:yG,yA:yA,
-    q1:q1,q2:q2,q3:q3,q4:q4,q5:q5,q6:q6,Qdem:Qdem,Egas:Egas,Ealc:Ealc,Elat:Elat,
-    PCIutil:PCIutil,phi:phi,excedente:excedente,Ebruto:Ebruto,
-    mStr:mStr,EStr:EStr,PCIstr:PCIstr,fH2Ostr:fH2Ostr,mArInt:mArInt};
+  /* ---- energia em cada produto, MJ por tonelada de carga seca ---- */
+  var PCIs=cbPCIsol(CF,MVs);
+  var eSol=Sf*PCIs*1000/1000;                 /* MJ/kg -> MJ por kg; x1000 = MJ/t */
+  var eSolT=Sf*PCIs*1000;
+  var eOleoT=(1-phi)*yA*recC*pciO*1000;
+  var eGasT=(1-phi)*yG*pciG*1000;
+
+  /* ---- correntes gasosas ---- */
+  var mArInt=phi*P.PCIsec*0.336;
+  var mTot=(1-phi)*(1-Sb)+w+phi*(1+mArInt);   /* tudo que deixa o reator     */
+  var mAgua=(1-phi)*yH+w;
+  var mOleoTot=(1-phi)*yA;
+  var mGasNC=(1-phi)*yG;
+  var mOleoRec=mOleoTot*recC;
+  var mAguaRec=P.cond?mAgua*0.85:0;
+  var mInc=mTot-mOleoRec-mAguaRec;            /* segue para a fornalha       */
+  var Einc=TC.fAprov*(Egas+Eoleo_comb)-2442*(mAgua-mAguaRec);
+  var PCIinc=(mInc>0)?(Einc/mInc):0;
+  var fH2Oinc=(mInc>0)?((mAgua-mAguaRec)/mInc):0;
+
+  return {tk:tk,TC:TC,F:F,S0:S0,Sb:Sb,Sf:Sf,CF:CF,MVs:MVs,cinzS:cinzS,PCIs:PCIs,
+    yH:yH,yG:yG,yA:yA,pciG:pciG,pciO:pciO,
+    q1:q1,q2:q2,q3:q3,q4:q4,q5:q5,q6:q6,Qdem:Qdem,
+    Egas:Egas,Eoleo:Eoleo,Eoleo_prod:Eoleo_prod,Eoleo_comb:Eoleo_comb,Elat:Elat,
+    PCIutil:PCIutil,phi:phi,excedente:excedente,Ebruto:Ebruto,recC:recC,
+    rSol:rSol,rOleo:rOleo,rGas:rGas,rQueim:rQueim,rPerd:rPerd,
+    eSolT:eSolT,eOleoT:eOleoT,eGasT:eGasT,
+    mTot:mTot,mAgua:mAgua,mOleoTot:mOleoTot,mGasNC:mGasNC,mOleoRec:mOleoRec,
+    mAguaRec:mAguaRec,mInc:mInc,PCIinc:PCIinc,fH2Oinc:fH2Oinc,mArInt:mArInt};
 }
 
 function cbNucleo(){
   var g=9.80665;
 
   /* ===================== 1. ENTRADAS ===================== */
-  var Prod=num("cbProd");    if(!isFinite(Prod)||Prod<=0) Prod=3000;    /* t/mês  */
+  var Prod=num("cbProd");    if(!isFinite(Prod)||Prod<=0) Prod=3000;
   var dias=num("cbDias");    if(!isFinite(dias)||dias<=0) dias=30;
   var hdia=num("cbHdia");    if(!isFinite(hdia)||hdia<=0||hdia>24) hdia=24;
   var disp=num("cbDisp");    if(!isFinite(disp)||disp<=0||disp>100) disp=85;
@@ -7241,20 +7337,35 @@ function cbNucleo(){
   var TC=CB_TEC[tk];
 
   var mk=selv("cbEsp","euc_clone"); if(!CB_MAD[mk]) mk="euc_clone";
-  var MD=CB_MAD[mk];
+  var MD=CB_MAD[mk]; var F=CB_FAM[MD.fam];
   var db=num("cbDens");      if(!isFinite(db)||db<=0) db=MD.db;
   var fEmp=num("cbFemp");    if(!isFinite(fEmp)||fEmp<=0||fEmp>1) fEmp=MD.fEmp;
   var dTora=num("cbDiam");   if(!isFinite(dTora)||dTora<=0) dTora=MD.dTora;
-  var Ucolh=num("cbUcolh");  if(!isFinite(Ucolh)||Ucolh<=0||Ucolh>=75) Ucolh=50;
-  var Tsec=num("cbTsec");    if(!isFinite(Tsec)||Tsec<0) Tsec=90;
-  var Uent=num("cbUent");    if(!isFinite(Uent)||Uent<0) Uent=0;
-  var Ueq=num("cbUeq");      if(!isFinite(Ueq)||Ueq<=0) Ueq=15;
+  var unV=MD.granel?"m³":"st";
 
-  var Tcarb=num("cbTcarb");  if(!isFinite(Tcarb)||Tcarb<250) Tcarb=450;
-  if(Tcarb>750) Tcarb=750;
-  var dHpir=num("cbDHpir");  if(!isFinite(dHpir)) dHpir=-800;
-  var CFmeta=num("cbCFmeta");if(!isFinite(CFmeta)||CFmeta<=0) CFmeta=75;
-  var perdaF=num("cbPerdaFin"); if(!isFinite(perdaF)||perdaF<0||perdaF>50) perdaF=8;
+  var Uent=num("cbUent");    if(!isFinite(Uent)||Uent<=0) Uent=MD.Utip;
+  var calcU=(!isFinite(num("cbUent"))||num("cbUent")<=0);
+  var Uusa=Math.max(0.2,Math.min(70,Uent));
+  var w=Uusa/(100-Uusa);
+  var PCSsec=cbPCS(MD), PCIsec=cbPCI(MD);
+  var PCIum=PCIsec*(1-Uusa/100)-2.442*(Uusa/100);
+
+  /* --- carbonização: tudo derivado da família quando o campo for zero --- */
+  var TcIn=num("cbTcarb");
+  var Tcarb=(isFinite(TcIn)&&TcIn>0)?Math.max(250,Math.min(750,TcIn)):F.Topt;
+  var calcT=(!isFinite(TcIn)||TcIn<=0);
+  var dHin=num("cbDHpir");
+  var dHpir=(isFinite(dHin)&&dHin!==0)?dHin:F.dH;
+  var calcH=(!isFinite(dHin)||dHin===0);
+  var CFin=num("cbCFmeta");
+  var CFmeta=(isFinite(CFin)&&CFin>0)?CFin:F.CFmeta;
+  var calcCF=(!isFinite(CFin)||CFin<=0);
+  var pfIn=num("cbPerdaFin");
+  var perdaF=(isFinite(pfIn)&&pfIn>0)?Math.min(50,pfIn):F.perdaF;
+  var calcPF=(!isFinite(pfIn)||pfIn<=0);
+  var dcIn=num("cbDensCarv");
+  var dCarvG=(isFinite(dcIn)&&dcIn>0)?dcIn:F.dGranel;
+  var calcDC=(!isFinite(dcIn)||dcIn<=0);
 
   var Vst=num("cbVforno");   if(!isFinite(Vst)||Vst<0) Vst=0;
   var tResIn=num("cbTres");  if(!isFinite(tResIn)||tResIn<0) tResIn=0;
@@ -7263,68 +7374,50 @@ function cbNucleo(){
   var Nfix=num("cbNfornos"); if(!isFinite(Nfix)||Nfix<0) Nfix=0;
   var inclR=num("cbIncl");   if(!isFinite(inclR)||inclR<=0) inclR=3;
 
-  var temForn=(selv("cbQueima","fornalha")!=="nenhum");
-  var recup=(selv("cbQueima","fornalha")==="recup");
-  var exAr=num("cbExAr");    if(!isFinite(exAr)||exAr<0) exAr=40;
-  var Tcam=num("cbTcam");    if(!isFinite(Tcam)||Tcam<600) Tcam=900;
-  var tResC=num("cbTresC");  if(!isFinite(tResC)||tResC<=0) tResC=1.0;
-  var taxaLib=num("cbTaxaLib"); if(!isFinite(taxaLib)||taxaLib<=0) taxaLib=250;
-  var Tsai=num("cbTsaida");  if(!isFinite(Tsai)||Tsai<=0) Tsai=250;
-  var vCham=num("cbVcham");  if(!isFinite(vCham)||vCham<=0) vCham=8;
-  var Hcham=num("cbHcham");  if(!isFinite(Hcham)||Hcham<=0) Hcham=0;
-  var Tamb=num("cbTamb");    if(!isFinite(Tamb)) Tamb=25;
-
-  var Hpil=num("cbHpilha");  if(!isFinite(Hpil)||Hpil<=0) Hpil=4;
-  var estMad=num("cbEstMad");if(!isFinite(estMad)||estMad<0) estMad=0;
-  var estCar=num("cbEstCarv");if(!isFinite(estCar)||estCar<0) estCar=7;
-  var dCarvG=num("cbDensCarv"); if(!isFinite(dCarvG)||dCarvG<=0) dCarvG=230;
-  var HpilC=num("cbHpilhaC");if(!isFinite(HpilC)||HpilC<=0) HpilC=3;
-  var fOcup=num("cbFocup");  if(!isFinite(fOcup)||fOcup<=0||fOcup>1) fOcup=0.55;
-  var turnos=num("cbTurnos");if(!isFinite(turnos)||turnos<=0) turnos=3;
-
-  /* ===================== 2. MADEIRA E SECAGEM ===================== */
-  var SEC=cbSecagem(Ucolh,Ueq,Tsec,dTora);
-  var Uusa=(Uent>0)?Uent:SEC.U;
-  if(Uusa>70) Uusa=70; if(Uusa<3) Uusa=3;
-  var secCalc=(Uent<=0);
-  var w=Uusa/(100-Uusa);                        /* kg água / kg madeira seca */
-  var PCSsec=cbPCS(MD), PCIsec=cbPCI(MD);       /* MJ/kg de madeira seca     */
-  var PCIum=PCIsec*(1-Uusa/100)-2.442*(Uusa/100);/* MJ/kg de madeira úmida   */
+  var modoG=selv("cbQueima","fornalha");
+  var temForn=(modoG!=="nenhum");
+  var recup=(modoG==="recup");
+  var cond=(modoG==="condensa");
 
   var Tgas=Math.max(150,Tcarb-50);
-  var P={Tcarb:Tcarb,w:w,dHpir:dHpir,PCIsec:PCIsec,Tgas:Tgas};
+  var P={Tcarb:Tcarb,w:w,dHpir:dHpir,PCIsec:PCIsec,Tgas:Tgas,F:F,cinz:MD.cinz,cond:cond};
 
-  /* ===================== 3. BALANÇO — TECNOLOGIA ESCOLHIDA ===================== */
+  /* ===================== 2. BALANÇO ===================== */
   var B=cbBalanco(tk,P);
+  var Psem={}; for(var kp in P){ Psem[kp]=P[kp]; } Psem.cond=false;
+  var Bsem=cbBalanco(tk,Psem);          /* mesma configuração, sem condensador */
   var COMP=[]; for(var i=0;i<CB_TEC_ORD.length;i++){ COMP.push(cbBalanco(CB_TEC_ORD[i],P)); }
 
-  var CF=B.CF, MV=B.MV, cinzC=Math.max(0.5,100-CF-MV);
-  var PCIcarv=cbPCIcarv(CF,MV);                 /* MJ/kg de carvão */
+  var CF=B.CF, MV=B.MVs, cinzS=B.cinzS, PCIcarv=B.PCIs;
   var cfOK=(CF>=CFmeta);
 
-  /* ===================== 4. PRODUÇÃO E CONSUMO ===================== */
-  var hMes=dias*hdia*(disp/100);                /* horas efetivas por mês */
-  var Pcarv_h=Prod/Math.max(hMes,0.1);          /* t/h de carvão LÍQUIDO  */
-  var Pbruto_h=Pcarv_h/Math.max(1-perdaF/100,0.05); /* antes das perdas de finos */
-  var mSec_h=Pbruto_h/Math.max(B.RGf,0.01);     /* t/h de madeira seca    */
-  var mUm_h=mSec_h*(1+w);                       /* t/h de madeira úmida   */
-  var Vsol_h=mSec_h*1000/db;                    /* m³ sólidos/h           */
-  var Vst_h=Vsol_h/fEmp;                        /* st/h (metro estéreo)   */
-  var consEsp=mUm_h/Math.max(Pcarv_h,1e-6);     /* t madeira úmida / t carvão */
-  var consSt=Vst_h/Math.max(Pcarv_h,1e-6);      /* st / t carvão              */
-  var mdc_h=Pcarv_h*1000/dCarvG;                /* mdc/h                      */
-  var rendUm=Pcarv_h/Math.max(mUm_h,1e-6)*100;  /* rendimento base úmida, %   */
+  /* ===================== 3. PRODUÇÃO E CONSUMO ===================== */
+  var hMes=dias*hdia*(disp/100);
+  var Pcarv_h=Prod/Math.max(hMes,0.1);
+  var Pbruto_h=Pcarv_h/Math.max(1-perdaF/100,0.05);
+  var mSec_h=Pbruto_h/Math.max(B.Sf,0.005);
+  var mUm_h=mSec_h*(1+w);
+  var Vsol_h=mSec_h*1000/db;
+  var Vst_h=Vsol_h/fEmp;
+  var consEsp=mUm_h/Math.max(Pcarv_h,1e-6);
+  var consSt=Vst_h/Math.max(Pcarv_h,1e-6);
+  var mdc_h=Pcarv_h*1000/dCarvG;
+  var rendUm=Pcarv_h/Math.max(mUm_h,1e-6)*100;
+  /* coprodutos na escala do projeto */
+  var mOleo_h=mSec_h*B.mOleoRec;                 /* t/h de óleo recuperado */
+  var mGas_h=mSec_h*B.mGasNC;                    /* t/h de gás nao condensavel */
+  var mAgCond_h=mSec_h*B.mAguaRec;               /* t/h de água condensada */
 
-  /* ===================== 5. REATOR ===================== */
+  /* ===================== 4. REATOR ===================== */
   var R={};
-  var fQ=Math.max(0.70,Math.min(1.60,B.Qdem/1300));  /* ciclo escala com a demanda */
+  var fQ=Math.max(0.70,Math.min(1.60,B.Qdem/1300));
   if(TC.tipo==="bat"){
-    var Vf=(Vst>0)?Vst:TC.Vst;                  /* st úteis por forno */
+    var Vf=(Vst>0)?Vst:TC.Vst;
     var tCarbR=TC.tCarb*fQ, tCiclo=tCarbR+TC.tResf+TC.tOper;
     var Ncalc=Vst_h*tCiclo/Math.max(Vf,0.1);
     var N=(Nfix>0)?Nfix:Math.ceil(Ncalc);
     var ocup=Ncalc/Math.max(N,1)*100;
-    var Vint=Vf/0.90;                           /* volume interno com folga */
+    var Vint=Vf/0.90;
     var dim;
     if(TC.forma==="retang"){
       var Hr=TC.Htip, Wr=TC.Wtip, Lr=Vint/(Hr*Wr);
@@ -7338,15 +7431,14 @@ function cbNucleo(){
     }
     R={tipo:"bat",N:N,Ncalc:Ncalc,ocup:ocup,Vf:Vf,tCarb:tCarbR,tResf:TC.tResf,tOper:TC.tOper,
        tCiclo:tCiclo,ciclosDia:24/tCiclo,dim:dim,cargaSec:Vf*fEmp*db/1000,
-       carvForno:Vf*fEmp*db/1000*B.RGf};
+       carvForno:Vf*fEmp*db/1000*B.Sf};
   } else {
     var tRes=(tResIn>0)?tResIn:TC.tRes;
     var ench=((enchIn>0)?enchIn:TC.ench*100)/100;
     var LD=(LDin>0)?LDin:TC.LD;
     var Nl=(Nfix>0)?Nfix:1;
-    var Vreat=Vst_h*tRes/Math.max(ench,0.05)/Nl; /* m³ por linha */
+    var Vreat=Vst_h*tRes/Math.max(ench,0.05)/Nl;
     var D=Math.pow(4*Vreat/(Math.PI*LD),1/3), L=LD*D;
-    /* se o diâmetro exceder o praticável, abre-se em linhas paralelas */
     var Dmax=(TC.forma==="rosca")?1.2:(TC.forma==="rot")?4.5:6.0;
     var nLin=Nl;
     while(D>Dmax&&nLin<12){ nLin++; Vreat=Vst_h*tRes/Math.max(ench,0.05)/nLin;
@@ -7354,78 +7446,160 @@ function cbNucleo(){
     R={tipo:"cont",N:nLin,tRes:tRes,ench:ench*100,LD:LD,V:Vreat,D:D,L:L,forma:TC.forma,
        Vst_lin:Vst_h/nLin};
     if(TC.forma==="rot"){
-      /* Sullivan: t(min) = 0,19·L / (N[rpm]·D·S)  com S em m/m */
-      var S=inclR/100;
-      R.rpm=0.19*L/(Math.max(tRes*60,0.1)*D*S);
+      var Sinc=inclR/100;
+      R.rpm=0.19*L/(Math.max(tRes*60,0.1)*D*Sinc);
       R.incl=inclR;
-      R.Tacion=1.6*(Vreat*ench*db*fEmp)*g*D*0.35/1000;   /* kN·m aproximado */
+      R.Tacion=1.6*(Vreat*ench*db*fEmp)*g*D*0.35/1000;
       R.Pacion=R.Tacion*1000*(2*Math.PI*R.rpm/60)/1000/0.75;
       R.acion=acionaSEW(Math.max(R.Pacion,1.5),Math.max(R.rpm,0.3),{varia:true,kPart:2.0,fs:1.5,rend:0.90});
     }
     if(TC.forma==="rosca"){
-      /* passo igual ao diâmetro: Q = ench·(π/4)·D³·60·n  (m³/h) */
+      /* No aquecimento indireto quem manda é a ÁREA, não o volume: o volume
+         entrega o tempo de residência, mas se a parede não conseguir passar o
+         calor a carga simplesmente não pirolisa. Por isso o número de linhas
+         cresce até a área fechar, e não até o diâmetro caber.                 */
+      var Qter=mSec_h*1000*B.Qdem/3600;
+      /* Coeficiente global parede-leito de uma rosca: o leito é lento e mal
+         revolvido, e o contato é pontual. Fica entre 20 e 50 W/m²·K, muito
+         abaixo de um leito fluidizado. Adotar 60 seria escrever no papel um
+         fluxo de 23 kW/m² que nenhuma rosca real entrega.                     */
+      var Upar=30;
+      var Tpar=Math.min(750,Tcarb+200);
+      var dT1=Tpar-25, dT2=Math.max(30,Tpar-Tcarb);
+      var dTml=(Math.abs(dT1-dT2)<1)?dT1:((dT1-dT2)/Math.log(dT1/dT2));
+      var Anec=Qter*1000/(Upar*dTml);
+      var fCont=0.45+ench;
+      var nLinVol=nLin;
+      var Aum=Math.PI*D*L*fCont;                 /* área de UMA linha           */
+      var Adisp=Aum*nLin;
+      var govArea=false, capArea=false;
+      if(Nfix<=0){
+        while(Adisp<Anec&&nLin<40){ nLin++; Adisp=Aum*nLin; govArea=true; }
+        if(Adisp<Anec) capArea=true;
+        R.N=nLin; R.Vst_lin=Vst_h/nLin;
+        R.tResReal=tRes*nLin/Math.max(nLinVol,1);
+        R.Vtot=Vreat*nLin;
+      }
+      R.nLinVol=nLinVol; R.Aum=Aum; R.capArea=capArea;
       R.rpm=(Vst_h/nLin)/Math.max(ench*(Math.PI/4)*Math.pow(D,3)*60,1e-6);
       R.Pacion=Math.max(2.2,0.35*Vst_h/nLin*db*fEmp/1000*L*g/1000*3);
       R.acion=acionaSEW(R.Pacion,Math.max(R.rpm,0.5),{varia:true,kPart:1.8,fs:1.5,rend:0.90});
-    }
-    /* verificação de área de troca para as concepções INDIRETAS */
-    if(TC.forma==="rosca"){
-      var Qter=mSec_h*1000*B.Qdem/3600;          /* kW exigidos pela carga */
-      var Upar=60;                               /* W/m²·K, parede-leito revolvido */
-      var Tpar=Math.min(750,Tcarb+200);
-      /* média logarítmica entre a parede e o leito, que entra frio e sai a Tcarb */
-      var dT1=Tpar-25, dT2=Math.max(30,Tpar-Tcarb);
-      var dTml=(Math.abs(dT1-dT2)<1)?dT1:((dT1-dT2)/Math.log(dT1/dT2));
-      R.Anec=Qter*1000/(Upar*dTml);              /* m² */
-      /* só a parede em contato com o leito troca: com enchimento de 30 % o
-         perímetro molhado é cerca de 40 % da circunferência; o eixo e as hélices
-         aquecidos acrescentam o restante                                        */
-      var fCont=0.45+ench;
-      R.fCont=fCont;
-      R.Adisp=Math.PI*D*L*nLin*fCont;
-      R.areaOK=(R.Adisp>=R.Anec);
-      R.fluxo=(R.Adisp>0)?(Qter/R.Adisp):0;      /* kW/m² */
+      R.Anec=Anec; R.Adisp=Adisp; R.fCont=fCont; R.govArea=govArea;
+      R.areaOK=(Adisp>=Anec);
+      R.fluxo=(Adisp>0)?(Qter/Adisp):0;
       R.Upar=Upar; R.dTml=dTml; R.Qter=Qter; R.Tpar=Tpar;
     }
   }
 
+  /* ===================== 5. CONDENSADOR ===================== */
+  var CD=null;
+  var Tagua=num("cbTagua"); if(!isFinite(Tagua)||Tagua<=0) Tagua=30;
+  var dTagua=num("cbDTagua"); if(!isFinite(dTagua)||dTagua<=0) dTagua=10;
+  var estArm=num("cbEstOleo"); if(!isFinite(estArm)||estArm<=0) estArm=7;
+  if(cond){
+    var mTot_h=mSec_h*1000*B.mTot;                       /* kg/h saindo do reator */
+    var mOl_h=mSec_h*1000*B.mOleoTot*B.recC;             /* kg/h de óleo a condensar */
+    var mAg_h=mSec_h*1000*B.mAgua*0.85;                  /* kg/h de água a condensar */
+    var mG_h=mTot_h-mOl_h-mAg_h;                         /* kg/h que segue adiante */
+    /* orvalho da água pela sua pressão parcial na corrente */
+    var yAgMol=(B.mAgua/18)/((B.mAgua/18)+(B.mGasNC/30)+(B.mOleoTot/150)+0.001);
+    var pAg=Math.max(0.05,yAgMol*101.3);
+    var TorvAg=cbTorvH2O(pAg);
+    /* temperaturas de saída de cada estágio: calculadas quando o campo for 0 */
+    function tIn(id,pad){ var x=num(id); return (isFinite(x)&&x>0)?x:pad; }
+    var T1=tIn("cbTe1",Math.max(150,F.TorvP-25));
+    var T2=tIn("cbTe2",Math.max(85,F.TorvM-20));
+    var T3=tIn("cbTe3",Math.min(TorvAg-5,Tagua+dTagua+8));
+    if(T3<Tagua+5) T3=Tagua+5;
+    if(T2<=T3+10) T2=T3+25;
+    if(T1<=T2+15) T1=T2+40;
+    var T4=Math.max(Tagua+4,T3-5);
+    var Tin=Tgas;
+    /* frações por estágio */
+    var fr=[F.fPes,F.fMed,F.fLev*0.85,F.fLev*0.15];
+    var lat=[350,400,450,470];
+    var Uest=[60,200,350,300];
+    var nomes=["Condensador de fração pesada","Condensador principal",
+               "Condensador frio e separador de água","Precipitador de névoa e aerossol"];
+    var descri=["Piche e alcatrão pesado, retirados enquanto o gás ainda está quente para não incrustar a jusante",
+                "O grosso do óleo — é este estágio que define a produção de coproduto",
+                "Fração leve mais a água, que sai como licor ácido e precisa de destino",
+                "Névoa que atravessa os condensadores por ser aerossol e não vapor; sem este estágio ela vai para a fornalha"];
+    var Tsaida=[T1,T2,T3,T4];
+    var Torv=[F.TorvP,F.TorvM,F.TorvL,F.TorvL-15];
+    var est=[], Tent=Tin, Qtot=0, Atot2=0, mAgua_h=0;
+    for(var e=0;e<4;e++){
+      var mOle=mOl_h*fr[e];
+      var mAge=(e===2)?mAg_h*0.90:((e===3)?mAg_h*0.10:0);
+      var cpGas=1.35;
+      var Qsens=mG_h*cpGas*Math.max(0,Tent-Tsaida[e])/3600;
+      var Qlat=(mOle*lat[e]+mAge*2400)/3600;
+      var Qsub=(mOle*2.1+mAge*4.18)*Math.max(0,Tsaida[e]-Tagua-dTagua)/3600*0.3;
+      var Qe=Qsens+Qlat+Qsub;
+      var Tw1=Tagua+dTagua, Tw2=Tagua;
+      var d1=Math.max(4,Tent-Tw1), d2=Math.max(4,Tsaida[e]-Tw2);
+      var lm=(Math.abs(d1-d2)<0.5)?d1:((d1-d2)/Math.log(d1/d2));
+      var Ae=Qe*1000/(Uest[e]*lm);
+      var mw=Qe*3600/(4.18*dTagua)/1000;             /* t/h de água */
+      est.push({n:nomes[e],d:descri[e],Tent:Tent,Tsai:Tsaida[e],Torv:Torv[e],
+        mOleo:mOle,mAgua:mAge,Q:Qe,Qsens:Qsens,Qlat:Qlat,U:Uest[e],lm:lm,A:Ae,mw:mw,
+        frac:fr[e]*100});
+      Qtot+=Qe; Atot2+=Ae; mAgua_h+=mw; Tent=Tsaida[e];
+    }
+    var mwTot=Qtot*3600/(4.18*dTagua)/1000;
+    var Vtq=mOl_h*24*estArm/(F.rhoOleo*1000);
+    var Dtq=Math.pow(4*Vtq/(Math.PI*1.5),1/3), Htq=1.5*Dtq;
+    var licor=mAg_h+mOl_h*F.fLev*0.15;
+    CD={est:est,Qtot:Qtot,Atot:Atot2,mw:mwTot,Tagua:Tagua,dTagua:dTagua,
+      mOl_h:mOl_h,mAg_h:mAg_h,mG_h:mG_h,mTot_h:mTot_h,TorvAg:TorvAg,pAg:pAg,
+      Vtq:Vtq,Dtq:Dtq,Htq:Htq,estArm:estArm,rhoOleo:F.rhoOleo,licor:licor,
+      Tin:Tin,T1:T1,T2:T2,T3:T3,T4:T4,
+      oleoDia:mOl_h*24/1000,oleoMes:mOl_h*hMes/1000,
+      energiaOleo:mOl_h*cbPCIoleo(F,Tcarb)/3.6/1000};
+  }
+
   /* ===================== 6. FORNALHA E CHAMINÉ ===================== */
-  var mStr_h=mSec_h*1000*B.mStr;                 /* kg/h de gás de carbonização */
-  var PCIstr=B.PCIstr;                           /* kJ/kg */
-  var Qlib=mStr_h*Math.max(PCIstr,0)/3600;       /* kW liberados na fornalha */
+  var mStr_h=mSec_h*1000*B.mInc;
+  var PCIstr=B.PCIinc;
+  var Qlib=mStr_h*Math.max(PCIstr,0)/3600;
   var PCIstrMJ=PCIstr/1000;
-  var queimaOK=(PCIstrMJ>=3.5&&B.fH2Ostr<=0.65);
-  var mAr=Qlib*3600/1000*0.26*1.293*(1+exAr/100)/1000; /* t/h de ar */
-  var mFlue_h=mStr_h+mAr*1000;                   /* kg/h de gás de combustão */
-  var fH2Oflue=(mFlue_h>0)?((mSec_h*1000*((1-B.phi)*B.yH+w)+Qlib*3600/1000*0.26*1.293*(1+exAr/100)*0.010)/mFlue_h):0.2;
-  /* temperatura adiabática de chama, por iteração no cp */
-  var Tad=Tcam, hEnt=Qlib*3600/mFlue_h+cbCpFlue(Tgas,B.fH2Ostr)*(Tgas-Tamb)*mStr_h/mFlue_h;
+  var queimaOK=(PCIstrMJ>=3.5&&B.fH2Oinc<=0.65);
+  function zIn(id,pad){ var x=num(id); return (isFinite(x)&&x>0)?x:pad; }
+  var exAr=zIn("cbExAr",cond?25:40);
+  var Tcam=zIn("cbTcam",(MD.fam==="rsu")?1100:900);
+  var tResC=zIn("cbTresC",(MD.fam==="rsu")?2.0:1.0);
+  var taxaLib=zIn("cbTaxaLib",250);
+  var Tsai=zIn("cbTsaida",(MD.fam==="rsu")?200:250);
+  var vCham=zIn("cbVcham",8);
+  var Hcham=num("cbHcham"); if(!isFinite(Hcham)||Hcham<0) Hcham=0;
+  var Tamb=zIn("cbTamb",25);
+
+  var mAr=Qlib*3600/1000*0.26*1.293*(1+exAr/100)/1000;
+  var mFlue_h=mStr_h+mAr*1000;
+  var fH2Oflue=(mFlue_h>0)?((mSec_h*1000*(B.mAgua-B.mAguaRec)+Qlib*3600/1000*0.26*1.293*(1+exAr/100)*0.010)/mFlue_h):0.2;
+  var Tad=Tcam, hEnt=(mFlue_h>0)?(Qlib*3600/mFlue_h+cbCpFlue(Tgas,B.fH2Oinc)*(Tgas-Tamb)*mStr_h/mFlue_h):0;
   for(var it=0;it<12;it++){
     var cpf=cbCpFlue((Tamb+Tad)/2,fH2Oflue);
     Tad=Tamb+hEnt/cpf;
     if(Tad>2200) Tad=2200;
   }
-  var camOK=(Tad>=850);
-  /* volume da câmara: o maior entre taxa de liberação e tempo de residência */
+  var camOK=(Tad>=(MD.fam==="rsu"?1100:850));
   var Vcam1=Qlib/taxaLib;
   var rhoCam=353/(Tcam+273.15)*0.95;
-  var Qcam=mFlue_h/Math.max(rhoCam,0.05)/3600;   /* m³/s na temperatura da câmara */
+  var Qcam=mFlue_h/Math.max(rhoCam,0.05)/3600;
   var Vcam2=Qcam*tResC;
   var Vcam=Math.max(Vcam1,Vcam2);
-  var Dcam=Math.pow(4*Vcam/(Math.PI*3.0),1/3), Lcam=3.0*Dcam;
+  var Dcam=Math.pow(4*Math.max(Vcam,0.05)/(Math.PI*3.0),1/3), Lcam=3.0*Dcam;
   var govCam=(Vcam2>=Vcam1)?"tempo de residência":"taxa de liberação";
 
-  /* chaminé */
   var rhoSai=353/(Tsai+273.15), rhoAmb=353/(Tamb+273.15);
-  var Qsai=mFlue_h/rhoSai/3600;                  /* m³/s */
-  var Acham=Qsai/vCham, Dcham=Math.sqrt(4*Acham/Math.PI);
+  var Qsai=mFlue_h/rhoSai/3600;
+  var Acham=Math.max(Qsai/vCham,0.005), Dcham=Math.sqrt(4*Acham/Math.PI);
   var Hch,tiragem,dPsist;
   if(Hcham>0){
     Hch=Hcham;
     dPsist=45+0.5*rhoSai*vCham*vCham*(1.8+0.02*Hch/Math.max(Dcham,0.3));
   } else {
-    /* a altura nao e arbitrada: ela e a solucao de tiragem = 1,25 x perda, e a
-       perda depende da propria altura, entao resolve-se por iteracao          */
     Hch=15;
     for(var ih=0;ih<8;ih++){
       dPsist=45+0.5*rhoSai*vCham*vCham*(1.8+0.02*Hch/Math.max(Dcham,0.3));
@@ -7434,27 +7608,36 @@ function cbNucleo(){
     }
     dPsist=45+0.5*rhoSai*vCham*vCham*(1.8+0.02*Hch/Math.max(Dcham,0.3));
   }
-  tiragem=Hch*g*(rhoAmb-rhoSai);                 /* Pa */
+  tiragem=Hch*g*(rhoAmb-rhoSai);
   var tiraOK=(tiragem>=dPsist);
 
-  /* calor recuperável para a secagem */
-  var Qexc=Math.max(0,mSec_h*1000*B.Ebruto/3600); /* kW de excedente bruto */
-  var Qsens=mFlue_h*cbCpFlue((Tsai+120)/2,fH2Oflue)*(Tsai-120)/3600; /* kW até 120 °C */
-  var aguaSec=(Qsens>0)?(Qsens*3600/2600/1000):0; /* t/h de água evaporável */
-  var madSec=(w>0)?(aguaSec/Math.max(w-0.20/(1-0.20),0.01)):0;
+  var Qexc=Math.max(0,mSec_h*1000*B.Ebruto/3600);
+  var Qsens=mFlue_h*cbCpFlue((Tsai+120)/2,fH2Oflue)*(Tsai-120)/3600;
+  var aguaSec=(Qsens>0)?(Qsens*3600/2600/1000):0;
+  var madSec=(w>0.02)?(aguaSec/Math.max(w-0.25,0.02)):0;
 
-  /* ===================== 7. EMISSÕES EVITADAS ===================== */
-  var mCH4=mSec_h*1000*(1-B.phi)*B.yG*0.10;      /* kg/h de metano no gás */
-  var mCOg=mSec_h*1000*(1-B.phi)*B.yG*0.30;
-  var mAlc_h=mSec_h*1000*(1-B.phi)*B.yA;         /* kg/h de alcatrão */
-  var evit=temForn?(mCH4*TC.fAprov*28)*hMes*12/1000:0;       /* tCO2eq/ano */
-  var evitEsp=(Prod>0)?(evit/(Prod*12)):0;                   /* tCO2eq por t de carvao */
+  /* ===================== 7. EMISSÕES ===================== */
+  var mCH4=mSec_h*1000*B.mGasNC*((MD.fam==="pneu")?0.22:0.10);
+  var mCOg=mSec_h*1000*B.mGasNC*((MD.fam==="pneu")?0.06:0.30);
+  var mAlc_h=mSec_h*1000*B.mOleoTot;
+  var evit=temForn?(mCH4*TC.fAprov*28)*hMes*12/1000:0;
+  var evitEsp=(Prod>0)?(evit/(Prod*12)):0;
   var fumaca=temForn?(1-TC.fAprov)*100:100;
+  var mS_h=mSec_h*1000*(MD.S/100);
+  var mCl_h=mSec_h*1000*(MD.Cl/100);
+  var SO2=mS_h*2.0;
+  var HCl=mCl_h*1.028;
 
-  /* ===================== 8. PÁTIO E MOVIMENTAÇÃO ===================== */
-  var estM=(estMad>0)?estMad:Math.max(30,Tsec);
+  /* ===================== 8. PÁTIO ===================== */
+  var estMad=num("cbEstMad"); if(!isFinite(estMad)||estMad<=0) estMad=15;
+  var Hpil=num("cbHpilha");  if(!isFinite(Hpil)||Hpil<=0) Hpil=(MD.granel?6:4);
+  var estCar=num("cbEstCarv");if(!isFinite(estCar)||estCar<=0) estCar=7;
+  var HpilC=num("cbHpilhaC");if(!isFinite(HpilC)||HpilC<=0) HpilC=3;
+  var fOcup=num("cbFocup");  if(!isFinite(fOcup)||fOcup<=0||fOcup>1) fOcup=0.55;
+  var turnos=num("cbTurnos");if(!isFinite(turnos)||turnos<=0) turnos=3;
+
   var stDia=Vst_h*24*(disp/100)*(hdia/24);
-  var Vpat=stDia*estM;
+  var Vpat=stDia*estMad;
   var Apat=Vpat/Hpil/fOcup;
   var mdcDia=mdc_h*hdia*(disp/100);
   var Apatc=mdcDia*estCar/HpilC/fOcup;
@@ -7465,317 +7648,384 @@ function cbNucleo(){
   } else {
     Afornos=R.N*(R.L+12)*(R.D+8);
   }
-  var Atot=Apat+Apatc+Afornos+0.25*(Apat+Apatc+Afornos);
-  var cargasDia=mUm_h*24*(disp/100)*(hdia/24)/25; /* caminhões de 25 t/dia */
-  var cargasCarv=Pcarv_h*hdia*(disp/100)/14;      /* carreta de carvão ~14 t */
+  var Acond=cond?Math.max(120,CD.Atot*0.6+CD.Vtq*3):0;
+  var Atot=(Apat+Apatc+Afornos+Acond)*1.25;
+  var cargasDia=mUm_h*24*(disp/100)*(hdia/24)/25;
+  var cargasCarv=Pcarv_h*hdia*(disp/100)/14;
 
   /* ===================== 9. MÃO DE OBRA ===================== */
   var opUnid=Math.max(2,Math.ceil(R.N*TC.opUn));
   var opPatio=Math.max(2,Math.ceil(stDia/24/8));
-  var opTurno=opUnid+opPatio+1;                   /* +1 líder de turno */
-  var opTot=opTurno*turnos+2;                     /* +2 manutenção e apoio (diurno) */
-  var prodHom=Prod/Math.max(opTot,1);             /* t de carvão por pessoa por mês */
+  var opCond=cond?2:0;
+  var opTurno=opUnid+opPatio+opCond+1;
+  var opTot=opTurno*turnos+2;
+  var prodHom=Prod/Math.max(opTot,1);
 
   /* ===================== 10. VERIFICAÇÕES ===================== */
   function nv(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
   var VER=[];
-  VER.push({o:"Carbono fixo do carvão",r:nv(B.CF,1)+" % contra "+nv(CFmeta,0)+" % exigidos",ok:cfOK});
-  VER.push({o:"Queima do gás de carbonização",r:"PCI "+nv(PCIstrMJ,2)+" MJ/kg com "+nv(B.fH2Ostr*100,0)+" % de água",ok:queimaOK||!temForn});
-  if(temForn) VER.push({o:"Temperatura da câmara de combustão",r:nv(Tad,0)+" °C adiabática contra 850 °C mínimos",ok:camOK});
+  VER.push({o:"Carbono fixo do sólido",r:nv(CF,1)+" % contra "+nv(CFmeta,0)+" % exigidos   ·   cinzas "+nv(cinzS,1)+" %",ok:cfOK});
+  var compat=(MD.fam==="lig")||TC.fech;
+  VER.push({o:"Matéria-prima compatível com a concepção",
+    r:F.n+" em "+TC.cur+(compat?"":" — exige reator fechado"),ok:compat});
+  VER.push({o:"Queima do gás incondensável",r:"PCI "+nv(PCIstrMJ,2)+" MJ/kg com "+nv(B.fH2Oinc*100,0)+" % de água",ok:queimaOK||!temForn});
+  if(temForn) VER.push({o:"Temperatura da câmara de combustão",r:nv(Tad,0)+" °C adiabática contra "+(MD.fam==="rsu"?"1.100":"850")+" °C mínimos",ok:camOK});
   if(temForn) VER.push({o:"Tiragem natural da chaminé",r:nv(tiragem,0)+" Pa disponíveis contra "+nv(dPsist,0)+" Pa de perda",ok:tiraOK});
   if(R.tipo==="cont"&&TC.forma==="rosca") VER.push({o:"Área de troca térmica da rosca",r:nv(R.Adisp,0)+" m² disponíveis contra "+nv(R.Anec,0)+" m² exigidos   ·   fluxo "+nv(R.fluxo,1)+" kW/m²",ok:R.areaOK});
-  VER.push({o:"Umidade da madeira na entrada",r:nv(Uusa,1)+" % base úmida",ok:(Uusa<=35)});
-  VER.push({o:"Granulometria contra a concepção",r:nv(dTora,0)+" cm de diâmetro médio",
-    ok:((TC.forma==="rot"||TC.forma==="rosca")?(dTora<=6):(dTora>=5))});
+  VER.push({o:"Umidade da matéria-prima na entrada",r:nv(Uusa,1)+" % base úmida",ok:(Uusa<=35)});
+  VER.push({o:"Granulometria contra a concepção",r:nv(dTora,1)+" cm de dimensão média",
+    ok:((TC.forma==="rot"||TC.forma==="rosca")?(dTora<=6):(dTora>=2))});
   if(R.tipo==="bat") VER.push({o:"Ocupação dos fornos",r:nv(R.ocup,0)+" % do parque instalado",ok:(R.ocup<=100)});
   if(R.tipo==="bat") VER.push({o:"Porte do parque de fornos",r:nv(R.N,0)+" unidades em bateria",ok:(R.N<=80)});
-  var nRep=0,nVer=VER.length; for(var iv=0;iv<VER.length;iv++){ if(!VER[iv].ok) nRep++; }
+  if(cond) VER.push({o:"Autossuficiência térmica com o condensador",
+    r:(B.phi>0.001?("queima "+nv(B.phi*100,1)+" % da carga para compensar o óleo retirado"):"o incondensável cobre a demanda"),ok:(B.phi<=0.02)});
+  if(cond) VER.push({o:"Recuperação de condensáveis da concepção",
+    r:nv(TC.fRecup*100,0)+" % do óleo gerado   ·   "+(TC.fRecup>=0.5?"gás de pirólise não diluído":"gás diluído por gás de combustão"),ok:(TC.fRecup>=0.35)});
+  if(MD.Cl>=0.3) VER.push({o:"Cloro na matéria-prima",r:nv(MD.Cl,2)+" % na base seca   ·   "+nv(HCl,0)+" kg/h de HCl potencial — impõe câmara a 1.100 °C, resfriamento rápido e neutralização alcalina",ok:false,av:true});
+  if(MD.S>=1.0) VER.push({o:"Enxofre na matéria-prima",r:nv(MD.S,2)+" % na base seca   ·   "+nv(SO2,0)+" kg/h de SO₂ potencial — impõe dessulfurização do gás e do óleo",ok:false,av:true});
+  var nRep=0,nAv=0,nVer=VER.length;
+  for(var iv=0;iv<VER.length;iv++){ if(!VER[iv].ok){ if(VER[iv].av) nAv++; else nRep++; } }
 
   function v(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
   function st(ok){ return ok?"APROVADO":"REPROVADO"; }
 
-  return {v:v,st:st,VER:VER,nRep:nRep,nVer:nVer,
-    Prod:Prod,dias:dias,hdia:hdia,disp:disp,hMes:hMes,tk:tk,TC:TC,MD:MD,mk:mk,
-    db:db,fEmp:fEmp,dTora:dTora,Ucolh:Ucolh,Tsec:Tsec,Uusa:Uusa,secCalc:secCalc,SEC:SEC,Ueq:Ueq,
-    w:w,PCSsec:PCSsec,PCIsec:PCIsec,PCIum:PCIum,Tcarb:Tcarb,Tgas:Tgas,dHpir:dHpir,
-    B:B,COMP:COMP,CF:CF,MV:MV,cinzC:cinzC,PCIcarv:PCIcarv,CFmeta:CFmeta,cfOK:cfOK,perdaF:perdaF,
+  return {v:v,st:st,VER:VER,nRep:nRep,nAv:nAv,nVer:nVer,
+    Prod:Prod,dias:dias,hdia:hdia,disp:disp,hMes:hMes,tk:tk,TC:TC,MD:MD,mk:mk,F:F,unV:unV,
+    db:db,fEmp:fEmp,dTora:dTora,Uusa:Uusa,w:w,PCSsec:PCSsec,PCIsec:PCIsec,PCIum:PCIum,
+    Tcarb:Tcarb,Tgas:Tgas,dHpir:dHpir,calcU:calcU,calcT:calcT,calcH:calcH,calcCF:calcCF,calcPF:calcPF,calcDC:calcDC,
+    B:B,Bsem:Bsem,COMP:COMP,CF:CF,MV:MV,cinzS:cinzS,PCIcarv:PCIcarv,CFmeta:CFmeta,cfOK:cfOK,perdaF:perdaF,
     Pcarv_h:Pcarv_h,Pbruto_h:Pbruto_h,mSec_h:mSec_h,mUm_h:mUm_h,Vsol_h:Vsol_h,Vst_h:Vst_h,
-    consEsp:consEsp,consSt:consSt,mdc_h:mdc_h,rendUm:rendUm,R:R,
-    temForn:temForn,recup:recup,mStr_h:mStr_h,PCIstrMJ:PCIstrMJ,queimaOK:queimaOK,Qlib:Qlib,
+    consEsp:consEsp,consSt:consSt,mdc_h:mdc_h,rendUm:rendUm,R:R,dCarvG:dCarvG,
+    mOleo_h:mOleo_h,mGas_h:mGas_h,mAgCond_h:mAgCond_h,
+    temForn:temForn,recup:recup,cond:cond,CD:CD,modoG:modoG,
+    mStr_h:mStr_h,PCIstrMJ:PCIstrMJ,queimaOK:queimaOK,Qlib:Qlib,
     mAr:mAr,mFlue_h:mFlue_h,fH2Oflue:fH2Oflue,Tad:Tad,camOK:camOK,exAr:exAr,Tcam:Tcam,
     Vcam1:Vcam1,Vcam2:Vcam2,Vcam:Vcam,Dcam:Dcam,Lcam:Lcam,govCam:govCam,tResC:tResC,taxaLib:taxaLib,
     Tsai:Tsai,vCham:vCham,Acham:Acham,Dcham:Dcham,Hch:Hch,tiragem:tiragem,dPsist:dPsist,tiraOK:tiraOK,
-    Qexc:Qexc,Qsens:Qsens,aguaSec:aguaSec,madSec:madSec,mCH4:mCH4,mCOg:mCOg,mAlc_h:mAlc_h,evit:evit,fumaca:fumaca,
-    estM:estM,stDia:stDia,Vpat:Vpat,Apat:Apat,mdcDia:mdcDia,estCar:estCar,Apatc:Apatc,
-    Afornos:Afornos,Atot:Atot,Hpil:Hpil,HpilC:HpilC,fOcup:fOcup,dCarvG:dCarvG,
-    evitEsp:evitEsp,cargasDia:cargasDia,cargasCarv:cargasCarv,opUnid:opUnid,opPatio:opPatio,opTurno:opTurno,
-    opTot:opTot,turnos:turnos,prodHom:prodHom,Tamb:Tamb};
+    Qexc:Qexc,Qsens:Qsens,aguaSec:aguaSec,madSec:madSec,
+    mCH4:mCH4,mCOg:mCOg,mAlc_h:mAlc_h,evit:evit,evitEsp:evitEsp,fumaca:fumaca,
+    mS_h:mS_h,mCl_h:mCl_h,SO2:SO2,HCl:HCl,
+    estMad:estMad,stDia:stDia,Vpat:Vpat,Apat:Apat,mdcDia:mdcDia,estCar:estCar,Apatc:Apatc,
+    Afornos:Afornos,Acond:Acond,Atot:Atot,Hpil:Hpil,HpilC:HpilC,fOcup:fOcup,
+    cargasDia:cargasDia,cargasCarv:cargasCarv,opUnid:opUnid,opPatio:opPatio,opCond:opCond,
+    opTurno:opTurno,opTot:opTot,turnos:turnos,prodHom:prodHom,Tamb:Tamb};
 }
 
 function carbonizacaoCalc(){
   var A=cbNucleo(); if(!A) return null;
-  var v=A.v, st=A.st, B=A.B, TC=A.TC, R=A.R, OUT=[];
+  var v=A.v, st=A.st, B=A.B, TC=A.TC, R=A.R, F=A.F, MD=A.MD, CD=A.CD, OUT=[];
+  var SOL=F.solNome, OLE=F.oleoNome, UV=A.unV;
 
   /* ---------------------------------------------------------------- 1 */
   OUT.push({sec:"1 · Produção alvo e base de tempo"});
-  OUT.push({k:"PRODUÇÃO DE CARVÃO",v:v(A.Prod,0)+" t/mês   =   "+v(A.Prod*12/1000,1)+" mil t/ano   =   "+v(A.Prod*1000/A.dCarvG,0)+" mdc/mês   ·   densidade a granel "+v(A.dCarvG,0)+" kg/mdc",hi:true});
+  OUT.push({k:"PRODUÇÃO DE "+SOL.toUpperCase(),v:v(A.Prod,0)+" t/mês   =   "+v(A.Prod*12/1000,1)+" mil t/ano   =   "+v(A.Prod*1000/A.dCarvG,0)+" "+F.unSol+"/mês   ·   massa específica a granel "+v(A.dCarvG,0)+" kg/"+F.unSol+(A.calcDC?"   (adotada pela matéria-prima)":""),hi:true});
   OUT.push({k:"Base de tempo",v:v(A.dias,0)+" dias por mês   ×   "+v(A.hdia,0)+" h por dia   ×   "+v(A.disp,0)+" % de disponibilidade   =   "+v(A.hMes,0)+" h efetivas por mês"});
-  OUT.push({k:"Produção horária",v:v(A.Pcarv_h,2)+" t/h de carvão comercial   ·   "+v(A.Pbruto_h,2)+" t/h na saída do reator, antes de "+v(A.perdaF,0)+" % de perdas de finos e manuseio"});
+  OUT.push({k:"Produção horária",v:v(A.Pcarv_h,2)+" t/h comerciais   ·   "+v(A.Pbruto_h,2)+" t/h na saída do reator, antes de "+v(A.perdaF,0)+" % de perdas de finos e manuseio"+(A.calcPF?"   (perda adotada pela matéria-prima)":"")});
 
   /* ---------------------------------------------------------------- 2 */
-  OUT.push({sec:"2 · Concepção do reator escolhida"});
-  OUT.push({k:"TECNOLOGIA",v:TC.n,hi:true});
-  OUT.push({k:"Modo de aquecimento",v:TC.modo});
-  OUT.push({k:"EFICIÊNCIA DE TRANSFERÊNCIA ENERGÉTICA",v:v(TC.eta*100,0)+" %   —  esta é a fração do calor liberado que chega efetivamente à carga. O resto vai para a parede, para a fumaça e para o resfriamento, e é ela, mais do que qualquer outro parâmetro, que separa uma concepção da outra",hi:true});
-  OUT.push({k:"Aproveitamento dos voláteis",v:v(TC.fAprov*100,0)+" %   —  fração do gás e do alcatrão que é recuperada como combustível; o complemento, "+v((1-TC.fAprov)*100,0)+" %, sai como fumaça"});
-  OUT.push({k:"Controle de processo",v:TC.ctrl});
-  OUT.push({k:"O que caracteriza esta concepção",v:TC.obs});
+  OUT.push({sec:"2 · Matéria-prima"});
+  OUT.push({k:"MATÉRIA-PRIMA",v:MD.n+"   ·   família "+F.n,hi:true});
+  OUT.push({k:"O que essa família faz na pirólise",v:F.obs});
+  OUT.push({k:"Massa específica e granulometria",v:v(A.db,0)+" kg secos por m³ "+(MD.granel?"a granel":"sólido")+(MD.granel?"":"   ·   fator de empilhamento "+v(A.fEmp,2)+" m³ sólido por estéreo")+"   ·   dimensão média "+v(A.dTora,1)+" cm"});
+  OUT.push({k:"Composição elementar (base seca)",v:"C "+v(MD.C,1)+" %   ·   H "+v(MD.H,1)+" %   ·   O "+v(MD.O,1)+" %   ·   N "+v(MD.N,2)+" %   ·   S "+v(MD.S,2)+" %   ·   Cl "+v(MD.Cl,2)+" %   ·   cinzas "+v(MD.cinz,2)+" %"});
+  OUT.push({k:"Poder calorífico",v:"PCS "+v(A.PCSsec,2)+" MJ/kg e PCI "+v(A.PCIsec,2)+" MJ/kg na base seca (Channiwala e Parikh)   ·   PCI útil na umidade de entrada "+v(A.PCIum,2)+" MJ/kg"});
+  OUT.push({k:"UMIDADE NA ENTRADA DO REATOR",v:v(A.Uusa,1)+" % base úmida   ·   "+v(A.w,3)+" kg de água por kg de matéria-prima seca   —  "+(A.calcU?"valor típico desta matéria-prima; informe o valor que o secador a montante vai garantir":"valor informado, a ser garantido pelo secador a montante"),hi:true});
+  OUT.push({k:"O que a umidade custa aqui",v:"A evaporação consome "+v(B.q3/Math.max(B.Qdem,1)*100,0)+" % da demanda térmica do reator. Secar fora, num secador rotativo com calor residual, é sempre mais barato do que secar dentro, porque no reator essa energia disputa espaço com a pirólise e sai do rendimento. Cada dez pontos de umidade a menos valem mais que qualquer ajuste de temperatura."});
 
   /* ---------------------------------------------------------------- 3 */
-  OUT.push({sec:"3 · Madeira e secagem"});
-  OUT.push({k:"Espécie e densidade",v:A.MD.n+"   ·   densidade básica "+v(A.db,0)+" kg secos por m³ sólido   ·   fator de empilhamento "+v(A.fEmp,2)+" m³ sólido por estéreo   ·   diâmetro médio "+v(A.dTora,0)+" cm"});
-  OUT.push({k:"Composição elementar (base seca)",v:"C "+v(A.MD.C,1)+" %   ·   H "+v(A.MD.H,1)+" %   ·   O "+v(A.MD.O,1)+" %   ·   N "+v(A.MD.N,2)+" %   ·   cinzas "+v(A.MD.cinz,2)+" %"});
-  OUT.push({k:"Poder calorífico da madeira",v:"PCS "+v(A.PCSsec,2)+" MJ/kg e PCI "+v(A.PCIsec,2)+" MJ/kg na base seca (Channiwala e Parikh)   ·   PCI útil na umidade de entrada "+v(A.PCIum,2)+" MJ/kg"});
-  if(A.secCalc){
-    OUT.push({k:"SECAGEM AO AR",v:"de "+v(A.Ucolh,0)+" % na colheita para "+v(A.Uusa,1)+" % em "+v(A.Tsec,0)+" dias   ·   constante de secagem k = "+v(A.SEC.k,5)+" por dia   ·   meia-vida "+v(A.SEC.t50,0)+" dias   ·   umidade de equilíbrio "+v(A.Ueq,0)+" %",hi:true});
-  } else {
-    OUT.push({k:"UMIDADE NA ENTRADA",v:v(A.Uusa,1)+" % base úmida, informada   ·   a secagem ao ar por "+v(A.Tsec,0)+" dias entregaria "+v(A.SEC.U,1)+" %",hi:true});
-  }
-  OUT.push({k:"Relação água/madeira seca",v:v(A.w,3)+" kg de água por kg de madeira seca   —  cada quilo de água carrega 2,26 MJ para evaporar, e essa energia sai do mesmo lugar de onde sairia o carvão"});
-  OUT.push({k:"Por que a umidade domina o projeto",v:"Secar não é uma etapa preparatória: é a maior parcela isolada da demanda térmica. Nesta condição a evaporação consome "+v(B.q3/B.Qdem*100,0)+" % de toda a demanda do processo. Reduzir a umidade em dez pontos vale mais para o rendimento do que qualquer ajuste de temperatura de carbonização."});
+  OUT.push({sec:"3 · Concepção do reator"});
+  OUT.push({k:"TECNOLOGIA",v:TC.n,hi:true});
+  OUT.push({k:"Modo de aquecimento",v:TC.modo});
+  OUT.push({k:"EFICIÊNCIA DE TRANSFERÊNCIA ENERGÉTICA",v:v(TC.eta*100,0)+" %   —  fração do calor liberado que chega efetivamente à carga; o resto vai para parede, fumaça e resfriamento",hi:true});
+  OUT.push({k:"Aproveitamento dos voláteis como combustível",v:v(TC.fAprov*100,0)+" %   ·   o complemento, "+v((1-TC.fAprov)*100,0)+" %, sai como fumaça"});
+  OUT.push({k:"RECUPERAÇÃO DE CONDENSÁVEIS DESTA CONCEPÇÃO",v:v(TC.fRecup*100,0)+" %   —  é o teto físico do que um condensador consegue tirar desta configuração. Tudo que dilui o gás de pirólise com gás de combustão derruba esse número, porque a fração condensável fica com pressão parcial baixa demais",hi:true});
+  OUT.push({k:"Vocação",v:TC.voc});
+  OUT.push({k:"O que caracteriza esta concepção",v:TC.obs});
 
   /* ---------------------------------------------------------------- 4 */
-  OUT.push({sec:"4 · Balanço térmico — por quilo de madeira seca carregada"});
-  OUT.push({k:"Aquecer a madeira até 105 °C",v:"+ "+v(B.q1,0)+" kJ/kg"});
+  OUT.push({sec:"4 · Balanço térmico — por quilo de matéria-prima seca carregada"});
+  OUT.push({k:"Aquecer a carga até 105 °C",v:"+ "+v(B.q1,0)+" kJ/kg"});
   OUT.push({k:"Aquecer a água ligada até 100 °C",v:"+ "+v(B.q2,0)+" kJ/kg"});
-  OUT.push({k:"EVAPORAR A ÁGUA",v:"+ "+v(B.q3,0)+" kJ/kg   ·   "+v(B.q3/B.Qdem*100,0)+" % da demanda total",hi:true});
+  OUT.push({k:"Evaporar a água",v:"+ "+v(B.q3,0)+" kJ/kg   ·   "+v(B.q3/Math.max(B.Qdem,1)*100,0)+" % da demanda"});
   OUT.push({k:"Superaquecer o vapor até "+v(A.Tgas,0)+" °C",v:"+ "+v(B.q4,0)+" kJ/kg"});
-  OUT.push({k:"Aquecer a madeira seca de 105 a "+v(A.Tcarb,0)+" °C",v:"+ "+v(B.q5,0)+" kJ/kg"});
-  OUT.push({k:"Calor de reação da pirólise",v:(B.q6<0?"− ":"+ ")+v(Math.abs(B.q6),0)+" kJ/kg   "+(B.q6<0?"(exotérmico — a formação do carvão devolve calor, e é por isso que um forno bem carregado se sustenta sozinho depois de iniciado)":"(endotérmico)")});
-  OUT.push({k:"DEMANDA TÉRMICA TOTAL",v:v(B.Qdem,0)+" kJ por kg de madeira seca   =   "+v(B.Qdem/1000,2)+" MJ/kg   =   "+v(A.mSec_h*1000*B.Qdem/3600,0)+" kW na escala do projeto",hi:true});
+  OUT.push({k:"Aquecer a carga seca de 105 a "+v(A.Tcarb,0)+" °C",v:"+ "+v(B.q5,0)+" kJ/kg"});
+  OUT.push({k:"CALOR DE REAÇÃO DA PIRÓLISE",v:(B.q6<0?"− ":"+ ")+v(Math.abs(B.q6),0)+" kJ/kg   "+(B.q6<0?"(EXOTÉRMICO — a formação do sólido devolve calor, e é por isso que um forno bem carregado se sustenta depois de iniciado)":"(ENDOTÉRMICO — a despolimerização consome calor, e o reator não se sustenta sozinho: precisa de fonte externa o tempo todo)")+(A.calcH?"   ·   adotado pela família":""),hi:true});
+  OUT.push({k:"DEMANDA TÉRMICA TOTAL",v:v(B.Qdem,0)+" kJ por kg seco   =   "+v(B.Qdem/1000,2)+" MJ/kg   =   "+v(A.mSec_h*1000*B.Qdem/3600,0)+" kW na escala do projeto",hi:true});
 
   OUT.push({sec:"4b · De onde vem o calor"});
-  OUT.push({k:"Energia no gás não condensável",v:v(B.Egas,0)+" kJ/kg   ·   "+v(B.yG*100,1)+" % da madeira seca com PCI de "+v(cbPCIgas(A.Tcarb),1)+" MJ/kg"});
-  OUT.push({k:"Energia no alcatrão",v:v(B.Ealc,0)+" kJ/kg   ·   "+v(B.yA*100,1)+" % da madeira seca com PCI de "+v(cbPCIalc(A.Tcarb),1)+" MJ/kg   —  é a maior reserva de energia do processo, e é justamente o que os fornos de alvenaria perdem como fumaça"});
-  OUT.push({k:"Penalidade da água",v:"− "+v(B.Elat,0)+" kJ/kg   ·   calor latente da água de reação ("+v(B.yH*100,1)+" %) somada à umidade da madeira, que viaja junto com os voláteis e precisa ser vaporizada"});
-  OUT.push({k:"ENERGIA ÚTIL DISPONÍVEL NOS VOLÁTEIS",v:v(B.PCIutil,0)+" kJ/kg   ·   já descontada a fração perdida como fumaça ("+v((1-TC.fAprov)*100,0)+" %) e o calor latente da água",hi:true});
+  OUT.push({k:"Energia no gás não condensável",v:v(B.Egas,0)+" kJ/kg   ·   "+v(B.yG*100,1)+" % da massa seca com PCI de "+v(B.pciG,1)+" MJ/kg"});
+  OUT.push({k:"Energia no "+OLE,v:v(B.Eoleo,0)+" kJ/kg   ·   "+v(B.yA*100,1)+" % da massa seca com PCI de "+v(B.pciO,1)+" MJ/kg"});
+  if(A.cond){
+    OUT.push({k:"RETIRADO PELO CONDENSADOR COMO PRODUTO",v:"− "+v(B.Eoleo_prod,0)+" kJ/kg   ·   "+v(TC.fRecup*100,0)+" % do óleo gerado deixa de ser combustível e passa a ser coproduto   —  esta é a decisão econômica central desta calculadora",hi:true});
+    OUT.push({k:"Sobra como combustível",v:v(B.Eoleo_comb,0)+" kJ/kg de óleo não recuperado, somados aos "+v(B.Egas,0)+" kJ/kg do gás"});
+    OUT.push({k:"Penalidade da água",v:"− "+v(B.Elat,0)+" kJ/kg   ·   com o condensador, 85 % da água é retirada antes da fornalha e deixa de penalizar o poder calorífico da corrente"});
+  } else {
+    OUT.push({k:"Penalidade da água",v:"− "+v(B.Elat,0)+" kJ/kg   ·   calor latente da água de reação ("+v(B.yH*100,1)+" %) somada à umidade, que viaja com os voláteis e precisa ser vaporizada"});
+  }
+  OUT.push({k:"ENERGIA ÚTIL DISPONÍVEL PARA O PROCESSO",v:v(B.PCIutil,0)+" kJ/kg   ·   já descontados a fumaça e o que o condensador levou",hi:true});
   OUT.push({k:"Calor entregue à carga",v:v(B.PCIutil*TC.eta,0)+" kJ/kg   ·   os "+v(B.PCIutil,0)+" kJ disponíveis multiplicados pela eficiência de transferência de "+v(TC.eta*100,0)+" %"});
 
-  OUT.push({sec:"4c · O fechamento do balanço"});
+  OUT.push({sec:"4c · Fechamento do balanço"});
   if(B.phi>0.001){
-    OUT.push({k:"FRAÇÃO DA CARGA QUEIMADA PARA FECHAR O BALANÇO",v:v(B.phi*100,1)+" %   —  esta é a madeira que vira cinza para que o resto vire carvão. Não é perda de operação: é consequência aritmética de uma eficiência de transferência de "+v(TC.eta*100,0)+" % com um aproveitamento de voláteis de "+v(TC.fAprov*100,0)+" %",hi:true});
-    OUT.push({k:"Como esse número aparece",v:"A demanda de "+v(B.Qdem,0)+" kJ exige "+v(B.Qdem/TC.eta,0)+" kJ liberados. Os voláteis entregam "+v(B.PCIutil,0)+" kJ. Faltam "+v(B.Qdem/TC.eta-B.PCIutil,0)+" kJ, e cada quilo de madeira queimado entrega "+v(A.PCIsec*1000,0)+" kJ. Daí a fração de "+v(B.phi*100,1)+" %."});
+    OUT.push({k:"FRAÇÃO DA CARGA QUEIMADA PARA FECHAR O BALANÇO",v:v(B.phi*100,1)+" %   —  esta é a matéria-prima que vira cinza para que o resto vire produto. Não é perda de operação: é consequência aritmética de uma eficiência de transferência de "+v(TC.eta*100,0)+" % com o que sobrou de combustível",hi:true});
+    OUT.push({k:"Como esse número aparece",v:"A demanda de "+v(B.Qdem,0)+" kJ exige "+v(B.Qdem/TC.eta,0)+" kJ liberados. O que sobra nos voláteis entrega "+v(B.PCIutil,0)+" kJ. Faltam "+v(B.Qdem/TC.eta-B.PCIutil,0)+" kJ, e cada quilo queimado entrega "+v(A.PCIsec*1000,0)+" kJ."});
+    if(A.cond) OUT.push({k:"O CUSTO DE CONDENSAR",v:"Sem o condensador esta mesma configuração renderia "+v(A.Bsem.Sf*100,1)+" % de sólido; com ele rende "+v(B.Sf*100,1)+" %, uma perda de "+v((A.Bsem.Sf-B.Sf)*100,1)+" pontos, e em troca entrega "+v(B.rOleo,1)+" % de óleo. Retirar o óleo do circuito de combustível obriga a queimar "+v(B.phi*100,1)+" % da carga para repor o calor. A pergunta deixa de ser técnica: o óleo recuperado precisa valer mais que o sólido perdido.",hi:true});
   } else {
-    OUT.push({k:"BALANÇO AUTOSSUFICIENTE",v:"Nenhuma fração da carga precisa ser queimada. Os voláteis entregam "+v(B.PCIutil*TC.eta,0)+" kJ contra "+v(B.Qdem,0)+" kJ de demanda, com sobra",hi:true});
-    OUT.push({k:"EXCEDENTE TÉRMICO",v:v(B.Ebruto,0)+" kJ por kg de madeira seca   =   "+v(A.Qexc,0)+" kW na escala do projeto   —  energia que pode ir para a secagem da madeira, para geração ou para o processo a jusante",hi:true});
+    OUT.push({k:"BALANÇO AUTOSSUFICIENTE",v:"Nenhuma fração da carga precisa ser queimada. O disponível entrega "+v(B.PCIutil*TC.eta,0)+" kJ contra "+v(B.Qdem,0)+" kJ de demanda"+(A.cond?", MESMO com o condensador retirando "+v(TC.fRecup*100,0)+" % do óleo":""),hi:true});
+    OUT.push({k:"EXCEDENTE TÉRMICO",v:v(B.Ebruto,0)+" kJ por kg seco   =   "+v(A.Qexc,0)+" kW na escala do projeto   —  energia que pode ir para a secagem da matéria-prima, para geração ou para o processo a jusante",hi:true});
   }
-  OUT.push({k:"RENDIMENTO GRAVIMÉTRICO",v:v(B.RGf*100,1)+" % base seca   ·   "+v(A.rendUm,1)+" % sobre a madeira úmida como carregada   ·   partindo de "+v(B.RGb*100,1)+" % teóricos a "+v(A.Tcarb,0)+" °C",hi:true});
-  OUT.push({k:"CONSUMO ESPECÍFICO",v:v(A.consEsp,2)+" t de madeira úmida por t de carvão   ·   "+v(A.consSt,2)+" estéreos por t   ·   "+v(A.consSt/(1000/A.dCarvG),2)+" estéreos por mdc",hi:true});
 
   /* ---------------------------------------------------------------- 5 */
-  OUT.push({sec:"5 · Comparação entre as concepções, na mesma madeira e na mesma temperatura"});
-  OUT.push({k:"Como ler esta tabela",v:"Todas as linhas usam a mesma madeira, a mesma umidade de "+v(A.Uusa,1)+" % e a mesma temperatura final de "+v(A.Tcarb,0)+" °C. A única coisa que muda é a concepção — ou seja, a eficiência de transferência energética e o quanto dos voláteis é recuperado. A coluna do rendimento é consequência das duas anteriores, não um dado independente."});
+  OUT.push({sec:"5 · Rendimentos por produto — a verificação que decide a tecnologia"});
+  OUT.push({k:"Como ler esta tabela",v:"Todas as linhas usam a mesma matéria-prima ("+MD.n+"), a mesma umidade de "+v(A.Uusa,1)+" % e a mesma temperatura final de "+v(A.Tcarb,0)+" °C. Muda apenas a concepção. As porcentagens são sobre a MASSA SECA CARREGADA e somam cem: sólido, óleo recuperado, gás não condensável, carga queimada no processo e o restante — óleo queimado, água de reação e perdas. Escolha a linha pelo produto que você quer vender, não pelo rendimento maior."});
   for(var ic=0;ic<A.COMP.length;ic++){
     var c=A.COMP[ic];
-    var stt=1/Math.max(c.RGf,0.01)/A.fEmp/A.db*1000;
     OUT.push({k:c.TC.cur+(c.tk===A.tk?"  ◄ selecionada":""),
-      v:"Transferência "+v(c.TC.eta*100,0)+" %   ·   voláteis aproveitados "+v(c.TC.fAprov*100,0)+" %   ·   queima da carga "+v(c.phi*100,1)+" %   ·   RENDIMENTO "+v(c.RGf*100,1)+" % bs   ·   "+v(stt,1)+" st/t   ·   gás com PCI "+v(c.PCIstr/1000,2)+" MJ/kg",
+      v:"SÓLIDO "+v(c.rSol,1)+" %   ·   ÓLEO "+v(c.rOleo,1)+" %   ·   GÁS "+v(c.rGas,1)+" %   ·   queimado "+v(c.rQueim,1)+" %   ·   água e perdas "+v(c.rPerd,1)+" %",
       hi:(c.tk===A.tk)});
   }
-  var cPior=A.COMP[0],cMelhor=A.COMP[0];
-  for(var im=0;im<A.COMP.length;im++){
-    if(A.COMP[im].RGf<cPior.RGf) cPior=A.COMP[im];
-    if(A.COMP[im].RGf>cMelhor.RGf) cMelhor=A.COMP[im];
+  OUT.push({sec:"5b · Energia em cada produto, por tonelada de matéria-prima seca"});
+  for(var ie=0;ie<A.COMP.length;ie++){
+    var ce=A.COMP[ie];
+    var tot=ce.eSolT+ce.eOleoT+ce.eGasT;
+    OUT.push({k:ce.TC.cur+(ce.tk===A.tk?"  ◄ selecionada":""),
+      v:"sólido "+v(ce.eSolT,0)+"   ·   óleo "+v(ce.eOleoT,0)+"   ·   gás "+v(ce.eGasT,0)+"   =   "+v(tot,0)+" MJ/t   ·   "+v(tot/Math.max(A.PCIsec*1000,1)*100,1)+" % da energia que entrou   ·   "+ce.TC.voc,
+      hi:(ce.tk===A.tk)});
   }
-  OUT.push({k:"O que a tabela mostra",v:"Entre a pior ("+cPior.TC.cur+") e a melhor ("+cMelhor.TC.cur+") o rendimento vai de "+v(cPior.RGf*100,1)+" % a "+v(cMelhor.RGf*100,1)+" %, ou seja "+v((cMelhor.RGf/Math.max(cPior.RGf,0.001)-1)*100,0)+" % mais carvão pela mesma madeira. E o salto não está na temperatura nem no tempo: está em recuperar o alcatrão em vez de queimá-lo no ar. A fumaça branca de um rabo-quente é literalmente o combustível do processo indo embora."});
+  var melhorSol=A.COMP[0], melhorOleo=A.COMP[0], melhorEn=A.COMP[0];
+  for(var im=0;im<A.COMP.length;im++){
+    if(A.COMP[im].rSol>melhorSol.rSol) melhorSol=A.COMP[im];
+    if(A.COMP[im].rOleo>melhorOleo.rOleo) melhorOleo=A.COMP[im];
+    var t1=A.COMP[im].eSolT+A.COMP[im].eOleoT+A.COMP[im].eGasT;
+    var t2=melhorEn.eSolT+melhorEn.eOleoT+melhorEn.eGasT;
+    if(t1>t2) melhorEn=A.COMP[im];
+  }
+  OUT.push({k:"SE O OBJETIVO É SÓLIDO",v:melhorSol.TC.n+"   ·   "+v(melhorSol.rSol,1)+" % de rendimento   ·   "+v(1/Math.max(melhorSol.Sf,0.01)/A.fEmp/A.db*1000,1)+" "+UV+" por tonelada",hi:true});
+  OUT.push({k:"SE O OBJETIVO É ÓLEO",v:melhorOleo.TC.n+"   ·   "+v(melhorOleo.rOleo,1)+" % de rendimento em óleo"+(melhorOleo.rOleo<0.5?"   —  nenhuma concepção recupera óleo sem o condensador selecionado no tratamento de gases":""),hi:true});
+  OUT.push({k:"SE O OBJETIVO É ENERGIA TOTAL RECUPERADA",v:melhorEn.TC.n+"   ·   "+v(melhorEn.eSolT+melhorEn.eOleoT+melhorEn.eGasT,0)+" MJ por tonelada seca",hi:true});
+  OUT.push({k:"O que a comparação mostra",v:"A eficiência de transferência energética e a recuperação de condensáveis puxam em direções opostas. A rosca helicoidal tem a pior transferência (42 %) e a melhor recuperação (90 %), porque aquecer pela parede é ineficiente mas mantém o gás de pirólise puro. Já o leito móvel tem a melhor transferência (70 %) e recuperação intermediária, porque o gás de pirólise sai misturado ao gás de combustão. Não existe concepção boa em tudo: existe concepção certa para o produto que se quer vender."});
 
   /* ---------------------------------------------------------------- 6 */
-  OUT.push({sec:"6 · Carvão produzido"});
-  OUT.push({k:"CARBONO FIXO",v:v(A.CF,1)+" %   ·   exigido "+v(A.CFmeta,0)+" %   ·   "+st(A.cfOK),hi:!A.cfOK});
-  OUT.push({k:"Análise imediata",v:"carbono fixo "+v(A.CF,1)+" %   ·   materiais voláteis "+v(A.MV,1)+" %   ·   cinzas "+v(A.cinzC,1)+" %   ·   PCI "+v(A.PCIcarv,1)+" MJ/kg"});
-  OUT.push({k:"O compromisso da temperatura",v:"Subir a temperatura final aumenta o carbono fixo e reduz o rendimento — as duas coisas ao mesmo tempo, sempre. A "+v(A.Tcarb,0)+" °C o carvão sai com "+v(A.CF,1)+" % de carbono fixo e "+v(B.RGb*100,1)+" % de rendimento teórico. Cem graus a mais dariam cerca de "+v(cbInterp(CB_T,CB_CF,A.Tcarb+100),0)+" % de carbono fixo e "+v(cbInterp(CB_T,CB_RG,A.Tcarb+100),1)+" % de rendimento. Para alto-forno a gusa o que manda é o carbono fixo; para uso doméstico, o rendimento."});
-  OUT.push({k:"Produção física",v:v(A.mdc_h,1)+" mdc/h   ·   "+v(A.mdcDia,0)+" mdc/dia   ·   "+v(A.Pcarv_h*A.hdia*(A.disp/100),1)+" t/dia   ·   energia contida "+v(A.Pcarv_h*1000*A.PCIcarv/3600,0)+" MW térmicos"});
-  OUT.push({k:"Perdas de finos",v:v(A.perdaF,0)+" % entre a descarga e a expedição   =   "+v((A.Pbruto_h-A.Pcarv_h)*A.hMes,0)+" t/mês de finos   —  fração recuperável como briquete ou como injeção, se houver destino"});
+  OUT.push({sec:"6 · Produto sólido"});
+  OUT.push({k:"RENDIMENTO GRAVIMÉTRICO",v:v(B.Sf*100,1)+" % base seca   ·   "+v(A.rendUm,1)+" % sobre a matéria-prima úmida como carregada   ·   partindo de "+v(B.Sb*100,1)+" % teóricos a "+v(A.Tcarb,0)+" °C"+(A.calcT?"   (temperatura adotada pela família)":""),hi:true});
+  OUT.push({k:"CONSUMO ESPECÍFICO",v:v(A.consEsp,2)+" t de matéria-prima úmida por t de produto   ·   "+v(A.consSt,2)+" "+UV+" por t",hi:true});
+  OUT.push({k:"CARBONO FIXO",v:v(A.CF,1)+" %   ·   exigido "+v(A.CFmeta,0)+" %"+(A.calcCF?" (adotado pela família)":"")+"   ·   "+st(A.cfOK),hi:!A.cfOK});
+  OUT.push({k:"Análise imediata",v:"carbono fixo "+v(A.CF,1)+" %   ·   materiais voláteis "+v(A.MV,1)+" %   ·   CINZAS "+v(A.cinzS,1)+" %   ·   PCI "+v(A.PCIcarv,1)+" MJ/kg"});
+  OUT.push({k:"De onde vêm as cinzas do produto",v:"As "+v(MD.cinz,2)+" % de cinzas da matéria-prima não se decompõem: ficam integralmente no sólido, que é apenas "+v(B.Sf*100,1)+" % da massa. É essa concentração que leva a "+v(A.cinzS,1)+" % de cinzas no produto. Cinza não é impureza de processo, é aritmética — só se reduz reduzindo a cinza da entrada."});
+  OUT.push({k:"O compromisso da temperatura",v:"Subir a temperatura final aumenta o carbono fixo e reduz o rendimento, sempre as duas coisas juntas. A "+v(A.Tcarb,0)+" °C o sólido sai com "+v(A.CF,1)+" % de carbono fixo e "+v(B.Sb*100,1)+" % de rendimento teórico. Cem graus a mais dariam cerca de "+v(cbInterp(F.T,F.S,A.Tcarb+100),1)+" % de rendimento, com mais gás e menos óleo."});
+  OUT.push({k:"Produção física",v:v(A.mdc_h,1)+" "+F.unSol+"/h   ·   "+v(A.mdcDia,0)+" "+F.unSol+"/dia   ·   "+v(A.Pcarv_h*A.hdia*(A.disp/100),1)+" t/dia   ·   energia contida "+v(A.Pcarv_h*1000*A.PCIcarv/3600,1)+" MW térmicos"});
+  OUT.push({k:"Perdas de finos",v:v(A.perdaF,0)+" % entre a descarga e a expedição   =   "+v((A.Pbruto_h-A.Pcarv_h)*A.hMes,0)+" t/mês"});
 
   /* ---------------------------------------------------------------- 7 */
-  OUT.push({sec:"7 · Vazões de madeira"});
-  OUT.push({k:"MADEIRA SECA",v:v(A.mSec_h,2)+" t/h   ·   "+v(A.mSec_h*A.hMes,0)+" t/mês"});
-  OUT.push({k:"MADEIRA ÚMIDA como carregada",v:v(A.mUm_h,2)+" t/h   ·   "+v(A.mUm_h*A.hMes,0)+" t/mês   ·   "+v(A.mUm_h*A.hMes*12/1000,1)+" mil t/ano",hi:true});
-  OUT.push({k:"VOLUME",v:v(A.Vsol_h,2)+" m³ sólidos/h   ·   "+v(A.Vst_h,2)+" estéreos/h   ·   "+v(A.stDia,0)+" estéreos/dia   ·   "+v(A.Vst_h*A.hMes,0)+" estéreos/mês",hi:true});
-  OUT.push({k:"Recebimento",v:v(A.cargasDia,1)+" caminhões de 25 t por dia de madeira   ·   "+v(A.cargasCarv,1)+" carretas de 14 t por dia de carvão expedido"});
+  OUT.push({sec:"7 · Vazões"});
+  OUT.push({k:"MATÉRIA-PRIMA SECA",v:v(A.mSec_h,2)+" t/h   ·   "+v(A.mSec_h*A.hMes,0)+" t/mês"});
+  OUT.push({k:"MATÉRIA-PRIMA ÚMIDA como carregada",v:v(A.mUm_h,2)+" t/h   ·   "+v(A.mUm_h*A.hMes,0)+" t/mês   ·   "+v(A.mUm_h*A.hMes*12/1000,1)+" mil t/ano",hi:true});
+  OUT.push({k:"VOLUME",v:v(A.Vst_h,2)+" "+UV+"/h   ·   "+v(A.stDia,0)+" "+UV+"/dia   ·   "+v(A.Vst_h*A.hMes,0)+" "+UV+"/mês",hi:true});
+  if(A.cond) OUT.push({k:"COPRODUTOS",v:"óleo "+v(A.mOleo_h,2)+" t/h   ·   gás "+v(A.mGas_h,2)+" t/h   ·   água condensada "+v(A.mAgCond_h,2)+" t/h",hi:true});
+  OUT.push({k:"Movimentação",v:v(A.cargasDia,1)+" caminhões de 25 t por dia na entrada   ·   "+v(A.cargasCarv,1)+" carretas de 14 t por dia na expedição"});
 
   /* ---------------------------------------------------------------- 8 */
   OUT.push({sec:"8 · Dimensionamento do reator"});
   if(R.tipo==="bat"){
     OUT.push({k:"Regime",v:"Batelada   ·   "+TC.n});
-    OUT.push({k:"CICLO",v:v(R.tCarb,0)+" h de carbonização   +   "+v(R.tResf,0)+" h de resfriamento   +   "+v(R.tOper,0)+" h de carga e descarga   =   "+v(R.tCiclo,0)+" h   =   "+v(R.tCiclo/24,2)+" dias   ·   "+v(24/R.tCiclo,3)+" ciclos por dia por forno",hi:true});
-    OUT.push({k:"Por que o resfriamento pesa tanto",v:"O resfriamento responde por "+v(R.tResf/R.tCiclo*100,0)+" % do ciclo e não produz nada. Em alvenaria ele é imposto pela inércia térmica de dezenas de toneladas de tijolo; no container metálico ele é resolvido tirando o vaso da linha e deixando-o esfriar fora, que é a razão pela qual o ciclo cai de dias para horas."});
-    OUT.push({k:"CARGA POR FORNO",v:v(R.Vf,1)+" estéreos úteis   =   "+v(R.cargaSec,2)+" t de madeira seca   →   "+v(R.carvForno,2)+" t de carvão por batelada   =   "+v(R.carvForno*1000/A.dCarvG,1)+" mdc",hi:true});
+    OUT.push({k:"CICLO",v:v(R.tCarb,0)+" h de carbonização   +   "+v(R.tResf,0)+" h de resfriamento   +   "+v(R.tOper,0)+" h de carga e descarga   =   "+v(R.tCiclo,0)+" h   =   "+v(R.tCiclo/24,2)+" dias",hi:true});
+    OUT.push({k:"Por que o resfriamento pesa tanto",v:"O resfriamento responde por "+v(R.tResf/R.tCiclo*100,0)+" % do ciclo e não produz nada. Em alvenaria ele é imposto pela inércia térmica do tijolo; no container metálico é resolvido tirando o vaso da linha, que é a razão de o ciclo cair de dias para horas."});
+    OUT.push({k:"CARGA POR FORNO",v:v(R.Vf,1)+" "+UV+" úteis   =   "+v(R.cargaSec,2)+" t secas   →   "+v(R.carvForno,2)+" t de produto por batelada",hi:true});
     if(R.dim.forma==="retang"){
-      OUT.push({k:"DIMENSÕES INTERNAS",v:v(R.dim.L,2)+" m de comprimento   ×   "+v(R.dim.W,2)+" m de largura   ×   "+v(R.dim.H,2)+" m de altura útil   =   "+v(R.dim.V,1)+" m³ internos",hi:true});
+      OUT.push({k:"DIMENSÕES INTERNAS",v:v(R.dim.L,2)+" m   ×   "+v(R.dim.W,2)+" m   ×   "+v(R.dim.H,2)+" m de altura útil   =   "+v(R.dim.V,1)+" m³",hi:true});
     } else if(R.dim.forma==="cilind"){
-      OUT.push({k:"DIMENSÕES INTERNAS",v:"Ø "+v(R.dim.D,2)+" m   ×   "+v(R.dim.H,2)+" m de altura útil   =   "+v(R.dim.V,1)+" m³ internos",hi:true});
+      OUT.push({k:"DIMENSÕES INTERNAS",v:"Ø "+v(R.dim.D,2)+" m   ×   "+v(R.dim.H,2)+" m de altura útil   =   "+v(R.dim.V,1)+" m³",hi:true});
     } else {
-      OUT.push({k:"DIMENSÕES INTERNAS",v:"Ø "+v(R.dim.D,2)+" m na base   ×   "+v(R.dim.H,2)+" m de altura da cúpula   =   "+v(R.dim.V,1)+" m³ internos",hi:true});
+      OUT.push({k:"DIMENSÕES INTERNAS",v:"Ø "+v(R.dim.D,2)+" m na base   ×   "+v(R.dim.H,2)+" m de cúpula   =   "+v(R.dim.V,1)+" m³",hi:true});
     }
-    OUT.push({k:"NÚMERO DE FORNOS",v:v(R.N,0)+" unidades   ·   exigidos "+v(R.Ncalc,2)+" pelo cálculo   ·   ocupação de "+v(R.ocup,0)+" % do parque   ·   "+st(R.ocup<=100),hi:true});
-    OUT.push({k:"Bateria",v:"A operação em bateria é o que torna a batelada aceitável: com "+v(R.N,0)+" fornos defasados no ciclo, a planta enxerga uma produção contínua de "+v(A.Pcarv_h,2)+" t/h mesmo que cada forno entregue "+v(R.carvForno,2)+" t a cada "+v(R.tCiclo/24,1)+" dias. O escalonamento da carga é uma decisão de operação, não de projeto, mas é ela que define a suavidade da alimentação da fornalha."});
+    OUT.push({k:"NÚMERO DE FORNOS",v:v(R.N,0)+" unidades   ·   exigidos "+v(R.Ncalc,2)+" pelo cálculo   ·   ocupação de "+v(R.ocup,0)+" %   ·   "+st(R.ocup<=100),hi:true});
   } else {
     OUT.push({k:"Regime",v:"Contínuo   ·   "+TC.n});
-    OUT.push({k:"TEMPO DE RESIDÊNCIA",v:v(R.tRes,2)+" h   ·   grau de enchimento "+v(R.ench,0)+" %   ·   relação L/D "+v(R.LD,1),hi:true});
+    OUT.push({k:"TEMPO DE RESIDÊNCIA",v:v(isFinite(R.tResReal)?R.tResReal:R.tRes,2)+" h"+((isFinite(R.tResReal)&&Math.abs(R.tResReal-R.tRes)>0.01)?"   (o mínimo de processo é "+v(R.tRes,2)+" h)":"")+"   ·   grau de enchimento "+v(R.ench,0)+" %   ·   relação L/D "+v(R.LD,1),hi:true});
     OUT.push({k:"VOLUME DO REATOR",v:v(R.V,1)+" m³ por linha   ·   "+v(R.N,0)+" linha(s) em paralelo   ·   "+v(R.V*R.N,1)+" m³ totais",hi:true});
-    OUT.push({k:"DIMENSÕES",v:"Ø "+v(R.D,2)+" m   ×   "+v(R.L,2)+" m   ·   carga de "+v(R.Vst_lin,2)+" estéreos por hora por linha",hi:true});
+    if(R.forma==="rosca") OUT.push({k:"Área de parede por linha",v:v(R.Aum,1)+" m² efetivos   ·   "+v(R.N,0)+" linhas   =   "+v(R.Adisp,0)+" m² instalados"});
+    OUT.push({k:"DIMENSÕES",v:"Ø "+v(R.D,2)+" m   ×   "+v(R.L,2)+" m   ·   "+v(R.Vst_lin,2)+" "+UV+"/h por linha",hi:true});
     if(TC.forma==="rot"){
-      OUT.push({k:"Rotação e inclinação",v:v(R.rpm,2)+" rpm   ·   inclinação "+v(R.incl,1)+" %   —  pela equação de transporte de Sullivan, t = 0,19·L/(n·D·S), que amarra tempo de residência, geometria e rotação"});
+      OUT.push({k:"Rotação e inclinação",v:v(R.rpm,2)+" rpm   ·   inclinação "+v(R.incl,1)+" %   —  pela equação de transporte de Sullivan, t = 0,19·L/(n·D·S)"});
       OUT.push({k:"Acionamento do tambor",v:"torque estimado "+v(R.Tacion,1)+" kN·m   ·   potência "+v(R.Pacion,1)+" kW   ·   "+txtAciona(R.acion)});
-      OUT.push({k:"Vedação das extremidades",v:"É o ponto crítico do rotativo. O tambor gira, as caixas de entrada e saída não, e entre eles há uma fresta por onde entra ar. Ar entrando em atmosfera de pirólise queima carvão e derruba o rendimento silenciosamente. Vedação de sobreposição com lamelas e leve pressão positiva interna."});
+      OUT.push({k:"Vedação das extremidades",v:"É o ponto crítico do rotativo. O tambor gira, as caixas não, e entre eles entra ar. Ar em atmosfera de pirólise queima produto e derruba o rendimento silenciosamente — e com matéria-prima de alto poder calorífico, como pneu, cria risco de deflagração."});
     }
     if(TC.forma==="rosca"){
       OUT.push({k:"Rotação da rosca",v:v(R.rpm,2)+" rpm   ·   passo igual ao diâmetro   ·   "+txtAciona(R.acion)});
-      OUT.push({k:"ÁREA DE TROCA TÉRMICA",v:v(R.Adisp,0)+" m² disponíveis contra "+v(R.Anec,0)+" m² exigidos   ·   U = "+v(R.Upar,0)+" W/m²·K   ·   ΔT log-médio "+v(R.dTml,0)+" K com parede a "+v(R.Tpar,0)+" °C   ·   "+st(R.areaOK),hi:!R.areaOK});
-      OUT.push({k:"FLUXO TÉRMICO ESPECÍFICO",v:v(R.fluxo,1)+" kW/m²   ·   carga térmica de "+v(R.Qter,0)+" kW sobre "+v(R.Adisp,0)+" m² de parede efetivamente em contato ("+v(R.fCont*100,0)+" % da circunferência, somando eixo e hélices aquecidos)   ·   a faixa praticável é de 5 a 15 kW/m² e é ela, não o volume, que define o tamanho de um reator indireto",hi:true});
-      OUT.push({k:"Por que a rosca não escala",v:"No aquecimento indireto todo o calor entra por área de parede. A capacidade cresce com o volume, ou seja com D³, mas a área cresce com D². Dobrar a capacidade de uma rosca não se resolve dobrando o diâmetro — resolve-se multiplicando as linhas. É por isso que reatores de rosca são a escolha certa para dezenas de quilos por hora e a escolha errada para dezenas de toneladas."+(R.areaOK?"":" Neste caso a área já não fecha: são necessárias mais linhas, camisa no eixo e nas hélices, ou aceitar tempo de residência maior.")});
+      OUT.push({k:"ÁREA DE TROCA TÉRMICA",v:v(R.Adisp,0)+" m² disponíveis contra "+v(R.Anec,0)+" m² exigidos   ·   U = "+v(R.Upar,0)+" W/m²·K   ·   ΔT log-médio "+v(R.dTml,0)+" K   ·   "+st(R.areaOK),hi:!R.areaOK});
+      OUT.push({k:"FLUXO TÉRMICO ESPECÍFICO",v:v(R.fluxo,1)+" kW/m²   ·   carga de "+v(R.Qter,0)+" kW sobre "+v(R.Adisp,0)+" m² efetivos   ·   a faixa praticável é de 5 a 15 kW/m², e é ela, não o volume, que define o tamanho de um reator indireto",hi:true});
+      if(R.govArea) OUT.push({k:"QUEM DIMENSIONOU O REATOR",v:"A ÁREA, não o volume. O tempo de residência exigiria "+v(R.nLinVol,0)+" linha(s); a troca de calor exige "+v(R.N,0)+". As linhas adicionais não estão ali para dar tempo — estão ali para dar parede. Como consequência o tempo de residência real sobe para "+v(R.tResReal,2)+" h, o que não prejudica o produto mas aumenta o inventário quente do reator."+(R.capArea?"   ⚠ Mesmo com o limite de 40 linhas a área não fecha: nesta escala a rosca deixou de ser a concepção adequada.":""),hi:true});
+      OUT.push({k:"Por que a rosca é a escolha da pirólise com recuperação",v:"O calor entra pela parede e o gás de pirólise nunca encontra gás de combustão. Sai puro, concentrado e condensável — daí os "+v(TC.fRecup*100,0)+" % de recuperação. O preço é que a capacidade cresce com D³ e a área com D², de modo que dobrar a produção se resolve multiplicando linhas, não aumentando o diâmetro."});
     }
     if(TC.forma==="vert"){
-      OUT.push({k:"Escoamento do leito",v:"O sólido desce por gravidade e o gás sobe em contracorrente. O risco é a canalização: se a granulometria for dispersa, o gás encontra caminho preferencial e uma parte da carga sai crua enquanto outra queima. Uniformidade de tamanho vale mais aqui do que em qualquer outra concepção."});
-      OUT.push({k:"Fluxo mássico",v:v(A.mUm_h*1000/(Math.PI/4*R.D*R.D)/R.N,0)+" kg/m²·h de madeira úmida na seção   ·   faixa usual de 150 a 400 kg/m²·h"});
+      OUT.push({k:"Escoamento do leito",v:"O sólido desce por gravidade e o gás sobe em contracorrente. O risco é a canalização: com granulometria dispersa o gás abre caminho preferencial e uma parte da carga sai crua enquanto outra queima."});
+      OUT.push({k:"Fluxo mássico",v:v(A.mUm_h*1000/(Math.PI/4*R.D*R.D)/R.N,0)+" kg/m²·h na seção   ·   faixa usual de 150 a 400 kg/m²·h"});
     }
   }
 
   /* ---------------------------------------------------------------- 9 */
-  OUT.push({sec:"9 · Gás de carbonização e fornalha"});
-  OUT.push({k:"VAZÃO DO GÁS DE CARBONIZAÇÃO",v:v(A.mStr_h/1000,2)+" t/h   =   "+v(A.mStr_h,0)+" kg/h   ·   "+v(A.mStr_h/(353/(A.Tgas+273.15))/3600,2)+" m³/s a "+v(A.Tgas,0)+" °C",hi:true});
-  OUT.push({k:"PODER CALORÍFICO DO GÁS",v:v(A.PCIstrMJ,2)+" MJ/kg   ·   teor de água "+v(B.fH2Ostr*100,0)+" % em massa   ·   "+(A.queimaOK?"queima estável sem apoio":"⚠ ABAIXO DO LIMITE PRÁTICO — exige piloto permanente ou combustível auxiliar"),hi:!A.queimaOK});
-  if(!A.queimaOK){
-    OUT.push({k:"Por que este gás não queima sozinho",v:"Um gás com "+v(B.fH2Ostr*100,0)+" % de água e PCI de "+v(A.PCIstrMJ,2)+" MJ/kg está próximo do limite de inflamabilidade. A água não participa da combustão, mas absorve calor e derruba a temperatura de chama. O caminho não é um queimador maior: é secar a madeira. Baixar a umidade de entrada de "+v(A.Uusa,0)+" % para 25 % elevaria o PCI do gás e resolveria o problema na origem."});
-  }
-  if(A.temForn&&A.PCIstrMJ<=0.2){
-    OUT.push({k:"NÃO HÁ CORRENTE COMBUSTÍVEL PARA QUEIMAR",v:"Nesta concepção os voláteis já são consumidos dentro do próprio forno para fechar o balanço térmico, e o que sai é gás de combustão diluído, não combustível. Uma fornalha a jusante não tem o que queimar: o que existe é uma câmara de pós-combustão do monóxido residual e da fumaça, dimensionada por tempo de residência e alimentada por ar e por combustível de apoio. Os números abaixo devem ser lidos nesse sentido",hi:true});
-  }
-  if(A.temForn){
-    OUT.push({k:"Calor liberado na fornalha",v:v(A.Qlib,0)+" kW   =   "+v(A.Qlib/1000,2)+" MW térmicos"+(A.PCIstrMJ<=0.2?"   —  nulo: a corrente não é combustível":"")});
-    OUT.push({k:"Ar de combustão",v:v(A.mAr,2)+" t/h   ·   excesso de "+v(A.exAr,0)+" %   ·   gás de combustão resultante "+v(A.mFlue_h/1000,2)+" t/h com "+v(A.fH2Oflue*100,0)+" % de água"});
-    OUT.push({k:"TEMPERATURA ADIABÁTICA DE CHAMA",v:v(A.Tad,0)+" °C   ·   mínimo de 850 °C para destruição de alcatrão e monóxido   ·   "+st(A.camOK),hi:!A.camOK});
-    OUT.push({k:"CÂMARA DE COMBUSTÃO",v:v(A.Vcam,1)+" m³   ·   Ø "+v(A.Dcam,2)+" m   ×   "+v(A.Lcam,2)+" m   ·   governada por "+A.govCam,hi:true});
-    OUT.push({k:"Os dois critérios da câmara",v:"Por taxa de liberação volumétrica de "+v(A.taxaLib,0)+" kW/m³ seriam "+v(A.Vcam1,1)+" m³. Por tempo de residência de "+v(A.tResC,1)+" s a "+v(A.Tcam,0)+" °C seriam "+v(A.Vcam2,1)+" m³. Vale o maior. O tempo de residência é o critério que realmente destrói alcatrão — a taxa de liberação apenas garante que a câmara não seja um maçarico."});
-    OUT.push({k:"CHAMINÉ",v:"Ø "+v(A.Dcham,2)+" m   ×   "+v(A.Hch,0)+" m de altura   ·   velocidade "+v(A.vCham,1)+" m/s   ·   saída a "+v(A.Tsai,0)+" °C   ·   vazão "+v(A.mFlue_h/(353/(A.Tsai+273.15))/3600,2)+" m³/s",hi:true});
-    OUT.push({k:"Tiragem natural",v:v(A.tiragem,0)+" Pa disponíveis contra "+v(A.dPsist,0)+" Pa de perda do circuito   ·   "+st(A.tiraOK)+(A.tiraOK?"   —  dispensa exaustor":"   —  prever exaustor de tiragem induzida"),hi:!A.tiraOK});
-    OUT.push({k:"Calor recuperável para a secagem",v:v(A.Qsens,0)+" kW resfriando o gás de "+v(A.Tsai,0)+" °C até 120 °C   ·   evaporaria "+v(A.aguaSec,2)+" t/h de água   ·   equivalente a pré-secar "+v(A.madSec,1)+" t/h de madeira"+(A.recup?"   ·   PREVISTO NO ARRANJO":"   ·   não previsto no arranjo escolhido")});
-  } else {
-    OUT.push({k:"SEM TRATAMENTO DOS GASES",v:"Os voláteis são lançados diretamente na atmosfera. Além de ser a maior perda energética do processo, é o que caracteriza a fumaça densa dos carvoejamentos tradicionais e o que impede o licenciamento em praticamente qualquer jurisdição",hi:true});
+  if(A.cond){
+    OUT.push({sec:"9 · Condensador dos gases de pirólise"});
+    OUT.push({k:"O que entra no trem de condensação",v:v(CD.mTot_h/1000,2)+" t/h a "+v(CD.Tin,0)+" °C   ·   "+v(CD.mOl_h,0)+" kg/h de "+OLE+"   ·   "+v(CD.mAg_h,0)+" kg/h de água   ·   "+v(CD.mG_h,0)+" kg/h de gás não condensável",hi:true});
+    OUT.push({k:"Ponto de orvalho da água",v:v(CD.TorvAg,1)+" °C   ·   pressão parcial de "+v(CD.pAg,1)+" kPa na corrente   —  abaixo desta temperatura a água condensa junto com a fração leve e forma o licor ácido"});
+    OUT.push({k:"Por que condensar em estágios e não de uma vez",v:"Cada fração do óleo tem sua faixa de orvalho. Se tudo for resfriado de uma só vez até 40 °C, o piche condensa no primeiro trecho frio e entope o feixe, e as frações leve e pesada se misturam num produto de baixo valor. Condensar por estágios entrega frações separadas e mantém o equipamento limpo — a fração pesada sai enquanto ainda escorre."});
+    for(var ix=0;ix<CD.est.length;ix++){
+      var E=CD.est[ix];
+      OUT.push({k:"ESTÁGIO "+(ix+1)+" — "+E.n,
+        v:"de "+v(E.Tent,0)+" para "+v(E.Tsai,0)+" °C   ·   orvalho da fração "+v(E.Torv,0)+" °C   ·   condensa "+v(E.mOleo,0)+" kg/h de óleo"+(E.mAgua>0?" e "+v(E.mAgua,0)+" kg/h de água":"")+"   ·   carga "+v(E.Q,0)+" kW   ·   U "+v(E.U,0)+" W/m²·K   ·   ΔT log-médio "+v(E.lm,1)+" K   ·   ÁREA "+v(E.A,1)+" m²   ·   água de resfriamento "+v(E.mw,1)+" t/h",hi:true});
+      OUT.push({k:"   O que este estágio resolve",v:E.d});
+    }
+    OUT.push({k:"TOTAL DO TREM",v:"carga térmica "+v(CD.Qtot,0)+" kW   ·   área de troca "+v(CD.Atot,1)+" m²   ·   água de resfriamento "+v(CD.mw,1)+" t/h a "+v(CD.Tagua,0)+" °C com ΔT de "+v(CD.dTagua,0)+" K",hi:true});
+    OUT.push({k:"Torre de resfriamento necessária",v:v(CD.Qtot,0)+" kW rejeitados   =   "+v(CD.Qtot/3.517,0)+" TR   ·   evaporação de "+v(CD.Qtot*3600/2400/1000,1)+" t/h de água na torre   ·   reposição com purga a 3 ciclos: "+v(CD.Qtot*3600/2400/1000*1.5,1)+" t/h"});
+    OUT.push({k:"PRODUÇÃO DE "+OLE.toUpperCase(),v:v(CD.mOl_h,0)+" kg/h   =   "+v(CD.oleoDia,1)+" t/dia   =   "+v(CD.oleoMes,0)+" t/mês   ·   PCI "+v(B.pciO,1)+" MJ/kg   ·   "+v(CD.energiaOleo,1)+" MWh/h de energia recuperada",hi:true});
+    OUT.push({k:"ARMAZENAGEM",v:"tanque de "+v(CD.Vtq,1)+" m³ para "+v(CD.estArm,0)+" dias   ·   Ø "+v(CD.Dtq,2)+" m × "+v(CD.Htq,2)+" m   ·   massa específica do óleo "+v(CD.rhoOleo,2)+" kg/L",hi:true});
+    OUT.push({k:"Cuidados do tanque",v:"Óleo de pirólise é instável: polimeriza com o tempo e com o calor, e a viscosidade sobe. Tanque com aquecimento moderado (40 a 60 °C), recirculação, respiro com selo e inertização com nitrogênio quando o ponto de fulgor for baixo. Aço carbono só resiste se o óleo não for ácido — para licor pirolenhoso de biomassa, com pH entre 2 e 3, é aço inoxidável ou revestimento."});
+    OUT.push({k:"Licor ácido a tratar",v:v(CD.licor,0)+" kg/h de fase aquosa   ·   fenóis, ácido acético e metanol   —  ou é separado e valorizado como extrato pirolenhoso, ou volta para a fornalha, ou vai para tratamento. Não é água de processo e não pode ir para o solo"});
+    OUT.push({k:"O gás que sobra",v:v(A.mStr_h,0)+" kg/h com PCI de "+v(A.PCIstrMJ,2)+" MJ/kg   ·   "+(A.queimaOK?"queima estável e é o que aquece o reator":"⚠ POBRE DEMAIS — exige piloto permanente ou combustível auxiliar")});
   }
 
   /* ---------------------------------------------------------------- 10 */
-  OUT.push({sec:"10 · Emissões"});
-  OUT.push({k:"Metano nos voláteis",v:v(A.mCH4,0)+" kg/h   ·   monóxido de carbono "+v(A.mCOg,0)+" kg/h   ·   alcatrão "+v(A.mAlc_h,0)+" kg/h"});
-  OUT.push({k:"Fração dos voláteis emitida como fumaça",v:v(A.fumaca,0)+" %   ·   é o complemento do aproveitamento de "+v(TC.fAprov*100,0)+" % desta concepção"});
-  if(A.temForn){
-    OUT.push({k:"EMISSÃO EVITADA PELA QUEIMA",v:v(A.evit,0)+" t CO₂-equivalente por ano   =   "+v(A.evitEsp,2)+" t por t de carvão   ·   conta apenas o metano efetivamente capturado ("+v(TC.fAprov*100,0)+" % dos voláteis), com potencial de aquecimento 28 vezes o do dióxido de carbono em cem anos",hi:true});
-    OUT.push({k:"O que isso significa em projeto",v:"A fornalha não é um item ambiental acessório: ela recupera energia e evita emissão ao mesmo tempo. O metano da carbonização é o gás de efeito estufa mais relevante da cadeia do carvão vegetal, e queimá-lo converte cada quilo em cerca de 2,75 kg de CO₂ — vinte e oito vezes menos impacto do que deixá-lo escapar."});
+  OUT.push({sec:(A.cond?"10":"9")+" · Fornalha e chaminé"});
+  if(!A.cond){
+    OUT.push({k:"VAZÃO DA CORRENTE GASOSA",v:v(A.mStr_h/1000,2)+" t/h   =   "+v(A.mStr_h,0)+" kg/h   ·   "+v(A.mStr_h/(353/(A.Tgas+273.15))/3600,2)+" m³/s a "+v(A.Tgas,0)+" °C",hi:true});
+    OUT.push({k:"PODER CALORÍFICO",v:v(A.PCIstrMJ,2)+" MJ/kg   ·   teor de água "+v(B.fH2Oinc*100,0)+" % em massa   ·   "+(A.queimaOK?"queima estável sem apoio":"⚠ ABAIXO DO LIMITE PRÁTICO — exige piloto permanente ou combustível auxiliar"),hi:!A.queimaOK});
+    if(!A.queimaOK) OUT.push({k:"Por que esta corrente não queima sozinha",v:"Com "+v(B.fH2Oinc*100,0)+" % de água e PCI de "+v(A.PCIstrMJ,2)+" MJ/kg ela está no limite de inflamabilidade. A água não participa da combustão, só absorve calor e derruba a temperatura de chama. O caminho não é um queimador maior: é secar a matéria-prima antes, no secador a montante."});
   }
-  OUT.push({k:"Efluente líquido",v:"O licor pirolenhoso condensado é ácido, com pH entre 2 e 3, e carrega fenóis. Onde há condensação — retorta, rotativo, rosca — ele precisa de destino: recuperação como extrato pirolenhoso, queima na própria fornalha ou tratamento. Não é água de chuva e não pode ir para o solo."});
+  if(A.temForn){
+    if(A.PCIstrMJ<=0.2) OUT.push({k:"NÃO HÁ CORRENTE COMBUSTÍVEL",v:"Nesta concepção os voláteis já são consumidos dentro do próprio forno. O que existe a jusante é uma câmara de pós-combustão do monóxido residual e da fumaça, alimentada por ar e combustível de apoio",hi:true});
+    OUT.push({k:"Calor liberado na fornalha",v:v(A.Qlib,0)+" kW   =   "+v(A.Qlib/1000,2)+" MW térmicos"});
+    OUT.push({k:"Ar de combustão",v:v(A.mAr,2)+" t/h   ·   excesso de "+v(A.exAr,0)+" %   ·   gás de combustão "+v(A.mFlue_h/1000,2)+" t/h com "+v(A.fH2Oflue*100,0)+" % de água"});
+    OUT.push({k:"TEMPERATURA ADIABÁTICA DE CHAMA",v:v(A.Tad,0)+" °C   ·   mínimo de "+(MD.fam==="rsu"?"1.100 °C, exigido pela presença de cloro":"850 °C")+"   ·   "+st(A.camOK),hi:!A.camOK});
+    OUT.push({k:"CÂMARA DE COMBUSTÃO",v:v(A.Vcam,1)+" m³   ·   Ø "+v(A.Dcam,2)+" m   ×   "+v(A.Lcam,2)+" m   ·   governada por "+A.govCam,hi:true});
+    OUT.push({k:"Os dois critérios da câmara",v:"Por taxa de liberação de "+v(A.taxaLib,0)+" kW/m³ seriam "+v(A.Vcam1,1)+" m³. Por tempo de residência de "+v(A.tResC,1)+" s a "+v(A.Tcam,0)+" °C seriam "+v(A.Vcam2,1)+" m³. Vale o maior. O tempo de residência é o critério que destrói alcatrão e dioxina; a taxa de liberação só garante que a câmara não seja um maçarico."});
+    OUT.push({k:"CHAMINÉ",v:"Ø "+v(A.Dcham,2)+" m   ×   "+v(A.Hch,0)+" m   ·   velocidade "+v(A.vCham,1)+" m/s   ·   saída a "+v(A.Tsai,0)+" °C",hi:true});
+    OUT.push({k:"Tiragem natural",v:v(A.tiragem,0)+" Pa disponíveis contra "+v(A.dPsist,0)+" Pa de perda   ·   "+st(A.tiraOK)+(A.tiraOK?"   —  dispensa exaustor":"   —  prever exaustor de tiragem induzida"),hi:!A.tiraOK});
+    OUT.push({k:"Calor recuperável para a secagem",v:v(A.Qsens,0)+" kW resfriando o gás de "+v(A.Tsai,0)+" °C até 120 °C   ·   evaporaria "+v(A.aguaSec,2)+" t/h de água   —  é exatamente o calor que alimenta o secador rotativo a montante"+(A.recup?"   ·   PREVISTO NO ARRANJO":"")});
+  } else {
+    OUT.push({k:"SEM TRATAMENTO DOS GASES",v:"Os voláteis vão direto para a atmosfera. É a maior perda energética do processo e o que impede o licenciamento em qualquer jurisdição",hi:true});
+  }
 
   /* ---------------------------------------------------------------- 11 */
-  OUT.push({sec:"11 · Pátio, estoques e movimentação"});
-  OUT.push({k:"ESTOQUE DE MADEIRA",v:v(A.estM,0)+" dias   ·   "+v(A.Vpat,0)+" estéreos em pátio   ·   pilhas de "+v(A.Hpil,1)+" m   ·   ÁREA "+v(A.Apat,0)+" m²",hi:true});
-  OUT.push({k:"Por que o estoque é grande",v:"O estoque de madeira não é estoque de segurança: é o tempo de secagem transformado em área. Com "+v(A.Tsec,0)+" dias de secagem ao ar, o pátio precisa conter "+v(A.Tsec,0)+" dias de consumo, e é isso que define a área — não a logística de entrega."});
-  OUT.push({k:"ESTOQUE DE CARVÃO",v:v(A.estCar,0)+" dias   ·   "+v(A.mdcDia*A.estCar,0)+" mdc   ·   pilhas de "+v(A.HpilC,1)+" m   ·   ÁREA "+v(A.Apatc,0)+" m²",hi:true});
-  OUT.push({k:"Área dos fornos e arruamento",v:v(A.Afornos,0)+" m²   ·   inclui circulação para carga, descarga e combate a incêndio"});
-  OUT.push({k:"ÁREA TOTAL DA PLANTA",v:v(A.Atot,0)+" m²   =   "+v(A.Atot/10000,2)+" ha   ·   fator de ocupação de pátio "+v(A.fOcup,2),hi:true});
-  OUT.push({k:"Carvão recém-produzido é reativo",v:"Carvão descarregado quente reacende sozinho por adsorção de oxigênio. O estoque de "+v(A.estCar,0)+" dias precisa ser segregado por lote e por data, com aceiro e acesso de combate a incêndio em todo o perímetro. Pilha alta e sem ventilação é ponto de ignição, não é otimização de área."});
+  OUT.push({sec:(A.cond?"11":"10")+" · Emissões e contaminantes"});
+  OUT.push({k:"Metano e monóxido nos voláteis",v:v(A.mCH4,0)+" kg/h de CH₄   ·   "+v(A.mCOg,0)+" kg/h de CO   ·   "+v(A.mAlc_h,0)+" kg/h de condensáveis gerados"});
+  if(A.temForn) OUT.push({k:"EMISSÃO EVITADA PELA QUEIMA",v:v(A.evit,0)+" t CO₂-equivalente por ano   =   "+v(A.evitEsp,2)+" t por t de produto   ·   conta apenas o metano efetivamente capturado",hi:true});
+  if(MD.S>=0.5) OUT.push({k:"ENXOFRE",v:v(MD.S,2)+" % na base seca   ·   "+v(A.mS_h,0)+" kg/h   →   até "+v(A.SO2,0)+" kg/h de SO₂ na queima, e H₂S e mercaptanas no gás   —  exige dessulfurização do gás antes do uso e lavagem cáustica ou calcária no exausto. É o principal passivo ambiental da pirólise de pneu, e o que define se o óleo pode ser vendido como combustível",hi:true});
+  if(MD.Cl>=0.3) OUT.push({k:"CLORO",v:v(MD.Cl,2)+" % na base seca   ·   "+v(A.mCl_h,0)+" kg/h   →   até "+v(A.HCl,0)+" kg/h de HCl   —  ataca o condensador e todo o trecho frio, e é o precursor de dioxinas e furanos. Impõe três coisas: câmara a 1.100 °C com 2 s de residência, resfriamento rápido atravessando a janela de 450 a 200 °C, e neutralização alcalina. Materiais do trecho frio em aço inoxidável ou revestidos",hi:true});
+  OUT.push({k:"Fração dos voláteis emitida como fumaça",v:v(A.fumaca,0)+" %   ·   complemento do aproveitamento de "+v(TC.fAprov*100,0)+" % desta concepção"});
+  OUT.push({k:"Efluente líquido",v:"Onde há condensação, o licor é ácido com pH entre 2 e 3 e carrega fenóis. Precisa de destino definido em projeto: recuperação, queima na própria fornalha ou tratamento."});
 
   /* ---------------------------------------------------------------- 12 */
-  OUT.push({sec:"12 · Mão de obra"});
-  OUT.push({k:"Operação dos reatores",v:v(A.opUnid,0)+" operadores por turno   ·   "+v(TC.opUn,2)+" pessoa por unidade nesta concepção   ·   "+v(R.N,0)+" unidades"});
-  OUT.push({k:"Pátio e movimentação",v:v(A.opPatio,0)+" operadores por turno   ·   carga, descarga, empilhamento e expedição"});
-  OUT.push({k:"EQUIPE TOTAL",v:v(A.opTot,0)+" pessoas   ·   "+v(A.opTurno,0)+" por turno   ×   "+v(A.turnos,0)+" turnos   +   2 de manutenção e apoio",hi:true});
-  OUT.push({k:"Produtividade",v:v(A.prodHom,1)+" t de carvão por pessoa por mês"});
-  OUT.push({k:"Segurança do trabalho",v:"Monóxido de carbono é o risco dominante e não tem cheiro. Descarga de forno é espaço confinado quando há entrada, exigindo NR-33, e a atmosfera precisa ser medida antes de cada entrada, não uma vez por turno. Calor radiante na descarga exige rodízio e hidratação, e a NR-15 fixa os limites por índice de bulbo úmido."});
+  OUT.push({sec:(A.cond?"12":"11")+" · Pátio, estoques e movimentação"});
+  OUT.push({k:"ESTOQUE DE MATÉRIA-PRIMA",v:v(A.estMad,0)+" dias   ·   "+v(A.Vpat,0)+" "+UV+"   ·   pilhas de "+v(A.Hpil,1)+" m   ·   ÁREA "+v(A.Apat,0)+" m²",hi:true});
+  OUT.push({k:"ESTOQUE DE PRODUTO",v:v(A.estCar,0)+" dias   ·   "+v(A.mdcDia*A.estCar,0)+" "+F.unSol+"   ·   pilhas de "+v(A.HpilC,1)+" m   ·   ÁREA "+v(A.Apatc,0)+" m²",hi:true});
+  OUT.push({k:"Área do reator e arruamento",v:v(A.Afornos,0)+" m²"+(A.cond?"   ·   área do condensador e tancagem "+v(A.Acond,0)+" m²":"")});
+  OUT.push({k:"ÁREA TOTAL DA PLANTA",v:v(A.Atot,0)+" m²   =   "+v(A.Atot/10000,2)+" ha   ·   fator de ocupação "+v(A.fOcup,2),hi:true});
+  if(MD.fam==="lig") OUT.push({k:"Produto recém-descarregado é reativo",v:"Carvão quente reacende sozinho por adsorção de oxigênio. O estoque precisa ser segregado por lote e por data, com aceiro e acesso de combate a incêndio no perímetro."});
+  if(MD.fam==="pneu") OUT.push({k:"Estocagem de pneu triturado",v:"Pilha de pneu picado é um dos piores incêndios industriais que existem: queima por dentro, não se apaga com água e gera óleo pirolítico que contamina o solo. Pilhas limitadas em volume, separadas por aceiro e com acesso em todo o perímetro, conforme a NBR 12693 e a orientação do corpo de bombeiros local."});
+  if(MD.fam==="rsu") OUT.push({k:"Estocagem de RSU",v:"Matéria-prima biologicamente ativa: fermenta, aquece, gera chorume e odor. O estoque deve ser o menor possível, em área impermeabilizada com coleta de chorume e, de preferência, coberta e sob pressão negativa com tratamento de odor."});
 
   /* ---------------------------------------------------------------- 13 */
-  OUT.push({sec:"13 · Verificações"});
-  for(var iw=0;iw<A.VER.length;iw++){
-    OUT.push({k:A.VER[iw].o,v:A.VER[iw].r+"   ·   "+st(A.VER[iw].ok),hi:!A.VER[iw].ok});
-  }
-  OUT.push({k:"RESULTADO GERAL",v:(A.nRep===0?"APROVADO em todos os "+A.nVer+" itens verificados":"ATENÇÃO — "+A.nRep+" de "+A.nVer+" itens REPROVADOS"),hi:(A.nRep>0)});
+  OUT.push({sec:(A.cond?"13":"12")+" · Mão de obra"});
+  OUT.push({k:"Operação dos reatores",v:v(A.opUnid,0)+" por turno   ·   "+v(TC.opUn,2)+" pessoa por unidade   ·   "+v(R.N,0)+" unidades"});
+  OUT.push({k:"Pátio e movimentação",v:v(A.opPatio,0)+" por turno"});
+  if(A.cond) OUT.push({k:"Condensador e tancagem",v:v(A.opCond,0)+" por turno   ·   operação do trem de condensação, drenagem de frações e expedição de óleo"});
+  OUT.push({k:"EQUIPE TOTAL",v:v(A.opTot,0)+" pessoas   ·   "+v(A.opTurno,0)+" por turno   ×   "+v(A.turnos,0)+" turnos   +   2 de manutenção e apoio",hi:true});
+  OUT.push({k:"Produtividade",v:v(A.prodHom,1)+" t de produto por pessoa por mês"});
+  OUT.push({k:"Segurança do trabalho",v:"Monóxido de carbono é o risco dominante e não tem cheiro. Descarga de reator é espaço confinado quando há entrada, exigindo NR-33 com medição de atmosfera antes de cada entrada. Calor radiante exige rodízio e hidratação pela NR-15."+(A.cond?" O trem de condensação acrescenta risco de inflamáveis: NR-20, classificação de área e detecção de gás.":"")});
 
   /* ---------------------------------------------------------------- 14 */
-  OUT.push({sec:"14 · Normas e limites do cálculo"});
-  OUT.push({k:"Base de cálculo",v:"Rendimento gravimétrico, carbono fixo e partição dos produtos por curvas consolidadas de pirólise lenta de eucalipto contra a temperatura final. Poder calorífico da biomassa pela correlação de Channiwala e Parikh (2002). Balanço térmico por quilo de madeira seca carregada, com a fração de carga queimada obtida do fechamento entre demanda e disponibilidade dos voláteis. Secagem ao ar por aproximação exponencial da umidade de equilíbrio, com constante corrigida pelo diâmetro da tora. Transporte no reator rotativo pela equação de Sullivan. Câmara de combustão pelo maior entre taxa de liberação volumétrica e tempo de residência. Tiragem natural por diferença de massa específica."});
-  OUT.push({k:"Normas",v:"ABNT NBR 6923 para amostragem de carvão vegetal e NBR 8112 para análise imediata; NBR 11179 para densidade a granel; NBR 6922 para carbono fixo. CONAMA 382 e 436 para emissões atmosféricas de fontes fixas. NR-33 para espaço confinado na descarga, NR-15 para exposição ao calor e NR-12 para máquinas. ABNT NBR 8800 e NBR 6118 para estrutura e fundação. ABNT NBR 12693 para o sistema de combate a incêndio do pátio."});
-  OUT.push({k:"Incerteza",v:"O rendimento gravimétrico de campo tem dispersão de ±3 pontos percentuais mesmo com processo controlado, porque densidade básica, umidade real e uniformidade de carga variam de lote para lote. O calor de reação da pirólise, adotado em "+v(Math.abs(A.dHpir),0)+" kJ/kg exotérmico, é reportado na literatura entre 400 e 1.800 kJ/kg e é o parâmetro de maior sensibilidade do balanço térmico. A eficiência de transferência energética de cada concepção é valor consolidado de operação, não medição desta planta."});
-  OUT.push({k:"O que fecharia o dimensionamento",v:"Análise imediata e densidade básica da madeira efetivamente disponível, por NBR 8112 e NBR 11941. Curva real de secagem no clima do local, medida em pilha instrumentada, porque a constante de secagem varia com umidade relativa e ventilação mais do que com o diâmetro. Balanço de massa fechado em um ciclo instrumentado, pesando entrada e saída. E medição do gás de carbonização — vazão, composição e poder calorífico — porque é sobre ele que se dimensiona toda a fornalha."});
+  OUT.push({sec:(A.cond?"14":"13")+" · Verificações"});
+  for(var iw=0;iw<A.VER.length;iw++){
+    OUT.push({k:A.VER[iw].o,v:A.VER[iw].r+"   ·   "+(A.VER[iw].av?"ATENÇÃO":st(A.VER[iw].ok)),hi:!A.VER[iw].ok});
+  }
+  OUT.push({k:"RESULTADO GERAL",v:(A.nRep===0?"APROVADO nos "+(A.nVer-A.nAv)+" itens de projeto verificados":"ATENÇÃO — "+A.nRep+" de "+(A.nVer-A.nAv)+" itens de projeto REPROVADOS")+(A.nAv>0?"   ·   mais "+A.nAv+" alerta(s) de contaminante inerente à matéria-prima, que não reprovam o dimensionamento mas mudam materiais e tratamento de gases":""),hi:(A.nRep>0)});
+
+  /* ---------------------------------------------------------------- 15 */
+  OUT.push({sec:(A.cond?"15":"14")+" · Normas e limites do cálculo"});
+  OUT.push({k:"Base de cálculo",v:"Partição dos produtos, carbono fixo e voláteis por curvas de pirólise lenta específicas de cada família de matéria-prima contra a temperatura final, com as cinzas da entrada concentradas integralmente no sólido. Poder calorífico pela correlação de Channiwala e Parikh (2002). Balanço térmico por quilo de massa seca carregada, com a fração de carga queimada obtida do fechamento entre demanda e disponibilidade. Transporte no reator rotativo pela equação de Sullivan. Verificação de área de troca e de fluxo térmico específico nas concepções indiretas. Condensação em estágios por faixa de orvalho, com carga térmica sensível e latente, área por média logarítmica de temperatura e coeficientes globais de 60 a 350 W/m²·K conforme o regime. Orvalho da água por Magnus-Tetens invertida. Câmara de combustão pelo maior entre taxa de liberação e tempo de residência. Chaminé por tiragem natural."});
+  OUT.push({k:"Normas",v:"ABNT NBR 6922, NBR 6923, NBR 8112 e NBR 11179 para o produto sólido carbonizado; NBR 11941 para densidade básica. CONAMA 316 para tratamento térmico de resíduos e CONAMA 382 e 436 para emissões atmosféricas. ABNT NBR 10004 para classificação de resíduos. NR-33 para espaço confinado, NR-20 para inflamáveis, NR-15 para calor e NR-12 para máquinas. NBR 12693 para combate a incêndio. ASME Seção VIII para os vasos do trem de condensação e TEMA para os trocadores."});
+  OUT.push({k:"Incerteza",v:"As curvas de partição de RSU e de pneu têm dispersão maior que as de biomassa, porque a matéria-prima é heterogênea por definição: uma variação de dez pontos na fração de plástico do RSU muda o rendimento em óleo em cinco pontos. O calor de reação adotado, "+v(Math.abs(A.dHpir),0)+" kJ/kg "+(A.dHpir<0?"exotérmico":"endotérmico")+", é o parâmetro de maior sensibilidade do balanço. A fração recuperável de condensáveis de cada concepção é valor de operação consolidado, não medição desta planta."});
+  OUT.push({k:"O que fecharia o dimensionamento",v:"Caracterização da matéria-prima efetivamente disponível: análise imediata e elementar, poder calorífico, cinzas, enxofre e cloro. Ensaio de pirólise em escala de bancada com a própria amostra, levantando a curva de rendimento contra temperatura — é o único jeito de substituir as curvas de literatura. Para o condensador, curva de destilação do óleo obtido nesse ensaio, que define as faixas de orvalho reais e, com elas, as temperaturas de cada estágio."});
 
   OUT.geo={tipo:"carboniza",A:A};
   return OUT;
 }
 
-
 const CALCS={
   carbonizacao:{
-    titulo:"Planta de carbonização de madeira — reator, balanço térmico, fornalha, pátio e equipe",
-    referencia:"Balanço de massa e energia escrito por quilo de madeira seca carregada, no qual a fração da carga que precisa ser queimada para fechar o balanço térmico é resultado do cálculo e não arbitragem: ela sai do confronto entre a demanda (aquecimento, evaporação da umidade, aquecimento até a temperatura final e calor de reação da pirólise) e a energia recuperável dos voláteis, afetada pela eficiência de transferência energética e pelo aproveitamento dos condensáveis de cada concepção. Rendimento gravimétrico, carbono fixo, voláteis e partição em carvão, água de reação, alcatrão e gás não condensável por curvas consolidadas de pirólise lenta de eucalipto contra a temperatura final. Poder calorífico da biomassa pela correlação de Channiwala e Parikh (2002). Secagem ao ar por aproximação exponencial da umidade de equilíbrio com constante corrigida pelo diâmetro da tora. Transporte no reator rotativo pela equação de Sullivan. Verificação de área de troca térmica nas concepções de aquecimento indireto. Câmara de combustão dimensionada pelo maior entre taxa de liberação volumétrica e tempo de residência a temperatura de destruição de alcatrão, com temperatura adiabática de chama resolvida por iteração no calor específico. Chaminé por tiragem natural. ABNT NBR 6922, NBR 6923, NBR 8112 e NBR 11179 para o carvão; CONAMA 382 e 436 para emissões; NR-33, NR-15 e NR-12 para segurança.",
+    titulo:"Planta de carbonização e pirólise — biomassa, RSU e borracha de pneu",
+    referencia:"Balanço de massa e energia escrito por quilo de matéria-prima seca carregada, no qual a fração da carga que precisa ser queimada para fechar o balanço térmico é resultado do cálculo e não arbitragem. Três famílias de matéria-prima com curvas próprias de partição dos produtos contra a temperatura final: lignocelulósica, com pirólise exotérmica e energia concentrada no alcatrão; resíduo sólido urbano e CDR, com balanço quase neutro e cinzas que se concentram integralmente no sólido; e borracha de pneu, com pirólise endotérmica e energia concentrada num óleo aromático de alto poder calorífico. Poder calorífico pela correlação de Channiwala e Parikh (2002). Sete concepções de reator comparadas por eficiência de transferência energética e por fração de condensáveis recuperável, com os rendimentos de sólido, óleo e gás em porcentagem da massa seca para decidir a tecnologia pelo produto desejado. Trem de condensação dimensionado em estágios por faixa de orvalho, com carga térmica sensível e latente, área por média logarítmica e coeficientes globais conforme o regime, orvalho da água por Magnus-Tetens invertida, água de resfriamento e tancagem do óleo. Transporte no reator rotativo pela equação de Sullivan; área de troca e fluxo térmico específico nas concepções indiretas. Câmara de combustão pelo maior entre taxa de liberação volumétrica e tempo de residência, com exigência de 1.100 °C e 2 s na presença de cloro. Chaminé por tiragem natural. ABNT NBR 6922, 6923, 8112, 11179 e 10004; CONAMA 316, 382 e 436; NR-33, NR-20, NR-15 e NR-12.",
     campos:[
       {tipo:"head",label:"Produção alvo"},
-      {id:"cbProd",label:"PRODUÇÃO DE CARVÃO",unidade:"t/mês",tipo:"number",valor:3000,step:"100"},
+      {id:"cbProd",label:"PRODUÇÃO DE PRODUTO SÓLIDO",unidade:"t/mês",tipo:"number",valor:3000,step:"100"},
       {id:"cbDias",label:"Dias de operação por mês",unidade:"dias",tipo:"number",valor:30,step:"1"},
       {id:"cbHdia",label:"Horas de operação por dia",unidade:"h",tipo:"number",valor:24,step:"1"},
       {id:"cbDisp",label:"Disponibilidade global da planta",unidade:"%",tipo:"number",valor:85,step:"1"},
       {tipo:"head",label:"Concepção do reator"},
-      {id:"cbTec",label:"TECNOLOGIA DE CARBONIZAÇÃO",tipo:"select",valor:"container",opcoes:[
+      {id:"cbTec",label:"TECNOLOGIA",tipo:"select",valor:"container",opcoes:[
         {v:"alv_rabo",t:"Forno de alvenaria rabo-quente — autotérmico, sem controle"},
         {v:"alv_ret",t:"Forno de alvenaria retangular / JG com fornalha"},
         {v:"container",t:"Forno container metálico com fornalha externa"},
         {v:"retorta",t:"Retorta vertical contínua com recirculação de gases"},
         {v:"rotativo",t:"Reator rotativo horizontal — contato direto gás-sólido"},
         {v:"vertical",t:"Reator vertical de leito móvel — contracorrente"},
-        {v:"rosca",t:"Reator de rosca helicoidal — aquecimento indireto"}]},
+        {v:"rosca",t:"Reator de rosca helicoidal — indireto, melhor para recuperar óleo"}]},
       {id:"cbNfornos",label:"Número de fornos ou linhas (0 = calcular)",tipo:"number",valor:0,step:"1"},
-      {id:"cbVforno",label:"Carga útil por forno, batelada (0 = da tecnologia)",unidade:"st",tipo:"number",valor:0,step:"1"},
+      {id:"cbVforno",label:"Carga útil por forno, batelada (0 = da tecnologia)",unidade:"st ou m³",tipo:"number",valor:0,step:"1"},
       {id:"cbTres",label:"Tempo de residência, contínuo (0 = da tecnologia)",unidade:"h",tipo:"number",valor:0,step:"0.5"},
       {id:"cbEnch",label:"Grau de enchimento, contínuo (0 = da tecnologia)",unidade:"%",tipo:"number",valor:0,step:"1"},
       {id:"cbLD",label:"Relação comprimento/diâmetro (0 = da tecnologia)",tipo:"number",valor:0,step:"0.5"},
-      {id:"cbIncl",label:"Inclinação do reator rotativo",unidade:"%",tipo:"number",valor:3,step:"0.5"},
-      {tipo:"head",label:"Madeira"},
-      {id:"cbEsp",label:"ESPÉCIE E FORMA",tipo:"select",valor:"euc_clone",opcoes:[
+      {id:"cbIncl",label:"Inclinação do reator rotativo (0 = calcular)",unidade:"%",tipo:"number",valor:0,step:"0.5"},
+      {tipo:"head",label:"Matéria-prima"},
+      {id:"cbEsp",label:"MATÉRIA-PRIMA",tipo:"select",valor:"euc_clone",opcoes:[
         {v:"euc_clone",t:"Eucalipto clonal, 7 anos — 500 kg/m³ básica"},
         {v:"euc_sem",t:"Eucalipto de semente, acima de 10 anos — 560 kg/m³"},
         {v:"pinus",t:"Pinus — 400 kg/m³"},
         {v:"cavaco",t:"Cavaco de resíduo de serraria — 450 kg/m³"},
         {v:"bambu",t:"Bambu — 600 kg/m³"},
-        {v:"residuo",t:"Resíduo florestal com casca — 420 kg/m³"}]},
-      {id:"cbDens",label:"Densidade básica (0 = da espécie)",unidade:"kg secos/m³",tipo:"number",valor:0,step:"10"},
-      {id:"cbFemp",label:"Fator de empilhamento (0 = da espécie)",unidade:"m³ sólido/st",tipo:"number",valor:0,step:"0.01"},
-      {id:"cbDiam",label:"Diâmetro médio da tora ou do cavaco (0 = da espécie)",unidade:"cm",tipo:"number",valor:0,step:"1"},
-      {tipo:"head",label:"Secagem"},
-      {id:"cbUcolh",label:"UMIDADE NA COLHEITA",unidade:"% base úmida",tipo:"number",valor:50,step:"1"},
-      {id:"cbTsec",label:"TEMPO DE SECAGEM AO AR",unidade:"dias",tipo:"number",valor:90,step:"5"},
-      {id:"cbUeq",label:"Umidade de equilíbrio do local",unidade:"% base úmida",tipo:"number",valor:15,step:"1"},
-      {id:"cbUent",label:"Umidade na entrada do forno (0 = pela secagem)",unidade:"% base úmida",tipo:"number",valor:0,step:"1"},
-      {tipo:"head",label:"Carbonização"},
-      {id:"cbTcarb",label:"TEMPERATURA FINAL DE CARBONIZAÇÃO",unidade:"°C",tipo:"number",valor:450,step:"10"},
-      {id:"cbCFmeta",label:"CARBONO FIXO EXIGIDO no carvão",unidade:"%",tipo:"number",valor:75,step:"1"},
-      {id:"cbDHpir",label:"Calor de reação da pirólise (negativo = exotérmico)",unidade:"kJ/kg seco",tipo:"number",valor:-800,step:"50"},
-      {id:"cbPerdaFin",label:"Perdas de finos e manuseio",unidade:"%",tipo:"number",valor:8,step:"1"},
-      {id:"cbDensCarv",label:"Densidade a granel do carvão",unidade:"kg/mdc",tipo:"number",valor:230,step:"5"},
-      {tipo:"head",label:"Fornalha de gases e chaminé"},
-      {id:"cbQueima",label:"TRATAMENTO DOS GASES",tipo:"select",valor:"fornalha",opcoes:[
-        {v:"fornalha",t:"Fornalha de queima dos gases de carbonização"},
+        {v:"residuo",t:"Resíduo florestal com casca — 420 kg/m³"},
+        {v:"rsu_bruto",t:"RSU triturado, fração seca separada — 21 % de cinzas"},
+        {v:"rsu_cdr",t:"CDR — combustível derivado de resíduo — 15 % de cinzas"},
+        {v:"rsu_plast",t:"Rejeito rico em plástico, pós-triagem — 12 % de cinzas"},
+        {v:"pneu_chip",t:"Pneu triturado 20 a 50 mm, sem aço — PCI 35 MJ/kg"},
+        {v:"pneu_pow",t:"Granulado de pneu 1 a 5 mm — PCI 36 MJ/kg"},
+        {v:"pneu_aco",t:"Pneu picado com aço e têxtil — 15 % de cinzas"}]},
+      {id:"cbUent",label:"UMIDADE NA ENTRADA DO REATOR (0 = típica da matéria-prima)",unidade:"% base úmida",tipo:"number",valor:0,step:"1"},
+      {id:"cbDens",label:"Massa específica (0 = da matéria-prima)",unidade:"kg secos/m³",tipo:"number",valor:0,step:"10"},
+      {id:"cbFemp",label:"Fator de empilhamento, só lenhosos (0 = da matéria-prima)",unidade:"m³ sólido/st",tipo:"number",valor:0,step:"0.01"},
+      {id:"cbDiam",label:"Dimensão média da partícula (0 = da matéria-prima)",unidade:"cm",tipo:"number",valor:0,step:"0.5"},
+      {tipo:"head",label:"Carbonização — tudo calculado quando o campo for zero"},
+      {id:"cbTcarb",label:"TEMPERATURA FINAL (0 = ótima da matéria-prima)",unidade:"°C",tipo:"number",valor:0,step:"10"},
+      {id:"cbCFmeta",label:"CARBONO FIXO EXIGIDO (0 = típico da matéria-prima)",unidade:"%",tipo:"number",valor:0,step:"1"},
+      {id:"cbDHpir",label:"Calor de reação, negativo = exotérmico (0 = da matéria-prima)",unidade:"kJ/kg seco",tipo:"number",valor:0,step:"50"},
+      {id:"cbPerdaFin",label:"Perdas de finos e manuseio (0 = da matéria-prima)",unidade:"%",tipo:"number",valor:0,step:"1"},
+      {id:"cbDensCarv",label:"Massa específica a granel do produto (0 = da matéria-prima)",unidade:"kg/m³",tipo:"number",valor:0,step:"5"},
+      {tipo:"head",label:"Tratamento dos gases — tudo calculado quando o campo for zero"},
+      {id:"cbQueima",label:"DESTINO DOS GASES DE PIRÓLISE",tipo:"select",valor:"fornalha",opcoes:[
+        {v:"fornalha",t:"Fornalha de queima dos gases"},
         {v:"recup",t:"Fornalha com recuperação de calor para a secagem"},
+        {v:"condensa",t:"CONDENSADOR — recuperar óleo e queimar só o incondensável"},
         {v:"nenhum",t:"Sem tratamento — lançamento direto (não licenciável)"}]},
-      {id:"cbExAr",label:"Excesso de ar na fornalha",unidade:"%",tipo:"number",valor:40,step:"5"},
-      {id:"cbTcam",label:"Temperatura da câmara de combustão",unidade:"°C",tipo:"number",valor:900,step:"25"},
-      {id:"cbTresC",label:"Tempo de residência exigido na câmara",unidade:"s",tipo:"number",valor:1.0,step:"0.1"},
-      {id:"cbTaxaLib",label:"Taxa de liberação volumétrica",unidade:"kW/m³",tipo:"number",valor:250,step:"25"},
-      {id:"cbTsaida",label:"Temperatura dos gases na chaminé",unidade:"°C",tipo:"number",valor:250,step:"10"},
-      {id:"cbVcham",label:"Velocidade na chaminé",unidade:"m/s",tipo:"number",valor:8,step:"0.5"},
-      {id:"cbHcham",label:"Altura da chaminé (0 = calcular)",unidade:"m",tipo:"number",valor:0,step:"1"},
-      {id:"cbTamb",label:"Temperatura ambiente",unidade:"°C",tipo:"number",valor:25,step:"1"},
+      {id:"cbExAr",label:"Excesso de ar na fornalha (0 = calcular)",unidade:"%",tipo:"number",valor:0,step:"5"},
+      {id:"cbTcam",label:"Temperatura da câmara de combustão (0 = calcular)",unidade:"°C",tipo:"number",valor:0,step:"25"},
+      {id:"cbTresC",label:"Tempo de residência na câmara (0 = calcular)",unidade:"s",tipo:"number",valor:0,step:"0.1"},
+      {id:"cbTaxaLib",label:"Taxa de liberação volumétrica (0 = calcular)",unidade:"kW/m³",tipo:"number",valor:0,step:"25"},
+      {id:"cbTsaida",label:"Temperatura na chaminé (0 = calcular)",unidade:"°C",tipo:"number",valor:0,step:"10"},
+      {id:"cbVcham",label:"Velocidade na chaminé (0 = calcular)",unidade:"m/s",tipo:"number",valor:0,step:"0.5"},
+      {id:"cbHcham",label:"Altura da chaminé (0 = calcular pela tiragem)",unidade:"m",tipo:"number",valor:0,step:"1"},
+      {id:"cbTamb",label:"Temperatura ambiente (0 = 25 °C)",unidade:"°C",tipo:"number",valor:0,step:"1"},
+      {tipo:"head",label:"Condensador — tudo calculado quando o campo for zero"},
+      {id:"cbTagua",label:"Temperatura da água de resfriamento (0 = calcular)",unidade:"°C",tipo:"number",valor:0,step:"1"},
+      {id:"cbDTagua",label:"Aquecimento da água no trem (0 = calcular)",unidade:"K",tipo:"number",valor:0,step:"1"},
+      {id:"cbTe1",label:"Saída do estágio 1, fração pesada (0 = pelo orvalho)",unidade:"°C",tipo:"number",valor:0,step:"5"},
+      {id:"cbTe2",label:"Saída do estágio 2, fração média (0 = pelo orvalho)",unidade:"°C",tipo:"number",valor:0,step:"5"},
+      {id:"cbTe3",label:"Saída do estágio 3, leves e água (0 = pelo orvalho)",unidade:"°C",tipo:"number",valor:0,step:"5"},
+      {id:"cbEstOleo",label:"Autonomia da tancagem de óleo (0 = 7 dias)",unidade:"dias",tipo:"number",valor:0,step:"1"},
       {tipo:"head",label:"Pátio, estoques e equipe"},
-      {id:"cbEstMad",label:"Estoque de madeira (0 = igual ao tempo de secagem)",unidade:"dias",tipo:"number",valor:0,step:"5"},
-      {id:"cbHpilha",label:"Altura da pilha de madeira",unidade:"m",tipo:"number",valor:4,step:"0.5"},
-      {id:"cbEstCarv",label:"Estoque de carvão",unidade:"dias",tipo:"number",valor:7,step:"1"},
-      {id:"cbHpilhaC",label:"Altura da pilha de carvão",unidade:"m",tipo:"number",valor:3,step:"0.5"},
+      {id:"cbEstMad",label:"Estoque de matéria-prima (0 = 15 dias)",unidade:"dias",tipo:"number",valor:0,step:"5"},
+      {id:"cbHpilha",label:"Altura da pilha de matéria-prima (0 = calcular)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
+      {id:"cbEstCarv",label:"Estoque de produto (0 = 7 dias)",unidade:"dias",tipo:"number",valor:0,step:"1"},
+      {id:"cbHpilhaC",label:"Altura da pilha de produto (0 = 3 m)",unidade:"m",tipo:"number",valor:0,step:"0.5"},
       {id:"cbFocup",label:"Fator de ocupação do pátio",tipo:"number",valor:0.55,step:"0.05"},
       {id:"cbTurnos",label:"Turnos por dia",tipo:"number",valor:3,step:"1"}
     ],
@@ -14082,9 +14332,10 @@ function gerarRelatorio(){
         headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.7},
         columnStyles:{0:{cellWidth:33},1:{cellWidth:65},2:{cellWidth:84}}});
     } else if(G.tipo==="carboniza"){
-      /* =============== CROQUI DA PLANTA DE CARBONIZACAO =============== */
-      var A=G.A, R=A.R, TC=A.TC, B=A.B;
+      /* =============== CROQUI DA PLANTA DE CARBONIZAÇÃO E PIRÓLISE =============== */
+      var A=G.A, R=A.R, TC=A.TC, B=A.B, F=A.F, MD=A.MD, CD=A.CD;
       var XC=15, XF=196, ZC=126;
+      function vc(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"-"); }
       function fxC(x,w){ return Math.max(XC,Math.min(XF-w,x)); }
       function ntC(x,y,t,r,g2,b2,fs){ var f=fs||5.6; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
         var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxC(x,w2),y); }
@@ -14096,7 +14347,6 @@ function gerarRelatorio(){
         doc.line(x2,y2,x2-3*Math.cos(a-0.4),y2-3*Math.sin(a-0.4));
         doc.line(x2,y2,x2-3*Math.cos(a+0.4),y2-3*Math.sin(a+0.4));
       }
-      function vc(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"-"); }
       function cotaC(x1,x2,y,t){
         doc.setDrawColor(120,130,145); doc.setLineWidth(0.25);
         doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
@@ -14108,75 +14358,110 @@ function gerarRelatorio(){
         ntC(x+1.5,(y1+y2)/2,t,90,100,115,5.0);
       }
 
-      ntcC(105,27,"CARBONIZAÇÃO  ·  "+vc(A.Prod,0)+" t/mes  ·  "+TC.cur.toUpperCase(),20,60,100,9.0);
-      ntcC(105,32,"rendimento "+vc(B.RGf*100,1)+" % bs  ·  "+vc(A.consSt,1)+" st/t  ·  eficiência de transferência "+vc(TC.eta*100,0)+" %  ·  "+vc(A.Tcarb,0)+" °C",90,110,135,7.0);
+      var titProc=A.cond?"PIRÓLISE COM RECUPERAÇÃO DE ÓLEO":"CARBONIZAÇÃO";
+      ntcC(105,27,titProc+"  ·  "+vc(A.Prod,0)+" t/mês  ·  "+TC.cur.toUpperCase(),20,60,100,8.6);
+      ntcC(105,32,MD.n+"  ·  sólido "+vc(B.rSol,1)+" %  ·  óleo "+vc(B.rOleo,1)+" %  ·  gás "+vc(B.rGas,1)+" %  ·  "+vc(A.Tcarb,0)+" °C",90,110,135,6.8);
       doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XC,35.5,XF,35.5);
 
       /* ================= FLUXOGRAMA ================= */
-      /* --- patio de madeira --- */
+      var yP=44, hP=14, kk;
+      /* --- pátio --- */
       doc.setFillColor(232,224,206); doc.setDrawColor(120,100,70); doc.setLineWidth(0.5);
-      var xP=17, yP=46, wP=24, hP=15;
+      var xP=17, wP=22;
       doc.rect(xP,yP,wP,hP,"FD");
       doc.setDrawColor(150,130,95); doc.setLineWidth(0.35);
-      var kk;
-      for(kk=0;kk<5;kk++){ doc.line(xP+2,yP+2.6+kk*2.4,xP+wP-2,yP+2.6+kk*2.4); }
-      ntcC(xP+wP/2,yP-2,"PÁTIO E SECAGEM",95,80,55,5.6);
-      ntcC(xP+wP/2,yP+hP+4,vc(A.stDia,0)+" st/dia",95,80,55,5.0);
-      ntcC(xP+wP/2,yP+hP+7.6,vc(A.Tsec,0)+" dias de secagem",95,80,55,5.0);
-      ntcC(xP+wP/2,yP+hP+11.2,"U "+vc(A.Ucolh,0)+" -> "+vc(A.Uusa,0)+" %",95,80,55,5.0);
-
+      for(kk=0;kk<5;kk++){ doc.line(xP+2,yP+2.4+kk*2.2,xP+wP-2,yP+2.4+kk*2.2); }
+      ntcC(xP+wP/2,yP-2,"PÁTIO",95,80,55,5.6);
+      ntcC(xP+wP/2,yP+hP+4,vc(A.stDia,0)+" "+A.unV+"/dia",95,80,55,5.0);
+      ntcC(xP+wP/2,yP+hP+7.6,"umidade "+vc(A.Uusa,1)+" %",95,80,55,5.0);
+      ntcC(xP+wP/2,yP+hP+11.2,vc(A.estMad,0)+" dias de estoque",95,80,55,5.0);
       setaC(xP+wP,yP+hP/2,xP+wP+6,yP+hP/2,120,100,70);
 
-      /* --- bloco do reator --- */
-      var xR=48, wR=26, hR=hP, yR=yP;
+      /* --- reator --- */
+      var xR=46, wR=24;
       doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
-      doc.rect(xR,yR,wR,hR,"FD");
-      ntcC(xR+wR/2,yR-2,"CARBONIZAÇÃO",20,60,100,5.6);
-      ntcC(xR+wR/2,yR+hR/2+1.5,vc(R.N,0)+" x "+TC.cur,20,60,100,5.2);
-      ntcC(xR+wR/2,yR+hR+4,vc(A.Tcarb,0)+" °C  ·  "+(R.tipo==="bat"?vc(R.tCiclo/24,1)+" dias/ciclo":vc(R.tRes,1)+" h de residência"),20,60,100,5.0);
-      ntcC(xR+wR/2,yR+hR+7.6,"gas "+vc(A.mStr_h/1000,1)+" t/h a "+vc(A.PCIstrMJ,1)+" MJ/kg",190,120,50,5.0);
+      doc.rect(xR,yP,wR,hP,"FD");
+      ntcC(xR+wR/2,yP-2,"REATOR",20,60,100,5.6);
+      ntcC(xR+wR/2,yP+hP/2+1.5,vc(R.N,0)+" x "+TC.cur,20,60,100,5.2);
+      ntcC(xR+wR/2,yP+hP+4,vc(A.Tcarb,0)+" °C  ·  "+(R.tipo==="bat"?vc(R.tCiclo/24,1)+" d/ciclo":vc(R.tRes,1)+" h"),20,60,100,5.0);
+      ntcC(xR+wR/2,yP+hP+7.6,"transferência "+vc(TC.eta*100,0)+" %",20,60,100,5.0);
+      ntcC(xR+wR/2,yP+hP+11.2,"gás "+vc(A.B.mTot*A.mSec_h,1)+" t/h",190,120,50,5.0);
+      setaC(xR+wR,yP+hP/2,xR+wR+7,yP+hP/2,190,120,50);
 
-      setaC(xR+wR,yR+hR/2,xR+wR+8,yR+hR/2,190,120,50);
+      /* --- produto sólido --- */
+      setaC(xR+wR/2,yP+hP+13.5,xR+wR/2,yP+hP+21,40,120,70);
+      doc.setFillColor(60,60,60); doc.setDrawColor(30,30,30); doc.setLineWidth(0.4);
+      doc.rect(xR+4,yP+hP+21,wR-8,7,"FD");
+      var ySol=A.cond?(yP+hP+40):(yP+hP+32.5);
+      ntcC(xR+wR/2,ySol,F.solNome.toUpperCase()+"  "+vc(A.Pcarv_h,2)+" t/h",40,90,60,5.2);
+      ntcC(xR+wR/2,ySol+3.6,"CF "+vc(A.CF,1)+" %  ·  cinzas "+vc(A.cinzS,1)+" %  ·  PCI "+vc(A.PCIcarv,1)+" MJ/kg",40,90,60,5.0);
 
-      /* --- fornalha --- */
-      var xN=82, wN=20, yN=yP, hN=hP;
-      if(A.temForn){
+      if(A.cond){
+        /* --- condensador em estágios --- */
+        var xD=77, wD=26;
+        doc.setFillColor(224,240,244); doc.setDrawColor(30,110,130); doc.setLineWidth(0.6);
+        doc.rect(xD,yP,wD,hP,"FD");
+        doc.setDrawColor(40,140,170); doc.setLineWidth(0.4);
+        for(kk=0;kk<4;kk++){
+          doc.line(xD+2.5+kk*6.2,yP+2.5,xD+2.5+kk*6.2,yP+hP-2.5);
+          doc.line(xD+2.5+kk*6.2,yP+hP-2.5,xD+5.5+kk*6.2,yP+hP-2.5);
+          doc.line(xD+5.5+kk*6.2,yP+hP-2.5,xD+5.5+kk*6.2,yP+2.5);
+        }
+        ntcC(xD+wD/2,yP-2,"CONDENSADOR",25,95,120,5.6);
+        ntcC(xD+wD/2,yP+hP+4,vc(CD.Tin,0)+" -> "+vc(CD.T4,0)+" °C  ·  4 estágios",25,95,120,5.0);
+        ntcC(xD+wD/2,yP+hP+7.6,vc(CD.Qtot,0)+" kW  ·  "+vc(CD.Atot,0)+" m²",25,95,120,5.0);
+        ntcC(xD+wD/2,yP+hP+11.2,"água "+vc(CD.mw,0)+" t/h",25,95,120,5.0);
+        /* tanque de óleo */
+        setaC(xD+wD/2,yP+hP+13.5,xD+wD/2,yP+hP+21,150,90,40);
+        doc.setFillColor(238,222,196); doc.setDrawColor(140,95,45); doc.setLineWidth(0.5);
+        doc.rect(xD+5,yP+hP+21,wD-10,9,"FD");
+        doc.ellipse(xD+wD/2,yP+hP+21,(wD-10)/2,1.4,"FD");
+        ntcC(xD+wD/2,yP+hP+33,"ÓLEO  "+vc(CD.mOl_h/1000,2)+" t/h",150,90,40,5.2);
+        ntcC(xD+wD/2,yP+hP+36.6,"tanque "+vc(CD.Vtq,0)+" m³  ·  "+vc(CD.estArm,0)+" dias",150,90,40,5.0);
+        /* fornalha compacta com chaminé */
+        setaC(xD+wD,yP+hP/2,xD+wD+5,yP+hP/2,190,120,50);
+        var xN2=108, wN2=12;
         doc.setFillColor(250,232,214); doc.setDrawColor(170,90,40); doc.setLineWidth(0.6);
-        doc.rect(xN,yN,wN,hN,"FD");
+        doc.rect(xN2,yP,wN2,hP,"FD");
+        doc.setDrawColor(220,110,40); doc.setLineWidth(0.45);
+        for(kk=0;kk<3;kk++){
+          doc.line(xN2+2.5+kk*3.6,yP+hP-2.5,xN2+3.8+kk*3.6,yP+hP-6.5);
+          doc.line(xN2+3.8+kk*3.6,yP+hP-6.5,xN2+2.2+kk*3.6,yP+hP-9.5);
+        }
+        doc.setFillColor(238,240,244); doc.setDrawColor(80,90,105); doc.setLineWidth(0.5);
+        doc.rect(xN2+3,37,6,7,"FD");
+        ntcC(xN2+wN2/2,yP+hP+4,"FORNALHA",150,80,35,5.2);
+        ntcC(xN2+wN2/2,yP+hP+7.6,vc(A.Qlib/1000,1)+" MW",150,80,35,5.0);
+        ntcC(xN2+wN2/2,yP+hP+11.2,"chaminé "+vc(A.Hch,0)+" m",70,80,95,5.0);
+      } else if(A.temForn){
+        var xN=80, wN=20;
+        doc.setFillColor(250,232,214); doc.setDrawColor(170,90,40); doc.setLineWidth(0.6);
+        doc.rect(xN,yP,wN,hP,"FD");
         doc.setDrawColor(220,110,40); doc.setLineWidth(0.45);
         for(kk=0;kk<4;kk++){
-          doc.line(xN+3+kk*4.2,yN+hN-2.5,xN+4.4+kk*4.2,yN+hN-7);
-          doc.line(xN+4.4+kk*4.2,yN+hN-7,xN+2.6+kk*4.2,yN+hN-10.5);
+          doc.line(xN+3+kk*4.2,yP+hP-2.5,xN+4.4+kk*4.2,yP+hP-6.5);
+          doc.line(xN+4.4+kk*4.2,yP+hP-6.5,xN+2.6+kk*4.2,yP+hP-10);
         }
-        ntcC(xN+wN/2,yN-2,"FORNALHA",150,80,35,5.6);
-        ntcC(xN+wN/2,yN+hN+4,vc(A.Qlib/1000,1)+" MW  ·  "+vc(A.Tad,0)+" °C",150,80,35,5.0);
-        ntcC(xN+wN/2,yN+hN+7.6,"câmara "+vc(A.Vcam,0)+" m3",150,80,35,5.0);
-        ntcC(xN+wN/2,yN+hN+11.2,vc(A.tResC,1)+" s de residência",150,80,35,5.0);
-        /* --- chamine --- */
+        ntcC(xN+wN/2,yP-2,"FORNALHA",150,80,35,5.6);
+        ntcC(xN+wN/2,yP+hP+4,vc(A.Qlib/1000,1)+" MW  ·  "+vc(A.Tad,0)+" °C",150,80,35,5.0);
+        ntcC(xN+wN/2,yP+hP+7.6,"câmara "+vc(A.Vcam,0)+" m³",150,80,35,5.0);
+        ntcC(xN+wN/2,yP+hP+11.2,vc(A.tResC,1)+" s de residência",150,80,35,5.0);
         var xH=108, wH=6;
         doc.setFillColor(238,240,244); doc.setDrawColor(80,90,105); doc.setLineWidth(0.55);
-        doc.rect(xH,38,wH,yN+hN-38,"FD");
+        doc.rect(xH,38,wH,yP+hP-38,"FD");
         doc.setDrawColor(80,90,105); doc.setLineWidth(0.3);
         doc.line(xH-1.5,38,xH+wH+1.5,38);
-        setaC(xN+wN,yN+4,xH,yN+4,170,90,40);
-        ntcC(xH+wH/2,yN+hN+4,"CHAMINÉ",70,80,95,5.4);
-        ntcC(xH+wH/2,yN+hN+7.6,"D "+vc(A.Dcham,1)+" m",70,80,95,5.0);
-        ntcC(xH+wH/2,yN+hN+11.2,"H "+vc(A.Hch,0)+" m",70,80,95,5.0);
+        setaC(xN+wN,yP+4,xH,yP+4,170,90,40);
+        ntcC(xH+wH/2,yP+hP+4,"CHAMINÉ",70,80,95,5.2);
+        ntcC(xH+wH/2,yP+hP+7.6,"D "+vc(A.Dcham,1)+" m",70,80,95,5.0);
+        ntcC(xH+wH/2,yP+hP+11.2,"H "+vc(A.Hch,0)+" m",70,80,95,5.0);
       } else {
-        ntC(xN,yN+7,"SEM TRATAMENTO",180,60,60,5.8);
-        ntC(xN,yN+12,"DE GASES",180,60,60,5.8);
+        ntC(80,yP+7,"SEM TRATAMENTO",180,60,60,5.8);
+        ntC(80,yP+12,"DE GASES",180,60,60,5.8);
       }
 
-      /* --- carvao, saindo por baixo do reator --- */
-      var yCv=yP+hP+15;
-      setaC(xR+wR/2,yCv,xR+wR/2,yCv+7,40,120,70);
-      doc.setFillColor(60,60,60); doc.setDrawColor(30,30,30); doc.setLineWidth(0.4);
-      doc.rect(xR+3,yCv+7,wR-6,7,"FD");
-      ntcC(xR+wR/2,yCv+18.5,"CARVÃO  "+vc(A.Pcarv_h,2)+" t/h  ·  "+vc(A.mdc_h,1)+" mdc/h",40,90,60,5.2);
-      ntcC(xR+wR/2,yCv+22.1,"CF "+vc(A.CF,0)+" %  ·  PCI "+vc(A.PCIcarv,1)+" MJ/kg",40,90,60,5.0);
-
       /* ================= DETALHE DO REATOR ================= */
-      var yD=110;
+      var yD=A.cond?118:110;
       ntcC(66,yD-3,"DETALHE DO REATOR  ·  "+TC.cur.toUpperCase(),20,60,100,6.4);
       doc.setDrawColor(210,220,232); doc.setLineWidth(0.25); doc.line(XC,yD-1,120,yD-1);
 
@@ -14185,28 +14470,24 @@ function gerarRelatorio(){
 
       if(f==="retang"){
         var Lm=R.dim.L, Wm=R.dim.W, Hm=R.dim.H;
-        var esc=Math.min(52/Math.max(Lm,0.1),26/Math.max(Hm,0.1));
-        var wD=Lm*esc, hD=Hm*esc;
-        doc.rect(x0,y0,wD,hD,"FD");
-        /* abobada */
+        var esc=Math.min(52/Math.max(Lm,0.1),22/Math.max(Hm,0.1));
+        var wDd=Lm*esc, hDd=Hm*esc;
+        doc.rect(x0,y0,wDd,hDd,"FD");
         doc.setFillColor(212,228,242);
-        doc.lines([[wD/2,-5],[wD/2,5]],x0,y0,[1,1],"FD",true);
-        /* porta */
+        doc.lines([[wDd/2,-5],[wDd/2,5]],x0,y0,[1,1],"FD",true);
         doc.setFillColor(200,205,212); doc.setDrawColor(60,70,85); doc.setLineWidth(0.45);
-        doc.rect(x0+wD*0.06,y0+hD*0.30,wD*0.16,hD*0.70,"FD");
-        /* tatus */
+        doc.rect(x0+wDd*0.06,y0+hDd*0.30,wDd*0.16,hDd*0.70,"FD");
         doc.setDrawColor(120,130,145); doc.setLineWidth(0.35);
-        for(kk=0;kk<5;kk++){ doc.rect(x0+wD*0.18+kk*wD*0.16,y0+hD-2.5,2.4,2.5,"D"); }
-        /* carga */
+        for(kk=0;kk<5;kk++){ doc.rect(x0+wDd*0.18+kk*wDd*0.16,y0+hDd-2.5,2.4,2.5,"D"); }
         doc.setDrawColor(150,130,95); doc.setLineWidth(0.3);
-        for(kk=0;kk<7;kk++){ doc.line(x0+wD*0.28,y0+hD-3.5-kk*2.6,x0+wD-2,y0+hD-3.5-kk*2.6); }
-        cotaC(x0,x0+wD,y0+hD+8,"L "+vc(Lm,1)+" m");
-        cotaV(y0-5,y0+hD,x0+wD+3,"H "+vc(Hm,1)+" m");
-        ntC(x0,y0+hD+13,"largura "+vc(Wm,1)+" m  ·  volume interno "+vc(R.dim.V,0)+" m3",70,80,95,5.2);
-        ntC(x0,y0+hD+17,"porta de carga e descarga  ·  tatus de admissão de ar na base",70,80,95,5.0);
+        for(kk=0;kk<6;kk++){ doc.line(x0+wDd*0.28,y0+hDd-3.5-kk*2.6,x0+wDd-2,y0+hDd-3.5-kk*2.6); }
+        cotaC(x0,x0+wDd,y0+hDd+8,"L "+vc(Lm,1)+" m");
+        cotaV(y0-5,y0+hDd,x0+wDd+3,"H "+vc(Hm,1)+" m");
+        ntC(x0,y0+hDd+13,"largura "+vc(Wm,1)+" m  ·  volume interno "+vc(R.dim.V,0)+" m3",70,80,95,5.2);
+        ntC(x0,y0+hDd+17,"porta de carga e descarga  ·  tatus de admissão de ar na base",70,80,95,5.0);
       } else if(f==="cupula"){
         var Dm=R.dim.D, Hc2=R.dim.H;
-        var esc2=Math.min(40/Math.max(Dm,0.1),22/Math.max(Hc2,0.1));
+        var esc2=Math.min(40/Math.max(Dm,0.1),20/Math.max(Hc2,0.1));
         var wD2=Dm*esc2, hD2=Hc2*esc2;
         doc.rect(x0,y0+hD2*0.45,wD2,hD2*0.55,"FD");
         doc.setFillColor(212,228,242);
@@ -14221,38 +14502,33 @@ function gerarRelatorio(){
         ntC(x0,y0+hD2+17,"a fumaça sai pela própria alvenaria: sem controle de marcha",170,90,60,5.0);
       } else if(f==="cilind"){
         var Dc2=R.dim.D, Hd2=R.dim.H;
-        var esc3=Math.min(34/Math.max(Dc2,0.1),26/Math.max(Hd2,0.1));
+        var esc3=Math.min(34/Math.max(Dc2,0.1),22/Math.max(Hd2,0.1));
         var wD3=Dc2*esc3, hD3=Hd2*esc3;
         doc.rect(x0,y0+4,wD3,hD3,"FD");
         doc.setFillColor(205,215,228); doc.setDrawColor(60,70,85); doc.setLineWidth(0.5);
         doc.rect(x0-2,y0,wD3+4,4,"FD");
         doc.setDrawColor(150,130,95); doc.setLineWidth(0.3);
-        for(kk=0;kk<8;kk++){ doc.line(x0+2,y0+7+kk*2.8,x0+wD3-2,y0+7+kk*2.8); }
-        /* entrada de gas quente da fornalha */
+        for(kk=0;kk<7;kk++){ doc.line(x0+2,y0+7+kk*2.8,x0+wD3-2,y0+7+kk*2.8); }
         doc.setDrawColor(200,110,50); doc.setLineWidth(0.5);
         doc.line(x0-8,y0+hD3,x0,y0+hD3);
         doc.circle(x0-9.5,y0+hD3,1.5,"D");
         cotaC(x0,x0+wD3,y0+hD3+12,"D "+vc(Dc2,1)+" m");
         cotaV(y0,y0+hD3+4,x0+wD3+3,"H "+vc(Hd2,1)+" m");
         ntC(x0-12,y0+hD3+17,"volume interno "+vc(R.dim.V,0)+" m3  ·  tampa removível para carga",70,80,95,5.2);
-        ntC(x0-12,y0+hD3+21,"gás quente da fornalha injetado pela base  ·  resfria fora da linha",70,80,95,5.0);
+        ntC(x0-12,y0+hD3+21,"gás quente da fornalha pela base  ·  resfria fora da linha",70,80,95,5.0);
       } else if(f==="vert"){
         var Dv=R.D, Lv=R.L;
-        var escv=Math.min(26/Math.max(Dv,0.1),30/Math.max(Lv,0.1));
+        var escv=Math.min(24/Math.max(Dv,0.1),28/Math.max(Lv,0.1));
         var wDv=Dv*escv, hDv=Lv*escv;
-        /* silo de alimentacao */
         doc.setFillColor(232,224,206); doc.setDrawColor(120,100,70); doc.setLineWidth(0.5);
         doc.lines([[wDv*0.35,-7],[wDv*0.30,0],[wDv*0.35,7]],x0,y0,[1,1],"FD",true);
         doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
         doc.rect(x0,y0,wDv,hDv,"FD");
-        /* zonas */
         doc.setDrawColor(150,175,205); doc.setLineWidth(0.3);
         doc.line(x0,y0+hDv*0.30,x0+wDv,y0+hDv*0.30);
         doc.line(x0,y0+hDv*0.62,x0+wDv,y0+hDv*0.62);
-        /* gas subindo */
         doc.setDrawColor(200,110,50); doc.setLineWidth(0.45);
         for(kk=0;kk<3;kk++){ doc.line(x0+wDv+4,y0+hDv*0.70-kk*1.5,x0+wDv,y0+hDv*0.72-kk*1.5); }
-        /* extracao */
         doc.setFillColor(60,60,60); doc.setDrawColor(30,30,30); doc.setLineWidth(0.45);
         doc.lines([[wDv*0.30,6],[wDv*0.40,0],[wDv*0.30,-6]],x0,y0+hDv,[1,1],"FD",true);
         cotaC(x0,x0+wDv,y0+hDv+14,"D "+vc(Dv,2)+" m");
@@ -14264,22 +14540,19 @@ function gerarRelatorio(){
         ntC(x0-13,y0+hDv+23,"volume útil "+vc(R.V,0)+" m3 por linha  ·  enchimento "+vc(R.ench,0)+" %",70,80,95,5.0);
       } else if(f==="rot"){
         var Dr=R.D, Lr2=R.L;
-        var escr=Math.min(60/Math.max(Lr2,0.1),16/Math.max(Dr,0.1));
+        var escr=Math.min(58/Math.max(Lr2,0.1),14/Math.max(Dr,0.1));
         var wDr=Lr2*escr, hDr=Dr*escr;
-        var dy=4;  /* inclinação visual */
+        var dy=4;
         doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
         doc.lines([[wDr,dy],[0,hDr],[-wDr,-dy],[0,-hDr]],x0,y0,[1,1],"FD",true);
-        /* pistas de rolamento */
         doc.setDrawColor(70,85,105); doc.setLineWidth(0.7);
         doc.line(x0+wDr*0.22,y0+dy*0.22-1,x0+wDr*0.22,y0+dy*0.22+hDr+1);
         doc.line(x0+wDr*0.72,y0+dy*0.72-1,x0+wDr*0.72,y0+dy*0.72+hDr+1);
         doc.setFillColor(120,130,145); doc.setDrawColor(60,70,85); doc.setLineWidth(0.4);
         doc.rect(x0+wDr*0.19,y0+dy*0.19+hDr+1,5,3,"FD");
         doc.rect(x0+wDr*0.69,y0+dy*0.69+hDr+1,5,3,"FD");
-        /* engrenagem de acionamento */
         doc.setFillColor(200,205,212); doc.setDrawColor(60,70,85);
         doc.rect(x0+wDr*0.47,y0+dy*0.47+hDr+1,7,4,"FD");
-        /* carga no fundo */
         doc.setFillColor(150,130,95); doc.setDrawColor(150,130,95); doc.setLineWidth(0.2);
         doc.lines([[wDr,dy],[0,-hDr*0.25],[-wDr,-dy],[0,hDr*0.25]],x0,y0+hDr,[1,1],"F",true);
         cotaC(x0,x0+wDr,y0+hDr+dy+13,"L "+vc(Lr2,2)+" m");
@@ -14287,17 +14560,13 @@ function gerarRelatorio(){
         ntC(x0,y0+hDr+dy+18,"rotação "+vc(R.rpm,2)+" rpm  ·  inclinação "+vc(R.incl,1)+" %  ·  enchimento "+vc(R.ench,0)+" %",70,80,95,5.2);
         ntC(x0,y0+hDr+dy+22,"acionamento "+vc(R.acion.Pinst,0)+" kW  ·  vedação de extremidade é o ponto crítico",70,80,95,5.0);
       } else {
-        /* rosca helicoidal com camisa */
         var Dz=R.D, Lz=R.L;
-        var escz=Math.min(60/Math.max(Lz,0.1),14/Math.max(Dz,0.1));
+        var escz=Math.min(58/Math.max(Lz,0.1),12/Math.max(Dz,0.1));
         var wDz=Lz*escz, hDz=Math.max(Dz*escz,7);
-        /* camisa externa */
         doc.setFillColor(250,232,214); doc.setDrawColor(170,90,40); doc.setLineWidth(0.5);
         doc.rect(x0-2,y0-2.5,wDz+4,hDz+5,"FD");
-        /* tubo */
         doc.setFillColor(226,238,248); doc.setDrawColor(30,60,95); doc.setLineWidth(0.6);
         doc.rect(x0,y0,wDz,hDz,"FD");
-        /* helice */
         doc.setDrawColor(60,90,130); doc.setLineWidth(0.4);
         var np=Math.max(6,Math.floor(wDz/5));
         for(kk=0;kk<np;kk++){
@@ -14306,7 +14575,6 @@ function gerarRelatorio(){
         }
         doc.setDrawColor(40,60,90); doc.setLineWidth(0.5);
         doc.line(x0,y0+hDz/2,x0+wDz,y0+hDz/2);
-        /* entrada e saida */
         doc.setFillColor(232,224,206); doc.setDrawColor(120,100,70); doc.setLineWidth(0.45);
         doc.rect(x0+1,y0-8,7,5.5,"FD");
         doc.setFillColor(60,60,60); doc.setDrawColor(30,30,30);
@@ -14314,12 +14582,41 @@ function gerarRelatorio(){
         cotaC(x0,x0+wDz,y0+hDz+16,"L "+vc(Lz,2)+" m");
         cotaV(y0,y0+hDz,x0+wDz+6,"D "+vc(Dz,2)+" m");
         ntC(x0,y0+hDz+21,"rotação "+vc(R.rpm,2)+" rpm  ·  camisa aquecida  ·  "+vc(R.N,0)+" linha(s)",70,80,95,5.2);
-        ntC(x0,y0+hDz+25,"área de troca "+vc(R.Adisp,0)+" m2 de "+vc(R.Anec,0)+" m² exigidos"+(R.areaOK?"":"  ATENÇÃO"),R.areaOK?70:180,R.areaOK?80:60,R.areaOK?95:60,5.0);
+        ntC(x0,y0+hDz+25,"fluxo "+vc(R.fluxo,1)+" kW/m2  ·  área "+vc(R.Adisp,0)+" de "+vc(R.Anec,0)+" m2 exigidos"+(R.areaOK?"":"  ATENÇÃO"),R.areaOK?70:180,R.areaOK?80:60,R.areaOK?95:60,5.0);
       }
 
-      /* ================= BALANCO TERMICO ================= */
-      var yB=182;
-      ntcC(66,yB,"BALANÇO TÉRMICO POR KG DE MADEIRA SECA",20,60,100,6.4);
+      /* ================= RENDIMENTO DOS PRODUTOS ================= */
+      var yY=A.cond?196:192;
+      ntcC(66,yY,"RENDIMENTO DOS PRODUTOS SOBRE A MASSA SECA",20,60,100,6.4);
+      doc.setDrawColor(210,220,232); doc.setLineWidth(0.25); doc.line(XC,yY+2,120,yY+2);
+      var seg=[{t:F.solNome,q:B.rSol,c:[55,55,60]},
+               {t:F.oleoNome,q:B.rOleo,c:[190,140,60]},
+               {t:"gás não condensável",q:B.rGas,c:[70,150,190]},
+               {t:"queimado no processo",q:B.rQueim,c:[190,80,60]},
+               {t:"água de reação e não recuperado",q:B.rPerd,c:[170,180,195]}];
+      var xS=XC, yS=yY+7, wTot=105;
+      for(kk=0;kk<seg.length;kk++){
+        var ws=Math.max(seg[kk].q/100*wTot,0);
+        if(ws>0.3){
+          doc.setFillColor(seg[kk].c[0],seg[kk].c[1],seg[kk].c[2]);
+          doc.setDrawColor(255,255,255); doc.setLineWidth(0.2);
+          doc.rect(xS,yS,ws,5,"FD");
+        }
+        xS+=ws;
+      }
+      var yLeg=yS+9;
+      for(kk=0;kk<seg.length;kk++){
+        if(seg[kk].q<0.05) continue;
+        doc.setFillColor(seg[kk].c[0],seg[kk].c[1],seg[kk].c[2]);
+        doc.setDrawColor(seg[kk].c[0],seg[kk].c[1],seg[kk].c[2]); doc.setLineWidth(0.2);
+        doc.rect(XC,yLeg-2.6,3,3,"FD");
+        ntC(XC+4.5,yLeg,vc(seg[kk].q,1)+" %  "+seg[kk].t,70,80,95,5.2);
+        yLeg+=4.2;
+      }
+
+      /* ================= BALANÇO TÉRMICO ================= */
+      var yB=yLeg+4;
+      ntcC(66,yB,"BALANÇO TÉRMICO POR KG DE MASSA SECA",20,60,100,6.4);
       doc.setDrawColor(210,220,232); doc.setLineWidth(0.25); doc.line(XC,yB+2,120,yB+2);
       var bars=[
         {t:"evaporar a água",q:B.q3,c:[60,140,200]},
@@ -14329,61 +14626,60 @@ function gerarRelatorio(){
       ];
       var qmax=1; for(kk=0;kk<bars.length;kk++){ qmax=Math.max(qmax,Math.abs(bars[kk].q)); }
       var yb0=yB+8, xb0=58, wbMax=42;
-      /* o eixo zero fica em xb0: demanda cresce para a direita, credito para a
-         esquerda, porque um calor de reacao exotermico nao e demanda, e desconto */
       doc.setDrawColor(150,160,175); doc.setLineWidth(0.3);
       doc.line(xb0,yb0-1.5,xb0,yb0+bars.length*6-1);
       for(kk=0;kk<bars.length;kk++){
         var wb=Math.max(Math.abs(bars[kk].q)/qmax*wbMax,0.4);
         var neg=(bars[kk].q<0);
+        var wneg=Math.min(wb,xb0-XC-28);
         doc.setFillColor(bars[kk].c[0],bars[kk].c[1],bars[kk].c[2]);
         doc.setDrawColor(bars[kk].c[0],bars[kk].c[1],bars[kk].c[2]); doc.setLineWidth(0.2);
-        var wneg=Math.min(wb,xb0-XC-28);
         doc.rect(neg?(xb0-wneg):xb0,yb0+kk*6,neg?wneg:wb,3.6,"FD");
         ntC(XC,yb0+kk*6+2.9,bars[kk].t,70,80,95,5.0);
         if(neg) ntC(xb0+2,yb0+kk*6+2.9,"- "+vc(Math.abs(bars[kk].q),0)+" (crédito)",90,150,110,5.0);
         else    ntC(xb0+wb+1.5,yb0+kk*6+2.9,"+ "+vc(bars[kk].q,0),70,80,95,5.0);
       }
       var yLg=yb0+bars.length*6+4;
-      ntC(XC,yLg,     "demanda total "+vc(B.Qdem,0)+" kJ/kg  ·  disponível nos voláteis "+vc(B.PCIutil,0)+" kJ/kg",25,60,110,5.4);
-      ntC(XC,yLg+4,   "eficiência de transferência "+vc(TC.eta*100,0)+" %  ·  aproveitamento dos voláteis "+vc(TC.fAprov*100,0)+" %",25,60,110,5.4);
+      ntC(XC,yLg,     "demanda total "+vc(B.Qdem,0)+" kJ/kg  ·  disponível "+vc(B.PCIutil,0)+" kJ/kg",25,60,110,5.4);
+      ntC(XC,yLg+4,   "transferência "+vc(TC.eta*100,0)+" %  ·  voláteis aproveitados "+vc(TC.fAprov*100,0)+" %"+(A.cond?"  ·  recuperação "+vc(TC.fRecup*100,0)+" %":""),25,60,110,5.4);
       if(B.phi>0.001){
         ntC(XC,yLg+8, "QUEIMA "+vc(B.phi*100,1)+" % DA CARGA PARA FECHAR O BALANÇO",180,80,50,5.4);
       } else {
         ntC(XC,yLg+8, "autossuficiente  ·  excedente de "+vc(B.Ebruto,0)+" kJ/kg = "+vc(A.Qexc,0)+" kW",40,140,90,5.4);
       }
-      ntC(XC,yLg+12,  "rendimento "+vc(B.RGf*100,1)+" % base seca  ·  "+vc(A.rendUm,1)+" % sobre a madeira úmida",25,60,110,5.4);
-      ntC(XC,yLg+16,  "consumo "+vc(A.consSt,1)+" st/t  ·  madeira "+vc(A.mUm_h,1)+" t/h  ·  "+vc(A.Vst_h,1)+" st/h",25,60,110,5.4);
-      ntC(XC,yLg+20,  "pátio "+vc(A.Atot/10000,2)+" ha  ·  equipe "+vc(A.opTot,0)+" pessoas  ·  "+A.nRep+" de "+A.nVer+" itens reprovados",A.nRep>0?180:40,A.nRep>0?80:140,A.nRep>0?50:90,5.4);
+      ntC(XC,yLg+12,  "consumo "+vc(A.consSt,1)+" "+A.unV+"/t  ·  entrada "+vc(A.mUm_h,1)+" t/h  ·  "+vc(A.Vst_h,1)+" "+A.unV+"/h",25,60,110,5.4);
+      ntC(XC,yLg+16,  "pátio "+vc(A.Atot/10000,2)+" ha  ·  equipe "+vc(A.opTot,0)+" pessoas  ·  "+A.nRep+" de "+(A.nVer-A.nAv)+" itens de projeto reprovados"+(A.nAv>0?"  ·  "+A.nAv+" alerta(s)":""),A.nRep>0?180:40,A.nRep>0?80:140,A.nRep>0?50:90,5.4);
 
       /* ================= TABELA ================= */
       var corpo=[
-        [san("PRODUCAO"),san(vc(A.Prod,0))+" t/mes"],
+        [san("PRODUÇÃO"),san(vc(A.Prod,0))+" t/mes"],
+        [san("Matéria-prima"),san(MD.n.split(",")[0])],
+        [san("Família"),san(F.n)],
         [san("Tecnologia"),san(TC.cur)],
         [san("Eficiência transf."),san(vc(TC.eta*100,0))+" %"],
         [san("Aproveit. voláteis"),san(vc(TC.fAprov*100,0))+" %"],
-        [san("Espécie"),san(A.MD.n.split(",")[0])],
-        [san("Densidade básica"),san(vc(A.db,0))+" kg/m3"],
+        [san("Recup. condensáveis"),san(vc(TC.fRecup*100,0))+" %"],
         [san("Umidade entrada"),san(vc(A.Uusa,1))+" %"],
-        [san("Secagem"),san(vc(A.Tsec,0))+" dias"],
         [san("TEMPERATURA"),san(vc(A.Tcarb,0))+" °C"],
+        [san("Calor de reação"),san(vc(A.dHpir,0))+" kJ/kg"],
+        [san("REND. SÓLIDO"),san(vc(B.rSol,1))+" %"],
+        [san("REND. ÓLEO"),san(vc(B.rOleo,1))+" %"],
+        [san("REND. GÁS"),san(vc(B.rGas,1))+" %"],
+        [san("Carga queimada"),san(vc(B.rQueim,1))+" %"],
         [san("Carbono fixo"),san(vc(A.CF,1))+" % "+(A.cfOK?"OK":"BAIXO")],
-        [san("Voláteis"),san(vc(A.MV,1))+" %"],
-        [san("PCI do carvão"),san(vc(A.PCIcarv,1))+" MJ/kg"],
+        [san("Cinzas do sólido"),san(vc(A.cinzS,1))+" %"],
+        [san("PCI do sólido"),san(vc(A.PCIcarv,1))+" MJ/kg"],
         [san("Demanda térmica"),san(vc(B.Qdem,0))+" kJ/kg"],
-        [san("Voláteis disponíveis"),san(vc(B.PCIutil,0))+" kJ/kg"],
-        [san("Carga queimada"),san(vc(B.phi*100,1))+" %"],
-        [san("RENDIMENTO"),san(vc(B.RGf*100,1))+" % bs"],
-        [san("Rend. base umida"),san(vc(A.rendUm,1))+" %"],
-        [san("CONSUMO"),san(vc(A.consSt,1))+" st/t"],
-        [san("Madeira úmida"),san(vc(A.mUm_h,2))+" t/h"],
-        [san("Volume de madeira"),san(vc(A.Vst_h,1))+" st/h"],
-        [san("Carvão"),san(vc(A.Pcarv_h,2))+" t/h"]
+        [san("Disponível"),san(vc(B.PCIutil,0))+" kJ/kg"],
+        [san("CONSUMO"),san(vc(A.consSt,1))+" "+A.unV+"/t"],
+        [san("Entrada úmida"),san(vc(A.mUm_h,2))+" t/h"],
+        [san("Volume de entrada"),san(vc(A.Vst_h,1))+" "+A.unV+"/h"],
+        [san("Produto sólido"),san(vc(A.Pcarv_h,2))+" t/h"]
       ];
       if(R.tipo==="bat"){
         corpo.push([san("FORNOS"),san(vc(R.N,0))+" unidades"]);
-        corpo.push([san("Carga por forno"),san(vc(R.Vf,0))+" st"]);
-        corpo.push([san("Ciclo"),san(vc(R.tCiclo,0))+" h ("+san(vc(R.tCiclo/24,1))+" d)"]);
+        corpo.push([san("Carga por forno"),san(vc(R.Vf,0))+" "+A.unV]);
+        corpo.push([san("Ciclo"),san(vc(R.tCiclo,0))+" h"]);
         corpo.push([san("Ocupação"),san(vc(R.ocup,0))+" %"]);
       } else {
         corpo.push([san("LINHAS"),san(vc(R.N,0))]);
@@ -14391,28 +14687,36 @@ function gerarRelatorio(){
         corpo.push([san("Volume/linha"),san(vc(R.V,1))+" m3"]);
         corpo.push([san("Dimensões"),"D "+san(vc(R.D,2))+" x "+san(vc(R.L,2))+" m"]);
       }
+      if(A.cond){
+        corpo.push([san("CONDENSADOR"),san(vc(CD.Qtot,0))+" kW"]);
+        corpo.push([san("Área de troca"),san(vc(CD.Atot,0))+" m2"]);
+        corpo.push([san("Estágio 1"),san(vc(CD.T1,0))+" °C"]);
+        corpo.push([san("Estágio 2"),san(vc(CD.T2,0))+" °C"]);
+        corpo.push([san("Estágio 3"),san(vc(CD.T3,0))+" °C"]);
+        corpo.push([san("Água de resfriam."),san(vc(CD.mw,0))+" t/h"]);
+        corpo.push([san("ÓLEO"),san(vc(CD.mOl_h/1000,2))+" t/h"]);
+        corpo.push([san("Óleo por mes"),san(vc(CD.oleoMes,0))+" t"]);
+        corpo.push([san("Tanque"),san(vc(CD.Vtq,0))+" m3"]);
+        corpo.push([san("Licor ácido"),san(vc(CD.licor,0))+" kg/h"]);
+      }
       if(A.temForn){
-        corpo.push([san("Gás de carbonização"),san(vc(A.mStr_h/1000,2))+" t/h"]);
+        corpo.push([san("Gás incondensável"),san(vc(A.mStr_h/1000,2))+" t/h"]);
         corpo.push([san("PCI do gás"),san(vc(A.PCIstrMJ,2))+" MJ/kg"]);
         corpo.push([san("FORNALHA"),san(vc(A.Qlib/1000,2))+" MW"]);
         corpo.push([san("Temp. de chama"),san(vc(A.Tad,0))+" °C"]);
         corpo.push([san("Câmara"),san(vc(A.Vcam,1))+" m3"]);
         corpo.push([san("Chaminé"),"D "+san(vc(A.Dcham,2))+" x "+san(vc(A.Hch,0))+" m"]);
-        corpo.push([san("Tiragem"),san(vc(A.tiragem,0))+" Pa "+(A.tiraOK?"OK":"BAIXA")]);
-        corpo.push([san("CO2eq evitado"),san(vc(A.evit,0))+" t/ano"]);
       }
-      corpo.push([san("Pátio de madeira"),san(vc(A.Apat,0))+" m2"]);
-      corpo.push([san("Pátio de carvão"),san(vc(A.Apatc,0))+" m2"]);
+      if(MD.S>=0.5) corpo.push([san("SO2 potencial"),san(vc(A.SO2,0))+" kg/h"]);
+      if(MD.Cl>=0.3) corpo.push([san("HCl potencial"),san(vc(A.HCl,0))+" kg/h"]);
       corpo.push([san("ÁREA TOTAL"),san(vc(A.Atot/10000,2))+" ha"]);
       corpo.push([san("Equipe"),san(vc(A.opTot,0))+" pessoas"]);
-      corpo.push([san("Produtividade"),san(vc(A.prodHom,1))+" t/pessoa.mês"]);
       doc.autoTable({startY:40,theme:"grid",margin:{left:ZC,right:14},
         head:[[san("Resultado"),san("Valor")]],
         body:corpo,
-        styles:{fontSize:5.6,cellPadding:0.8,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
-        headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:5.9},
+        styles:{fontSize:5.4,cellPadding:0.72,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:5.7},
         columnStyles:{0:{cellWidth:33},1:{cellWidth:33}}});
-
     } else if(G.tipo==="lavador"){
       var A=G.A;
       var XW=15, XV=196, ZW=116;
