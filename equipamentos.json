@@ -1,7 +1,7 @@
 {
  "meta": {
   "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-  "versao": "2.7.2",
+  "versao": "2.7.3",
   "atualizado_em": "2026-09-08",
   "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
   "menu": [
@@ -948,5 +948,5 @@
    "subgrupo_en": "Wet Scrubber (quench, Venturi and separator)"
   }
  ],
- "versao": "2.7.2"
+ "versao": "2.7.3"
 }
