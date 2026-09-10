@@ -8161,7 +8161,13 @@ function fdNucleo(){
          fica sobre a sapata e ainda sair a emergência exigida acima do terreno.
          Quanto mais fundo o assentamento, mais alto o pedestal — e mais longo o
          braço do cortante, o que realimenta o momento na base.                  */
-      var hPed=Math.max(hPedAnc,Math.ceil(((prof-h)+emerg)*20)/20);
+      /* O trecho enterrado é uma ESPESSURA DE SOLO: nunca negativa. Sapata mais
+         espessa que a cota de assentamento (h > prof) tem o topo já acima do
+         terreno — não há solo a atravessar, e o pedestal precisa então da
+         emergência inteira. Sem travar o sinal, (prof-h) negativo DESCONTA da
+         altura exigida e o pedestal sai menor que a própria emergência.        */
+      var hEnterrS=Math.max(0,prof-h);
+      var hPed=Math.max(hPedAnc,Math.ceil((hEnterrS+emerg)*20)/20);
       var h0=Math.max(0.20,Math.round(h*0.45*20)/20);
       var Atop=Math.min(A*0.85,Math.pow(b0+0.20,2));
       var Vsap=A*h0+(h-h0)*(A+Atop+Math.sqrt(A*Atop))/3;
@@ -8183,7 +8189,7 @@ function fdNucleo(){
       var R={B:B,L:L,A:A,h:h,h0:h0,Vsap:Vsap,Wsap:Wsap,Wsolo:Wsolo,Ntot:Ntot,Mtot:Mtot,
              e:e,smax:smax,smin:smin,descola:descola,xcont:xcont,b0:b0,d:d,
              gamaMed:gamaMed,hSub:hSub,hsolo:hsolo,
-             hPed:hPed,hEmerge:hPed-(prof-h),hEnterr:Math.max(0,prof-h)};
+             hPed:hPed,hEmerge:hPed-hEnterrS,hEnterr:hEnterrS};
       R.rigida=(h>=(B-b0)/3-0.001);
       /* armadura pelo método das bielas */
       var Td=Nd*(B-b0)/(8*Math.max(d,0.05));
