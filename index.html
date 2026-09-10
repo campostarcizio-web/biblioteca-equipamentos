@@ -15333,7 +15333,10 @@ function gerarRelatorio(){
       /* balão de posição: o número da barra dentro de um círculo, com chamada */
       function balao(xb,yb,xa,ya,txt){
         doc.setDrawColor(190,60,60); doc.setLineWidth(0.3);
-        doc.line(xa,ya,xb,yb);
+        /* a chamada sai da BORDA do círculo, não do centro: senão o traço cruza o
+           próprio número da posição                                             */
+        var dxb=xa-xb, dyb=ya-yb, db=Math.sqrt(dxb*dxb+dyb*dyb)||1;
+        doc.line(xa,ya,xb+dxb/db*2.6,yb+dyb/db*2.6);
         doc.setFillColor(255,255,255); doc.setDrawColor(190,60,60); doc.setLineWidth(0.4);
         doc.circle(xb,yb,2.6,"FD");
         doc.setTextColor(190,60,60); doc.setFontSize(4.6);
@@ -15348,6 +15351,27 @@ function gerarRelatorio(){
           var xb=x+Math.min(q+h,w), yb=y+Math.min(h,w-q);
           if(xb>xa) doc.line(xa,ya,xb,yb);
         }
+      }
+      /* Cota da emergência do pedestal acima do terreno. Vale para as TRÊS soluções:
+         em qualquer uma delas a chapa de base tem de ficar fora do solo. Sempre
+         cotada pela ESQUERDA, para não disputar espaço com as cotas de altura e de
+         profundidade, que ocupam a direita do desenho.                           */
+      function cotaEmerg(yTopo,yTerr,xEsq){
+        if(!(yTopo<yTerr-0.5)) return;
+        doc.setDrawColor(40,140,90); doc.setLineWidth(0.35);
+        doc.line(xEsq-5,yTopo,xEsq-1,yTopo);
+        doc.line(xEsq-5,yTerr,xEsq-1,yTerr);
+        doc.line(xEsq-3,yTopo,xEsq-3,yTerr);
+        doc.setTextColor(40,140,90); doc.setFontSize(4.7);
+        var tEm=san(vc(A.hEmerge*1000,0)+" mm");
+        doc.text(tEm,Math.max(XC,xEsq-6-doc.getTextWidth(tEm)),(yTopo+yTerr)/2+1);
+      }
+      /* rótulos do perfil e da chapa: sempre ACIMA da linha do terreno, nunca sobre
+         ela, e o N.T. na ponta direita da linha                                   */
+      function rotulosNT(yTerr){
+        ntC(XC,yTerr-9,"perfil metálico",70,80,95,4.7);
+        ntC(XC,yTerr-5,"chapa "+vc(A.Bch*1000,0)+" mm",70,80,95,4.7);
+        ntC(104,yTerr-1.4,"N.T.",120,100,70,4.7);
       }
       /* posições do quadro de ferro, por grupo */
       function posDe(filtro){
@@ -15401,7 +15425,11 @@ function gerarRelatorio(){
         doc.line(cx-wB/2+1.4,yBase-1.5,cx+wB/2-1.4,yBase-1.5);
         doc.line(cx-wB/2+1.4,yBase-1.5,cx-wB/2+1.4,yBase-1.5-Math.min(3.5,h0-1));
         doc.line(cx+wB/2-1.4,yBase-1.5,cx+wB/2-1.4,yBase-1.5-Math.min(3.5,h0-1));
-        balao(cx-wB/2-8,yBase-3,cx-wB/2+3,yBase-1.5,nomePos(pPri,0));
+        /* o balão da malha inferior divide a faixa esquerda com o texto da cota h0.
+           Sobe o suficiente para o círculo passar acima da caixa desse texto, sem
+           nunca flutuar acima do nível do terreno.                               */
+        var yTxtH0=yBase-h0/2+1, yBalS=Math.min(yBase-3,yTxtH0-5.1);
+        balao(cx-wB/2-8,Math.max(yTer+3.2,yBalS),cx-wB/2+3,yBase-1.5,nomePos(pPri,0));
         var yDg=yBase+2.5, hmaxD=7.5;
         doc.setFillColor(150,190,225); doc.setDrawColor(60,110,160); doc.setLineWidth(0.3);
         var hminD=hmaxD*Math.max(0,SAP.smin)/Math.max(SAP.smax,0.1);
@@ -15412,20 +15440,8 @@ function gerarRelatorio(){
         cotaVd(yTopo,yBase,cx+wB/2+5,"h "+vc(SAP.h,2));
         cotaVd(yTer,yBase,cx+wB/2+16,vc(A.prof,2)+" m");
         cotaVe(yBase-h0,yBase,cx-wB/2-3,"h0 "+vc(SAP.h0,2));
-        /* emergência acima do nível do terreno, cotada pela ESQUERDA para não
-           disputar espaço com as cotas de altura e de profundidade            */
-        if(yTopo-hP<yTer-0.5){
-          doc.setDrawColor(40,140,90); doc.setLineWidth(0.35);
-          doc.line(cx-wP/2-5,yTopo-hP,cx-wP/2-1,yTopo-hP);
-          doc.line(cx-wP/2-5,yTer,cx-wP/2-1,yTer);
-          doc.line(cx-wP/2-3,yTopo-hP,cx-wP/2-3,yTer);
-          doc.setTextColor(40,140,90); doc.setFontSize(4.7);
-          var tEm=san(vc(A.hEmerge*1000,0)+" mm");
-          doc.text(tEm,Math.max(XC,cx-wP/2-6-doc.getTextWidth(tEm)),(yTopo-hP+yTer)/2+1);
-        }
-        ntC(XC,yTer-9,"perfil metálico",70,80,95,4.7);
-        ntC(XC,yTer-5,"chapa "+vc(A.Bch*1000,0)+" mm",70,80,95,4.7);
-        ntC(104,yTer-1.4,"N.T.",120,100,70,4.7);
+        cotaEmerg(yTopo-hP,yTer,cx-wP/2);
+        rotulosNT(yTer);
       } else if(A.tipo==="estaca"&&EST){
         var escE=Math.min(58/Math.max(EST.dimB,0.1),24/Math.max(EST.hBloco+A.hPed,0.1));
         var wBl=EST.dimB*escE, hBl=EST.hBloco*escE;
@@ -15458,7 +15474,8 @@ function gerarRelatorio(){
         cotaVd(yTopoBl,yBaseBl,cx+wBl/2+5,"h "+vc(EST.hBloco,2));
         cotaVd(yBaseBl,yBaseBl+Le,cx+wBl/2+15,"L "+vc(EST.L,1)+" m");
         if(EST.n>1) cotaH(cx+posE[0],cx+posE[posE.length-1],yBaseBl+Le+13,"e "+vc(EST.esp,2)+" m");
-        ntC(XC,yPf2+2,"perfil metálico",70,80,95,4.7);
+        cotaEmerg(yTopoBl-hPe,yTer,cx-wPe/2);
+        rotulosNT(yTer);
       } else {
         var escT=Math.min(52/Math.max(TUB.Db,0.1),32/Math.max(TUB.Ltub,0.1));
         var wF=TUB.Df*escT, wBs=TUB.Db*escT, hR=TUB.hRod*escT, hCo=TUB.hCone*escT, hFu=TUB.Lfuste*escT;
@@ -15486,8 +15503,10 @@ function gerarRelatorio(){
         cotaH(cx-wBs/2,cx+wBs/2,yFimR+7,"base Ø "+vc(TUB.Db,2)+" m");
         cotaH(cx-wF/2,cx+wF/2,Math.max(47,yPf3-3),"Ø "+vc(TUB.Df,2)+" m");
         cotaVd(yTer,yFimR,cx+wBs/2+5,vc(TUB.Ltub,2)+" m");
-        cotaVe(yFimF,yFimC,cx-wBs/2-3,vc(TUB.hCone,2));
-        ntC(XC,yPf3+2,"perfil metálico",70,80,95,4.7);
+        /* sem base alargada não há cone: cotar 0,00 só poluiria o croqui */
+        if(TUB.hCone>0.005) cotaVe(yFimF,yFimC,cx-wBs/2-3,vc(TUB.hCone,2));
+        cotaEmerg(yTer-hPt,yTer,cx-wPt/2);
+        rotulosNT(yTer);
       }
 
       /* ======================= 2 · DETALHE DO PEDESTAL ======================= */
@@ -15547,10 +15566,16 @@ function gerarRelatorio(){
         var yf=yPd+1.2+kk*0.05*eD;
         doc.line(xa1+1.5,yf,xa2-1.5,yf);
       }
-      /* balões das posições do pedestal */
+      /* balões das posições do pedestal. O balão da fretagem nasce na mesma altura
+         dos rótulos da chapa e do grãute, então precisa começar depois do MAIOR
+         deles — senão encosta no texto.                                          */
+      doc.setFontSize(4.5);
+      var xRotFim=cxD+wChD/2+1.5+Math.max(doc.getTextWidth(san("chapa "+vc(A.Bch*1000,0)+" mm")),
+                                          doc.getTextWidth(san("grãute 40 mm")));
+      var xBalD=Math.min(XD-4,Math.max(cxD+wPd/2+12,xRotFim+5));
       if(pPed[0]) balao(cxD-wPd/2-12,yPd+hPd+4,xa1,yPd+hPd+2,pPed[0].pos);
       if(pPed[1]) balao(cxD+wPd/2+12,yPd+hPd*0.62,xa2-2,yPd+hPd*0.62,pPed[1].pos);
-      if(pPed[2]) balao(cxD+wPd/2+12,yPd-1.5,xa2-3,yPd+1.4,pPed[2].pos);
+      if(pPed[2]) balao(xBalD,yPd-1.5,xa2-3,yPd+1.4,pPed[2].pos);
       /* cotas do detalhe */
       cotaH(cxD-wPd/2,cxD+wPd/2,yPd+hPd+hAnc+8,"pedestal "+vc(A.bPed*1000,0)+" mm");
       cotaVe(yPd,yPd+hPd,cxD-wPd/2-4,vc(A.hPed*1000,0)+" mm");
