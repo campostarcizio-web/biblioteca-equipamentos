@@ -8104,6 +8104,10 @@ function fdNucleo(){
   var Dfin=num("fdDfuste"); if(!isFinite(Dfin)||Dfin<=0) Dfin=0; else Dfin=Math.max(300,Math.min(5000,Dfin));
   var Dbin=num("fdDbase"); if(!isFinite(Dbin)||Dbin<=0) Dbin=0; else Dbin=Math.max(300,Math.min(8000,Dbin));
   var recAdm=Math.max(2,Math.min(300,nz("fdRecAdm",25)));   /* mm                */
+  /* A fundação tem de emergir do terreno. Chapa de base enterrada fica em contato
+     permanente com solo úmido e aerado, que é a condição que mais acelera corrosão
+     em estrutura metálica — e nenhuma pintura resolve o que o embutimento cria.  */
+  var emerg=Math.max(0.05,Math.min(1.50,nz("fdEmerg",200)/1000));
 
   /* ===================== 2. SOLO ===================== */
   var SG=fdSigmaNSPT(S,Nspt,prof,gama);
@@ -8138,7 +8142,8 @@ function fdNucleo(){
     hef+=0.01;
     if(hef>1.2) break;
   }
-  var hPed=Math.max(0.30,Math.ceil((hef+0.10)*20)/20);
+  var hPedAnc=Math.max(0.30,Math.ceil((hef+0.10)*20)/20);  /* mínimo por ancoragem */
+  var hPed=hPedAnc;                                        /* redefinido adiante   */
   var NcbFin=10*Math.sqrt(fck)*Math.pow(hef*1000,1.5)/1000/1.4;
   var ancOK=(hef<=1.19);
 
@@ -8152,6 +8157,11 @@ function fdNucleo(){
     var b0=bPed;
     function avalia(B,h){
       var L=B, A=B*L;
+      /* O pedestal não tem altura livre: ele precisa atravessar todo o solo que
+         fica sobre a sapata e ainda sair a emergência exigida acima do terreno.
+         Quanto mais fundo o assentamento, mais alto o pedestal — e mais longo o
+         braço do cortante, o que realimenta o momento na base.                  */
+      var hPed=Math.max(hPedAnc,Math.ceil(((prof-h)+emerg)*20)/20);
       var h0=Math.max(0.20,Math.round(h*0.45*20)/20);
       var Atop=Math.min(A*0.85,Math.pow(b0+0.20,2));
       var Vsap=A*h0+(h-h0)*(A+Atop+Math.sqrt(A*Atop))/3;
@@ -8172,7 +8182,8 @@ function fdNucleo(){
       var d=h-cob/1000-0.010;
       var R={B:B,L:L,A:A,h:h,h0:h0,Vsap:Vsap,Wsap:Wsap,Wsolo:Wsolo,Ntot:Ntot,Mtot:Mtot,
              e:e,smax:smax,smin:smin,descola:descola,xcont:xcont,b0:b0,d:d,
-             gamaMed:gamaMed,hSub:hSub,hsolo:hsolo};
+             gamaMed:gamaMed,hSub:hSub,hsolo:hsolo,
+             hPed:hPed,hEmerge:hPed-(prof-h),hEnterr:Math.max(0,prof-h)};
       R.rigida=(h>=(B-b0)/3-0.001);
       /* armadura pelo método das bielas */
       var Td=Nd*(B-b0)/(8*Math.max(d,0.05));
@@ -8211,7 +8222,7 @@ function fdNucleo(){
       R.puncOK=(R.tauSd<=R.tauRd2);
       /* tombamento e deslizamento */
       var Nmin=Nperm+Wsap+Wsolo;
-      R.Nmin=Nmin; R.Mest=Nmin*B/2; R.Mtomb=Mk+Vk*(h+hPed);
+      R.Nmin=Nmin; R.Mest=Nmin*B/2; R.Mtomb=Mtot;
       R.FStomb=R.Mest/Math.max(R.Mtomb,0.01);
       R.tombOK=(R.FStomb>=1.5);
       var delta=2/3*phi;
@@ -8264,11 +8275,13 @@ function fdNucleo(){
     }
     var R=res;
     /* quantidades */
-    R.Vconc=R.Vsap+bPed*bPed*hPed;
-    R.Aco=R.arm.Asef/1e6*R.B*2*7850*1.25 + 0.004*bPed*bPed*hPed*7850 + 0.0015*bPed*bPed*hPed*7850;
+    R.Vconc=R.Vsap+bPed*bPed*R.hPed;
+    R.Aco=R.arm.Asef/1e6*R.B*2*7850*1.25 + 0.004*bPed*bPed*R.hPed*7850 + 0.0015*bPed*bPed*R.hPed*7850;
     R.Vesc=R.A*1.25*prof*1.15;
+    R.esbPed=R.hPed/Math.max(bPed,0.01);
     return R;
   })();
+  if(tipo==="sapata"&&SAP) hPed=SAP.hPed;
 
   /* ===================== 5. BLOCO SOBRE ESTACAS ===================== */
   var EST=(function(){
@@ -8334,6 +8347,12 @@ function fdNucleo(){
     R.tracao=(R.Ntrac>0.01);
     R.Qtrac=0.7*R.Ql/2;                                   /* tração admissível  */
     R.tracOK=(!R.tracao)||(R.Ntrac<=R.Qtrac);
+    /* o pedestal atravessa o solo sobre o bloco e emerge a cota exigida */
+    R.hEnterr=Math.max(0,prof-hBloco);
+    R.hPed=Math.max(hPedAnc,Math.ceil((R.hEnterr+emerg)*20)/20);
+    R.hEmerge=R.hPed-R.hEnterr;
+    R.esbPed=R.hPed/Math.max(bPed,0.01);
+    var hPed=R.hPed;
     R.Vconc=dimB*dimL*hBloco+R.n*Math.PI*R.D*R.D/4*R.L+bPed*bPed*hPed;
     R.Vconc_bloco=dimB*dimL*hBloco;
     R.Aco=(mel.Asef/1e6*dimB*4*7850*1.3)+R.n*(0.005*Math.PI*R.D*R.D/4*R.L*7850);
@@ -8363,6 +8382,10 @@ function fdNucleo(){
     var Vfuste=Af*Lfuste;
     var Vrod=Ab*hRod;
     var Vcone=Math.PI*hCone/3*(Math.pow(Db/2,2)+Math.pow(Df/2,2)+(Db/2)*(Df/2));
+    /* no tubulão o topo do fuste chega ao nível do terreno: quem emerge é o
+       pedestal, e ele só precisa da própria cota de emergência                */
+    var hEnterrT=0;
+    var hPed=Math.max(hPedAnc,Math.ceil(emerg*20)/20);
     var Vtot=Vfuste+Vrod+Vcone+bPed*bPed*hPed;
     var sigF=Nk/Af;
     var sigB=Nk/Ab;
@@ -8376,8 +8399,16 @@ function fdNucleo(){
     return {Df:Df,Db:Db,Af:Af,Ab:Ab,hRod:hRod,hCone:hCone,Ltub:Ltub,Lfuste:Lfuste,
       Vfuste:Vfuste,Vrod:Vrod,Vcone:Vcone,Vtot:Vtot,sigF:sigF,sigB:sigB,
       fusteOK:fusteOK,baseOK:baseOK,acessoOK:acessoOK,alturaOK:alturaOK,abertura:abertura,
-      Aco:Aco,Vesc:Vesc,Abase:Abase};
+      Aco:Aco,Vesc:Vesc,Abase:Abase,
+      hPed:hPed,hEnterr:hEnterrT,hEmerge:hPed,esbPed:hPed/Math.max(bPed,0.01)};
   })();
+  if(tipo==="estaca"&&EST) hPed=EST.hPed;
+  if(tipo==="tubulao") hPed=TUB.hPed;
+  var hEmerge=(tipo==="sapata"&&SAP)?SAP.hEmerge:(tipo==="estaca"&&EST)?EST.hEmerge:TUB.hEmerge;
+  var hEnterr=(tipo==="sapata"&&SAP)?SAP.hEnterr:(tipo==="estaca"&&EST)?EST.hEnterr:TUB.hEnterr;
+  var esbPed=hPed/Math.max(bPed,0.01);
+  var emergeOK=(hEmerge>=emerg-0.001);
+  var pedEsbelto=(esbPed>4.0);
 
   /* ===================== 7. COMPARAÇÃO ===================== */
   var CMP=[];
@@ -8592,6 +8623,10 @@ function fdNucleo(){
   VER.push({o:"Ancoragem dos chumbadores no concreto",r:"h_ef "+nv(hef*1000,0)+" mm   ·   cone resistente "+nv(NcbFin,0)+" kN",ok:ancOK});
   VER.push({o:"Classe do concreto contra a agressividade",r:"C"+nv(fck,0)+" contra C"+nv(FD_AGRES[agr].fckMin,0)+" mínimo da classe "+agr,ok:(fck>=FD_AGRES[agr].fckMin)});
   VER.push({o:"Cobrimento em contato com o solo",r:nv(cob,0)+" mm",ok:(cob>=fdCobrimento(agr,true))});
+  VER.push({o:"EMERGÊNCIA da fundação acima do terreno",
+    r:nv(hEmerge*1000,0)+" mm de pedestal fora do solo contra "+nv(emerg*1000,0)+" mm exigidos   ·   a chapa de base fica "+nv(hEmerge*1000,0)+" mm acima do nível zero",ok:emergeOK});
+  VER.push({o:"Esbeltez do pedestal",
+    r:"altura "+nv(hPed*1000,0)+" mm sobre lado "+nv(bPed*1000,0)+" mm   ·   relação "+nv(esbPed,2),ok:!pedEsbelto,av:pedEsbelto});
   var nRep=0,nAv=0,nVer=VER.length;
   for(var iw=0;iw<VER.length;iw++){ if(!VER[iw].ok){ if(VER[iw].av) nAv++; else nRep++; } }
 
@@ -8606,6 +8641,7 @@ function fdNucleo(){
     S:S,sk:sk,modoS:modoS,Nspt:Nspt,sigAdm:sigAdm,calcSig:calcSig,SG:SG,Es:Es,phi:phi,coes:coes,
     prof:prof,gama:gama,calcGama:calcGama,NA:NA,temNA:temNA,recAdm:recAdm,
     fck:fck,fyk:fyk,fcd:fcd,fyd:fyd,agr:agr,cob:cob,
+    emerg:emerg,hEmerge:hEmerge,hEnterr:hEnterr,esbPed:esbPed,emergeOK:emergeOK,pedEsbelto:pedEsbelto,hPedAnc:hPedAnc,
     tipo:tipo,SAP:SAP,EST:EST,TUB:TUB,E:E,ek:ek,metodo:metodo,CMP:CMP,recomend:recomend,MAT:MAT};
 }
 
@@ -8640,7 +8676,11 @@ function fundacaoCalc(){
   /* ---------------------------------------------------------------- 3 */
   OUT.push({sec:"3 · Interface com o pilar metálico"});
   OUT.push({k:"Chapa de base e chumbadores",v:"chapa de "+v(A.Bch*1000,0)+" mm de lado   ·   "+v(A.nCh,0)+" chumbadores "+A.ck+" classe "+A.CH.cl+"   ·   distância entre eixos "+v(A.ech*1000,0)+" mm"});
-  OUT.push({k:"PEDESTAL DE CONCRETO",v:v(A.bPed*1000,0)+" × "+v(A.bPed*1000,0)+" mm   ×   "+v(A.hPed*1000,0)+" mm de altura   —  dimensionado para envolver a chapa com o cobrimento, a armadura de fretagem e o gabarito dos chumbadores",hi:true});
+  OUT.push({k:"PEDESTAL DE CONCRETO",v:v(A.bPed*1000,0)+" × "+v(A.bPed*1000,0)+" mm   ×   "+v(A.hPed*1000,0)+" mm de altura   —  a seção envolve a chapa com o cobrimento, a armadura de fretagem e o gabarito dos chumbadores; a ALTURA é imposta pela emergência exigida",hi:true});
+  OUT.push({k:"EMERGÊNCIA ACIMA DO NÍVEL ZERO",v:v(A.hEmerge*1000,0)+" mm de pedestal fora do solo   ·   exigidos "+v(A.emerg*1000,0)+" mm   ·   trecho enterrado "+v(A.hEnterr*1000,0)+" mm   ·   "+st(A.emergeOK),hi:true});
+  OUT.push({k:"POR QUE A CHAPA NUNCA PODE FICAR ENTERRADA",v:"Chapa de base em contato com solo fica permanentemente úmida e com oxigênio disponível — a combinação que mais acelera a corrosão em estrutura metálica. Pior: a corrosão ataca justamente a região da solda entre a chapa e o perfil, que é onde a carga se transfere, e a inspeção ali é impossível sem escavar. Nenhum esquema de pintura resolve o que o embutimento cria. Por isso o pedestal é dimensionado para atravessar todo o solo sobre a fundação e ainda sair "+v(A.emerg*1000,0)+" mm acima do nível zero, deixando a chapa visível e drenada."});
+  OUT.push({k:"O que a emergência custa",v:"O pedestal precisou de "+v(A.hPed*1000,0)+" mm contra os "+v(A.hPedAnc*1000,0)+" mm que a ancoragem sozinha exigiria. Isso alonga o braço do cortante: o momento na base passa a incluir V × (h + "+v(A.hPed,2)+"), e é essa parcela que faz a fundação crescer. Assentamento mais raso reduz o pedestal e barateia a fundação inteira — quando o solo permite."});
+  if(A.pedEsbelto) OUT.push({k:"ATENÇÃO — PEDESTAL ESBELTO",v:"Relação altura/lado de "+v(A.esbPed,2)+", acima de 4. Nessa proporção o pedestal deixa de ser um bloco e passa a ser um pilar curto sujeito a flambagem, e precisa ser verificado como tal pela NBR 6118, com efeitos de segunda ordem. Alternativas: alargar a seção do pedestal, assentar a fundação mais raso ou prever um bloco intermediário.",hi:true});
   OUT.push({k:"TRAÇÃO NO CHUMBADOR",v:(A.chumbTracao?(v(A.Tch_kN,2)+" kN   ·   resistência "+v(A.TchRd,1)+" kN"):"nenhuma — a compressão do pilar supera o arrancamento do momento")+"   ·   cisalhamento "+v(A.Vch_kN,2)+" kN de "+v(A.VchRd,1)+" kN   ·   índice de interação "+v(A.intCh,3),hi:true});
   OUT.push({k:"ANCORAGEM NO CONCRETO",v:"comprimento efetivo h_ef = "+v(A.hef*1000,0)+" mm   ·   cone de arrancamento resistente "+v(A.NcbFin,0)+" kN   ·   "+st(A.ancOK),hi:!A.ancOK});
   OUT.push({k:"O que governa a ancoragem",v:"Não é a aderência da barra: é o cone de concreto que ela arranca. Um chumbador com porca e placa na ponta transfere a carga por apoio, e a ruptura acontece no concreto, num cone a cerca de 35° a partir da placa. Por isso a altura do pedestal é definida pelo h_ef, e não pelo comprimento de rosca."});
@@ -8855,6 +8895,7 @@ const CALCS={
         {v:"IV",t:"IV — respingos de maré ou industrial severa"}]},
       {id:"fdCob",label:"Cobrimento (0 = pela classe de agressividade)",unidade:"mm",tipo:"number",valor:0,step:"5"},
       {tipo:"head",label:"Interface com o pilar metálico"},
+      {id:"fdEmerg",label:"EMERGÊNCIA da fundação acima do nível zero do solo",unidade:"mm",tipo:"number",valor:200,step:"50"},
       {id:"fdBchapa",label:"Lado da chapa de base",unidade:"mm",tipo:"number",valor:350,step:"10"},
       {id:"fdNchum",label:"Número de chumbadores",tipo:"number",valor:4,step:"1"},
       {id:"fdDchum",label:"BITOLA DO CHUMBADOR",tipo:"select",valor:"M20",opcoes:[
@@ -15371,13 +15412,27 @@ function gerarRelatorio(){
         cotaVd(yTopo,yBase,cx+wB/2+5,"h "+vc(SAP.h,2));
         cotaVd(yTer,yBase,cx+wB/2+16,vc(A.prof,2)+" m");
         cotaVe(yBase-h0,yBase,cx-wB/2-3,"h0 "+vc(SAP.h0,2));
-        ntC(XC,yPf+2,"perfil metálico",70,80,95,4.7);
-        ntC(XC,yPf+6,"chapa "+vc(A.Bch*1000,0)+" mm",70,80,95,4.7);
+        /* emergência acima do nível do terreno, cotada pela ESQUERDA para não
+           disputar espaço com as cotas de altura e de profundidade            */
+        if(yTopo-hP<yTer-0.5){
+          doc.setDrawColor(40,140,90); doc.setLineWidth(0.35);
+          doc.line(cx-wP/2-5,yTopo-hP,cx-wP/2-1,yTopo-hP);
+          doc.line(cx-wP/2-5,yTer,cx-wP/2-1,yTer);
+          doc.line(cx-wP/2-3,yTopo-hP,cx-wP/2-3,yTer);
+          doc.setTextColor(40,140,90); doc.setFontSize(4.7);
+          var tEm=san(vc(A.hEmerge*1000,0)+" mm");
+          doc.text(tEm,Math.max(XC,cx-wP/2-6-doc.getTextWidth(tEm)),(yTopo-hP+yTer)/2+1);
+        }
+        ntC(XC,yTer-9,"perfil metálico",70,80,95,4.7);
+        ntC(XC,yTer-5,"chapa "+vc(A.Bch*1000,0)+" mm",70,80,95,4.7);
+        ntC(104,yTer-1.4,"N.T.",120,100,70,4.7);
       } else if(A.tipo==="estaca"&&EST){
-        var escE=Math.min(58/Math.max(EST.dimB,0.1),26/Math.max(EST.hBloco+A.hPed+0.3,0.1));
+        var escE=Math.min(58/Math.max(EST.dimB,0.1),24/Math.max(EST.hBloco+A.hPed,0.1));
         var wBl=EST.dimB*escE, hBl=EST.hBloco*escE;
         var wPe=Math.min(A.bPed*escE,wBl*0.8), hPe=A.hPed*escE;
-        var yTopoBl=yTer+0.30*escE, yBaseBl=yTopoBl+hBl;
+        /* o topo do bloco fica na profundidade que o cálculo determinou, não num
+           recobrimento fixo — senão o desenho conta uma história diferente     */
+        var yTopoBl=yTer+EST.hEnterr*escE, yBaseBl=yTopoBl+hBl;
         hachura(cx-wBl/2,yTer,wBl,Math.max(0.1,yTopoBl-yTer),190,175,145,2.6);
         doc.setFillColor(226,232,240); doc.setDrawColor(40,55,75); doc.setLineWidth(0.55);
         doc.rect(cx-wBl/2,yTopoBl,wBl,hBl,"FD");
@@ -15646,6 +15701,8 @@ function gerarRelatorio(){
         [san("Aço"),"CA-"+san(vc(A.fyk/10,0))],
         [san("Cobrimento"),san(vc(A.cob,0))+" mm"],
         [san("PEDESTAL"),san(vc(A.bPed*1000,0))+" x "+san(vc(A.hPed*1000,0))+" mm"],
+        [san("EMERGÊNCIA"),san(vc(A.hEmerge*1000,0))+" mm"],
+        [san("Trecho enterrado"),san(vc(A.hEnterr*1000,0))+" mm"],
         [san("Chumbadores"),san(vc(A.nCh,0))+" x "+san(A.ck)],
         [san("Tração/chumbador"),san(vc(A.Tch_kN,2))+" kN"],
         [san("h_ef ancoragem"),san(vc(A.hef*1000,0))+" mm"],
