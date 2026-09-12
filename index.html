@@ -6175,6 +6175,97 @@ function vigaNum(L,x1,x2,cargas,q,EI,N){
   return {R1:R1,R2:R2,x:x,V:V,M:M,y:yf,Mmax:Mmax,xM:xM,ymax:ymax,xy:xy,dx:dx,N:N};
 }
 
+/* Eliminação de Gauss com pivotamento parcial — sistema pequeno, dos apoios
+   auxiliares. Se a matriz degenerar (apoios coincidentes), devolve zeros, que
+   equivale a ignorar os auxiliares em vez de produzir número sem sentido.     */
+function gaussLin(A,b){
+  var n=b.length,i,j,k;
+  for(i=0;i<n;i++){
+    var p=i;
+    for(j=i+1;j<n;j++){ if(Math.abs(A[j][i])>Math.abs(A[p][i])) p=j; }
+    var tA=A[i]; A[i]=A[p]; A[p]=tA;
+    var tb=b[i]; b[i]=b[p]; b[p]=tb;
+    /* devolve NULL, e nao um vetor de zeros: zero e' um resultado legitimo de um
+       sistema bem posto, e confundir os dois faz a degeneracao passar por
+       solucao valida. Quem chama decide o que fazer com a falha.              */
+    if(Math.abs(A[i][i])<1e-30){ return null; }
+    for(j=i+1;j<n;j++){
+      var f=A[j][i]/A[i][i];
+      for(k=i;k<n;k++){ A[j][k]-=f*A[i][k]; }
+      b[j]-=f*b[i];
+    }
+  }
+  var xs=[]; for(i=0;i<n;i++) xs.push(0);
+  for(i=n-1;i>=0;i--){
+    var s=b[i];
+    for(j=i+1;j<n;j++){ s-=A[i][j]*xs[j]; }
+    xs[i]=s/A[i][i];
+  }
+  return xs;
+}
+
+/* ============================================================================
+   VIGA CONTÍNUA SOBRE APOIOS INTERMEDIÁRIOS
+   ----------------------------------------------------------------------------
+   Dois mancais nas extremidades mais apoios auxiliares no meio. Com apoio
+   intermediário a viga deixa de ser isostática: as reações dos auxiliares são
+   incógnitas e só saem impondo flecha nula sobre cada um deles.
+
+   Resolve pelo método das forças, usando a viga sobre dois apoios como sistema
+   de referência. Para cada auxiliar k monta a flecha provocada por uma carga
+   unitária para cima em xk; o sistema linear que zera a flecha em todos os
+   auxiliares devolve as reações. Depois é superposição pura.
+
+   O ganho é geométrico, não linear: a flecha de um vão cresce com L⁴. Partir o
+   vão em dois reduz a flecha a cerca de 1/16 — é isso que permite eixo mais
+   fino, e é por isso que esses mancais existem no desenho.
+   ========================================================================== */
+function vigaCont(L,xa,xb,xsup,cargas,q,EI,N){
+  N=N||600;
+  var base=vigaNum(L,xa,xb,cargas,q,EI,N);
+  var lista=[];
+  for(var s0=0;s0<(xsup||[]).length;s0++){
+    var xv=xsup[s0];
+    if(isFinite(xv)&&xv>xa+1e-6&&xv<xb-1e-6) lista.push(xv);
+  }
+  base.xsup=lista; base.Raux=[];
+  if(lista.length===0) return base;
+  var ns=lista.length, k, j, i;
+  function idx(xx){ return Math.max(0,Math.min(N,Math.round(xx/base.dx))); }
+  /* flecha por carga unitária para cima em cada auxiliar (P negativo = para cima) */
+  var uni=[];
+  for(k=0;k<ns;k++){ uni.push(vigaNum(L,xa,xb,[{x:lista[k],P:-1,tag:"aux"}],0,EI,N)); }
+  var A=[], bv=[];
+  for(j=0;j<ns;j++){
+    var row=[];
+    for(k=0;k<ns;k++){ row.push(uni[k].y[idx(lista[j])]); }
+    A.push(row); bv.push(-base.y[idx(lista[j])]);
+  }
+  var R=gaussLin(A,bv);
+  /* sistema degenerado (apoios coincidentes): devolve a viga ISOSTATICA e avisa.
+     Sem o aviso, some a rigidez dos auxiliares mas o vao continuaria contado como
+     se eles existissem — o limite de flecha ficaria apertado sobre uma viga que
+     na verdade nao tem apoio nenhum no meio.                                   */
+  if(!R){ base.xsup=[]; base.Raux=[]; base.degen=true; return base; }
+  /* superposição dos esforços e da flecha */
+  var V=[], M=[], y=[];
+  for(i=0;i<=N;i++){
+    var vv=base.V[i], mm=base.M[i], yy=base.y[i];
+    for(k=0;k<ns;k++){ vv+=R[k]*uni[k].V[i]; mm+=R[k]*uni[k].M[i]; yy+=R[k]*uni[k].y[i]; }
+    V.push(vv); M.push(mm); y.push(yy);
+  }
+  var R1=base.R1, R2=base.R2;
+  for(k=0;k<ns;k++){ R1+=R[k]*uni[k].R1; R2+=R[k]*uni[k].R2; }
+  var Mmax=0,xM=0,ymax=0,xy=0;
+  for(i=0;i<=N;i++){
+    if(Math.abs(M[i])>Math.abs(Mmax)){ Mmax=M[i]; xM=base.x[i]; }
+    if(Math.abs(y[i])>Math.abs(ymax)){ ymax=y[i]; xy=base.x[i]; }
+  }
+  return {R1:R1,R2:R2,x:base.x,V:V,M:M,y:y,Mmax:Mmax,xM:xM,ymax:ymax,xy:xy,
+          dx:base.dx,N:N,xsup:lista,Raux:R,
+          ymaxIso:base.ymax,MmaxIso:base.Mmax};
+}
+
 function pfNucleo(){
   var g=9.80665, ACO=7850;
   /* ================= ENTRADAS ================= */
@@ -6205,6 +6296,16 @@ function pfNucleo(){
   var aEng=num("pfAeng");   if(!isFinite(aEng)||aEng<0) aEng=0.35;
   var ePc=num("pfEpc");     if(!isFinite(ePc)||ePc<=0) ePc=0.60;
   var matEixo=selv("pfMatEixo","1045");
+  /* Diâmetro do eixo: 0 deixa a rotina procurar o menor comercial que fecha em
+     tensão, flecha e torção. Valor informado INVERTE o papel da calculadora —
+     ela passa a apenas verificar o que já foi especificado, e diz onde não passa. */
+  var dImpEixo=num("pfDeixo"); if(!isFinite(dImpEixo)||dImpEixo<=0) dImpEixo=0;
+  /* Apoios auxiliares: mancais intermediários entre os dois mancais principais.
+     Existem para partir o vão e derrubar a flecha, que cresce com L⁴ — é o que
+     permite um eixo mais fino sem perder rigidez.                              */
+  var nAux=num("pfNaux"); if(!isFinite(nAux)||nAux<0) nAux=0;
+  nAux=Math.max(0,Math.min(4,Math.round(nAux)));
+  var LauxIn=num("pfLaux"); if(!isFinite(LauxIn)||LauxIn<0) LauxIn=0;
   var mod=num("pfMod");     if(!isFinite(mod)||mod<=0) mod=10;
   var zMot=Math.max(11,Math.round(num("pfZmot")||17));
   var zMov=Math.max(zMot,Math.round(num("pfZmov")||51));
@@ -6340,6 +6441,38 @@ function pfNucleo(){
   else { for(var q2=0;q2<nPc;q2++){
       var base=x1+recuo+q2*(Lman-2*recuo)/Math.max(nPc-1,1);
       posPc.push(_dentro(base+((q2%2===0)?ePc:-ePc))); } }
+  /* posição dos apoios auxiliares: se a distância entre eles for informada, são
+     centrados nela; se for zero, distribuem-se em vãos iguais entre os mancais */
+  var xsup=[], LauxUsa=0, auxCalc=(LauxIn<=0);
+  if(nAux>0){
+    var xcM=(x1+x2)/2, vaoLivre=x2-x1;
+    if(nAux===1){ xsup=[xcM]; LauxUsa=0; }
+    else if(LauxIn>0){
+      LauxUsa=Math.min(LauxIn,vaoLivre*0.95);
+      for(var qa=0;qa<nAux;qa++){ xsup.push(xcM-LauxUsa/2+qa*LauxUsa/(nAux-1)); }
+    } else {
+      for(var qb=0;qb<nAux;qb++){ xsup.push(x1+(qb+1)*vaoLivre/(nAux+1)); }
+      LauxUsa=xsup[xsup.length-1]-xsup[0];
+    }
+  }
+  /* Apoios praticamente coincidentes nao acrescentam vinculo: dois apoios no mesmo
+     ponto sao um apoio. Se forem mantidos, o sistema hiperestatico degenera. Funde
+     o que estiver mais proximo que a tolerancia ANTES de resolver, para que o vao
+     livre e o limite de flecha reflitam os apoios que de fato existem.         */
+  var tolSup=Math.max(0.005,(x2-x1)*0.005), nAuxPedido=nAux;
+  xsup.sort(function(a,b){return a-b;});
+  var xsupLimpo=[];
+  for(var qc=0;qc<xsup.length;qc++){
+    if(!xsupLimpo.length||(xsup[qc]-xsupLimpo[xsupLimpo.length-1])>tolSup) xsupLimpo.push(xsup[qc]);
+  }
+  var apoiosFundidos=(xsupLimpo.length<xsup.length);
+  xsup=xsupLimpo; nAux=xsup.length;
+  LauxUsa=(xsup.length>1)?(xsup[xsup.length-1]-xsup[0]):0;
+  var vaoMax=(function(){
+    var pts=[x1].concat(xsup).concat([x2]).sort(function(a,b){return a-b;});
+    var mx=0; for(var pi=1;pi<pts.length;pi++){ mx=Math.max(mx,pts[pi]-pts[pi-1]); }
+    return mx;
+  })();
   var dEst=Math.max(0.08,Math.pow(16*Math.sqrt(Math.pow(2*Teixo,2))/(Math.PI*60e6),1/3));
   var qEixo=ACO*Math.PI*dEst*dEst/4*g;                // N/m - peso proprio estimado
   var cargas=[];
@@ -6351,7 +6484,7 @@ function pfNucleo(){
   var dEixo=dEst, VG=null, sigAdm=(matEixo==="4140")?150e6:((matEixo==="4340")?180e6:110e6);
   for(var it=0;it<40;it++){
     var Ix=Math.PI*Math.pow(dEixo,4)/64;
-    VG=vigaNum(Leixo,x1,x2,cargas,ACO*Math.PI*dEixo*dEixo/4*g,Eaco*Ix,600);
+    VG=vigaCont(Leixo,x1,x2,xsup,cargas,ACO*Math.PI*dEixo*dEixo/4*g,Eaco*Ix,600);
     /* torque por trecho: entra na engrenagem e sai nas rodas dentadas */
     var Tx=[];
     for(var ii=0;ii<=VG.N;ii++){
@@ -6362,7 +6495,13 @@ function pfNucleo(){
       var somaLado=0;
       cargas.forEach(function(c){
         if(c.tag==="engrenagem") return;
-        var Tro=(c.tag==="porta")?(Tpd*Drd/2):(Tpc*Drd/2);
+        /* O contrapeso DESCE enquanto a porta SOBE: o peso dele auxilia o
+           movimento, e o torque que ele impõe ao eixo tem sinal CONTRÁRIO ao da
+           porta. Somar os dois em módulo trata o contrapeso como se resistisse,
+           e infla o torque interno para a soma de tudo que existe no eixo — no
+           caso padrão, 33,7 kN·m contra 8,9 kN·m no pior corte real. O eixo sai
+           duas bitolas acima do necessário.                                    */
+        var Tro=(c.tag==="porta")?(Tpd*Drd/2):(-Tpc*Drd/2);
         if((xEng<=xi&&c.x>=xi)||(xEng>=xi&&c.x<=xi)) somaLado+=Tro;
       });
       Tx.push(somaLado);
@@ -6385,10 +6524,12 @@ function pfNucleo(){
      rigidez. A flecha no ponto da coroa desalinha o engrenamento e a torcao faz
      um lado da porta subir antes do outro, que e o que a emperra na guia. Por
      isso o diametro sobe ate atender SIMULTANEAMENTE tensao, flecha e torcao. */
-  var flechaLimM=Lman/1000, flEngLimM=0.03*mod/1000, torcLim=0.25;
+  /* A flecha admissível é do MAIOR VÃO LIVRE, não do comprimento entre mancais:
+     com apoio auxiliar o vão que flete é o trecho entre dois apoios vizinhos. */
+  var flechaLimM=vaoMax/1000, flEngLimM=0.03*mod/1000, torcLim=0.25;
   function _verif(dmm){
     var d0=dmm/1000, I0=Math.PI*Math.pow(d0,4)/64, J0=2*I0;
-    var V0=vigaNum(Leixo,x1,x2,cargas,ACO*Math.PI*d0*d0/4*g,Eaco*I0,600);
+    var V0=vigaCont(Leixo,x1,x2,xsup,cargas,ACO*Math.PI*d0*d0/4*g,Eaco*I0,600);
     var ie=Math.max(0,Math.min(V0.N,Math.round(xEng/V0.dx)));
     var Tm=Math.max.apply(null,VG.T.map(Math.abs));
     var th=Tm*Lman/(Gaco*J0)*180/Math.PI/Math.max(Lman,0.01);
@@ -6397,18 +6538,22 @@ function pfNucleo(){
     return {V:V0,fl:Math.abs(V0.ymax),flE:Math.abs(V0.y[ie]),th:th,se:se,
             ok:(Math.abs(V0.ymax)<=flechaLimM&&Math.abs(V0.y[ie])<=flEngLimM&&th<=torcLim&&se<=sigAdm)};
   }
-  var dCom=DEIX[DEIX.length-1], govEixo="resistencia (momento equivalente)", achou=false;
+  var dCalcEixo=DEIX[DEIX.length-1], govEixo="resistencia (momento equivalente)", achou=false;
   for(var e4=0;e4<DEIX.length;e4++){
     if(DEIX[e4]<dResistmm) continue;
-    if(_verif(DEIX[e4]).ok){ dCom=DEIX[e4]; achou=true; break; }
+    if(_verif(DEIX[e4]).ok){ dCalcEixo=DEIX[e4]; achou=true; break; }
   }
-  if(!achou) dCom=DEIX[DEIX.length-1];
-  if(dCom>dResistmm) govEixo="rigidez (flecha no engrenamento / torcao)";
+  if(!achou) dCalcEixo=DEIX[DEIX.length-1];
+  if(dCalcEixo>dResistmm) govEixo="rigidez (flecha no engrenamento / torcao)";
+  /* Diâmetro adotado: o informado, se houver. A rotina então VERIFICA em vez de
+     dimensionar, e reporta o mínimo que ela teria escolhido, para comparação.  */
+  var modoEixo=(dImpEixo>0)?"verificacao":"dimensionamento";
+  var dCom=(dImpEixo>0)?dImpEixo:dCalcEixo;
   var dc=dCom/1000, Ic=Math.PI*Math.pow(dc,4)/64, Jc=2*Ic;
   var VF=_verif(dCom).V;
   VF.T=VG.T;
   var flecha=Math.abs(VF.ymax)*1000;                          // mm
-  var flechaLim=Lman*1000/1000;                               // L/1000
+  var flechaLim=vaoMax*1000/1000;                             // vão livre / 1000
   var flechaOK=(flecha<=flechaLim);
   /* flecha no ponto da engrenagem: o engrenamento e o critico */
   var iEg=Math.max(0,Math.min(VF.N,Math.round(xEng/VF.dx)));
@@ -6422,10 +6567,50 @@ function pfNucleo(){
   var tauT=Ttot*16/(Math.PI*Math.pow(dc,3))/1e6;
   var sigEq=Math.sqrt(sigF*sigF+3*tauT*tauT);
   var eixoOK=(sigEq<=sigAdm/1e6);
+  var eixoGeralOK=(eixoOK&&flechaOK&&flEngOK&&torcaoOK);
+  var razEixo=(dCalcEixo>0)?(dCom/dCalcEixo):1;
+  /* qual critério reprova, quando reprova */
+  var criticoEixo=(!eixoOK)?"tensao equivalente":((!flEngOK)?"flecha no engrenamento":
+                  ((!flechaOK)?"flecha no vao":((!torcaoOK)?"torcao especifica":"nenhum")));
+  /* ganho dos apoios auxiliares: compara com a mesma viga sem eles */
+  var GAN=null;
+  if(nAux>0){
+    var d0g=dc, I0g=Math.PI*Math.pow(d0g,4)/64;
+    var Vsem=vigaNum(Leixo,x1,x2,cargas,ACO*Math.PI*d0g*d0g/4*g,Eaco*I0g,600);
+    var flSem=Math.abs(Vsem.ymax)*1000, MSem=Math.abs(Vsem.Mmax);
+    /* menor diâmetro comercial que fecharia SEM os apoios auxiliares */
+    var xsupSalvo=xsup; xsup=[];
+    var vaoSalvo=vaoMax, flLimSalvo=flechaLimM;
+    vaoMax=x2-x1; flechaLimM=vaoMax/1000;
+    var dSem=DEIX[DEIX.length-1];
+    for(var e5=0;e5<DEIX.length;e5++){ if(_verif(DEIX[e5]).ok){ dSem=DEIX[e5]; break; } }
+    xsup=xsupSalvo; vaoMax=vaoSalvo; flechaLimM=flLimSalvo;
+    GAN={flSem:flSem,MSem:MSem,dSem:dSem,
+         redFl:(flSem>0)?(1-flecha/flSem)*100:0,
+         redM:(MSem>0)?(1-Math.abs(VF.Mmax)/MSem)*100:0};
+  }
   /* mancais */
-  var R1=Math.abs(VF.R1), R2=Math.abs(VF.R2), Rmax=Math.max(R1,R2);
+  /* A reação guarda o SINAL. Módulo serve para escolher rolamento, porque a
+     capacidade independe do sentido — mas esconder o sinal esconde que o mancal
+     está sendo ARRANCADO, e não comprimido. Com apoio auxiliar perto do mancal a
+     extremidade levanta, e a fixação passa a trabalhar à tração: outro chumbador,
+     outra caixa, outra verificação. Publicar +223 kN onde o valor é −223 kN é
+     esconder exatamente o caso que exige atenção.                              */
+  var R1s=VF.R1, R2s=VF.R2;
+  var R1=Math.abs(R1s), R2=Math.abs(R2s), Rmax=Math.max(R1,R2);
+  var tracaoMancal=(R1s<-1e-6||R2s<-1e-6);
   var L10h=20000;
   var Cdin=(nEixo>0)?Rmax/1000*Math.pow(60*nEixo*L10h/1e6,1/3):Rmax/1000;
+  /* mancais auxiliares: recebem reação e por isso precisam de rolamento e de
+     estrutura própria — não são guias, são apoios que carregam                */
+  var Raux=[], RauxMax=0;
+  for(var ra=0;ra<(VF.Raux||[]).length;ra++){
+    var Rv=Math.abs(VF.Raux[ra]); Raux.push(Rv); if(Rv>RauxMax) RauxMax=Rv;
+  }
+  var CdinAux=(nEixo>0&&RauxMax>0)?RauxMax/1000*Math.pow(60*nEixo*L10h/1e6,1/3):RauxMax/1000;
+  /* alinhamento: apoio auxiliar mal nivelado inverte o sinal da reação e passa a
+     forçar o eixo em vez de apoiá-lo                                            */
+  var desalinAdm=(nAux>0)?(flechaLim*0.5):0;
 
   /* ================= 8. MOTOREDUTOR E FREIO SEW ================= */
   var Peixo=Teixo*(2*Math.PI*nEixo/60)/1000;                   // kW
@@ -6515,14 +6700,23 @@ function pfNucleo(){
    ["6","Velocidade tangencial","v = pi.D.n, igual nas duas rodas","v = "+vt(vTang,2)+" m/s","menor ou igual a 5 m/s em engrenamento aberto lubrificado a graxa",st(vTangOK)],
    ["6","Tensao de flexao no dente (Lewis)","sigma = Ft / (Kv.b.m.Y)",vt(sigLew,1)+" MPa","menor ou igual a Su/3 = "+vt(sigEngAdm,0)+" MPa",st(engOK)],
    ["6","Largura da face","b / módulo","b/m = "+vt(bEng/mod,1),"entre 8 e 14",st(bmOK)],
-   ["7","Momento fletor máximo no eixo","viga sobre dois mancais, cargas das rodas e da engrenagem","M = "+vt(Math.abs(VF.Mmax)/1000,2)+" kN.m em x = "+vt(VF.xM,2)+" m","—","—"],
+   ["7","Apoios auxiliares do eixo",(nAux>0?("viga continua sobre "+String(2+nAux)+" apoios, metodo das forcas"):"viga sobre dois apoios"),
+    (nAux>0?(String(nAux)+" apoio(s) a "+vt(LauxUsa,3)+" m entre si"):"nenhum"),
+    "maior vao livre "+vt(vaoMax,3)+" m de "+vt(Lman,3)+" m entre mancais",(nAux>0?"OK":"—")],
+   ["7","Momento fletor máximo no eixo",(nAux>0?"viga continua, cargas das rodas e da engrenagem":"viga sobre dois mancais, cargas das rodas e da engrenagem"),"M = "+vt(Math.abs(VF.Mmax)/1000,2)+" kN.m em x = "+vt(VF.xM,2)+" m","—","—"],
    ["7","Torque máximo no eixo","soma dos torques das rodas de um lado","T = "+vt(Ttot/1000,2)+" kN.m","—","—"],
-   ["7","Diâmetro do eixo","resistência por ASME e rigidez por flecha e torção","por resistência "+vt(dReqmm,1)+" mm ("+String(dResistmm)+" comercial) -> adotado "+String(dCom)+" mm","governado por "+govEixo,st(dCom>=dReqmm)],
+   ["7","Diâmetro do eixo",(modoEixo==="verificacao"?"diametro INFORMADO, rotina apenas verifica":"resistência por ASME e rigidez por flecha e torção"),
+    (modoEixo==="verificacao"?("informado "+String(dCom)+" mm - minimo que atende "+String(dCalcEixo)+" mm"):("por resistência "+vt(dReqmm,1)+" mm ("+String(dResistmm)+" comercial) -> adotado "+String(dCom)+" mm")),
+    (modoEixo==="verificacao"?("relacao "+vt(razEixo,2)+"x o minimo"+(eixoGeralOK?"":" - governa a "+criticoEixo)):("governado por "+govEixo)),
+    st(modoEixo==="verificacao"?eixoGeralOK:(dCom>=dReqmm))],
    ["7","Tensão equivalente","von Mises com flexão e torção",vt(sigEq,1)+" MPa","menor ou igual a "+vt(sigAdm/1e6,0)+" MPa",st(eixoOK)],
-   ["7","Flecha máxima","dupla integração de M/EI",vt(flecha,2)+" mm","menor ou igual a L_mancais/1000 = "+vt(flechaLim,2)+" mm",st(flechaOK)],
+   ["7","Flecha máxima","dupla integração de M/EI",vt(flecha,2)+" mm","menor ou igual a vao_livre/1000 = "+vt(flechaLim,2)+" mm",st(flechaOK)],
    ["7","Flecha no engrenamento","no ponto da coroa movida",vt(flEng,3)+" mm","menor ou igual a 0,03.modulo = "+vt(flEngLim,2)+" mm",st(flEngOK)],
    ["7","Torção específica","theta = T.L/(G.J)",vt(torcao,4)+" graus/m","menor ou igual a 0,25 graus/m em eixo de transmissão",st(torcaoOK)],
-   ["7","Reações nos mancais","equilíbrio da viga","R1 = "+vt(R1/1000,2)+" kN - R2 = "+vt(R2/1000,2)+" kN","capacidade dinâmica C maior ou igual a "+vt(Cdin,1)+" kN para 20.000 h","VERIFICAR"],
+   ["7","Reações nos mancais",(nAux>0?"superposicao: isostatico + reacoes dos auxiliares":"equilíbrio da viga"),"R1 = "+vt(R1s/1000,2)+" kN - R2 = "+vt(R2s/1000,2)+" kN"+(tracaoMancal?"  (NEGATIVO = mancal TRACIONADO)":""),"capacidade dinâmica C maior ou igual a "+vt(Cdin,1)+" kN para 20.000 h"+(tracaoMancal?"  -  e fixacao verificada a ARRANCAMENTO":""),(tracaoMancal?"ATENCAO":"VERIFICAR")],
+   ["7","Reações nos apoios auxiliares",(nAux>0?"compatibilidade de flecha nula em cada apoio":"nao aplicavel"),
+    (nAux>0?("maxima "+vt(RauxMax/1000,2)+" kN"):"—"),
+    (nAux>0?("capacidade dinâmica C maior ou igual a "+vt(CdinAux,1)+" kN por mancal auxiliar"):"—"),(nAux>0?"VERIFICAR":"—")],
    ["8","Potência no eixo principal","P = T.omega","P = "+vt(Peixo,2)+" kW","inclui desbalanço, atrito e aceleração","—"],
    ["8","Motoredutor SEW",ac.foraR?"redutor industrial":"série R","Pinst = "+vt(ac.Pinst,2)+" kW - i = "+vt(ac.i,1),"relação até 300:1 em motoredutor de série",st(ac.iOK)],
    ["8","Freio SEW série BE","M = T_porta_inteira . 2,0 / i_total, sem credito de rendimento",fr.n+" - "+vt(fr.t,0)+" N.m","requerido "+vt(Mfreio,1)+" N.m (servico normal exigiria so "+vt(MfreioNom,1)+")",st(!frExced)],
@@ -6556,6 +6750,12 @@ function pfNucleo(){
     Teixo:Teixo,Test:Test,Tacel:Tacel,Peixo:Peixo,nSaida:nSaida,ac:ac,fr:fr,Mfreio:Mfreio,
     frExced:frExced,kFreio:kFreio,iTot:iTot,espFrena:espFrena,trava:trava,
     MfreioNom:MfreioNom,Tsemcp:Tsemcp,dResistmm:dResistmm,govEixo:govEixo,
+    modoEixo:modoEixo,dImpEixo:dImpEixo,dCalcEixo:dCalcEixo,eixoGeralOK:eixoGeralOK,
+    razEixo:razEixo,criticoEixo:criticoEixo,
+    nAux:nAux,xsup:xsup,LauxUsa:LauxUsa,auxCalc:auxCalc,vaoMax:vaoMax,
+    R1s:R1s,R2s:R2s,tracaoMancal:tracaoMancal,
+    nAuxPedido:nAuxPedido,apoiosFundidos:apoiosFundidos,tolSup:tolSup,degen:!!VF.degen,
+    Raux:Raux,RauxMax:RauxMax,CdinAux:CdinAux,desalinAdm:desalinAdm,GAN:GAN,
     pViga:pViga,pCol:pCol,Wxviga:Wxviga,Ncol:Ncol,vaoViga:vaoViga,hCol:hCol,mEstrut:mEstrut,fy:fy,
     colDados:colDados,lamb:lamb,
     matEixo:matEixo,matEng:matEng};
@@ -6628,11 +6828,48 @@ function portaFornoCalc(){
   OUT.push({sec:"7 · Eixo principal de transmissão"});
   OUT.push({k:"Geometria",v:"comprimento total "+v(A.Leixo,2)+" m   ·   vão entre mancais "+v(A.Lman,2)+" m   ·   coroa movida a "+v(A.xEng,2)+" m da extremidade   ·   distância entre as rodas de porta e contrapeso "+v(A.ePc,2)+" m"});
   OUT.push({k:"Posição da coroa",v:(A.xEng<A.x1||A.xEng>A.x2)?("⚠ A coroa está EM BALANÇO, fora do vão entre os mancais ("+v(A.x1,2)+" a "+v(A.x2,2)+" m). O balanço amplia a flecha no engrenamento e o momento no mancal vizinho — é a posição mais exigente, e está calculada como tal."):("dentro do vão entre os mancais ("+v(A.x1,2)+" a "+v(A.x2,2)+" m)"),hi:(A.xEng<A.x1||A.xEng>A.x2)});
+  /* --- apoios auxiliares --- */
+  if(A.nAux>0){
+    var txtPos="";
+    for(var ia=0;ia<A.xsup.length;ia++){ txtPos+=(ia?"   ·   ":"")+v(A.xsup[ia],3)+" m"; }
+    OUT.push({k:"APOIOS AUXILIARES",v:v(A.nAux,0)+" mancal(is) intermediário(s)   ·   posição a partir da extremidade: "+txtPos+(A.nAux>1?("   ·   distância entre eles "+v(A.LauxUsa,3)+" m"+(A.auxCalc?" (distribuídos em vãos iguais)":" (informada)")):""),hi:true});
+    OUT.push({k:"MAIOR VÃO LIVRE",v:v(A.vaoMax,3)+" m   ·   contra "+v(A.Lman,3)+" m se não houvesse apoio auxiliar   —  é ESTE o vão que flete, e é dele que sai o limite de flecha",hi:true});
+    OUT.push({k:"Por que esses apoios existem",v:"A flecha de um vão cresce com a QUARTA potência do comprimento. Partir o vão de "+v(A.Lman,2)+" m em trechos de "+v(A.vaoMax,2)+" m reduz a flecha a uma fração pequena do valor original — e como a flecha no engrenamento é o critério que costuma governar este eixo, é ela que permite um diâmetro menor. Os apoios não estão ali para carregar peso: estão ali para comprar rigidez barato."});
+    if(A.GAN){
+      OUT.push({k:"GANHO MEDIDO",v:"com o mesmo diâmetro de "+String(A.dCom)+" mm, a flecha cai de "+v(A.GAN.flSem,3)+" mm para "+v(A.flecha,3)+" mm, uma redução de "+v(A.GAN.redFl,1)+" %   ·   o momento fletor cai "+v(A.GAN.redM,1)+" %",hi:true});
+      OUT.push({k:"O que os apoios economizam em eixo",v:"Sem apoio auxiliar, o menor diâmetro comercial que fecharia todos os critérios seria "+String(A.GAN.dSem)+" mm. Com eles, "+String(A.dCalcEixo)+" mm bastam"+((A.GAN.dSem>A.dCalcEixo)?(" — uma redução de "+v((1-Math.pow(A.dCalcEixo/A.GAN.dSem,2))*100,0)+" % em massa de eixo, porque a massa vai com o quadrado do diâmetro."):" — nesta configuração o eixo não muda de bitola, então o ganho aparece como folga, não como economia.")});
+    }
+    OUT.push({k:"O preço de um apoio intermediário",v:"O eixo deixa de ser viga sobre dois apoios e passa a ser HIPERESTÁTICO: a reação de cada apoio auxiliar depende da rigidez do conjunto, e não do equilíbrio. A consequência prática é de montagem — um apoio auxiliar fora de nível não alivia o eixo, ele FORÇA o eixo. Um desnível da ordem da própria flecha calculada, "+v(A.desalinAdm,2)+" mm, já inverte o sinal da reação. Nivelamento com relógio comparador e calços usinados, não com régua."});
+    var txtR="";
+    for(var ib=0;ib<A.Raux.length;ib++){ txtR+=(ib?"   ·   ":"")+"R"+(ib+1)+"aux = "+v(A.Raux[ib]/1000,2)+" kN"; }
+    OUT.push({k:"REAÇÃO NOS APOIOS AUXILIARES",v:(txtR||"—")+"   ·   capacidade dinâmica C ≥ "+v(A.CdinAux,1)+" kN por mancal auxiliar   —  eles carregam de verdade, não são guias: exigem rolamento, caixa e estrutura dimensionados",hi:true});
+    if(A.tracaoMancal){
+      OUT.push({k:"⚠ MANCAL PRINCIPAL TRACIONADO",v:"R1 = "+v(A.R1s/1000,2)+" kN   ·   R2 = "+v(A.R2s/1000,2)+" kN   —  valor NEGATIVO significa que a extremidade do eixo está sendo ARRANCADA para cima, e não comprimida. Com os apoios auxiliares próximos dos mancais principais, o trecho central é erguido e as pontas levantam. Consequência prática: o mancal deixa de apenas apoiar e passa a segurar — a caixa precisa de fixação verificada ao arrancamento, e o rolamento, de retenção axial e radial nos dois sentidos. Afastar os apoios auxiliares do centro, ou reduzi-los, devolve a reação ao sentido de compressão.",hi:true});
+    }
+    if(A.apoiosFundidos){
+      OUT.push({k:"⚠ APOIOS COINCIDENTES FUNDIDOS",v:"Foram pedidos "+v(A.nAuxPedido,0)+" apoios auxiliares, mas alguns ficaram a menos de "+v(A.tolSup*1000,0)+" mm um do outro. Dois apoios no mesmo ponto valem por um: não acrescentam vínculo, e manter os dois degeneraria o sistema hiperestático. Foram fundidos, e o cálculo seguiu com "+v(A.nAux,0)+" apoio(s) — o vão livre e o limite de flecha acima já refletem isso.",hi:true});
+    }
+    if(A.degen){
+      OUT.push({k:"⚠ SISTEMA HIPERESTÁTICO DEGENERADO",v:"A compatibilidade dos apoios auxiliares não tem solução única com a geometria informada. O cálculo voltou para a viga sobre DOIS apoios, e o vão livre acima é o vão inteiro entre mancais — os apoios auxiliares não estão contribuindo. Revisar a posição deles.",hi:true});
+    }
+  } else {
+    OUT.push({k:"SEM APOIOS AUXILIARES",v:"O eixo trabalha como viga sobre dois apoios, com vão livre de "+v(A.vaoMax,3)+" m. Se a flecha no engrenamento estiver governando o diâmetro, um par de mancais intermediários costuma ser mais barato que engrossar o eixo — a flecha cai com a quarta potência do vão."});
+  }
+
   OUT.push({k:"MOMENTO FLETOR MÁXIMO",v:v(Math.abs(A.VF.Mmax)/1000,2)+" kN·m   em   x = "+v(A.VF.xM,2)+" m",hi:true});
   OUT.push({k:"TORQUE MÁXIMO",v:v(A.Ttot/1000,2)+" kN·m   ·   o torque não é uniforme: entra na coroa e sai em cada roda dentada, então cada trecho do eixo carrega só a parcela que ainda não foi entregue",hi:true});
-  OUT.push({k:"DIÂMETRO DO EIXO",v:"por resistência "+v(A.dReqmm,1)+" mm ("+String(A.dResistmm)+" mm comercial)   →   ADOTADO "+String(A.dCom)+" mm   ·   governado por "+A.govEixo+"   ·   "+(A.matEixo==="4140"?"SAE 4140 temperado e revenido":(A.matEixo==="4340"?"SAE 4340":"SAE 1045"))+"   ·   momento equivalente com Kb = 2,0 e Kt = 1,5 (carga com choque, ASME)",hi:true});
+  if(A.modoEixo==="verificacao"){
+    OUT.push({k:"DIÂMETRO DO EIXO — VERIFICAÇÃO",v:"INFORMADO "+String(A.dCom)+" mm   ·   mínimo que atenderia "+String(A.dCalcEixo)+" mm   ·   relação "+v(A.razEixo,2)+"×   ·   "+(A.eixoGeralOK?"APROVADO em todos os critérios":"REPROVADO — governa a "+A.criticoEixo),hi:!A.eixoGeralOK});
+    if(A.eixoGeralOK){
+      OUT.push({k:"Margem do diâmetro informado",v:(A.dCom>A.dCalcEixo)?("O eixo especificado está "+v((A.razEixo-1)*100,0)+" % acima do mínimo. Em diâmetro isso parece pouco, mas a rigidez vai com a quarta potência: são "+v((Math.pow(A.razEixo,4)-1)*100,0)+" % mais rígido que o necessário, e "+v((Math.pow(A.razEixo,2)-1)*100,0)+" % mais pesado."):"O eixo especificado é exatamente o mínimo comercial que atende. Não há folga para revisão de carga — qualquer aumento de peso da porta reprova."});
+    } else {
+      OUT.push({k:"O que reprova e o que fazer",v:"O critério que não passa é a "+A.criticoEixo+". Caminhos, em ordem de custo: acrescentar ou aproximar os apoios auxiliares, que atacam flecha sem mexer no eixo; subir para o diâmetro comercial de "+String(A.dCalcEixo)+" mm; ou trocar o material — este último só ajuda se o critério for TENSÃO, porque o módulo de elasticidade é o mesmo em todos os aços e a flecha não muda."+((A.criticoEixo==="flecha no engrenamento"||A.criticoEixo==="flecha no vao")?"   Neste caso o critério é de RIGIDEZ: trocar de aço não resolve nada.":""),hi:true});
+    }
+  } else {
+    OUT.push({k:"DIÂMETRO DO EIXO",v:"por resistência "+v(A.dReqmm,1)+" mm ("+String(A.dResistmm)+" mm comercial)   →   ADOTADO "+String(A.dCom)+" mm   ·   governado por "+A.govEixo+"   ·   "+(A.matEixo==="4140"?"SAE 4140 temperado e revenido":(A.matEixo==="4340"?"SAE 4340":"SAE 1045"))+"   ·   momento equivalente com Kb = 2,0 e Kt = 1,5 (carga com choque, ASME)",hi:true});
+  }
   OUT.push({k:"Tensões",v:"flexão "+v(A.sigF,1)+" MPa   ·   torção "+v(A.tauT,1)+" MPa   ·   equivalente de von Mises "+v(A.sigEq,1)+" MPa   ·   admissível "+v(A.sigAdm/1e6,0)+" MPa   ·   "+(A.eixoOK?"APROVADO":"REPROVADO"),hi:!A.eixoOK});
-  OUT.push({k:"Flecha máxima",v:v(A.flecha,3)+" mm   ·   limite L/1000 = "+v(A.flechaLim,2)+" mm   ·   "+(A.flechaOK?"APROVADO":"REPROVADO"),hi:!A.flechaOK});
+  OUT.push({k:"Flecha máxima",v:v(A.flecha,3)+" mm   ·   limite vão/1000 = "+v(A.flechaLim,2)+" mm"+(A.nAux>0?("   (vão livre de "+v(A.vaoMax,2)+" m, não o vão entre mancais)"):"")+"   ·   "+(A.flechaOK?"APROVADO":"REPROVADO"),hi:!A.flechaOK});
   OUT.push({k:"Flecha no engrenamento",v:v(A.flEng,4)+" mm   ·   limite 0,03·módulo = "+v(A.flEngLim,2)+" mm   ·   "+(A.flEngOK?"APROVADO":"REPROVADO — a coroa desalinha e o contato migra para a ponta do dente")+"   ·   este é o critério que costuma governar o eixo, não a tensão",hi:!A.flEngOK});
   OUT.push({k:"Torção específica",v:v(A.torcao,4)+" °/m   ·   limite 0,25 °/m   ·   "+(A.torcaoOK?"APROVADO":"REPROVADO — com essa torção os dois lados da porta não sobem juntos e ela emperra na guia"),hi:!A.torcaoOK});
   OUT.push({k:"REAÇÕES NOS MANCAIS",v:"R1 = "+v(A.R1/1000,2)+" kN   ·   R2 = "+v(A.R2/1000,2)+" kN   ·   capacidade dinâmica C ≥ "+v(A.Cdin,1)+" kN para 20.000 h de vida L10h",hi:true});
@@ -9098,7 +9335,7 @@ const CALCS={
 
   porta_forno:{
     titulo:"Sistema de elevação de porta de forno — corrente, cabo, eixo e acionamento",
-    referencia:"Classificação do mecanismo, coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e coeficientes de segurança conforme ABNT NBR 8400 e FEM 1.001. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1, ISO 606), dimensionadas para a carga total do ponto com coeficiente de elevação crítica. Cabos de aço com carga de ruptura por construção e verificação da relação D/d das polias conforme DIN 15020, com inspeção e descarte pela ABNT NBR ISO 4309. Redundância real: corrente e cabo, cada um capaz de sustentar sozinho a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo principal resolvido como viga sobre dois mancais por integração numérica, com momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI, verificação da flecha no engrenamento e da torção específica. Engrenagens abertas por Lewis com fator de velocidade de Barth e verificação da velocidade tangencial. Motoredutor e freio de mola SEW-EURODRIVE (série BE), com o freio dimensionado sem crédito de rendimento do redutor. NR-12 para o dispositivo de retenção independente.",
+    referencia:"Classificação do mecanismo, coeficiente dinâmico de içamento ψ = 1 + 0,6·v (mínimo 1,15) e coeficientes de segurança conforme ABNT NBR 8400 e FEM 1.001. Correntes de rolos série ANSI RS do catálogo DAIDO (ANSI/ASME B29.1, ISO 606), dimensionadas para a carga total do ponto com coeficiente de elevação crítica. Cabos de aço com carga de ruptura por construção e verificação da relação D/d das polias conforme DIN 15020, com inspeção e descarte pela ABNT NBR ISO 4309. Redundância real: corrente e cabo, cada um capaz de sustentar sozinho a carga total, porque a repartição entre elementos de rigidezes diferentes é indeterminada. Olhais com pino verificados à tração na seção líquida, ao esmagamento e ao rasgamento pela ABNT NBR 8800. Eixo principal resolvido por integração numérica: viga sobre dois mancais ou, quando há apoios auxiliares, viga contínua hiperestática resolvida pelo método das forças, impondo flecha nula sobre cada apoio intermediário e superpondo esforços. Momento equivalente ASME (Kb 2,0 e Kt 1,5), flecha por dupla integração de M/EI, com o limite referido ao maior vão livre e não ao vão entre mancais, mais verificação da flecha no engrenamento e da torção específica. O diâmetro pode ser dimensionado pela rotina ou informado, caso em que ela verifica e aponta qual critério reprova. Engrenagens abertas por Lewis com fator de velocidade de Barth e verificação da velocidade tangencial. Motoredutor e freio de mola SEW-EURODRIVE (série BE), com o freio dimensionado sem crédito de rendimento do redutor. NR-12 para o dispositivo de retenção independente.",
     campos:[
       {tipo:"head",label:"Porta, contrapeso e movimento"},
       {id:"pfMp",label:"PESO DA PORTA (carga a ser içada)",unidade:"kg",tipo:"number",valor:6200,step:"100"},
@@ -9138,6 +9375,9 @@ const CALCS={
       {tipo:"head",label:"Eixo principal de transmissão"},
       {id:"pfLeixo",label:"COMPRIMENTO TOTAL do eixo",unidade:"m",tipo:"number",valor:3.205,step:"0.005"},
       {id:"pfLman",label:"DISTÂNCIA ENTRE OS MANCAIS de apoio",unidade:"m",tipo:"number",valor:2.85,step:"0.05"},
+      {id:"pfDeixo",label:"DIÂMETRO DO EIXO PRINCIPAL  (0 = dimensionar)",unidade:"mm",tipo:"number",valor:0,step:"5"},
+      {id:"pfNaux",label:"APOIOS AUXILIARES com rolamento entre os mancais",unidade:"un",tipo:"number",valor:2,step:"1"},
+      {id:"pfLaux",label:"DISTÂNCIA ENTRE OS APOIOS AUXILIARES  (0 = vãos iguais)",unidade:"m",tipo:"number",valor:0,step:"0.05"},
       {id:"pfAeng",label:"DISTÂNCIA da engrenagem movida à extremidade do eixo",unidade:"m",tipo:"number",valor:0.04,step:"0.01"},
       {id:"pfEpc",label:"DISTÂNCIA entre as rodas dentadas de porta e contrapeso",unidade:"m",tipo:"number",valor:0.2,step:"0.05"},
       {id:"pfMatEixo",label:"Material do eixo",tipo:"select",valor:"1045",opcoes:[
@@ -15077,6 +15317,25 @@ function gerarRelatorio(){
       /* o rotulo da direita recuava so 3 mm e caia sobre a coluna: recua o bastante
          para terminar antes dela, como o da esquerda ja fazia                     */
       ntP(xEsq-11,yEix-6,"mancal",90,90,90,4.6); ntP(xDir-14,yEix-6,"mancal",90,90,90,4.6);
+      /* apoios auxiliares: mancais intermediários que partem o vão. Desenhados na
+         posição real, escalada pelo vão entre os mancais principais.             */
+      if(A.nAux>0&&A.xsup&&A.xsup.length){
+        var vaoDes=xDir-xEsq, vaoReal=Math.max(A.x2-A.x1,1e-6);
+        for(var ka=0;ka<A.xsup.length;ka++){
+          var xa2=xEsq+(A.xsup[ka]-A.x1)/vaoReal*vaoDes;
+          if(xa2<xEsq+5||xa2>xDir-5) continue;
+          doc.setFillColor(90,165,120); doc.setDrawColor(30,90,55); doc.setLineWidth(0.4);
+          doc.rect(xa2-3,yEix-3.4,6,6.8,"FD");
+          doc.setDrawColor(30,90,55); doc.setLineWidth(0.5);
+          doc.line(xa2-4.5,yEix+3.4,xa2+4.5,yEix+3.4);
+          doc.line(xa2-4.5,yEix+3.4,xa2-6,yEix+6.4);
+          doc.line(xa2,yEix+3.4,xa2-1.5,yEix+6.4);
+          doc.line(xa2+4.5,yEix+3.4,xa2+3,yEix+6.4);
+        }
+        /* ABAIXO do eixo: em yEix-10 o rotulo caia exatamente sobre o titulo da
+           VIGA SUPERIOR, que fica em yTopo-3,4 (= yEix-10,4)                    */
+        ntcP((xEsq+xDir)/2,yEix+11,String(A.nAux)+" apoio(s) auxiliar(es)  ·  vao livre "+A.vaoMax.toFixed(2).replace(".",",")+" m",30,120,70,4.6);
+      }
       /* coroa movida e pinhao, na extremidade */
       doc.setFillColor(190,160,90); doc.setDrawColor(120,90,30); doc.setLineWidth(0.5);
       doc.circle(xDir+11,yEix,6,"FD");
