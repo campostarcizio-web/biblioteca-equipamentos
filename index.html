@@ -6086,15 +6086,26 @@ const SEW_BE=[
  {n:"BE62",t:800},{n:"BE120",t:1200},{n:"BE122",t:1500}
 ];
 /* Cabo de aco: carga de ruptura minima efetiva por construcao, MBL = k.d2 (kN,
-   d em mm), para arame de 1770 MPa.                                          */
+   d em mm), na classe de arame de referencia de 1770 MPa. Para outra classe o
+   MBL escala direto com a resistencia do arame (ver ARAME_RR).
+   ATENCAO: k e' valor de familia de construcao, nao de catalogo. Antes de usar
+   num memorial, conferir o MBL contra o catalogo do fabricante do cabo.       */
 const CABO_TIPO={
  c619:{n:"6x19 Seale com alma de aco (IWRC)", k:0.500, Dd:20, flex:"media"},
+ c625:{n:"6x25 Filler IWRC",                  k:0.510, Dd:21, flex:"alta"},
  c636:{n:"6x36 Warrington-Seale IWRC",        k:0.515, Dd:22, flex:"alta"},
+ c637:{n:"6x37 IWRC",                         k:0.505, Dd:23, flex:"alta"},
+ c619f:{n:"6x19 Seale com alma de fibra (FC)",k:0.460, Dd:20, flex:"media"},
+ c636f:{n:"6x36 WS com alma de fibra (FC)",   k:0.470, Dd:22, flex:"alta"},
+ comp:{n:"6x26 compactado PWRC",              k:0.590, Dd:22, flex:"media"},
  c8x19:{n:"8x19 IWRC - alta flexibilidade",   k:0.450, Dd:25, flex:"muito alta"},
- antig:{n:"Anti-giro 19x7",                   k:0.470, Dd:25, flex:"media"}
+ antig:{n:"Anti-giro 19x7",                   k:0.470, Dd:25, flex:"media"},
+ antig35:{n:"Anti-giro 35x7",                 k:0.490, Dd:25, flex:"alta"}
 };
+/* Classe de resistencia do arame: MBL proporcional a resistencia nominal */
+const ARAME_RR={"1570":1570,"1770":1770,"1960":1960};
 /* Diametros comerciais de cabo (mm) */
-const CABO_D=[6,8,9.5,11,12.5,14,16,19,22,25,28,32,36,40,44,48,52];
+const CABO_D=[6,8,9.5,10,11,12.5,13,14,16,18,19,20,22,24,25,26,28,30,32,36,40,44,48,52];
 
 /* Fator de forma de Lewis para dente de 20 graus, altura plena */
 function lewisY(z){
@@ -6182,6 +6193,10 @@ function pfNucleo(){
   var FSc=num("pfFsc");   if(!isFinite(FSc)||FSc<4) FSc=8;       // coef. seguranca corrente
   var FSk=num("pfFscabo");if(!isFinite(FSk)||FSk<4) FSk=6;       // coef. seguranca cabo
   var tipoCabo=selv("pfCabo","c636");
+  var Rr=+(selv("pfArame","1770"))||1770;                        // MPa, classe do arame
+  /* 0 = a calculadora escolhe. Valor informado IMPOE o diametro e a rotina passa
+     a apenas VERIFICAR o FS, em vez de procurar o menor que fecha.            */
+  var dImp=num("pfDcabo"); if(!isFinite(dImp)||dImp<=0) dImp=0;
   var tOlhal=num("pfTolhal"); if(!isFinite(tOlhal)||tOlhal<=0) tOlhal=25;  // mm chapa do olhal
   var dPino=num("pfDpino");   if(!isFinite(dPino)||dPino<=0) dPino=60;     // mm pino do olhal
   var Leixo=num("pfLeixo"); if(!isFinite(Leixo)||Leixo<=0) Leixo=6.0;
@@ -6246,15 +6261,26 @@ function pfNucleo(){
 
   /* ================= 4. CABO DE ACO REDUNDANTE ================= */
   var CB=CABO_TIPO[tipoCabo]||CABO_TIPO.c636;
+  var kRr=CB.k*Rr/1770;                               // k corrigido pela classe do arame
   var Tcb=Mp*g*psi/nCb;                               // N por ramo, carga total
   var MBLreq=Tcb*FSk/1000;                            // kN
-  var dCabo=null;
-  for(var k2=0;k2<CABO_D.length;k2++){
-    if(CB.k*CABO_D[k2]*CABO_D[k2]>=MBLreq){ dCabo=CABO_D[k2]; break; }
+  var dCabo=null, cbExced=false, cbImposto=false;
+  if(dImp>0){
+    /* diametro imposto pelo usuario: nao procura, so verifica */
+    dCabo=dImp; cbImposto=true;
+  } else {
+    for(var k2=0;k2<CABO_D.length;k2++){
+      if(kRr*CABO_D[k2]*CABO_D[k2]>=MBLreq){ dCabo=CABO_D[k2]; break; }
+    }
+    cbExced=(!dCabo);
+    if(!dCabo) dCabo=CABO_D[CABO_D.length-1];
   }
-  var cbExced=(!dCabo);
-  if(!dCabo) dCabo=CABO_D[CABO_D.length-1];
-  var MBL=CB.k*dCabo*dCabo;
+  var MBL=kRr*dCabo*dCabo;
+  /* menor diametro da tabela que fecharia o FS, para dizer ao usuario o que falta */
+  var dNec=null;
+  for(var k3=0;k3<CABO_D.length;k3++){
+    if(kRr*CABO_D[k3]*CABO_D[k3]>=MBLreq){ dNec=CABO_D[k3]; break; }
+  }
   var FSkReal=MBL*1000/Math.max(Tcb,1);
   var DdReal=Dpol/dCabo, DdOK=(DdReal>=CB.Dd);
   var DpolMin=CB.Dd*dCabo;
@@ -6480,7 +6506,7 @@ function pfNucleo(){
    ["3","Coeficiente de segurança da corrente","Q_ruptura / T_trabalho","FS = "+vt(FScReal,2),"maior ou igual a "+vt(FSc,1)+" em elevação crítica",st(FScReal>=FSc)],
    ["3","Roda dentada de elevação","D = p / sen(180/z), z = "+String(zRd),"D = "+vt(Drd*1000,1)+" mm","z maior ou igual a 17 para reduzir o efeito poligonal",st(zRd>=17)],
    ["4","Carga por ramo de cabo","M.g.psi / n_ramos","T = "+vt(Tcb/1000,2)+" kN","o cabo e redundante: dimensionado para a carga TOTAL","—"],
-   ["4","Cabo de aço",CB.n,"diâmetro "+vt(dCabo,1)+" mm - ruptura "+vt(MBL,1)+" kN","FS = "+vt(FSkReal,2)+", exigido "+vt(FSk,1),st(FSkReal>=FSk&&!cbExced)],
+   ["4","Cabo de aço",CB.n+" - arame "+Rr+" MPa"+(cbImposto?" - diametro IMPOSTO":""),"diâmetro "+vt(dCabo,1)+" mm - ruptura "+vt(MBL,1)+" kN","FS = "+vt(FSkReal,2)+", exigido "+vt(FSk,1),st(FSkReal>=FSk&&!cbExced)],
    ["4","Relação D/d das polias","D_polia / d_cabo","D/d = "+vt(DdReal,1),"maior ou igual a "+String(CB.Dd)+" (DIN 15020) - polia minima "+vt(DpolMin,0)+" mm",st(DdOK)],
    ["5","Olhal - tração na seção líquida","sigma = F / (2.(R - d/2).t)",vt(sigTr,1)+" MPa","menor ou igual a 0,45.fy = "+vt(sigTrAdm,0)+" MPa",st(trOK)],
    ["5","Olhal - esmagamento no pino","sigma = F / (d_furo . t)",vt(sigEsm,1)+" MPa","menor ou igual a 1,80.fy/1,35 = "+vt(sigEsmAdm,0)+" MPa",st(esmOK)],
@@ -6516,6 +6542,7 @@ function pfNucleo(){
     cor:cor,nFios:nFios,Qcor:Qcor,FSc:FSc,FScReal:FScReal,corExced:corExced,zRd:zRd,Drd:Drd,
     elos:elos,Lcor:Lcor,vCor:vCor,nEixo:nEixo,
     CB:CB,dCabo:dCabo,MBL:MBL,FSk:FSk,FSkReal:FSkReal,cbExced:cbExced,Dpol:Dpol,DdReal:DdReal,
+    Rr:Rr,cbImposto:cbImposto,dNec:dNec,MBLreq:MBLreq,
     DdOK:DdOK,DpolMin:DpolMin,
     Folhal:Folhal,dFuro:dFuro,dPino:dPino,Rolhal:Rolhal,tOlhal:tOlhal,sigTr:sigTr,sigTrAdm:sigTrAdm,
     trOK:trOK,sigEsm:sigEsm,sigEsmAdm:sigEsmAdm,esmOK:esmOK,tauSh:tauSh,tauShAdm:tauShAdm,shOK:shOK,
@@ -6570,7 +6597,13 @@ function portaFornoCalc(){
   OUT.push({sec:"4 · Cabos de aço e polias — sistema redundante"});
   OUT.push({k:"Função do cabo",v:"O cabo não divide carga com a corrente: ele é o segundo caminho. Repartição entre dois elementos de rigidezes diferentes é indeterminada, e some no instante em que um deles falha. Por isso cada um é dimensionado para a carga TOTAL."});
   OUT.push({k:"Ramos de cabo porta ↔ contrapeso",v:String(A.nCb)+" ramos   ·   carga por ramo "+v(A.Tcb/1000,2)+" kN"});
-  OUT.push({k:"CABO SELECIONADO",v:A.CB.n+"   ·   Ø "+v(A.dCabo,1)+" mm   ·   ruptura mínima "+v(A.MBL,1)+" kN   ·   arame 1770 MPa"+(A.cbExced?"   ⚠ acima do maior diâmetro tabelado":""),hi:true});
+  OUT.push({k:(A.cbImposto?"CABO IMPOSTO":"CABO SELECIONADO"),v:A.CB.n+"   ·   Ø "+v(A.dCabo,1)+" mm   ·   ruptura mínima "+v(A.MBL,1)+" kN   ·   arame "+A.Rr+" MPa"+(A.cbExced?"   ⚠ acima do maior diâmetro tabelado":"")+(A.cbImposto?"   —  diâmetro informado pelo usuário; a rotina apenas VERIFICA":""),hi:true});
+  if(A.cbImposto&&A.FSkReal<A.FSk){
+    OUT.push({k:"⚠ O DIÂMETRO IMPOSTO NÃO FECHA",v:"Ø "+v(A.dCabo,1)+" mm dá FS "+v(A.FSkReal,2)+" contra os "+v(A.FSk,1)+" exigidos. A ruptura requerida é "+v(A.MBLreq,1)+" kN e este cabo oferece "+v(A.MBL,1)+" kN."+(A.dNec?("   O menor diâmetro tabelado que fecha, nesta construção e nesta classe de arame, é "+v(A.dNec,1)+" mm."):"   Nenhum diâmetro da tabela fecha nesta construção.")+"   Para manter o diâmetro pretendido, as saídas reais são: subir a classe do arame, mudar para uma construção de k maior (compactado ou 6×36), aumentar o número de ramos, ou rever o coeficiente de segurança adotado — e não simplesmente aceitar o valor.",hi:true});
+  }
+  if(A.cbImposto&&A.FSkReal>=A.FSk&&A.dNec&&A.dCabo>A.dNec){
+    OUT.push({k:"Folga do diâmetro imposto",v:"O cálculo fecharia com Ø "+v(A.dNec,1)+" mm; foi imposto Ø "+v(A.dCabo,1)+" mm. FS resultante "+v(A.FSkReal,2)+" contra "+v(A.FSk,1)+" exigidos — sobra de "+v((A.FSkReal/A.FSk-1)*100,0)+" %. Imposição legítima quando o diâmetro vem de padronização de estoque, do cabo já existente na máquina ou da polia disponível."});
+  }
   OUT.push({k:"Coeficiente de segurança do cabo",v:"FS = "+v(A.FSkReal,2)+"   ·   exigido "+v(A.FSk,1)+"   ·   "+(A.FSkReal>=A.FSk?"APROVADO":"REPROVADO"),hi:A.FSkReal<A.FSk});
   OUT.push({k:"POLIAS — relação D/d",v:"polia Ø "+v(A.Dpol,0)+" mm   ·   D/d = "+v(A.DdReal,1)+"   ·   mínimo "+String(A.CB.Dd)+" (DIN 15020) → polia mínima "+v(A.DpolMin,0)+" mm   ·   "+(A.DdOK?"APROVADO":"REPROVADO — polia pequena demais: cada passagem flexiona o arame além do limite e a fadiga aparece em meses, não em anos"),hi:!A.DdOK});
   OUT.push({k:"Inspeção e descarte",v:"ABNT NBR ISO 4309: descartar por número de fios rompidos no passo de cordoamento, redução de diâmetro acima de 7 %, corrosão, amassamento ou dobra. Em ambiente de forno, inspeção mensal e registro."});
@@ -9082,10 +9115,21 @@ const CALCS={
       {id:"pfZrd",label:"Dentes das rodas dentadas de elevação",tipo:"number",valor:25,step:"1"},
       {id:"pfFsc",label:"Coeficiente de segurança da CORRENTE",tipo:"number",valor:8,step:"0.5"},
       {id:"pfCabo",label:"Construção do cabo de aço",tipo:"select",valor:"c619",opcoes:[
-        {v:"c636",t:"6×36 Warrington-Seale com alma de aço (IWRC) — D/d ≥ 22"},
         {v:"c619",t:"6×19 Seale com alma de aço (IWRC) — D/d ≥ 20"},
+        {v:"c625",t:"6×25 Filler IWRC — D/d ≥ 21"},
+        {v:"c636",t:"6×36 Warrington-Seale com alma de aço (IWRC) — D/d ≥ 22"},
+        {v:"c637",t:"6×37 IWRC — D/d ≥ 23"},
+        {v:"comp",t:"6×26 compactado PWRC — maior ruptura no mesmo diâmetro, D/d ≥ 22"},
+        {v:"c619f",t:"6×19 Seale com alma de FIBRA (FC) — não usar acima de 120 °C"},
+        {v:"c636f",t:"6×36 WS com alma de FIBRA (FC) — não usar acima de 120 °C"},
         {v:"c8x19",t:"8×19 IWRC — alta flexibilidade, D/d ≥ 25"},
-        {v:"antig",t:"Anti-giro 19×7 — D/d ≥ 25"}]},
+        {v:"antig",t:"Anti-giro 19×7 — D/d ≥ 25"},
+        {v:"antig35",t:"Anti-giro 35×7 — carga suspensa livre, D/d ≥ 25"}]},
+      {id:"pfArame",label:"Classe de resistência do ARAME",unidade:"MPa",tipo:"select",valor:"1770",opcoes:[
+        {v:"1570",t:"1570 MPa"},
+        {v:"1770",t:"1770 MPa — usual em elevação"},
+        {v:"1960",t:"1960 MPa — +11 % de ruptura no mesmo diâmetro"}]},
+      {id:"pfDcabo",label:"DIÂMETRO do cabo  (0 = calcular)",unidade:"mm",tipo:"number",valor:0,step:"1"},
       {id:"pfFscabo",label:"Coeficiente de segurança do CABO",tipo:"number",valor:8,step:"0.5"},
       {id:"pfDpol",label:"DIÂMETRO DAS POLIAS dos cabos porta/contrapeso",unidade:"mm",tipo:"number",valor:500,step:"25"},
       {tipo:"head",label:"Olhais de fixação porta e contrapeso"},
@@ -14429,7 +14473,9 @@ function gerarRelatorio(){
       doc.line(xh-1.5,yT,xh+1.5,yT); doc.line(xh-1.5,yB,xh+1.5,yB);
       doc.setFontSize(7); doc.setTextColor(30,120,150);
       doc.text(san("H = "+Math.round(G.H*1000)+" mm"),Math.min(xh+2,178),(yT+yB)/2);
-      nota(cx+wA*0.55,(yT+yB)/2+3,G.alfaVale.toFixed(1)+"°",30,120,150,6.5);
+      /* o angulo de vale ficava a meia largura, em cima da propria parede do cone:
+         sai para fora da envoltoria, antes da cota H (em cx+wA+30)              */
+      nota(cx+wA+11,(yT+yB)/2+3,G.alfaVale.toFixed(1)+"°",30,120,150,6.5);
       /* volume útil em destaque */
       tag(cx,yB+21,"VOLUME ÚTIL = "+(G.Vutil*1000).toFixed(0)+" L   ·   "+Math.round(G.mMat)+" kg",22,120,90);
       /* forças */
@@ -15028,7 +15074,9 @@ function gerarRelatorio(){
       doc.line(xEsq-11,yEix,xDir+11,yEix);
       doc.setFillColor(120,130,145); doc.setDrawColor(40,40,40); doc.setLineWidth(0.4);
       doc.rect(xEsq-4,yEix-4,7,8,"FD"); doc.rect(xDir-3,yEix-4,7,8,"FD");
-      ntP(xEsq-11,yEix-6,"mancal",90,90,90,4.6); ntP(xDir-3,yEix-6,"mancal",90,90,90,4.6);
+      /* o rotulo da direita recuava so 3 mm e caia sobre a coluna: recua o bastante
+         para terminar antes dela, como o da esquerda ja fazia                     */
+      ntP(xEsq-11,yEix-6,"mancal",90,90,90,4.6); ntP(xDir-14,yEix-6,"mancal",90,90,90,4.6);
       /* coroa movida e pinhao, na extremidade */
       doc.setFillColor(190,160,90); doc.setDrawColor(120,90,30); doc.setLineWidth(0.5);
       doc.circle(xDir+11,yEix,6,"FD");
@@ -17693,8 +17741,14 @@ function gerarRelatorio(){
       xc0=Math.max(XL+4,Math.min(XR-32,xc0)); yc0=Math.max(26,Math.min(yG-4,yc0));
       doc.setDrawColor(190,60,50); doc.setLineWidth(0.5);
       doc.line(xc0-2,yc0,xc0+2,yc0); doc.line(xc0,yc0-2,xc0,yc0+2);
-      nt(xc0+3,yc0,"centro emissor",190,60,50,6.0);
-      nt(xc0+3,yc0+3,"dx "+G.dxF.toFixed(1)+" m · dy "+G.dyF.toFixed(1)+" m",190,60,50,6.0);
+      /* o marcador fica DENTRO da chama, por definicao — mas o rotulo, nao: texto
+         sobre o preenchimento laranja e' ilegivel. Vai para a direita de toda a
+         envoltoria da chama (base cx+wCh ou ponta xf1, o que for maior), com uma
+         linha de chamada ligando-o ao marcador.                                  */
+      var xLabCE=Math.min(XR-34,Math.max(xc0+3,Math.max(cx+wCh,xf1)+4));
+      doc.setLineWidth(0.3); doc.line(xc0+2,yc0,xLabCE-1,yc0);
+      nt(xLabCE,yc0,"centro emissor",190,60,50,6.0);
+      nt(xLabCE,yc0+3,"dx "+G.dxF.toFixed(1)+" m · dy "+G.dyF.toFixed(1)+" m",190,60,50,6.0);
       /* vento */
       doc.setDrawColor(40,140,90); doc.setLineWidth(0.5);
       doc.line(cx-wSt-22,yTip+6,cx-wSt-6,yTip+6);
@@ -17705,7 +17759,9 @@ function gerarRelatorio(){
 
       /* cotas da torre */
       cotaV(cx-wSt-5,yTip,yG,"H = "+G.Hst.toFixed(0)+" m");
-      nt(cx+wSt*1.6,yTip-4.5,"ponta "+G.dpol.toFixed(0)+"\" · Ma "+G.Ma.toFixed(2),110,60,30,6.2);
+      /* ABAIXO da boca: em yTip-4,5 o rotulo caia dentro da chama, que nasce em
+         yTip-3 e sobe                                                          */
+      nt(cx+wSt+3,yTip+4,"ponta "+G.dpol.toFixed(0)+"\" · Ma "+G.Ma.toFixed(2),110,60,30,6.2);
       nt(cx-wSt-5,yG+6,"casco D "+G.Dst.toFixed(2)+" m · esp. "+G.tcom.toFixed(1)+" mm",70,92,122,6.2);
       nt(cx-wSt-5,yG+9.4,G.nCh+" chumbadores D"+G.diaCh.toFixed(0)+" mm",70,92,122,6.2);
       nt(cx-wSt-5,yG+12.8,(G.autoP?("riser = o proprio casco · D "+G.Dhid.toFixed(2)+" m · v "+G.vHid.toFixed(1)+" m/s"
@@ -18415,7 +18471,9 @@ function gerarRelatorio(){
       doc.line(rcx,hy+hh+8,rcx,hy+hh+16); doc.line(rcx-2.2,hy+hh+13,rcx,hy+hh+16); doc.line(rcx+2.2,hy+hh+13,rcx,hy+hh+16);
       doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
       doc.line(rcx-rr,rcy+rr+8,rcx+rr,rcy+rr+8); doc.text("rotor Ø "+G.D+" mm",rcx,rcy+rr+12,{align:"center"});
-      doc.text("grelha "+san(String(Math.round(G.grelha)))+" mm",rcx+rr+20,hy+hh-2);
+      /* rcx+rr+20 caia dentro da carcaca (que vai ate hx+hw): o rotulo sai para
+         fora dela, na altura da propria grelha                                 */
+      doc.text("grelha "+san(String(Math.round(G.grelha)))+" mm",hx+hw+4,hy+hh-2);
       doc.autoTable({startY:hy+hh+20,theme:"grid",margin:{left:14,right:14},
         head:[["Resultado do pré-dimensionamento","Valor"]],
         body:[
@@ -18522,16 +18580,22 @@ function gerarRelatorio(){
         else { xx=Math.max(15,Math.min(195-w,x)); doc.text(san(t),xx,y); } }
       /* =========== CROQUI EXECUTIVO — SILO RETANGULAR =========== */
       var C1=[20,40,60], CAZ=[30,120,150], CLA=[150,170,190], CMA=[245,228,190], COR=[200,120,40];
-      function cot(x1,y1,x2,y2,txt,al){
+      function cot(x1,y1,x2,y2,txt,al,ang){
         doc.setDrawColor(CAZ[0],CAZ[1],CAZ[2]); doc.setLineWidth(0.25);
         doc.line(x1,y1,x2,y2);
         if(Math.abs(y2-y1)<0.5){ doc.line(x1,y1-1.5,x1,y1+1.5); doc.line(x2,y2-1.5,x2,y2+1.5); }
         else { doc.line(x1-1.5,y1,x1+1.5,y1); doc.line(x2-1.5,y2,x2+1.5,y2); }
         doc.setTextColor(CAZ[0],CAZ[1],CAZ[2]); doc.setFontSize(6.5);
-        doc.text(san(txt),(x1+x2)/2,(y1+y2)/2-1.2,{align:al||"center"});
+        /* rotulo rotacionado: ocupa ~4 mm de largura em vez de ~18, e e' o que
+           permite cotar numa faixa estreita sem invadir a vista vizinha       */
+        if(ang) doc.text(san(txt),(x1+x2)/2-1.2,(y1+y2)/2,{align:"center",angle:ang});
+        else doc.text(san(txt),(x1+x2)/2,(y1+y2)/2-1.2,{align:al||"center"});
       }
       /* ---------- VISTA 1: ELEVAÇÃO ---------- */
-      var eL=28, eR=110, cx=(eL+eR)/2, wH=(eR-eL)/2;
+      /* A elevacao cede largura para caber, entre ela e a planta (que comeca em
+         pL=132), a coluna de cotas verticais. Antes as cotas iam para eR+34=144,
+         ou seja, eram desenhadas DENTRO da planta.                            */
+      var eL=26, eR=100, cx=(eL+eR)/2, wH=(eR-eL)/2;
       var yTopo=36, yTrans=yTopo+Math.max(26,Math.min(52,G.Hcil*4.2));
       var yBoca=yTrans+Math.max(14,Math.min(34,G.hc*4.2));
       var yBase=yBoca+Math.max(16,Math.min(34,G.Hleg*3.4));
@@ -18558,7 +18622,7 @@ function gerarRelatorio(){
       doc.setDrawColor(180,60,60); doc.setLineWidth(1.6);
       doc.line(cx-wH-2.5,yTrans,cx+wH+2.5,yTrans);
       doc.setTextColor(180,60,60); doc.setFontSize(6);
-      doc.text(san("ANEL DE TRANSIÇÃO  "+G.perfilAnel),cx+wH+4,yTrans+1);
+      doc.text(san("anel"),cx+wH+3,yTrans+1);
       /* faixa da pressão de switch */
       doc.setFillColor(250,220,220); doc.setDrawColor(220,150,150); doc.setLineWidth(0.2);
       doc.rect(cx-wH,yTrans,2*wH,3,"FD");
@@ -18568,15 +18632,13 @@ function gerarRelatorio(){
       var nc=Math.min(G.nCintas,10), passo=(yTrans-yTopo)/(nc+1);
       for(var i=1;i<=nc;i++){ var yy=yTopo+i*passo; doc.line(cx-wH-2,yy,cx+wH+2,yy); }
       doc.setTextColor(COR[0],COR[1],COR[2]); doc.setFontSize(6);
-      doc.text(san(G.nCintas+" cintas @ "+G.sst.toFixed(2)+" m"),cx+wH+4,yTopo+passo+1);
-      rtx(G.perfilCinta,cx+wH+4,yTopo+passo+4);
+      doc.text(san("cintas"),cx+wH+3,yTopo+passo+1);
       /* enrijecedores verticais */
       doc.setDrawColor(120,140,160); doc.setLineWidth(0.4); doc.setLineDashPattern([1.2,1.2],0);
       for(var j=1;j<=3;j++){ var xx=cx-wH+j*(2*wH)/4; doc.line(xx,yTopo,xx,yTrans); }
       doc.setLineDashPattern([],0);
       doc.setTextColor(120,140,160);
-      rtx("enrijecedores  "+G.perfilEnr,cx-wH-3,yTopo+(yTrans-yTopo)*0.55,"right");
-      rtx(G.nEnrV+" un",cx-wH-3,yTopo+(yTrans-yTopo)*0.55+3,"right");
+      doc.text(san("enrij."),cx-wH-3,yTopo+(yTrans-yTopo)*0.55,{align:"right"});
       /* montantes + base */
       doc.setDrawColor(C1[0],C1[1],C1[2]); doc.setLineWidth(1.4);
       doc.line(cx-wH+3,yTrans,cx-wH+3,yBase); doc.line(cx+wH-3,yTrans,cx+wH-3,yBase);
@@ -18587,18 +18649,36 @@ function gerarRelatorio(){
       doc.setTextColor(C1[0],C1[1],C1[2]); doc.setFontSize(6);
       doc.text(san(G.Ncol+" montantes  "+G.perfilCol),cx,yBase+4.5,{align:"center"});
       doc.text(san("placa "+G.ladoBP.toFixed(0)+"x"+G.ladoBP.toFixed(0)+"x"+G.tBP+" mm · "+G.nCh+" chumb. Ø"+G.diaCh),cx,yBase+7.5,{align:"center"});
+      /* NOTAS: as designacoes de perfil sao longas e variaveis. Junto do desenho
+         elas invadiam a vista em planta, entao ficam aqui embaixo, com a mesma
+         cor do elemento que nomeiam — o desenho guarda so a etiqueta curta.    */
+      doc.setFontSize(5.8);
+      doc.setTextColor(180,60,60);
+      doc.text(san("anel de transição:  "+G.perfilAnel),eL,yBase+13);
+      doc.setTextColor(COR[0],COR[1],COR[2]);
+      doc.text(san("cintas:  "+G.nCintas+" @ "+G.sst.toFixed(2)+" m  ·  "+G.perfilCinta),eL,yBase+16.5);
+      doc.setTextColor(120,140,160);
+      doc.text(san("enrijecedores verticais:  "+G.nEnrV+" un  ·  "+G.perfilEnr),eL,yBase+20);
+      doc.setFontSize(6);
       /* seta de vento */
       doc.setDrawColor(30,155,196); doc.setLineWidth(0.6);
-      doc.line(eL-14,yTopo+8,eL-4,yTopo+8); doc.line(eL-7,yTopo+6,eL-4,yTopo+8); doc.line(eL-7,yTopo+10,eL-4,yTopo+8);
+      /* ancorada na margem util (x=14) e nao em eL-14: com a elevacao mais
+         estreita, eL-14 caia para x=12, fora da folha                        */
+      var xSeta=Math.max(14,eL-12);
+      doc.line(xSeta,yTopo+8,eL-4,yTopo+8); doc.line(eL-7,yTopo+6,eL-4,yTopo+8); doc.line(eL-7,yTopo+10,eL-4,yTopo+8);
       doc.setTextColor(30,155,196); doc.setFontSize(6);
-      doc.text(san("Fw "+G.Fw.toFixed(0)+" kN"),eL-14,yTopo+5);
+      doc.text(san("Fw "+G.Fw.toFixed(0)+" kN"),xSeta,yTopo+5);
       /* cotas verticais */
-      var xc=eR+34;
-      cot(xc,yTopo,xc,yTrans,"H1 = "+G.Hcil.toFixed(2)+" m");
-      cot(xc,yTrans,xc,yBoca,"H2 = "+G.hc.toFixed(2)+" m");
-      cot(xc+12,yTopo,xc+12,yBoca,"Htot = "+G.Htot.toFixed(2)+" m");
-      cot(xc,yBoca,xc,yBase,"L = "+G.Hleg.toFixed(2)+" m");
-      cot(cx-wH,yTopo-14,cx+wH,yTopo-14,"a = "+G.D.toFixed(2)+" m");
+      /* faixa entre a elevacao (termina em eR=100) e a planta (comeca em pL=132):
+         os rotulos saem alinhados a ESQUERDA a partir de xc, e o Htot, que e' o
+         mais longo, vai rotacionado numa coluna estreita encostada na planta.  */
+      var xc=eR+5;
+      cot(xc,yTopo,xc,yTrans,"H1 = "+G.Hcil.toFixed(2)+" m","left");
+      cot(xc,yTrans,xc,yBoca,"H2 = "+G.hc.toFixed(2)+" m","left");
+      cot(xc,yBoca,xc,yBase,"L = "+G.Hleg.toFixed(2)+" m","left");
+      cot(xc+22,yTopo,xc+22,yBoca,"Htot = "+G.Htot.toFixed(2)+" m",null,90);
+      /* yTopo-14 punha o texto em y=20,8, colado na faixa do cabecalho (0 a 20) */
+      cot(cx-wH,yTopo-11,cx+wH,yTopo-11,"a = "+G.D.toFixed(2)+" m");
       cot(cx-bwPix,yBoca+7,cx+bwPix,yBoca+7,"B = "+Math.round(G.Bw*1000)+" mm");
       /* ângulo de vale */
       doc.setTextColor(CAZ[0],CAZ[1],CAZ[2]); doc.setFontSize(6);
@@ -18633,12 +18713,14 @@ function gerarRelatorio(){
         doc.rect(pL-1.4,fy-1.4,2.8,2.8,"F"); doc.rect(pL+pW-1.4,fy-1.4,2.8,2.8,"F");
       }
       cot(pL,pT-9,pL+pW,pT-9,"a = "+G.D.toFixed(2)+" m");
-      cot(pL-9,pT,pL-9,pT+pH,"b = "+G.b.toFixed(2)+" m");
+      /* a cota b sai para a DIREITA da planta e rotacionada: a esquerda ela
+         disputava a mesma faixa com as cotas verticais da elevacao           */
+      cot(pL+pW+5,pT,pL+pW+5,pT+pH,"b = "+G.b.toFixed(2)+" m",null,90);
       cot(pL+(pW-bwP)/2,pT+pH+7,pL+(pW+bwP)/2,pT+pH+7,"Bw "+Math.round(G.Bw*1000));
       doc.setTextColor(CAZ[0],CAZ[1],CAZ[2]); doc.setFontSize(6);
-      rtx("Bl "+Math.round(G.Bl*1000)+" mm",pL+pW+3,pT+pH/2);
-      rtx("vão da cinta "+G.vaoCinta.toFixed(2)+" m",pL,pT+pH+13);
-      rtx("chapa "+G.tcom.toFixed(1)+" mm · tremonha "+G.thopcom.toFixed(1)+" mm",pL,pT+pH+17);
+      rtx("boca  "+Math.round(G.Bw*1000)+" x "+Math.round(G.Bl*1000)+" mm",pL,pT+pH+13);
+      rtx("vão da cinta "+G.vaoCinta.toFixed(2)+" m",pL,pT+pH+17);
+      rtx("chapa "+G.tcom.toFixed(1)+" mm · tremonha "+G.thopcom.toFixed(1)+" mm",pL,pT+pH+21);
       /* ---------- TABELAS DO PROJETO EXECUTIVO ---------- */
       function tab(titulo,body,startY){
         doc.autoTable({startY:startY,theme:"grid",margin:{left:14,right:14},
@@ -18667,7 +18749,7 @@ function gerarRelatorio(){
         [san("Atrito de parede φw (entrada → com revestimento)"),san(G.phiWin.toFixed(0))+"° → "+san(G.phiW.toFixed(0))+"°"],
         [san("Revestimento interno"),san(G.liner)],
         [san("Flow Function ffc / classificação"),san(G.ffc>99?">99":G.ffc.toFixed(1))+"  ("+san(G.classe)+")"]
-      ],yBase+16);
+      ],yBase+26);
       var y2=tab("2 — AÇÕES (EN 1991-4 · NBR 6123 · NBR 15421)",[
         [san("K médio / superior / inferior"),san(G.Km.toFixed(3))+" / "+san(G.Ku.toFixed(3))+" / "+san(G.Kl.toFixed(3))],
         [san("μ médio / superior / inferior"),san(G.MUm.toFixed(3))+" / "+san(G.MUu.toFixed(3))+" / "+san(G.MUl.toFixed(3))],
@@ -18756,7 +18838,9 @@ function gerarRelatorio(){
     doc.line(cx-wH,transY,cx+wH,transY); doc.line(cx-oH,botY,cx+oH,botY);
     // linhas de cota
     doc.setDrawColor(30,155,196); doc.setLineWidth(0.3); doc.setTextColor(30,120,150); doc.setFontSize(8);
-    var dy=topY-7; doc.line(cx-wH,dy,cx+wH,dy); doc.line(cx-wH,dy-1.6,cx-wH,dy+1.6); doc.line(cx+wH,dy-1.6,cx+wH,dy+1.6);
+    /* a cota do diametro vai ACIMA do cone de telhado (apice em topY-11): em topY-7
+       ela caia entre as duas aguas e o texto ficava atravessado pelas linhas    */
+    var dy=topY-15; doc.line(cx-wH,dy,cx+wH,dy); doc.line(cx-wH,dy-1.6,cx-wH,dy+1.6); doc.line(cx+wH,dy-1.6,cx+wH,dy+1.6);
     doc.text((G.tipo==="ret"?"a = ":"D = ")+san(G.D.toFixed(2))+" m",cx,dy-1.2,{align:"center"});
     var rx=cx+wH+9; doc.line(rx,topY,rx,transY); doc.line(rx-1.6,topY,rx+1.6,topY); doc.line(rx-1.6,transY,rx+1.6,transY);
     doc.text("H = "+san(G.Hcil.toFixed(2))+" m",rx+2,(topY+transY)/2+1);
@@ -18797,7 +18881,9 @@ function gerarRelatorio(){
       doc.text("chapa "+san(G.thopcom.toFixed(1))+" mm",cx+oH+6,(transY+botY)/2+4);
       doc.setFontSize(8); doc.setTextColor(30,120,150);
     } else {
-      doc.text("ang. moega "+san(G.alfa.toFixed(0))+"°",cx+oH+4,botY-3);
+      /* ABAIXO da linha da boca: em botY-3 o rotulo encostava na aresta inclinada
+         da moega e disputava espaco com a cota hc                              */
+      doc.text("ang. moega "+san(G.alfa.toFixed(0))+"°",cx+oH+4,botY+3);
     }
     // legenda com as medidas resultantes
     var legBody=[];
