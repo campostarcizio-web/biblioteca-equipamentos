@@ -6603,9 +6603,10 @@ function pfNucleo(){
   var Cdin=(nEixo>0)?Rmax/1000*Math.pow(60*nEixo*L10h/1e6,1/3):Rmax/1000;
   /* mancais auxiliares: recebem reação e por isso precisam de rolamento e de
      estrutura própria — não são guias, são apoios que carregam                */
-  var Raux=[], RauxMax=0;
+  var Raux=[], RauxS=[], RauxMax=0;
   for(var ra=0;ra<(VF.Raux||[]).length;ra++){
-    var Rv=Math.abs(VF.Raux[ra]); Raux.push(Rv); if(Rv>RauxMax) RauxMax=Rv;
+    var Rs=VF.Raux[ra], Rv=Math.abs(Rs);
+    RauxS.push(Rs); Raux.push(Rv); if(Rv>RauxMax) RauxMax=Rv;
   }
   var CdinAux=(nEixo>0&&RauxMax>0)?RauxMax/1000*Math.pow(60*nEixo*L10h/1e6,1/3):RauxMax/1000;
   /* alinhamento: apoio auxiliar mal nivelado inverte o sinal da reação e passa a
@@ -6634,11 +6635,45 @@ function pfNucleo(){
   var espFrena=v*0.6;                                           // m - espaco de parada estimado
 
   /* ================= 9. ESTRUTURA ================= */
+  /* A viga superior e as colunas recebem TODOS os apoios do eixo — os dois
+     mancais principais E os auxiliares —, cada um na sua posição. Usar só Rmax
+     era aceitável enquanto o eixo era isostático e as duas reações valiam
+     metade da carga cada. Com apoio auxiliar isso deixa de valer: o auxiliar
+     pode levar a quase totalidade da carga (e o mancal principal, nada, ou até
+     tração), e a estrutura ficaria dimensionada para uma fração do real.
+     A carga entra no meio do vão, que é justamente onde o momento é maior.   */
+  var somaApoiosPre=R1s+R2s+RauxS.reduce(function(s,r){return s+r;},0);
+  var offViga=(vaoViga-Leixo)/2;
+  function _xv(xs){ var xv=offViga+xs; if(!isFinite(xv)) return vaoViga/2;
+    return Math.max(0,Math.min(vaoViga,xv)); }
+  var cargasViga=[{x:_xv(x1),P:R1s,tag:"mancal"},{x:_xv(x2),P:R2s,tag:"mancal"}];
+  for(var cv=0;cv<xsup.length;cv++){ cargasViga.push({x:_xv(xsup[cv]),P:RauxS[cv],tag:"auxiliar"}); }
+  /* Geometria degenerada — vao nulo, ou eixo muito maior que o vao, que joga todas
+     as cargas sobre o proprio apoio — faz a analise da viga devolver NaN. Nesse
+     caso volta-se ao repartido igual entre as duas colunas, que e' o limite
+     fisico correto: a carga total nao desaparece, so deixa de haver momento.  */
+  var VVG=(isFinite(vaoViga)&&vaoViga>0.05&&cargasViga.every(function(c){return isFinite(c.x)&&isFinite(c.P);}))
+          ?vigaNum(vaoViga,0,vaoViga,cargasViga,0,1,400):null;
+  var vigaOK=!!(VVG&&isFinite(VVG.Mmax)&&isFinite(VVG.R1)&&isFinite(VVG.R2));
+  var MvigaReal=vigaOK?Math.abs(VVG.Mmax):0;
+  /* REAÇÕES DAS COLUNAS — é o que desce para a base e sustenta o sistema inteiro.
+     A viga principal só se apoia nas extremidades, então tudo o que os mancais e
+     os apoios auxiliares entregam a ela tem de sair por estas duas reações.
+     Não confundir com a reação dos MANCAIS, que é o que o eixo entrega à viga:
+     com apoio auxiliar as duas coisas divergem por uma ordem de grandeza.     */
+  var Rcol1=vigaOK?VVG.R1:(somaApoiosPre/2), Rcol2=vigaOK?VVG.R2:(somaApoiosPre/2);
+  var NcolReal=Math.max(Math.abs(Rcol1),Math.abs(Rcol2));
+  if(!isFinite(NcolReal)) NcolReal=0;
+  var somaApoios=somaApoiosPre;
+  /* O critério antigo (Rmax·vão/4 e 2·Rmax) fica como PISO. Onde ele era maior
+     — eixo isostático, apoios junto das colunas — nada encolhe; onde era menor,
+     que é o caso com apoio auxiliar, passa a valer a análise real.           */
   var Rviga=Rmax;
-  var Mviga=Rviga*vaoViga/4;                                    // N.m - carga no meio do vao
+  var Mviga=Math.max(MvigaReal,Rviga*vaoViga/4);                // N.m
   var Wxviga=Mviga/(0.60*fy*1e6)*1e6;                           // cm3
   var pViga=selPerfil({W:Wxviga},"W");
-  var Ncol=(Rmax*2+Mp*g*0.15)/2;                                // N por coluna
+  var Ncol=Math.max(NcolReal+Mp*g*0.15/2,(Rmax*2+Mp*g*0.15)/2); // N por coluna
+  var estrutRegeAux=(MvigaReal>Rviga*vaoViga/4)||(NcolReal+Mp*g*0.15/2>(Rmax*2+Mp*g*0.15)/2);
   /* Coluna guia: compressao com flambagem pela NBR 8800, e nao por uma tensao
      admissivel fixa. Numa coluna de 6 m a esbeltez passa de 150, faixa em que o
      fator de reducao chi cai para cerca de 0,3 — adotar 0,5.fy ali superestima
@@ -6713,7 +6748,8 @@ function pfNucleo(){
    ["7","Flecha máxima","dupla integração de M/EI",vt(flecha,2)+" mm","menor ou igual a vao_livre/1000 = "+vt(flechaLim,2)+" mm",st(flechaOK)],
    ["7","Flecha no engrenamento","no ponto da coroa movida",vt(flEng,3)+" mm","menor ou igual a 0,03.modulo = "+vt(flEngLim,2)+" mm",st(flEngOK)],
    ["7","Torção específica","theta = T.L/(G.J)",vt(torcao,4)+" graus/m","menor ou igual a 0,25 graus/m em eixo de transmissão",st(torcaoOK)],
-   ["7","Reações nos mancais",(nAux>0?"superposicao: isostatico + reacoes dos auxiliares":"equilíbrio da viga"),"R1 = "+vt(R1s/1000,2)+" kN - R2 = "+vt(R2s/1000,2)+" kN"+(tracaoMancal?"  (NEGATIVO = mancal TRACIONADO)":""),"capacidade dinâmica C maior ou igual a "+vt(Cdin,1)+" kN para 20.000 h"+(tracaoMancal?"  -  e fixacao verificada a ARRANCAMENTO":""),(tracaoMancal?"ATENCAO":"VERIFICAR")],
+   ["7","Reações nos MANCAIS do eixo (sobre a viga)",(nAux>0?"superposicao: isostatico + reacoes dos auxiliares":"equilíbrio da viga"),"R1 = "+vt(R1s/1000,2)+" kN - R2 = "+vt(R2s/1000,2)+" kN"+(tracaoMancal?"  (NEGATIVO = mancal TRACIONADO)":""),"capacidade dinâmica C maior ou igual a "+vt(Cdin,1)+" kN para 20.000 h"+(tracaoMancal?"  -  e fixacao verificada a ARRANCAMENTO":""),(tracaoMancal?"ATENCAO":"VERIFICAR")],
+   ["9","REAÇÕES NAS COLUNAS R1 e R2 (para a base)","viga principal apoiada so nas extremidades: soma de todos os apoios do eixo","R1 = "+vt(Rcol1/1000,1)+" kN - R2 = "+vt(Rcol2/1000,1)+" kN","soma "+vt((Rcol1+Rcol2)/1000,1)+" kN = carga total do mecanismo","VERIFICAR"],
    ["7","Reações nos apoios auxiliares",(nAux>0?"compatibilidade de flecha nula em cada apoio":"nao aplicavel"),
     (nAux>0?("maxima "+vt(RauxMax/1000,2)+" kN"):"—"),
     (nAux>0?("capacidade dinâmica C maior ou igual a "+vt(CdinAux,1)+" kN por mancal auxiliar"):"—"),(nAux>0?"VERIFICAR":"—")],
@@ -6755,7 +6791,9 @@ function pfNucleo(){
     nAux:nAux,xsup:xsup,LauxUsa:LauxUsa,auxCalc:auxCalc,vaoMax:vaoMax,
     R1s:R1s,R2s:R2s,tracaoMancal:tracaoMancal,
     nAuxPedido:nAuxPedido,apoiosFundidos:apoiosFundidos,tolSup:tolSup,degen:!!VF.degen,
-    Raux:Raux,RauxMax:RauxMax,CdinAux:CdinAux,desalinAdm:desalinAdm,GAN:GAN,
+    Raux:Raux,RauxS:RauxS,RauxMax:RauxMax,CdinAux:CdinAux,desalinAdm:desalinAdm,GAN:GAN,
+    MvigaReal:MvigaReal,NcolReal:NcolReal,estrutRegeAux:estrutRegeAux,
+    Rcol1:Rcol1,Rcol2:Rcol2,somaApoios:somaApoios,vaoViga:vaoViga,
     pViga:pViga,pCol:pCol,Wxviga:Wxviga,Ncol:Ncol,vaoViga:vaoViga,hCol:hCol,mEstrut:mEstrut,fy:fy,
     colDados:colDados,lamb:lamb,
     matEixo:matEixo,matEng:matEng};
@@ -6841,7 +6879,7 @@ function portaFornoCalc(){
     }
     OUT.push({k:"O preço de um apoio intermediário",v:"O eixo deixa de ser viga sobre dois apoios e passa a ser HIPERESTÁTICO: a reação de cada apoio auxiliar depende da rigidez do conjunto, e não do equilíbrio. A consequência prática é de montagem — um apoio auxiliar fora de nível não alivia o eixo, ele FORÇA o eixo. Um desnível da ordem da própria flecha calculada, "+v(A.desalinAdm,2)+" mm, já inverte o sinal da reação. Nivelamento com relógio comparador e calços usinados, não com régua."});
     var txtR="";
-    for(var ib=0;ib<A.Raux.length;ib++){ txtR+=(ib?"   ·   ":"")+"R"+(ib+1)+"aux = "+v(A.Raux[ib]/1000,2)+" kN"; }
+    for(var ib=0;ib<A.RauxS.length;ib++){ txtR+=(ib?"   ·   ":"")+"R"+(ib+1)+"aux = "+v(A.RauxS[ib]/1000,2)+" kN"; }
     OUT.push({k:"REAÇÃO NOS APOIOS AUXILIARES",v:(txtR||"—")+"   ·   capacidade dinâmica C ≥ "+v(A.CdinAux,1)+" kN por mancal auxiliar   —  eles carregam de verdade, não são guias: exigem rolamento, caixa e estrutura dimensionados",hi:true});
     if(A.tracaoMancal){
       OUT.push({k:"⚠ MANCAL PRINCIPAL TRACIONADO",v:"R1 = "+v(A.R1s/1000,2)+" kN   ·   R2 = "+v(A.R2s/1000,2)+" kN   —  valor NEGATIVO significa que a extremidade do eixo está sendo ARRANCADA para cima, e não comprimida. Com os apoios auxiliares próximos dos mancais principais, o trecho central é erguido e as pontas levantam. Consequência prática: o mancal deixa de apenas apoiar e passa a segurar — a caixa precisa de fixação verificada ao arrancamento, e o rolamento, de retenção axial e radial nos dois sentidos. Afastar os apoios auxiliares do centro, ou reduzi-los, devolve a reação ao sentido de compressão.",hi:true});
@@ -6886,6 +6924,12 @@ function portaFornoCalc(){
 
   OUT.push({sec:"9 · Estrutura de apoio"});
   OUT.push({k:"Viga superior",v:"vão "+v(A.vaoViga,2)+" m   ·   Wx requerido "+v(A.Wxviga,0)+" cm³   →   "+txtPerfil(A.pViga.best),hi:A.pViga.dobro});
+  OUT.push({k:"CAMINHO DA CARGA ATÉ A BASE",v:"Todos os apoios do eixo — os "+v(2,0)+" mancais principais e "+(A.nAux>0?(v(A.nAux,0)+" apoio(s) auxiliar(es)"):"nenhum auxiliar")+" — descarregam na VIGA PRINCIPAL, que se apoia apenas nas extremidades, sobre as duas colunas. Logo tudo o que os apoios entregam à viga sai por duas reações de coluna e desce para a base.   Apoios sobre a viga: mancais "+v(A.R1s/1000,2)+" e "+v(A.R2s/1000,2)+" kN"+(A.nAux>0?(", auxiliares "+A.RauxS.map(function(r){return v(r/1000,2);}).join(" e ")+" kN"):"")+"   ·   soma "+v(A.somaApoios/1000,1)+" kN.",hi:true});
+  OUT.push({k:"REAÇÕES NAS COLUNAS  R1 e R2  (o que vai para a base)",v:"R1 = "+v(A.Rcol1/1000,1)+" kN   ·   R2 = "+v(A.Rcol2/1000,1)+" kN   ·   soma "+v((A.Rcol1+A.Rcol2)/1000,1)+" kN   —  é ESTE o par que sustenta o sistema de elevação, dimensiona as colunas, a placa de base e os chumbadores, e é o que vai para o projeto de fundação. Não confundir com a reação dos MANCAIS: aquela é o que o eixo entrega à viga, e com apoio auxiliar as duas divergem por uma ordem de grandeza.",hi:true});
+  OUT.push({k:"Viga principal — vão e momento",v:"vão "+v(A.vaoViga,2)+" m entre colunas   ·   momento máximo "+v(A.MvigaReal/1000,1)+" kN·m pela análise com todos os apoios nas suas posições"+(A.nAux>0?"   —  com apoio auxiliar a carga entra no MEIO do vão, que é onde o momento é maior; junto das colunas ela quase não flete a viga":"")});
+  if(A.estrutRegeAux){
+    OUT.push({k:"⚠ A ESTRUTURA É GOVERNADA PELOS APOIOS AUXILIARES",v:"Pela análise real da viga com todos os apoios nas suas posições, o momento é "+v(A.MvigaReal/1000,1)+" kN·m e a reação por coluna é "+v(A.NcolReal/1000,1)+" kN. Dimensionar só pela reação do mancal principal daria uma fração disso — é o erro que aparece quando o apoio auxiliar leva quase toda a carga e o mancal principal fica com pouco, ou com tração.",hi:true});
+  }
   OUT.push({k:"Colunas guia",v:"altura "+v(A.hCol,2)+" m   ·   N_Sd = "+v(A.Ncol/1000,1)+" kN por coluna   →   "+txtPerfil(A.pCol.best)+"   ·   N_Rd = "+v(A.colDados.NRd/1000,0)+" kN",hi:A.pCol.dobro});
   OUT.push({k:"Flambagem da coluna",v:"esbeltez λ = "+v(A.colDados.lam,0)+" (limite 200 da NBR 8800)   ·   fator de redução χ = "+v(A.colDados.chi,3)+"   ·   numa coluna dessa altura a flambagem corta a capacidade a "+v(A.colDados.chi*100,0)+" % do escoamento — dimensionar por tensão admissível fixa superestimaria o perfil"});
   OUT.push({k:"Massa estimada da estrutura",v:v(A.mEstrut/1000,2)+" t   (viga + duas colunas)   ·   aço "+(A.fy===250?"ASTM A36 / MR250":"ASTM A572 Gr50")});
@@ -15441,7 +15485,8 @@ function gerarRelatorio(){
           [san("Momento / torque"),san((Math.abs(A.VF.Mmax)/1000).toFixed(1))+" / "+san((A.Ttot/1000).toFixed(1))+" kN.m"],
           [san("Flecha / no engrenam."),san(A.flecha.toFixed(2))+" / "+san(A.flEng.toFixed(3))+" mm"],
           [san("Torcao"),san(A.torcao.toFixed(3))+" graus/m"],
-          [san("Reações R1 / R2"),san((A.R1/1000).toFixed(0))+" / "+san((A.R2/1000).toFixed(0))+" kN"],
+          [san("Mancais do eixo R1 / R2"),san((A.R1s/1000).toFixed(1))+" / "+san((A.R2s/1000).toFixed(1))+" kN"],
+          [san("COLUNAS R1 / R2 (p/ base)"),san((A.Rcol1/1000).toFixed(1))+" / "+san((A.Rcol2/1000).toFixed(1))+" kN"],
           [san("Rotação do eixo"),san(A.nEixo.toFixed(2))+" rpm"],
           [san("Potência no eixo"),san(A.Peixo.toFixed(2))+" kW"],
           [san("MOTOR"),san(A.ac.mot.d)+" - "+san(A.ac.Pinst.toFixed(2))+" kW"],
