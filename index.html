@@ -2348,16 +2348,136 @@ function floculadorCalc(){
   return OUT;
 }
 
+/* ============================================================================
+   CATALOGOS DE FILTRO PRENSA — para INDICAR o modelo a partir das dimensoes e
+   quantidades que o usuario informa. Nao sao dado de entrada: a entrada e' a
+   placa e a quantidade; o modelo sai no resultado.
+   A = area filtrante total (m2, as duas faces, como os catalogos contam)
+   nPl = numero de placas   ·   esp = espessura da camara (mm)   ·   V = litros
+   ========================================================================== */
+var FP_CAT=[
+ /* Strassburger KFP/MFP — Chamber and Membrane Filter Press (Clean System) */
+ {f:"Strassburger",m:"KFP/MFP 470 I",lado:470,esp:30,A:3.4,nPl:9,V:45},
+ {f:"Strassburger",m:"KFP/MFP 470 II",lado:470,esp:30,A:6.8,nPl:19,V:90},
+ {f:"Strassburger",m:"KFP/MFP 470 III",lado:470,esp:30,A:10.2,nPl:29,V:135},
+ {f:"Strassburger",m:"KFP/MFP 470 IV",lado:470,esp:30,A:13.6,nPl:39,V:180},
+ {f:"Strassburger",m:"KFP/MFP 630 I",lado:630,esp:30,A:5.9,nPl:9,V:80},
+ {f:"Strassburger",m:"KFP/MFP 630 II",lado:630,esp:30,A:11.8,nPl:19,V:160},
+ {f:"Strassburger",m:"KFP/MFP 630 III",lado:630,esp:30,A:17.7,nPl:29,V:240},
+ {f:"Strassburger",m:"KFP/MFP 630 IV",lado:630,esp:30,A:23.6,nPl:39,V:320},
+ {f:"Strassburger",m:"KFP/MFP 630 V",lado:630,esp:30,A:29.5,nPl:49,V:400},
+ {f:"Strassburger",m:"KFP/MFP 630 VI",lado:630,esp:30,A:35.4,nPl:59,V:480},
+ {f:"Strassburger",m:"KFP/MFP 800 II",lado:800,esp:30,A:21.0,nPl:19,V:304},
+ {f:"Strassburger",m:"KFP/MFP 800 III",lado:800,esp:30,A:31.5,nPl:29,V:456},
+ {f:"Strassburger",m:"KFP/MFP 800 IV",lado:800,esp:30,A:42.0,nPl:39,V:608},
+ {f:"Strassburger",m:"KFP/MFP 800 V",lado:800,esp:30,A:52.5,nPl:49,V:760},
+ {f:"Strassburger",m:"KFP/MFP 800 VI",lado:800,esp:30,A:63.0,nPl:59,V:912},
+ {f:"Strassburger",m:"KFP/MFP 800 VII",lado:800,esp:30,A:73.5,nPl:69,V:1064},
+ {f:"Strassburger",m:"KFP/MFP 800 VIII",lado:800,esp:30,A:84.0,nPl:79,V:1216},
+ {f:"Strassburger",m:"KFP/MFP 800 IX",lado:800,esp:30,A:95.5,nPl:89,V:1368},
+ {f:"Strassburger",m:"KFP/MFP 800 X",lado:800,esp:30,A:105.0,nPl:99,V:1520},
+ /* Uniwin XMGY — membrana, pressao de filtracao <= 0,8 MPa (8 bar) */
+ {f:"Uniwin",m:"XMGY30/870-U",lado:870,esp:35,A:30,nPl:23,V:498,pmax:8},
+ {f:"Uniwin",m:"XMGY40/870-U",lado:870,esp:35,A:40,nPl:29,V:623,pmax:8},
+ {f:"Uniwin",m:"XMGY50/870-U",lado:870,esp:35,A:50,nPl:37,V:789,pmax:8},
+ {f:"Uniwin",m:"XMGY60/870-U",lado:870,esp:35,A:60,nPl:45,V:955,pmax:8},
+ {f:"Uniwin",m:"XMGY70/870-U",lado:870,esp:35,A:70,nPl:53,V:1121,pmax:8},
+ {f:"Uniwin",m:"XMGY80/870-U",lado:870,esp:35,A:80,nPl:61,V:1287,pmax:8},
+ {f:"Uniwin",m:"XMGY50/1000-U",lado:1000,esp:35,A:50,nPl:27,V:776,pmax:8},
+ {f:"Uniwin",m:"XMGY60/1000-U",lado:1000,esp:35,A:60,nPl:33,V:943,pmax:8},
+ {f:"Uniwin",m:"XMGY70/1000-U",lado:1000,esp:35,A:70,nPl:39,V:1109,pmax:8},
+ {f:"Uniwin",m:"XMGY80/1000-U",lado:1000,esp:35,A:80,nPl:45,V:1275,pmax:8},
+ {f:"Uniwin",m:"XMGY100/1000-U",lado:1000,esp:35,A:100,nPl:57,V:1608,pmax:8},
+ {f:"Uniwin",m:"XMGY120/1000-U",lado:1000,esp:35,A:120,nPl:69,V:1941,pmax:8},
+ {f:"Uniwin",m:"XMGY80/1250-U",lado:1250,esp:40,A:80,nPl:29,V:1560,pmax:8},
+ {f:"Uniwin",m:"XMGY100/1250-U",lado:1250,esp:40,A:100,nPl:37,V:1975,pmax:8},
+ {f:"Uniwin",m:"XMGY120/1250-U",lado:1250,esp:40,A:120,nPl:45,V:2391,pmax:8},
+ {f:"Uniwin",m:"XMGY150/1250-U",lado:1250,esp:40,A:150,nPl:55,V:2911,pmax:8},
+ {f:"Uniwin",m:"XMGY160/1250-U",lado:1250,esp:40,A:160,nPl:59,V:3119,pmax:8},
+ {f:"Uniwin",m:"XMGY200/1250-U",lado:1250,esp:40,A:200,nPl:73,V:3847,pmax:8},
+ {f:"Uniwin",m:"XMGY240/1250-U",lado:1250,esp:40,A:240,nPl:89,V:4679,pmax:8},
+ {f:"Uniwin",m:"XMGY250/1250-U",lado:1250,esp:40,A:250,nPl:91,V:4783,pmax:8},
+ {f:"Uniwin",m:"XMGY200/1500-U",lado:1500,esp:40,A:200,nPl:49,V:3809,pmax:8},
+ {f:"Uniwin",m:"XMGY250/1500-U",lado:1500,esp:40,A:250,nPl:61,V:4723,pmax:8},
+ {f:"Uniwin",m:"XMGY300/1500-U",lado:1500,esp:40,A:300,nPl:73,V:5637,pmax:8},
+ {f:"Uniwin",m:"XMGY350/1500-U",lado:1500,esp:40,A:350,nPl:85,V:6551,pmax:8},
+ {f:"Uniwin",m:"XMGY400/1500-U",lado:1500,esp:40,A:400,nPl:99,V:7618,pmax:8},
+ {f:"Uniwin",m:"XMGY450/1500-U",lado:1500,esp:40,A:450,nPl:111,V:8532,pmax:8},
+ {f:"Uniwin",m:"XMGY500/1500-U",lado:1500,esp:40,A:500,nPl:123,V:9446,pmax:8},
+ {f:"Uniwin",m:"XMGY600/2000-U",lado:2000,esp:40,A:600,nPl:85,V:11901,pmax:8},
+ {f:"Uniwin",m:"XMGY700/2000-U",lado:2000,esp:40,A:700,nPl:99,V:13838,pmax:8},
+ {f:"Uniwin",m:"XMGY800/2000-U",lado:2000,esp:40,A:800,nPl:107,V:14945,pmax:8},
+ {f:"Uniwin",m:"XMGY900/2000-U",lado:2000,esp:40,A:900,nPl:127,V:17713,pmax:8},
+ {f:"Uniwin",m:"XMGY1000/2000-U",lado:2000,esp:40,A:1000,nPl:141,V:19651,pmax:8}
+];
+/* FLS AFP — a tabela do catalogo e' linear no numero de camaras, entao guarda-se
+   a area e o volume POR CAMARA e a faixa de camaras de cada combinacao.        */
+var FP_FLS=[
+ {m:"AFP1500",lado:1500,esp:32,Ac:4.567,Vc:0.0667,n1:40,n2:130},
+ {m:"AFP1500",lado:1500,esp:40,Ac:4.600,Vc:0.0889,n1:40,n2:130},
+ {m:"AFP1500",lado:1500,esp:50,Ac:4.622,Vc:0.1111,n1:40,n2:130},
+ {m:"AFP2000",lado:2000,esp:32,Ac:7.990,Vc:0.1250,n1:50,n2:130},
+ {m:"AFP2000",lado:2000,esp:40,Ac:8.000,Vc:0.1500,n1:50,n2:130},
+ {m:"AFP2000",lado:2000,esp:50,Ac:8.088,Vc:0.2000,n1:50,n2:130},
+ {m:"AFP2500",lado:2500,esp:32,Ac:12.340,Vc:0.2000,n1:50,n2:130},
+ {m:"AFP2500",lado:2500,esp:40,Ac:12.400,Vc:0.2375,n1:50,n2:130},
+ {m:"AFP2500",lado:2500,esp:50,Ac:12.475,Vc:0.2875,n1:50,n2:130}
+];
+/* Procura no catalogo o menor modelo que atende a area exigida, dando preferencia
+   a placa de tamanho proximo ao informado.                                     */
+function fpAchaModelos(ladoMM,espMM,Areq,Preq){
+  var r=[],i;
+  for(i=0;i<FP_CAT.length;i++){
+    var c=FP_CAT[i];
+    if(c.A+1e-9<Areq) continue;
+    var dLado=Math.abs(c.lado-ladoMM)/Math.max(ladoMM,1);
+    var dEsp=Math.abs(c.esp-espMM)/Math.max(espMM,1);
+    if(dLado>0.20) continue;
+    /* a placa informada pesa MUITO mais que a folga de area: de nada adianta
+       sugerir um modelo justinho de placa errada                            */
+    r.push({f:c.f,m:c.m,lado:c.lado,esp:c.esp,A:c.A,nPl:c.nPl,V:c.V,
+            pOK:(!c.pmax||Preq<=c.pmax),pmax:c.pmax||null,
+            score:dLado*30+dEsp*2+(c.A/Math.max(Areq,0.01)-1)});
+  }
+  for(i=0;i<FP_FLS.length;i++){
+    var g=FP_FLS[i];
+    var dL=Math.abs(g.lado-ladoMM)/Math.max(ladoMM,1);
+    if(dL>0.20) continue;
+    var nc=Math.ceil(Areq/g.Ac);
+    if(nc<g.n1) nc=g.n1;
+    if(nc>g.n2) continue;
+    nc=Math.ceil(nc/10)*10; if(nc>g.n2) nc=g.n2;
+    if(g.Ac*nc+1e-9<Areq) continue;
+    r.push({f:"FLS",m:g.m+"  ·  "+nc+" câmaras",lado:g.lado,esp:g.esp,
+            A:g.Ac*nc,nPl:nc+1,V:g.Vc*nc*1000,pOK:true,pmax:16,
+            score:dL*30+Math.abs(g.esp-espMM)/Math.max(espMM,1)*2+(g.Ac*nc/Math.max(Areq,0.01)-1)});
+  }
+  r.sort(function(a,b){return a.score-b.score;});
+  return r.slice(0,4);
+}
+
 function filtroPrensaCalc(){
   /* ---------- ENTRADAS ---------- */
-  var S=num("fpS");        if(!isFinite(S)||S<=0)S=2067;        // kg/h de sólidos
-  var rhos=num("fpRhoS");  if(!isFinite(rhos)||rhos<=0)rhos=2936;
-  var Cu=num("fpCu");      if(!isFinite(Cu)||Cu<=0||Cu>=100)Cu=30;
+  /* A POLPA é o dado inicial. Os sólidos saem dela pela concentração em massa. */
+  var Wpolpa=num("fpPolpa"); if(!isFinite(Wpolpa)||Wpolpa<=0)Wpolpa=6.9;   // t/h
+  var Cp=num("fpCp");      if(!isFinite(Cp)||Cp<=0||Cp>=100)Cp=30;         // % massa
+  var rhos=num("fpRhoS");  if(!isFinite(rhos)||rhos<=0)rhos=2936;          // base seca
+  var S=Wpolpa*1000*Cp/100;                                     // kg/h de sólidos
+  var Cu=num("fpCu");      if(!isFinite(Cu)||Cu<=0||Cu>=100)Cu=Cp;
   var Ct=num("fpCt");      if(!isFinite(Ct)||Ct<=0||Ct>=100)Ct=65;
   var hDia=num("fpH");     if(!isFinite(hDia)||hDia<=0||hDia>24)hDia=24;
   var tCiclo=num("fpCiclo");if(!isFinite(tCiclo)||tCiclo<=0)tCiclo=3;  // h
-  var lado=selvN("fpPlaca",2.0);                                  // m
-  var espCam=selvN("fpEsp",32);                                   // mm
+  var nFil=num("fpNfil");  if(!isFinite(nFil)||nFil<1)nFil=1; nFil=Math.round(nFil);
+  var ladoMM=num("fpLado"); if(!isFinite(ladoMM)||ladoMM<=0)ladoMM=2000;
+  var lado=ladoMM/1000;                                           // m
+  var espCam=num("fpEsp");  if(!isFinite(espCam)||espCam<=0)espCam=32;   // mm
+  var nPlIn=num("fpNplacas"); if(!isFinite(nPlIn)||nPlIn<2)nPlIn=2; nPlIn=Math.round(nPlIn);
+  /* Área útil da placa contando as DUAS faces, como os catálogos contam. Zero
+     manda calcular pela dimensão, com 85 % de aproveitamento — o resto é moldura,
+     orelhas e portas de alimentação e filtrado.                               */
+  var aplIn=num("fpAplaca");
+  var aplCalc=(!isFinite(aplIn)||aplIn<=0);
+  var Apl2=aplCalc?(2*lado*lado*0.85):aplIn;                      // m² por placa, 2 faces
   var Pfilt=num("fpPfilt"); if(!isFinite(Pfilt)||Pfilt<=0)Pfilt=7; // bar
   var memb=selv("fpMemb","sim");
   var Pmemb=num("fpPmemb"); if(!isFinite(Pmemb)||Pmemb<=0)Pmemb=15;
@@ -2368,6 +2488,10 @@ function filtroPrensaCalc(){
   var Tf=num("fpT");       if(!isFinite(Tf))Tf=50;
 
   /* ---------- ETAPA 1 — BALANÇO DE MASSA ---------- */
+  /* POLPA como entrada: massa, densidade da mistura e volume */
+  var Wp=Wpolpa*1000;                                  // kg/h de polpa
+  var rhoP=1/((Cp/100/rhos)+((1-Cp/100)/1000));        // kg/m³ da polpa
+  var Vp=Wp/rhoP;                                      // m³/h de polpa
   var Wu=S/(Cu/100);                                   // kg/h de lama espessada
   var rhoU=1/((Cu/100/rhos)+((1-Cu/100)/1000));
   var Vu=Wu/rhoU;                                      // m³/h
@@ -2379,20 +2503,31 @@ function filtroPrensaCalc(){
   var umTorta=100-Ct;                                  // % de umidade
   var tortaOK=(Ct>=55);
 
-  /* ---------- ETAPA 2 — VOLUME DE CÂMARAS E NÚMERO DE PLACAS ---------- */
-  var Vcam=Vt*tCiclo;                                  // m³ por batelada
-  var Apl=lado*lado;                                   // m² por face
+  /* ---------- ETAPA 2 — A LINHA: O QUE CADA FILTRO PRECISA ENGOLIR ----------
+     A carga se divide pelos filtros que trabalham: dois filtros levam metade do
+     volume cada, e cada um pode ser menor.                                     */
+  var VtF=Vt/nFil, VfilF=Vfil/nFil, VpF=Vp/nFil;       // m³/h POR FILTRO
+  var Vcam=VtF*tCiclo;                                 // m³ de TORTA por batelada, por filtro
+  var VpolpaBat=VpF*tCiclo;                            // m³ de POLPA por batelada, por filtro
+  var VfilBat=VfilF*tCiclo;                            // m³ de FILTRADO por batelada, por filtro
+
+  /* ---------- ETAPA 2a — O QUE ESTÁ INSTALADO ----------
+     As duas placas das extremidades encostam nos cabeçotes e têm só uma face
+     filtrante: duas meias-placas = uma placa inteira de área que NÃO trabalha. */
+  var Apl=Apl2/2;                                      // m² por face
+  var nPlMortas=1;                                     // equivalente em placas
+  var nCam=nPlIn-1;                                    // câmaras entre placas
+  var Afilt=Apl2*(nPlIn-nPlMortas);                    // m² úteis, já descontadas
+  var AfiltBruta=Apl2*nPlIn;                           // m² se todas trabalhassem
   var vUmaCam=Apl*espCam/1000;                         // m³ por câmara
-  var nCam=Math.ceil(Vcam/vUmaCam);
-  var Afilt=2*Apl*nCam;                                // m² de área filtrante
-  var Vinst=nCam*vUmaCam;                              // m³ instalados
-  var compPack=nCam*(espCam+30)/1000;                  // m — placa + espessura de quadro
+  var Vinst=nCam*vUmaCam;                              // m³ de câmara instalados
+  var compPack=nPlIn*(espCam+30)/1000;                 // m — placa + espessura de quadro
   var compTotal=compPack+2.5;                          // com cabeçote e prato móvel
 
   /* ---------- ETAPA 3 — CICLO ---------- */
   /* Ruth: t = µ·α·w·V²/(2·A²·ΔP), com w = massa de sólido por volume de filtrado */
-  var wS=(Vfil>0)?(S/Vfil):0;                          // kg de sólido por m³ de filtrado
-  var Vf1=Vfil*tCiclo;                                 // m³ de filtrado por batelada
+  var wS=(VfilF>0)?((S/nFil)/VfilF):0;                 // kg de sólido por m³ de filtrado
+  var Vf1=VfilBat;                                     // m³ de filtrado por batelada, por filtro
   var tFiltS=muF*alfa*wS*Math.pow(Vf1,2)/(2*Math.pow(Afilt,2)*Pfilt*1e5);  // s
   var tFilt=tFiltS/60;                                 // min
   /* O enchimento NAO deve ser limitado pela producao do espessador: e para isso que
@@ -2404,6 +2539,49 @@ function filtroPrensaCalc(){
   var tSopro=8;
   var tCicloCalc=(tEnch+tFilt+tPress+tSopro+tDesc)/60; // h
   var cicloOK=(tCicloCalc<=tCiclo+0.01);
+
+  /* ====================================================================== */
+  /* OS DOIS CRITÉRIOS QUE GOVERNAM O FILTRO                                */
+  /* ----------------------------------------------------------------------
+     O erro clássico é dimensionar só por um deles. A polpa NÃO precisa caber
+     na câmara: o filtrado atravessa o pano enquanto a câmara enche, e o que
+     fica retido é a TORTA. Mas todo esse filtrado tem de VAZAR pela área
+     disponível dentro do tempo do ciclo — e é aí que a polpa manda.
+
+     CRITÉRIO A — VOLUME DE SÓLIDOS: a torta da batelada tem de caber nas
+       câmaras.  n_câmaras >= V_torta / v_uma_câmara
+     CRITÉRIO B — HIDRÁULICO: o filtrado da batelada tem de atravessar a área
+       no tempo disponível.  Invertendo Ruth para A:
+       A_min = V_f · raiz( µ·α·w / (2·t_disp·ΔP) )
+     O filtro tem de atender AOS DOIS. Governa o que exigir mais placa.      */
+  var tDisp=Math.max(0.1,tCiclo*60-tEnch-tPress-tSopro-tDesc);    // min de filtração disponíveis
+  var nCamVol=Math.ceil(Vcam/Math.max(vUmaCam,1e-9));
+  var nPlVol=nCamVol+1;
+  var Amin=(wS>0&&Pfilt>0)?(Vf1*Math.sqrt(muF*alfa*wS/(2*(tDisp*60)*Pfilt*1e5))):0;
+  var nPlArea=Math.ceil(Amin/Math.max(Apl2,1e-9))+nPlMortas;
+  var govCrit=(nPlArea>nPlVol)?"hidraulico":"volume";
+  var nPlReq=Math.max(nPlVol,nPlArea);
+  var nCamReq=nPlReq-1;
+  var Areq=Amin;
+  var Vreq=Vcam;
+  var volOK=(Vinst>=Vcam-1e-9);
+  var areaOK=(Afilt>=Amin-1e-9);
+  var filtroOK=(volOK&&areaOK);
+  var folgaVol=(Vcam>0)?(Vinst/Vcam-1)*100:0;
+  var folgaArea=(Amin>0)?(Afilt/Amin-1)*100:0;
+  /* modelos de catálogo que atendem a área exigida, com a placa informada */
+  var MODS=fpAchaModelos(ladoMM,espCam,Math.max(Amin,Afilt*0+Amin),Pfilt);
+
+  /* ---------- FIM DE FILTRAÇÃO: COMO A OPERAÇÃO SABE QUE ENCHEU ----------
+     Derivando Ruth, dV/dt = A²·ΔP/(µ·α·w·V). A vazão de filtrado DECAI ao longo
+     da filtração e é ela, não a pressão, que avisa que a câmara encheu: com bomba
+     de deslocamento positivo a pressão sobe até o ajuste logo no começo e fica
+     lá, enquanto a vazão continua caindo. O sinal de corte é a vazão.        */
+  function _qFilt(Vacum){ return (Vacum>1e-9)?(Math.pow(Afilt,2)*Pfilt*1e5/(muF*alfa*wS*Vacum)*3600):Infinity; }
+  var qFimTot=_qFilt(Vf1);                             // m³/h no instante em que enche
+  var qFimEsp=(Afilt>0)?(qFimTot*1000/60/Afilt):0;     // L/min por m² de área
+  var qMeio=_qFilt(Vf1/2);                             // m³/h na metade do volume
+  var quedaQ=(qMeio>0)?(1-qFimTot/qMeio)*100:0;        // % de queda da metade ao fim
   var nBat=hDia/tCiclo;                                // bateladas por dia
   var capDia=nBat*Vcam*rhoT*(Ct/100)/1000;             // t/dia de sólidos processados
   var capOK=(capDia>=S*hDia/1000*0.999);
@@ -2427,13 +2605,21 @@ function filtroPrensaCalc(){
   function vf(x,d){ return (isFinite(x)?x.toFixed(d===undefined?2:d).replace(".",","):"—"); }
   function sf(ok){ return ok?"APROVADO":"REPROVADO"; }
   var MEMF=[
-   ["1","Sólidos a desaguar","do espessador",vf(S,0)+" kg/h = "+vf(S*hDia/1000,1)+" t/dia","balanço do trem","—"],
+   ["1","POLPA a desaguar (dado inicial)","entrada",vf(Wpolpa,2)+" t/h a "+vf(Cp,1)+" % de sólidos = "+vf(Vp,2)+" m³/h","dividida por "+nFil+" filtro(s) = "+vf(VpF,2)+" m³/h cada","—"],
+   ["1","Sólidos a desaguar","polpa · C_p",vf(S,0)+" kg/h = "+vf(S*hDia/1000,1)+" t/dia","balanço do trem","—"],
    ["1","Lama espessada (alimentação)","S/C_u",vf(Wu,0)+" kg/h = "+vf(Vu,2)+" m³/h a "+vf(Cu,0)+" %","—","—"],
    ["1","Torta produzida","S/C_torta",vf(Wt,0)+" kg/h = "+vf(Vt,2)+" m³/h a "+vf(Ct,0)+" %","≥ 55 % para empilhar e transportar",sf(tortaOK)],
    ["1","Filtrado","alimentação − torta",vf(Wfil,0)+" kg/h = "+vf(Vfil,2)+" m³/h","retorna ao espessador","—"],
-   ["2","Volume de câmaras","V_torta · t_ciclo",vf(Vcam,2)+" m³ por batelada","—","—"],
-   ["2","Número de câmaras","V_câmaras / (A_placa · esp)",nCam+" câmaras de "+vf(lado,1)+"×"+vf(lado,1)+" m e "+vf(espCam,0)+" mm","—","—"],
-   ["2","Área filtrante","2 · A_placa · n",vf(Afilt,0)+" m²","—","—"],
+   ["2","Filtro informado","placa x quantidade",nPlIn+" placas de "+vf(ladoMM,0)+" mm, camara "+vf(espCam,0)+" mm, por filtro","area util "+vf(Apl2,3)+" m2 por placa (2 faces)"+(aplCalc?" - calculada":" - informada"),"—"],
+   ["2","Placas que NAO trabalham","2 placas de extremidade = 1 placa em area","-"+vf(Apl2,2)+" m2 de "+vf(AfiltBruta,1)+" m2","area util resultante "+vf(Afilt,1)+" m2","—"],
+   ["2","CRITERIO A - volume de solidos","V_torta da batelada tem de caber nas camaras",
+    vf(Vinst,2)+" m3 instalados contra "+vf(Vcam,2)+" m3 de torta","folga "+vf(folgaVol,0)+" % - exige "+nPlVol+" placas",sf(volOK)],
+   ["2","CRITERIO B - hidraulico","A_min = V_f.raiz(mu.alfa.w/(2.t_disp.dP))",
+    vf(Afilt,1)+" m2 uteis contra "+vf(Amin,1)+" m2 exigidos","folga "+vf(folgaArea,0)+" % - exige "+nPlArea+" placas",sf(areaOK)],
+   ["2","QUEM GOVERNA",(govCrit==="hidraulico")?"a area, nao o volume":"o volume de torta, nao a area",
+    "exigidas "+nPlReq+" placas contra "+nPlIn+" informadas",(govCrit==="hidraulico")?"a polpa manda: o filtrado nao vaza a tempo":"a torta manda: falta camara",sf(nPlIn>=nPlReq)],
+   ["2","Volume de POLPA por batelada","V_polpa · t_ciclo / n_filtros",vf(VpolpaBat,2)+" m3 por filtro",
+    "NAO precisa caber na camara: o filtrado sai pelo pano durante o enchimento","—"],
    ["3","Tempo de filtração","Ruth: µ·α·w·V²/(2·A²·ΔP)",vf(tFilt,0)+" min (α = "+alfa.toExponential(1)+" m/kg)","α vem de ENSAIO DE FOLHA","VERIFICAR"],
    ["3","Ciclo total calculado","enchimento+filtração+prensagem+sopro+descarga",
     vf(tCicloCalc,2)+" h","≤ "+vf(tCiclo,2)+" h adotado",sf(cicloOK)],
@@ -2463,11 +2649,37 @@ function filtroPrensaCalc(){
     {k:"FILTRADO",v:vf(Wfil,0)+" kg/h   =   "+vf(Vfil,2)+" m³/h   —  sai em GOLPES, acompanhando o ciclo, e por isso o tanque de filtrado precisa de volume de amortecimento. Não é água limpa: carrega finos que passam pelo pano no início do ciclo, então o retorno é ao espessador.",hi:true},
     {k:"Redução de volume",v:"de "+vf(Vu,2)+" para "+vf(Vt,2)+" m³/h   =   "+vf((1-Vt/Vu)*100,0)+" % de redução   —  é isso que o filtro compra: transporte e disposição de "+vf(Vt*24,1)+" m³/dia em vez de "+vf(Vu*24,1)+"."},
 
-    {sec:"2 — CÂMARAS, PLACAS E ÁREA FILTRANTE"},
-    {k:"VOLUME DE CÂMARAS necessário",v:vf(Vcam,2)+" m³ por batelada   =   "+vf(Vt,2)+" m³/h × "+vf(tCiclo,2)+" h de ciclo",hi:true},
-    {k:"Placa adotada",v:vf(lado,1)+" × "+vf(lado,1)+" m   ·   área por face "+vf(Apl,2)+" m²   ·   espessura de câmara "+vf(espCam,0)+" mm   →   "+vf(vUmaCam,4)+" m³ por câmara"},
-    {k:"NÚMERO DE CÂMARAS",v:nCam+" câmaras   →   volume instalado "+vf(Vinst,2)+" m³   ("+vf((Vinst/Vcam-1)*100,0)+" % de folga sobre o necessário)",hi:true},
-    {k:"ÁREA FILTRANTE",v:vf(Afilt,0)+" m²   —  duas faces por câmara",hi:true},
+    {sec:"2 — A LINHA DE FILTROS, AS PLACAS E OS DOIS CRITÉRIOS"},
+    {k:"LINHA DE FILTROS",v:nFil+" filtro(s) trabalhando   ·   cada um recebe "+vf(VpF,2)+" m³/h de polpa   =   "+vf(Wpolpa/nFil,2)+" t/h   —  dividir a carga entre filtros reduz o tamanho de cada um na mesma proporção: dois filtros levam metade do volume cada.",hi:true},
+    {k:"FILTRO INFORMADO",v:nPlIn+" placas de "+vf(ladoMM,0)+" × "+vf(ladoMM,0)+" mm   ·   câmara de "+vf(espCam,0)+" mm   ·   área útil "+vf(Apl2,3)+" m² por placa contando as DUAS faces"+(aplCalc?"   (calculada da dimensão com 85 % de aproveitamento — moldura, orelhas e portas)":"   (informada)"),hi:true},
+    {k:"DESCONTO DAS PLACAS QUE NÃO TRABALHAM",v:"As duas placas de extremidade encostam nos cabeçotes e têm só uma face filtrante — duas meias-placas equivalem a uma placa inteira de área morta.   Bruta "+vf(AfiltBruta,1)+" m²   −   "+vf(Apl2,2)+" m²   =   "+vf(Afilt,1)+" m² ÚTEIS",hi:true},
+    {k:"Câmaras e volume instalado",v:nCam+" câmaras (n_placas − 1)   ·   "+vf(vUmaCam,4)+" m³ cada   →   "+vf(Vinst,2)+" m³ por filtro"},
+
+    {k:"⚠ OS DOIS CRITÉRIOS — o filtro tem de atender AOS DOIS",v:"É aqui que mora o erro clássico. A POLPA não precisa caber na câmara: o filtrado atravessa o pano enquanto a câmara enche, e o que fica retido é só a TORTA. Mas todo esse filtrado tem de VAZAR pela área disponível dentro do ciclo — e é nisso que a polpa manda. Um filtro pode ter câmara de sobra e mesmo assim não fechar, porque falta área para o filtrado sair a tempo; e pode ter área de sobra e não fechar, porque a torta não cabe.",hi:true},
+    {k:"CRITÉRIO A — VOLUME DE SÓLIDOS",v:"torta da batelada "+vf(Vcam,2)+" m³   contra   "+vf(Vinst,2)+" m³ de câmara instalados   ·   folga "+vf(folgaVol,0)+" %   ·   exigiria "+nPlVol+" placas   ·   "+(volOK?"ATENDE":"NÃO ATENDE"),hi:!volOK},
+    {k:"CRITÉRIO B — HIDRÁULICO",v:"filtrado da batelada "+vf(VfilBat,2)+" m³ tem de atravessar em "+vf(tDisp,0)+" min disponíveis   →   exige "+vf(Amin,1)+" m²   contra   "+vf(Afilt,1)+" m² úteis   ·   folga "+vf(folgaArea,0)+" %   ·   exigiria "+nPlArea+" placas   ·   "+(areaOK?"ATENDE":"NÃO ATENDE"),hi:!areaOK},
+    {k:"QUEM GOVERNA",v:((govCrit==="hidraulico")
+        ?("O critério HIDRÁULICO. A área é que manda: são "+nPlArea+" placas por área contra "+nPlVol+" por volume. Aumentar a espessura da câmara aqui NÃO resolve — dá mais volume mas não dá mais área, e ainda alonga a filtração. O que resolve é mais placa, placa maior, mais pressão, ou dividir em mais filtros.")
+        :("O critério de VOLUME. A torta é que manda: são "+nPlVol+" placas por volume contra "+nPlArea+" por área. Aqui a câmara mais espessa ajuda de verdade, porque compra volume sem exigir área.")
+      )+"   →   EXIGIDAS "+nPlReq+" placas, informadas "+nPlIn+".",hi:true},
+    {k:"VEREDITO DO FILTRO",v:(filtroOK
+        ?("✓ ATENDE aos dois critérios com "+nPlIn+" placas   ·   folga de "+vf(folgaVol,0)+" % em volume e "+vf(folgaArea,0)+" % em área")
+        :("⚠ NÃO ATENDE — "+(!volOK&&!areaOK?"falha nos DOIS critérios":(!volOK?"falha no VOLUME: a torta não cabe nas câmaras":"falha na ÁREA: o filtrado não vaza a tempo"))+".   Mínimo para fechar: "+nPlReq+" placas por filtro, ou dividir a carga em mais filtros.")),hi:!filtroOK},
+    {k:"Volume de POLPA por batelada",v:vf(VpolpaBat,2)+" m³ por filtro   —  este número NÃO é comparável com o volume de câmara. Ele serve para dimensionar a bomba, a tubulação e o tanque-pulmão, e é dele que sai o filtrado do critério B."},
+
+    {sec:"2c — COMO A OPERAÇÃO SABE QUE A CÂMARA ENCHEU"},
+    {k:"Não é a pressão de entrada — é a VAZÃO DE FILTRADO",v:"Com bomba de deslocamento positivo, a pressão na entrada sobe até o ajuste logo no INÍCIO da filtração e fica lá o resto do ciclo: ela avisa que a bomba encostou no seu limite, não que a câmara encheu. Quem decai monotonicamente com o enchimento é a vazão de filtrado, porque a torta que se forma é a própria resistência. É nela que se corta.",hi:true},
+    {k:"SETPOINT DE CORTE",v:"no instante em que a câmara enche a vazão de filtrado cai para "+vf(qFimTot,2)+" m³/h   =   "+vf(qFimTot*1000/60,1)+" L/min   =   "+vf(qFimEsp,2)+" L/min por m² de área filtrante   —  é este o valor a programar no medidor de filtrado como fim de filtração.",hi:true},
+    {k:"Como a vazão decai",v:"na metade do volume filtrado a vazão ainda é "+vf(qMeio,2)+" m³/h; ao encher, "+vf(qFimTot,2)+" m³/h   —  uma queda de "+vf(quedaQ,0)+" %. É essa inflexão que a lógica procura. Na prática usa-se corte por vazão E um tempo máximo de segurança, o que vier primeiro."},
+    {k:"A confirmação independente",v:"O totalizador de filtrado é a medida mais direta de que a câmara encheu, porque o volume de torta sai do balanço: para esta batelada, "+vf(VfilBat,2)+" m³ de filtrado correspondem aos "+vf(Vcam,2)+" m³ de torta. Fechar o ciclo pelos dois — vazão instantânea abaixo do setpoint e volume totalizado atingido — é o que evita cortar cedo (torta mole, câmara parcialmente cheia) ou tarde (ciclo alongado à toa)."},
+    {k:"O que dizem os três sinais",v:"PRESSÃO na entrada: sobe cedo e satura — serve para detectar entupimento da porta de alimentação, não fim de filtração.   ·   VAZÃO de filtrado: decai monotonicamente — é o sinal de fim de ciclo.   ·   TURBIDEZ do filtrado: subindo, indica pano rompido, não câmara cheia.   Confundir o primeiro com o segundo é o erro que faz a torta sair mole e a câmara meio vazia."}]).concat([
+
+    {sec:"2b — MODELOS DE CATÁLOGO QUE ATENDEM"},
+    {k:"Como ler esta lista",v:"Busca nos catálogos de referência (Strassburger KFP/MFP, Uniwin XMGY e FLS AFP) os menores modelos com placa próxima da informada e área igual ou maior que a exigida de "+vf(Math.max(Amin,0),1)+" m². É indicação de porte para cotação, não seleção: cada fabricante conta área e volume à sua maneira, e a resistência específica da torta vem de ensaio."}
+  ]).concat(MODS.length?MODS.map(function(M){
+      return {k:M.f+"  ·  "+M.m,v:"placa "+vf(M.lado,0)+" mm   ·   câmara "+vf(M.esp,0)+" mm   ·   "+vf(M.A,1)+" m²   ·   "+vf(M.nPl,0)+" placas   ·   "+vf(M.V,0)+" L de câmara"+(M.pOK?"":("   ⚠ pressão de catálogo limitada a "+vf(M.pmax,0)+" bar, abaixo dos "+vf(Pfilt,0)+" bar do processo")),hi:!M.pOK};
+    }):[{k:"Nenhum modelo de catálogo",v:"Nenhum dos três catálogos tem modelo com placa próxima de "+vf(ladoMM,0)+" mm e área ≥ "+vf(Amin,1)+" m². Rever a dimensão da placa, ou dividir a carga em mais filtros."}]
+  ).concat([
     {k:"Comprimento do pacote",v:vf(compPack,2)+" m de placas   →   cerca de "+vf(compTotal,2)+" m com cabeçote e prato móvel   —  prever esse comprimento MAIS o curso de abertura para descarga, e circulação em volta.",hi:true},
     {k:"⚠ Espessura da câmara é decisão de projeto",v:"Câmara mais espessa reduz o número de placas e o custo, mas a torta fica mais espessa e o tempo de filtração cresce com o QUADRADO do volume filtrado. Câmara fina filtra rápido e descarrega mais vezes. O ótimo depende da resistência específica da torta, que é ensaio."},
 
@@ -9597,23 +9809,21 @@ const CALCS={
     titulo:"Filtro prensa de placas — desaguamento de lama",
     referencia:"Volume de câmaras pelo ciclo de batelada, com número de placas e área filtrante pela geometria adotada. Tempo de filtração pela equação de Ruth/Darcy t = µ·α·w·V²/(2·A²·ΔP), com a resistência específica da torta α obtida em ensaio de folha. Balanço de massa entre lama espessada, torta e filtrado. Bomba de alimentação de deslocamento positivo com curva declinante. Verificações de capacidade diária, ciclo total incluindo abertura e descarga, força de fechamento, carga no piso e arranjo. NR-12 para proteções e intertravamento de abertura; ABNT NBR 6118 para a fundação; ABNT NBR 8800 para o pórtico; ABNT NBR 10004 para a classificação da torta.",
     campos:[
-      {tipo:"head",label:"Alimentação"},
-      {id:"fpS",label:"SÓLIDOS a desaguar",unidade:"kg/h",tipo:"number",valor:2067,step:"50"},
-      {id:"fpRhoS",label:"Massa específica real do sólido",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
+      {tipo:"head",label:"Alimentação — a polpa é o dado inicial"},
+      {id:"fpPolpa",label:"POLPA a desaguar",unidade:"t/h",tipo:"number",valor:6.9,step:"0.5"},
+      {id:"fpCp",label:"SÓLIDOS na polpa",unidade:"% massa",tipo:"number",valor:30,step:"1"},
+      {id:"fpRhoS",label:"Massa específica do sólido, BASE SECA",unidade:"kg/m³",tipo:"number",valor:2936,step:"10"},
       {id:"fpCu",label:"Concentração da LAMA ESPESSADA (underflow)",unidade:"% massa",tipo:"number",valor:30,step:"1"},
       {id:"fpCt",label:"Concentração alvo da TORTA",unidade:"% massa",tipo:"number",valor:65,step:"1"},
       {id:"fpT",label:"Temperatura",unidade:"°C",tipo:"number",valor:50,step:"5"},
       {id:"fpH",label:"Horas de operação por dia",unidade:"h/dia",tipo:"number",valor:24,step:"1"},
-      {tipo:"head",label:"Ciclo e geometria"},
+      {tipo:"head",label:"Linha de filtros — quantos e com que placa"},
+      {id:"fpNfil",label:"QUANTIDADE DE FILTROS que vão trabalhar",unidade:"un",tipo:"number",valor:1,step:"1"},
       {id:"fpCiclo",label:"CICLO ADOTADO",unidade:"h",tipo:"number",valor:3,step:"0.5"},
-      {id:"fpPlaca",label:"Tamanho da placa",tipo:"select",valor:"2.0",opcoes:[
-        {v:"1.0",t:"1,0 × 1,0 m"},{v:"1.2",t:"1,2 × 1,2 m"},
-        {v:"1.5",t:"1,5 × 1,5 m"},{v:"2.0",t:"2,0 × 2,0 m"}]},
-      {id:"fpEsp",label:"Espessura da câmara",tipo:"select",valor:"32",opcoes:[
-        {v:"25",t:"25 mm — filtra rápido, mais placas"},
-        {v:"32",t:"32 mm — usual"},
-        {v:"40",t:"40 mm — menos placas, ciclo mais longo"},
-        {v:"50",t:"50 mm"}]},
+      {id:"fpLado",label:"DIMENSÃO da placa (lado)",unidade:"mm",tipo:"number",valor:2000,step:"50"},
+      {id:"fpAplaca",label:"ÁREA ÚTIL de cada placa, as DUAS faces  (0 = calcular pela dimensão)",unidade:"m²",tipo:"number",valor:0,step:"0.1"},
+      {id:"fpNplacas",label:"QUANTIDADE DE PLACAS por filtro",unidade:"un",tipo:"number",valor:100,step:"1"},
+      {id:"fpEsp",label:"Espessura da câmara",unidade:"mm",tipo:"number",valor:32,step:"1"},
       {id:"fpTench",label:"Tempo de ENCHIMENTO alvo (define a bomba)",unidade:"min",tipo:"number",valor:30,step:"5"},
       {id:"fpTdesc",label:"Tempo de abertura e descarga",unidade:"min",tipo:"number",valor:25,step:"5"},
       {tipo:"head",label:"Pressões e filtrabilidade"},
