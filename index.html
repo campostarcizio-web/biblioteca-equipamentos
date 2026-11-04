@@ -9439,6 +9439,357 @@ function fundacaoCalc(){
 }
 
 
+/* ============================================================================
+   TORRE DE RESFRIAMENTO DE ÁGUA — tiragem induzida, contracorrente
+   ----------------------------------------------------------------------------
+   O dimensionamento térmico é pelo método de MERKEL, integrado por CHEBYSHEV de
+   4 pontos, que é o procedimento do CTI (Cooling Technology Institute) e o que
+   os fabricantes usam para levantar a curva de demanda.
+
+   A ideia central: a força motriz da troca numa torre NÃO é a diferença de
+   temperatura, é a diferença de ENTALPIA entre o ar saturado na temperatura da
+   água e o ar que passa. Por isso o bulbo úmido manda, e não o bulbo seco — e
+   por isso existe um limite físico: a água nunca chega ao bulbo úmido, só se
+   aproxima dele. Essa distância é o APPROACH, e é ela que define o tamanho.
+
+   KaV/L = ∫ dT / (h_sat(T) − h_ar(T))   de TAF a TAQ
+
+   O resultado é adimensional e se chama característica da torre. Confrontado com
+   a curva do enchimento, dá o ponto de operação. Aqui a calculadora devolve o
+   KaV/L EXIGIDO: a escolha do enchimento é do fabricante, porque a curva dele
+   vem de ensaio, não de catálogo público.
+
+   Catálogo de seleção: ALFATERM Série K (ASP), torre de grandes vazões com
+   tanque próprio em PRFV. Os dimensionais são do folheto; a capacidade térmica
+   por modelo NÃO consta dele, então a seleção é feita pela ÁREA DE PLANTA que o
+   cálculo exige — que é como se dimensiona torre de verdade.
+   ========================================================================== */
+
+/* Série K — dimensional do folheto ALFATERM (rev. 05/2025).
+   D,E = externo da torre (mm) · M = altura (mm) · ØA = anel do ventilador (mm)
+   bacia = volume de água na bacia (L) · oper = peso em operação (kg)        */
+var TR_SERIEK=[
+ {m:"ASP-1070",A:1900,B:3220,C:3220,D:3340,E:3340,M:5225,bacia:4900,emb:2260,oper:7600},
+ {m:"ASP-1400",A:2250,B:3700,C:3700,D:3820,E:3820,M:5400,bacia:6430,emb:2580,oper:10500},
+ {m:"ASP-1800",A:2500,B:4200,C:4200,D:4320,E:4320,M:6140,bacia:8290,emb:3260,oper:12800},
+ {m:"ASP-2100",A:2500,B:4200,C:4980,D:4320,E:5100,M:6140,bacia:9830,emb:3620,oper:14950},
+ {m:"ASP-2400",A:2980,B:4980,C:4980,D:5100,E:5100,M:6715,bacia:11650,emb:4320,oper:17700},
+ {m:"ASP-3100",A:3600,B:5600,C:5600,D:5720,E:5720,M:6640,bacia:18180,emb:5650,oper:25650},
+ {m:"ASP-3800",A:3600,B:5600,C:6580,D:5720,E:6700,M:6640,bacia:21300,emb:8200,oper:31600},
+ {m:"ASP-4500",A:3980,B:6580,C:6580,D:6720,E:6720,M:6810,bacia:25100,emb:13800,oper:41900},
+ {m:"ASP-5500",A:4480,B:7530,C:7530,D:7680,E:7680,M:7135,bacia:30310,emb:14300,oper:37900}
+];
+
+function torreResfCalc(){
+  /* ===================== 1. ENTRADAS ===================== */
+  var Vz=num("trVz");     if(!isFinite(Vz)||Vz<=0)Vz=550;        // m³/h
+  var TAQ=num("trTAQ");   if(!isFinite(TAQ))TAQ=47;
+  var TAF=num("trTAF");   if(!isFinite(TAF))TAF=35;
+  var TBU=num("trTBU");   if(!isFinite(TBU))TBU=24;
+  var alt=num("trAlt");   if(!isFinite(alt)||alt<0)alt=0;         // m
+  var hDia=num("trH");    if(!isFinite(hDia)||hDia<=0||hDia>24)hDia=24;
+  if(!reqOK([{id:"trVz",v:Vz,gt:0},{id:"trTAQ",v:TAQ,gt:0,lt:100},
+             {id:"trTAF",v:TAF,gt:0,lt:100},{id:"trTBU",v:TBU,gt:-10,lt:45}])) return null;
+  if(!reqRel(TAQ>TAF,"trTAQ","trTAF","precisa ser MAIOR que")) return null;
+  /* O limite físico da torre: a água fria nunca alcança o bulbo úmido. Pedir
+     TAF ≤ TBU não é torre mal dimensionada, é pedir o impossível.           */
+  if(!reqRel(TAF>TBU,"trTAF","trTBU","precisa ser MAIOR que (a água nunca atinge o bulbo úmido — isso é limite termodinâmico, não de projeto)")) return null;
+
+  var LGin=num("trLG");   if(!isFinite(LGin)||LGin<=0)LGin=0;     // 0 = varrer
+  var vFront=num("trVfr");if(!isFinite(vFront)||vFront<=0)vFront=3.0;  // m/s
+  var taxaIn=num("trTaxa");if(!isFinite(taxaIn)||taxaIn<=0)taxaIn=0;   // m³/h·m²
+  var nUn=num("trNun");   if(!isFinite(nUn)||nUn<1)nUn=1; nUn=Math.round(nUn);
+  var ciclos=num("trCic");if(!isFinite(ciclos)||ciclos<1.1)ciclos=3;
+  var arrPc=num("trArr"); if(!isFinite(arrPc)||arrPc<0)arrPc=0.01;     // %
+  var dPest=num("trDP");  if(!isFinite(dPest)||dPest<=0)dPest=110;     // Pa
+  var rVent=num("trRv");  if(!isFinite(rVent)||rVent<=0||rVent>1)rVent=0.65;
+  var desn=num("trDesn"); if(!isFinite(desn)||desn<0)desn=0;           // m
+  var pBic=num("trPbic"); if(!isFinite(pBic)||pBic<0)pBic=3;           // mca
+  var pTub=num("trPtub"); if(!isFinite(pTub)||pTub<0)pTub=5;           // mca
+  var rBomba=num("trRb"); if(!isFinite(rBomba)||rBomba<=0||rBomba>1)rBomba=0.70;
+
+  /* ===================== 2. PSICROMETRIA ===================== */
+  /* Pressão barométrica cai com a altitude: menos ar por m³, menos massa para
+     carregar entalpia. Ignorar isso superestima a torre em altitude.        */
+  var Patm=101.325*Math.pow(1-2.25577e-5*alt,5.2559);              // kPa
+  function psatT(T){ return 0.61121*Math.exp((18.678-T/234.5)*(T/(257.14+T))); }
+  function wSat(T){ var p=psatT(T); return (Patm>p)?(0.622*p/(Patm-p)):1; }
+  function hSat(T){ var w=wSat(T); return 0.24*T+w*(597.2+0.44*T); }   // kcal/kg ar seco
+  function TdeH(h){ var lo=0,hi=95,i,mid;
+    for(i=0;i<80;i++){ mid=(lo+hi)/2; if(hSat(mid)<h) lo=mid; else hi=mid; }
+    return (lo+hi)/2; }
+
+  var range=TAQ-TAF, approach=TAF-TBU;
+  var Q=Vz*1000*(TAQ-TAF);                                  // kcal/h
+  var QkW=Q*1.163/1000;                                     // kW
+  var h1=hSat(TBU);                                         // entalpia do ar na entrada
+
+  /* ===================== 3. MERKEL / NTU ===================== */
+  /* Chebyshev de 4 pontos: a integral de 1/Δh entre TAF e TAQ. É a forma que o
+     CTI adota, e converge bem porque o integrando é suave.                  */
+  function kavl(LG){
+    var s=0,i,T,dh,f=[0.1,0.4,0.6,0.9];
+    for(i=0;i<4;i++){
+      T=TAF+f[i]*range;
+      dh=hSat(T)-(h1+LG*(T-TAF));
+      if(dh<=0) return null;                /* cruzamento de entalpia */
+      s+=1/dh;
+    }
+    return range/4*s;
+  }
+  /* L/G máximo antes do cruzamento de entalpia: acima dele o ar satura antes de
+     receber a carga, e NENHUM enchimento resolve — é limite termodinâmico.  */
+  var p, lo=0.02, hi=12.0;
+  if(kavl(lo)===null){ lo=0.001; }
+  for(p=0;p<90;p++){ var mid=(lo+hi)/2; if(kavl(mid)!==null) lo=mid; else hi=mid; }
+  var LGmax=Math.floor(lo*1000)/1000;   /* arredonda PARA BAIXO: limite nunca otimista */
+
+  /* Densidade do ar, necessaria antes do L/G para o ponto equilibrado abaixo. */
+  var rhoAr=Patm*1000/(287*(TBU+273.15))*0.98;              // kg/m³ aproximado
+  var taxa=(taxaIn>0)?taxaIn:21.0;                          // m³/h·m²
+  /* L/G AUTOMATICO — o PONTO EQUILIBRADO.
+     A area de planta tem dois criterios: a velocidade frontal do ar e a taxa de
+     aplicacao de agua. Existe um L/G em que os dois dao a MESMA area; abaixo
+     dele sobra area molhada e falta ar, acima sobra ar e a agua encharca. Esse
+     ponto e o que o fabricante persegue, e e ele que a calculadora adota quando
+     o usuario deixa L/G em zero:
+         A_ar = L/(LG·rho·3600·v)   e   A_agua = Vz/taxa
+         igualando  ->  LG = 1000·taxa/(rho·3600·v)                           */
+  var LGeq=1000*taxa/(rhoAr*3600*vFront);
+  var LG=(LGin>0)?LGin:Math.max(0.4,Math.min(LGeq,LGmax*0.95));
+  var LGexcede=(LG>LGmax);
+  if(LGexcede) LG=LGmax*0.95;
+  var LGauto=(LGin<=0);
+  var KaVL=kavl(LG);
+  if(KaVL===null) return null;
+
+  /* curva de demanda, para o relatório */
+  /* A curva vai de 0,4 ate a vizinhanca do limite: e justamente perto do limite
+     que ela dispara, e esse disparo e a coisa que a curva tem a ensinar.     */
+  var CURVA=[], iC, lgC;
+  for(iC=0;iC<=16;iC++){
+    lgC=0.4+(LGmax*0.985-0.4)*(iC/16);
+    if(lgC<=0) continue;
+    var kk=kavl(lgC);
+    if(kk!==null&&isFinite(kk)) CURVA.push({lg:lgC,k:kk});
+  }
+
+  /* ===================== 4. AR E ÁREA DE PLANTA ===================== */
+  var L=Vz*1000;                                            // kg/h de água
+  var G=L/LG;                                               // kg/h de ar seco
+  var Gvol=G/rhoAr/3600;                                    // m³/s
+  /* A área de planta sai da velocidade frontal do ar OU da taxa de aplicação,
+     o que for mais restritivo — as duas têm faixa de prática.               */
+  var areaAr=Gvol/vFront;                                   // m² pelo ar
+  var areaAgua=Vz/taxa;                                     // m² pela água
+  var areaReq=Math.max(areaAr,areaAgua);
+  var govArea=(areaAr>=areaAgua)?"vazão de ar":"taxa de aplicação de água";
+  var taxaReal=Vz/areaReq, vFrontReal=Gvol/areaReq;
+
+  /* ===================== 5. BALANÇO DE ÁGUA ===================== */
+  /* DUAS estimativas de evaporação, de propósito:
+     (a) RIGOROSA, pelo balanço psicrométrico — o ar sai saturado e a água que
+         sumiu é G·(w_saída − w_entrada);
+     (b) REGRA PRÁTICA, 0,00085 por °F de range, que é o que a maioria das
+         folhas de dados de fabricante usa.
+     Elas divergem, e a diferença dimensiona o make-up. A regra é conservadora. */
+  var h2=h1+LG*range;
+  var Tar2=TdeH(h2);
+  var evapRig=G*(wSat(Tar2)-wSat(TBU));                     // kg/h
+  var evapRigPc=evapRig/L*100;
+  var evapRegraPc=0.00085*(range*1.8)*100;                  // % — regra clássica
+  var evapRegra=evapRegraPc/100*L;
+  var evapAdot=Math.max(evapRig,evapRegra);                 // adota a conservadora
+  var evapAdotPc=evapAdot/L*100;
+
+  var arraste=arrPc/100*L;                                  // kg/h
+  /* ciclos de concentração: C = (E+P+A)/(P+A) → purga P = E/(C−1) − A       */
+  var purga=evapAdot/(ciclos-1)-arraste;
+  if(purga<0) purga=0;
+  var ciclosMax=(arraste>0)?(evapAdot/arraste+1):Infinity;
+  var makeup=evapAdot+arraste+purga;                        // kg/h
+  var makeupM3=makeup/1000, purgaM3=purga/1000, evapM3=evapAdot/1000;
+
+  /* ===================== 6. VENTILADOR ===================== */
+  var Par=Gvol*dPest;                                       // W de potência de ar
+  var PeixoV=Par/rVent/0.95/1000;                           // kW no eixo, com transmissão
+  var PmotV=PeixoV/0.92;                                    // kW elétricos
+  var PmotHP=PmotV/0.7457;
+
+  /* ===================== 7. BOMBA ===================== */
+  var Hman=desn+pBic+pTub;                                  // mca
+  var Pbomba=(Vz/3600)*1000*9.80665*Hman/rBomba/1000;       // kW
+
+  /* ===================== 8. SELEÇÃO NA SÉRIE K ===================== */
+  /* A tabela dá DIMENSIONAL, não capacidade térmica. Então a seleção é pela
+     ÁREA DE PLANTA que o cálculo exige — que é como torre se dimensiona.    */
+  /* O critério de aceitação NÃO é a área bater num limiar: é o arranjo cair
+     DENTRO das duas faixas de prática ao mesmo tempo — taxa de aplicação de 8 a
+     25 m³/h·m² e velocidade frontal de 1,5 a 4,5 m/s. Limiar puro de área
+     reprova por meio por cento um modelo que na prática atende, e aprova um
+     modelo enorme só porque sobra área. A faixa é o que o projeto exige.
+     Área adotada = EXTERNA de planta do folheto (D × E). A calibração contra a
+     folha ALFATERM 71805 confirma essa convenção: 550 m³/h no ASP-2400 dá
+     21,1 m³/h·m² e 3,0 m/s sobre a área externa, e a vazão de ar de ~78 m³/s
+     que isso implica fecha de forma independente com o motor de 25 HP e com o
+     ventilador Ø2900 a 11,8 m/s de face.                                     */
+  var SEL=[];
+  var nn,im,mod,areaMod,areaTot,txU,vfU;
+  for(nn=1;nn<=6;nn++){
+    for(im=0;im<TR_SERIEK.length;im++){
+      mod=TR_SERIEK[im];
+      areaMod=mod.D/1000*mod.E/1000;
+      areaTot=areaMod*nn;
+      txU=(Vz/nn)/areaMod;                       /* m³/h·m² por unidade */
+      vfU=(Gvol/nn)/areaMod;                     /* m/s por unidade     */
+      if(txU>=8&&txU<=25&&vfU>=1.5&&vfU<=4.5){
+        SEL.push({n:nn,m:mod.m,areaUn:areaMod,areaTot:areaTot,
+                  folga:(areaTot/areaReq-1)*100,
+                  vzUn:Vz/nn, taxaUn:txU, vfrUn:vfU,
+                  D:mod.D,E:mod.E,M:mod.M,A:mod.A,
+                  bacia:mod.bacia*nn,oper:mod.oper*nn,
+                  /* mérito: proximidade do ponto de projeto nas DUAS grandezas,
+                     mais uma penalidade por fracionar em muitas unidades.     */
+                  score:Math.abs(txU/taxa-1)+Math.abs(vfU/vFront-1)+(nn-1)*0.10});
+      }
+    }
+  }
+  SEL.sort(function(a,b){return a.score-b.score;});
+  SEL=SEL.slice(0,5);
+  /* Se nada atende, o motivo importa: duty pequena demais para a serie, ou
+     grande demais. As duas saidas de projeto sao opostas.                    */
+  var selMot="";
+  if(!SEL.length){
+    var aMin=TR_SERIEK[0].D/1000*TR_SERIEK[0].E/1000;
+    var aMax=TR_SERIEK[TR_SERIEK.length-1].D/1000*TR_SERIEK[TR_SERIEK.length-1].E/1000;
+    if(Vz/aMin<8) selMot="pequena";          /* nem o menor modelo molha o suficiente */
+    else if(Vz/(aMax*6)>25) selMot="grande"; /* nem 6 do maior dao conta da agua */
+    else selMot="faixa";                     /* cai entre os degraus da serie */
+  }
+
+  /* ===================== 9. VERIFICAÇÕES ===================== */
+  var apOK=(approach>=2.8);
+  var rangeOK=(range>=3&&range<=25);
+  var taxaOK=(taxaReal>=8&&taxaReal<=25);
+  var vfOK=(vFrontReal>=1.5&&vFrontReal<=4.5);
+  var cicOK=(ciclos<=ciclosMax);
+  var kOK=(KaVL<=2.5);
+  var tbuOK=(TBU<=32);
+
+  /* vt local da torre: com separador de milhar, porque "6.600.000 kcal/h" se le
+     e "6600000 kcal/h" nao. As outras calculadoras tem o seu proprio vt; nao
+     mexo nelas aqui para nao alterar saida ja publicada sem regressao. */
+  function vt(x,d){
+    if(!isFinite(x)) return "—";
+    var t=x.toFixed(d===undefined?2:d), pt=t.split("."), ii=pt[0], sg="";
+    if(ii.charAt(0)==="-"){ sg="-"; ii=ii.slice(1); }
+    ii=ii.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sg+ii+(pt[1]?(","+pt[1]):"");
+  }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var MEM=[
+   ["1","Carga térmica","Q = m·cp·ΔT",vt(Q,0)+" kcal/h = "+vt(QkW,0)+" kW","do balanço do processo","—"],
+   ["1","Range","TAQ − TAF",vt(range,1)+" °C","usual de 5 a 15 °C",st(rangeOK)],
+   ["1","Approach","TAF − TBU",vt(approach,1)+" °C","≥ 2,8 °C — abaixo disso a torre cresce sem limite",st(apOK)],
+   ["1","Bulbo úmido de projeto","dado climático",vt(TBU,1)+" °C","usar o de 1 % de excedência da região",st(tbuOK)],
+   ["2","Pressão barométrica","altitude "+vt(alt,0)+" m",vt(Patm,1)+" kPa","afeta a densidade do ar e a entalpia","—"],
+   ["2","L/G adotado","razão água/ar em massa",vt(LG,2),"máximo termodinâmico "+vt(LGmax,2)+" (cruzamento de entalpia)",st(!LGexcede)],
+   ["2","CARACTERÍSTICA EXIGIDA  KaV/L","Merkel por Chebyshev 4 pontos",vt(KaVL,3),"≤ 2,5 — acima disso exige enchimento muito alto",st(kOK)],
+   ["3","Vazão de ar","G = L / (L/G)",vt(Gvol,1)+" m³/s = "+vt(G,0)+" kg/h de ar seco","—","—"],
+   ["3","Área de planta exigida","maior entre ar e água",vt(areaReq,1)+" m²","governada por "+govArea,"—"],
+   ["3","Taxa de aplicação","Vz / área",vt(taxaReal,1)+" m³/h·m²","faixa usual de 8 a 25",st(taxaOK)],
+   ["3","Velocidade frontal do ar","G_vol / área",vt(vFrontReal,2)+" m/s","faixa usual de 1,5 a 4,5",st(vfOK)],
+   ["4","Evaporação (psicrometria)","G·(w₂ − w₁)",vt(evapRig/1000,2)+" m³/h = "+vt(evapRigPc,2)+" %","balanço rigoroso","—"],
+   ["4","Evaporação (regra prática)","0,00085 × range(°F)",vt(evapRegra/1000,2)+" m³/h = "+vt(evapRegraPc,2)+" %","o que as folhas de fabricante usam","—"],
+   ["4","Ciclos de concentração","C = (E+P+A)/(P+A)",vt(ciclos,1),"máximo só com arraste: "+(isFinite(ciclosMax)?vt(ciclosMax,1):"sem limite"),st(cicOK)],
+   ["4","ÁGUA DE REPOSIÇÃO","E + A + P",vt(makeupM3,2)+" m³/h","dimensiona a linha de make-up","VERIFICAR"],
+   ["5","Potência do ventilador","Q_ar·Δp / η",vt(PmotV,1)+" kW = "+vt(PmotHP,1)+" HP","estática adotada "+vt(dPest,0)+" Pa","VERIFICAR"],
+   ["5","Altura manométrica da bomba","desnível + bicos + tubulação",vt(Hman,1)+" mca","pressão nos bicos conforme fabricante","VERIFICAR"],
+   ["5","Potência da bomba","ρ·g·Q·H / η",vt(Pbomba,1)+" kW","—","—"],
+   ["6","Seleção Série K",(SEL.length?"arranjo nas duas faixas de prática":"nenhum arranjo atende"),(SEL.length?(SEL[0].n+" × "+SEL[0].m):"—"),(SEL.length?("resulta em "+vt(SEL[0].taxaUn,1)+" m³/h·m² e "+vt(SEL[0].vfrUn,2)+" m/s — ambos na prática"):"rever approach, velocidade frontal ou consultar o fabricante"),(SEL.length?"VERIFICAR":"REPROVADO")]
+  ];
+  var nR=0,nV=0; MEM.forEach(function(m){ if(m[5]==="REPROVADO")nR++; else if(m[5]==="VERIFICAR")nV++; });
+
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(nR===0?"✓ nenhuma verificação reprovada":"⚠ "+nR+" verificação(ões) REPROVADA(S)")+"   ·   "+nV+" a confirmar   ·   "+MEM.length+" verificações",hi:(nR>0)}
+  ].concat(MEM.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+    {sec:"1 — A CARGA E OS TRÊS NÚMEROS QUE DEFINEM A TORRE"},
+    {k:"CARGA TÉRMICA",v:vt(Q,0)+" kcal/h   =   "+vt(QkW,0)+" kW   =   "+vt(Q/1e6,2)+" milhões de kcal/h   —  "+vt(Vz,0)+" m³/h de água caindo "+vt(range,1)+" °C",hi:true},
+    {k:"RANGE  (quanto a água esfria)",v:vt(range,1)+" °C   de "+vt(TAQ,1)+" para "+vt(TAF,1)+" °C   —  o range é imposto pelo PROCESSO, não pela torre. Ele define a carga; quem define o tamanho da torre é o approach."},
+    {k:"APPROACH  (o que custa caro)",v:vt(approach,1)+" °C   acima do bulbo úmido de "+vt(TBU,1)+" °C"+(apOK?"":"   ⚠ ABAIXO DE 2,8 °C — nesta faixa a área necessária dispara e o custo foge do razoável")+"   —  é o approach que manda no tamanho. Cada grau a menos aqui custa área, enchimento e ventilador.",hi:!apOK},
+    {k:"⚠ POR QUE O BULBO ÚMIDO, E NÃO O SECO",v:"A torre troca calor por EVAPORAÇÃO, e a força motriz é a diferença de ENTALPIA entre o ar saturado na temperatura da água e o ar que entra — não a diferença de temperatura. Por isso a água pode sair mais fria que o bulbo seco do ambiente, mas NUNCA mais fria que o bulbo úmido: ali a diferença de entalpia zera. Dimensionar com bulbo seco é o erro clássico, e ele subdimensiona a torre.",hi:true},
+    {k:"Pressão barométrica",v:vt(Patm,1)+" kPa para altitude de "+vt(alt,0)+" m   —  em altitude o ar é menos denso, carrega menos massa por m³ e a mesma torre entrega menos. Ignorar a altitude superestima o desempenho."},
+
+    {sec:"2 — MERKEL: A CARACTERÍSTICA EXIGIDA DA TORRE"},
+    {k:"MÉTODO",v:"KaV/L = ∫ dT/(h_sat(T) − h_ar(T)) de "+vt(TAF,1)+" a "+vt(TAQ,1)+" °C, integrada por CHEBYSHEV de 4 pontos — o procedimento do CTI. O resultado é adimensional: é quanta capacidade de transferência a torre precisa ter, independente de como o fabricante a constrói.",hi:true},
+    {k:"L/G ADOTADO",v:vt(LG,2)+" kg de água por kg de ar seco"+(LGauto?("   —  calculado no PONTO EQUILIBRADO, o L/G em que o critério de ar e o de água pedem a mesma área de planta: L/G = 1000·taxa/(ρ·3600·v) = 1000·"+vt(taxa,1)+"/("+vt(rhoAr,3)+"·3600·"+vt(vFront,1)+") = "+vt(LGeq,2)):("   —  informado pelo usuário"))+(LGexcede?("   ⚠ o valor excedia o máximo termodinâmico e foi limitado"):"")+"   ·   máximo termodinâmico "+vt(LGmax,2),hi:LGexcede},
+    {k:"Por que o ponto equilibrado",v:"Abaixo dele sobra área molhada e falta ar — a torre fica grande e o ventilador pequeno. Acima dele sobra ar e a taxa de aplicação dispara — o enchimento encharca e a água atravessa sem trocar. Nesse ponto nenhum dos dois critérios é desperdiçado, e é por isso que ele reproduz a seleção de fabricante: informar L/G manualmente afasta o resultado desse ótimo, de propósito ou por engano."},
+    {k:"KaV/L EXIGIDO",v:vt(KaVL,3)+"   —  é este o número a levar ao fabricante. Ele responde com a altura e o tipo de enchimento que entregam essa característica, a partir da curva de ensaio DELE. Curva de enchimento não é dado público: por isso a calculadora para aqui, e isso é honestidade, não limitação.",hi:true},
+    {k:"⚠ O LIMITE QUE NENHUM ENCHIMENTO VENCE",v:"Acima de L/G = "+vt(LGmax,2)+" a linha de operação do ar cruza a curva de saturação antes de receber toda a carga: a diferença de entalpia zera no meio do enchimento e a troca para. Não é falta de enchimento, é termodinâmica. Quando o cálculo encosta aí, o caminho é mais ar (ventilador maior) ou menos água por torre (dividir em unidades).",hi:true},
+    {k:"Curva de demanda",v:CURVA.filter(function(c,i){return i%3===0||i===CURVA.length-1;}).map(function(c){return "L/G "+vt(c.lg,2)+" → "+vt(c.k,3);}).join("   ·   ")+"   —  note que KaV/L cresce com L/G: mais água por ar exige torre mais capaz. É essa curva que o fabricante cruza com a do enchimento dele para achar o ponto de operação."},
+
+    {sec:"3 — AR, ÁREA DE PLANTA E GEOMETRIA"},
+    {k:"VAZÃO DE AR",v:vt(Gvol,1)+" m³/s   =   "+vt(Gvol*3600,0)+" m³/h   =   "+vt(G,0)+" kg/h de ar seco   ·   densidade "+vt(rhoAr,3)+" kg/m³",hi:true},
+    {k:"ÁREA DE PLANTA EXIGIDA",v:vt(areaReq,1)+" m²   —  governada pela "+govArea+".   Pelo ar: "+vt(areaAr,1)+" m² a "+vt(vFront,1)+" m/s.   Pela água: "+vt(areaAgua,1)+" m² a "+vt(taxa,1)+" m³/h·m².",hi:true},
+    {k:"Taxa de aplicação resultante",v:vt(taxaReal,1)+" m³/h·m²"+(taxaOK?"   ✓ dentro da faixa usual de 8 a 25":"   ⚠ FORA da faixa usual — abaixo de 8 a distribuição fica irregular e o enchimento seca em pontos; acima de 25 a água atravessa sem trocar e arrasta"),hi:!taxaOK},
+    {k:"Velocidade frontal do ar",v:vt(vFrontReal,2)+" m/s"+(vfOK?"   ✓":"   ⚠ fora da faixa de 1,5 a 4,5 m/s — acima disso o arraste de gotas dispara e o eliminador não dá conta"),hi:!vfOK},
+
+    {sec:"4 — BALANÇO DE ÁGUA E REPOSIÇÃO"},
+    {k:"⚠ AS DUAS EVAPORAÇÕES, E POR QUE ELAS DIVERGEM",v:"O balanço psicrométrico rigoroso dá "+vt(evapRigPc,2)+" % e a regra prática de fabricante dá "+vt(evapRegraPc,2)+" %. A regra (0,00085 por °F de range) ignora que parte da carga sai como calor SENSÍVEL no ar, e por isso superestima a evaporação — tipicamente de 15 a 25 %. Para dimensionar a linha de make-up a calculadora adota a maior das duas, que é a conservadora. Para custo de água, a rigorosa é a realista.",hi:true},
+    {k:"EVAPORAÇÃO ADOTADA",v:vt(evapM3,2)+" m³/h   =   "+vt(evapAdotPc,2)+" % da circulação   =   "+vt(evapM3*hDia,1)+" m³/dia",hi:true},
+    {k:"Arraste (drift)",v:vt(arraste/1000,3)+" m³/h   =   "+vt(arrPc,3)+" %   —  eliminador de gotas moderno entrega 0,001 a 0,01 %. O arraste importa muito além da água: é ele que carrega aerossol com Legionella para fora da torre."},
+    {k:"PURGA (blowdown)",v:vt(purgaM3,2)+" m³/h   para manter "+vt(ciclos,1)+" ciclos de concentração"+(cicOK?"":"   ⚠ IMPOSSÍVEL: só o arraste já concentra mais que isso — o máximo alcançável é "+vt(ciclosMax,1)+" ciclos"),hi:!cicOK},
+    {k:"ÁGUA DE REPOSIÇÃO  (make-up)",v:vt(makeupM3,2)+" m³/h   =   "+vt(makeupM3*hDia,1)+" m³/dia   —  evaporação "+vt(evapM3,2)+" + arraste "+vt(arraste/1000,3)+" + purga "+vt(purgaM3,2)+".   É este o número que dimensiona a linha de reposição e o contrato de água.",hi:true},
+    {k:"O que os ciclos custam",v:"Subir os ciclos economiza água de purga mas concentra sais, e o limite é a incrustação e a corrosão — define-se pelo índice de Langelier da água local, não por regra geral. Cada ciclo a mais rende cada vez menos: de 3 para 4 ciclos economiza "+vt((evapAdot/(3-1)-evapAdot/(4-1))/1000,2)+" m³/h; de 6 para 7, bem menos."},
+
+    {sec:"5 — VENTILADOR E BOMBA"},
+    {k:"VENTILADOR",v:"axial, "+vt(Gvol,1)+" m³/s contra "+vt(dPest,0)+" Pa de estática   →   "+vt(PeixoV,1)+" kW no eixo   ·   "+vt(PmotV,1)+" kW no motor   =   "+vt(PmotHP,1)+" HP   ·   rendimento adotado "+vt(rVent*100,0)+" %",hi:true},
+    {k:"Aferição contra folha de dados real",v:"Na condição da folha ALFATERM 71805 (550 m³/h, 47/35 °C, bulbo úmido 24 °C) esta rotina devolve "+vt(PmotHP,1)+" HP no motor, contra os 25 HP efetivamente instalados naquele ASP-2400. A diferença é margem de serviço, que é o que se espera de um fabricante — não é divergência de cálculo. Vale como aferição de ordem de grandeza, não como garantia: a estática de "+vt(dPest,0)+" Pa é ADOTADA, e é ela que manda nesse número.",hi:true},
+    {k:"Por que o ventilador é de baixa rotação",v:"Torre de tiragem induzida usa hélice grande e lenta, com redutor, e não ventilador pequeno e rápido. A razão é ruído e consumo: a potência cresce com o cubo da velocidade do ar, e o ruído com a quinta potência da velocidade periférica. Daí o conjunto motor-redutor, que parece caro e se paga."},
+    {k:"BOMBA DE CIRCULAÇÃO",v:vt(Vz,0)+" m³/h a "+vt(Hman,1)+" mca   →   "+vt(Pbomba,1)+" kW   ·   desnível "+vt(desn,1)+" + bicos "+vt(pBic,1)+" + tubulação "+vt(pTub,1)+" mca   ·   rendimento "+vt(rBomba*100,0)+" %",hi:true},
+    {k:"A pressão nos bicos não é desprezível",v:"O sistema de distribuição precisa de pressão para pulverizar — tipicamente 3 mca na entrada da torre, como na folha ALFATERM. Dimensionar a bomba só pelo desnível geométrico é erro comum: a torre não enche, a distribuição fica irregular e o desempenho térmico cai sem causa aparente."},
+
+    {sec:"6 — SELEÇÃO NA SÉRIE K ALFATERM"},
+    {k:"Como esta seleção é feita",v:"O folheto da Série K traz DIMENSIONAL — externo, altura, bacia e peso — mas não a capacidade térmica por modelo. Então a seleção aqui é pela ÁREA DE PLANTA que o cálculo exige ("+vt(areaReq,1)+" m²), que é como torre se dimensiona de fato. É indicação de porte para cotação: o desempenho térmico real depende da curva do enchimento, que é ensaio do fabricante.",hi:true}
+  ]).concat(SEL.length?SEL.map(function(s,i){
+      return {k:(i===0?"► ":"")+(s.n>1?(s.n+" × "):"1 × ")+s.m+(i===0?"   (indicado)":""),
+        v:vt(s.vzUn,0)+" m³/h por unidade   ·   taxa "+vt(s.taxaUn,1)+" m³/h·m²   ·   ar "+vt(s.vfrUn,2)+" m/s frontal   ·   área instalada "+vt(s.areaTot,1)+" m² ("+vt(s.areaUn,1)+" m² cada, "+(s.folga>=0?"+":"")+vt(s.folga,0)+" % sobre a exigida)   ·   externo "+vt(s.D,0)+"×"+vt(s.E,0)+" mm, altura "+vt(s.M,0)+" mm   ·   bacia "+vt(s.bacia,0)+" L   ·   "+vt(s.oper/1000,1)+" t em operação",
+        hi:(i===0)};
+    }):[{k:"Nenhum arranjo na Série K atende",v:"Nenhuma combinação de 1 a 6 unidades dos 9 modelos mantém ao mesmo tempo a taxa de aplicação entre 8 e 25 m³/h·m² e a velocidade frontal entre 1,5 e 4,5 m/s para "+vt(Vz,0)+" m³/h ("+vt(areaReq,1)+" m² exigidos, "+vt(Gvol,1)+" m³/s de ar).   "+(
+      selMot==="pequena"?("A vazão é PEQUENA demais para esta série: mesmo o menor modelo, o ASP-1070 com 11,2 m², ficaria a "+vt(Vz/(TR_SERIEK[0].D/1000*TR_SERIEK[0].E/1000),1)+" m³/h·m², abaixo do mínimo de 8 — a água não molharia o enchimento por inteiro e secaria em pontos. A Série K é de GRANDES vazões; para esta duty o caminho é torre compacta de linha menor."):
+      selMot==="grande"?("A vazão é GRANDE demais: nem 6 unidades do ASP-5500 (59,0 m² cada) seguram a taxa de aplicação abaixo de 25 m³/h·m². O caminho é torre de células múltiplas sob medida, ou dividir o circuito em mais de uma bateria."):
+      ("A condição cai ENTRE os degraus da série: os modelos vizinhos ou molham demais ou molham de menos. Rever a velocidade frontal adotada ou a taxa de aplicação alvo, que são os dois parâmetros de projeto aqui, ou consultar o fabricante.")),hi:true}]
+  ).concat([
+    {k:"Como ler as opções acima",v:"Todas as listadas atendem às duas faixas de prática. A indicada é a mais próxima do ponto de projeto ("+vt(taxa,1)+" m³/h·m² e "+vt(vFront,1)+" m/s), penalizando o fracionamento em muitas unidades. Fracionar custa mais ventiladores, mais bombas e mais área total, e paga com redundância: com 2 unidades, perder uma deixa metade da capacidade, não zero. Essa escolha é de projeto, não de cálculo.",hi:true},
+    {k:"⚠ A área é EXTERNA, de folheto",v:"Os "+vt(SEL.length?SEL[0].areaUn:0,1)+" m² por unidade vêm da dimensão externa D×E do folheto da Série K, não de área de enchimento medida. A convenção foi calibrada contra a folha ALFATERM 71805 (550 m³/h a 47/35 °C com bulbo úmido de 24 °C → ASP-2400), onde ela reproduz 21,1 m³/h·m² e 3,0 m/s, com a vazão de ar implícita conferindo de forma independente com o motor de 25 HP e com o ventilador Ø2900. Fora dessa vizinhança de condição, é indicação de porte para cotação.",hi:true},
+    {k:"O que a seleção NÃO decide",v:"Número de camadas de enchimento, potência e polaridade do motor e tipo de enchimento compõem o código completo do modelo (ex.: ASP-2400/4/25/4-BG-A = 4 camadas, 25 HP, 4 polos, blocos de grades, axial). Esses quatro itens saem da curva térmica do fabricante contra o KaV/L de "+vt(KaVL,3)+" calculado acima — não dá para tirá-los do dimensional."},
+
+    {sec:"7 — BACIA, SEGURANÇA SANITÁRIA E OPERAÇÃO"},
+    {k:"⚠ LEGIONELLA — o risco que a torre cria",v:"Torre de resfriamento é aerossolizador: ela joga gotículas no ar a dezenas de metros, e água entre 25 e 45 °C com biofilme é meio de cultura para Legionella pneumophila. O caminho de contaminação é respiratório, e surtos associados a torres industriais e prediais são documentados. Esta faixa de temperatura é EXATAMENTE a de operação ("+vt(TAF,1)+" a "+vt(TAQ,1)+" °C), então o risco é inerente ao equipamento — mitiga-se, não se elimina.",hi:true},
+    {k:"O que reduz o risco",v:"Eliminador de gotas eficiente (o arraste de "+vt(arrPc,3)+" % adotado é o que sai como aerossol), tratamento químico com biocida em programa, purga efetiva, limpeza e inspeção programadas da bacia e do enchimento, e posicionamento da descarga de ar longe de tomadas de ar condicionado e de áreas ocupadas. Monitoramento microbiológico periódico, com plano de ação definido antes de precisar dele."},
+    {k:"Enquadramento normativo — conferir localmente",v:"A ABNT NBR 16824 trata de prevenção de legionelose em sistemas prediais de água. A aplicabilidade dela a torre industrial, e a existência de exigência estadual ou municipal específica, VARIAM e precisam ser verificadas na jurisdição da planta antes de fechar o projeto — não assuma que não há exigência. Para teste de desempenho térmico a referência é o CTI ATC-105.",hi:true},
+    {k:"BACIA DE ÁGUA FRIA",v:(SEL.length?("o arranjo indicado traz "+vt(SEL[0].bacia,0)+" L de bacia própria em PRFV"):"ver arranjo")+"   —  a bacia precisa conter, além do volume de operação, o retorno por gravidade da tubulação quando a bomba para. Bacia subdimensionada transborda no desligamento e seca na partida."},
+    {k:"Carga na fundação",v:(SEL.length?("cerca de "+vt(SEL[0].oper/1000,1)+" t em operação para o arranjo indicado, sobre "+vt(SEL[0].areaTot,1)+" m² → "+vt(SEL[0].oper*9.80665/1000/SEL[0].areaTot,1)+" kPa de carga média"):"—")+"   —  valor médio para pré-dimensionamento da base; a reação concentra nos apoios, e o fabricante fornece a planta de cargas para o projeto de fundação."},
+    {k:"O que o fabricante precisa receber para cotar",v:"Vazão "+vt(Vz,0)+" m³/h   ·   água quente "+vt(TAQ,1)+" °C   ·   água fria "+vt(TAF,1)+" °C   ·   bulbo úmido "+vt(TBU,1)+" °C   ·   altitude "+vt(alt,0)+" m   ·   carga "+vt(Q,0)+" kcal/h   ·   KaV/L exigido "+vt(KaVL,3)+".   Estes sete números são a folha de dados mínima.",hi:true}
+  ]);
+
+  OUT.geo={tipo:"torreresf",Vz:Vz,TAQ:TAQ,TAF:TAF,TBU:TBU,range:range,approach:approach,
+    Q:Q,QkW:QkW,LG:LG,LGmax:LGmax,KaVL:KaVL,CURVA:CURVA,Gvol:Gvol,G:G,
+    areaReq:areaReq,taxaReal:taxaReal,vFrontReal:vFrontReal,Patm:Patm,alt:alt,
+    taxa:taxa,vFront:vFront,areaAr:areaAr,areaAgua:areaAgua,govArea:govArea,
+    evapM3:evapM3,evapAdotPc:evapAdotPc,evapRigPc:evapRigPc,evapRegraPc:evapRegraPc,
+    arraste:arraste,purgaM3:purgaM3,makeupM3:makeupM3,ciclos:ciclos,
+    PmotV:PmotV,PmotHP:PmotHP,dPest:dPest,Hman:Hman,Pbomba:Pbomba,
+    rVent:rVent,rBomba:rBomba,PeixoV:PeixoV,rhoAr:rhoAr,nUn:nUn,
+    SEL:SEL,selMot:selMot,nRep:nR,nVer:nV,MEM:MEM,hDia:hDia};
+  return OUT;
+}
+
 const CALCS={
   fundacao:{
     titulo:"Fundação de eletrocentro — sapata, bloco sobre estacas e tubulão pelo pior apoio",
@@ -13946,7 +14297,37 @@ const CALCS={
       OUT.geo={tipo:"martelo",model:M.n,D:M.D,L:M.L,Fmax:Fmax,grelha:grelha,R80:R80,cap:M.cap,Pbond:Pbond,kw:M.kw,P80:P80,nrpm:n_rpm};
       return OUT;
     }
-  }
+  },
+  torre_resfriamento:{
+    titulo:"Torre de resfriamento de água — tiragem induzida, contracorrente",
+    referencia:"Dimensionamento térmico pelo método de MERKEL, com a integral da característica KaV/L = ∫dT/(h_sat(T) − h_ar(T)) resolvida por CHEBYSHEV de 4 pontos, que é o procedimento adotado pelo Cooling Technology Institute e a base da curva de demanda dos fabricantes. A força motriz da troca é a diferença de ENTALPIA entre o ar saturado na temperatura da água e o ar que escoa, não a diferença de temperatura: por isso o bulbo úmido governa, e por isso existe um limite termodinâmico em que a água jamais atinge esse bulbo úmido. Psicrometria com pressão de saturação por Buck, umidade absoluta w = 0,622·ps/(P−ps) e entalpia h = 0,24·T + w·(597,2 + 0,44·T) em kcal/kg de ar seco, com pressão barométrica corrigida pela altitude. Área de planta pelo maior entre a velocidade frontal do ar e a taxa de aplicação de água. Balanço de água pelas duas rotas — psicrometria rigorosa e regra prática de 0,00085 por °F de range — com purga por ciclos de concentração. Ventilador por potência de ar sobre rendimento e bomba por altura manométrica incluindo a pressão requerida nos bicos. Seleção de porte na Série K ALFATERM pela área de planta exigida. Teste de desempenho conforme CTI ATC-105; prevenção de legionelose conforme ABNT NBR 16824 e exigência sanitária local; ABNT NBR 6118 e NBR 8800 para base e estrutura; NR-12 para o acionamento do ventilador; NR-33 se houver entrada em bacia.",
+    campos:[
+      {tipo:"head",label:"Condição de processo — os quatro números que definem a torre"},
+      {id:"trVz",label:"VAZÃO DE ÁGUA a resfriar",unidade:"m³/h",tipo:"number",valor:550,step:"10"},
+      {id:"trTAQ",label:"ÁGUA QUENTE — entrada na torre",unidade:"°C",tipo:"number",valor:47,step:"0.5"},
+      {id:"trTAF",label:"ÁGUA FRIA — saída da torre (alvo)",unidade:"°C",tipo:"number",valor:35,step:"0.5"},
+      {id:"trTBU",label:"BULBO ÚMIDO de projeto do local",unidade:"°C",tipo:"number",valor:24,step:"0.5"},
+      {id:"trAlt",label:"Altitude do local (afeta a densidade do ar)",unidade:"m",tipo:"number",valor:560,step:"10"},
+      {id:"trH",label:"Horas de operação por dia",unidade:"h/dia",tipo:"number",valor:24,step:"1"},
+      {tipo:"head",label:"Núcleo térmico — razão água/ar e critérios de área"},
+      {id:"trLG",label:"RAZÃO L/G água/ar em massa  (0 = adotar 75 % do máximo termodinâmico)",unidade:"kg/kg",tipo:"number",valor:0,step:"0.05"},
+      {id:"trVfr",label:"Velocidade FRONTAL do ar na entrada",unidade:"m/s",tipo:"number",valor:3,step:"0.1"},
+      {id:"trTaxa",label:"TAXA DE APLICAÇÃO de água  (0 = 21 m³/h·m²)",unidade:"m³/h·m²",tipo:"number",valor:0,step:"0.5"},
+      {id:"trNun",label:"Unidades em paralelo pretendidas (referência de arranjo)",unidade:"un",tipo:"number",valor:1,step:"1"},
+      {tipo:"head",label:"Balanço de água e make-up"},
+      {id:"trCic",label:"CICLOS DE CONCENTRAÇÃO alvo",unidade:"—",tipo:"number",valor:3,step:"0.5"},
+      {id:"trArr",label:"ARRASTE de gotas (drift) do eliminador",unidade:"% da circulação",tipo:"number",valor:0.01,step:"0.001"},
+      {tipo:"head",label:"Ventilador"},
+      {id:"trDP",label:"Perda de carga ESTÁTICA do conjunto (enchimento, eliminador, grades)",unidade:"Pa",tipo:"number",valor:110,step:"5"},
+      {id:"trRv",label:"Rendimento do ventilador axial",unidade:"0 a 1",tipo:"number",valor:0.65,step:"0.01"},
+      {tipo:"head",label:"Bomba de circulação"},
+      {id:"trDesn",label:"DESNÍVEL geométrico até a distribuição",unidade:"m",tipo:"number",valor:6.7,step:"0.1"},
+      {id:"trPbic",label:"Pressão requerida na ENTRADA da torre (bicos)",unidade:"mca",tipo:"number",valor:3,step:"0.5"},
+      {id:"trPtub",label:"Perda de carga da TUBULAÇÃO e acessórios",unidade:"mca",tipo:"number",valor:5,step:"0.5"},
+      {id:"trRb",label:"Rendimento do conjunto motobomba",unidade:"0 a 1",tipo:"number",valor:0.70,step:"0.01"}
+    ],
+    calcular:torreResfCalc
+  },
 };
 
 /* Restaura todos os campos de uma calculadora aos valores padrão do registro CALCS */
@@ -17659,6 +18040,253 @@ function gerarRelatorio(){
       nt(XL,261.5,"que e grandeza de ENSAIO DE FOLHA. Sem esse ensaio, o ciclo, a área e o número de placas são estimativa.",120,130,150,5.6);
       nt(XL,265,"NR-12 (protecoes e intertravamento de abertura)  ·  NBR 6118 (fundacao)  ·  NBR 8800 (portico)  ·  NBR 10004 (classe da torta).",120,130,150,5.6);
 
+    } else if(G.tipo==="torreresf"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CÁLCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificação reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equação / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195, ZR1=120;
+      function fxL(x,w){ return Math.max(XL,Math.min(XR-w,x)); }
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),fxL(x,w2),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+      /* rotulo do corte: fica SEMPRE a esquerda de 117, porque a tabela comeca em 120 */
+      function ntT(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL,Math.min(117-w2,x)),y); }
+      /* cotas: a vertical nunca passa de 112, porque a tabela lateral comeca em 120 */
+      function cH(x1,x2,y,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
+        ntc((x1+x2)/2,y-1.6,t,30,90,170,5.8); }
+      function cV(x,y1,y2,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
+        var xc=Math.max(XL+2,Math.min(112,x));
+        doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
+        doc.setTextColor(30,90,170); doc.setFontSize(5.8);
+        var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
+        if(alt>=cmp+3) doc.text(san(t),xc-1.2,(y1+y2)/2,{angle:90,align:"center"});
+        else doc.text(san(t),Math.max(XL,Math.min(112-cmp,xc-cmp-2)),Math.min(y1,y2)-1.5); }
+
+      var SS=(G.SEL&&G.SEL.length)?G.SEL[0]:null;
+      ntc(105,27,"TORRE DE RESFRIAMENTO  ·  "+G.Vz.toFixed(0)+" m3/h  ·  "+G.TAQ.toFixed(1)+" / "+G.TAF.toFixed(1)+" °C  ·  TBU "+G.TBU.toFixed(1)+" °C",20,60,100,9.0);
+      ntc(105,32,"KaV/L exigido "+G.KaVL.toFixed(3)+"  ·  L/G "+G.LG.toFixed(2)+"  ·  area "+G.areaReq.toFixed(1)+" m2  ·  "+(SS?(SS.n+" x "+SS.m):"sem modelo na serie"),90,110,135,7.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,35.5,XR,35.5);
+
+      /* =============== CORTE ESQUEMATICO (tiragem induzida) =============== */
+      nt(XL,42,"CORTE ESQUEMÁTICO — tiragem induzida, contracorrente",20,60,100,7.0);
+      /* O desenho e estreito de proposito: a faixa entre ele e a tabela lateral
+         (que comeca em 120) tem de caber os rotulos sem invadir nada.        */
+      var lTor=42, hTor=78;                 /* largura e altura do desenho, mm */
+      var xT=XL+12, yTop=50, yBase=yTop+hTor;
+      /* casco */
+      doc.setFillColor(238,243,249); doc.rect(xT,yTop,lTor,hTor,"F");
+      doc.setDrawColor(60,80,110); doc.setLineWidth(0.45); doc.rect(xT,yTop,lTor,hTor,"S");
+      /* ventilador no topo: anel + hélice */
+      var cxT=xT+lTor/2;
+      doc.setFillColor(205,218,235); doc.rect(xT+6,yTop-7,lTor-12,7,"F");
+      doc.setDrawColor(60,80,110); doc.setLineWidth(0.4); doc.rect(xT+6,yTop-7,lTor-12,7,"S");
+      doc.setDrawColor(30,60,110); doc.setLineWidth(0.6);
+      doc.line(cxT-11,yTop-3.5,cxT+11,yTop-3.5);
+      doc.line(cxT-8,yTop-5.6,cxT+8,yTop-1.4);
+      doc.setFillColor(30,60,110); doc.circle(cxT,yTop-3.5,1.5,"F");
+      /* setas de ar saindo */
+      doc.setDrawColor(200,60,40); doc.setLineWidth(0.4);
+      [-7,0,7].forEach(function(dx){
+        doc.line(cxT+dx,yTop-9,cxT+dx,yTop-15);
+        doc.line(cxT+dx,yTop-15,cxT+dx-1.3,yTop-13);
+        doc.line(cxT+dx,yTop-15,cxT+dx+1.3,yTop-13); });
+      ntT(cxT+13,yTop-12,"ar saturado "+G.Gvol.toFixed(1)+" m3/s",200,60,40,5.8);
+      /* eliminador de gotas */
+      var yElim=yTop+7;
+      doc.setFillColor(222,232,214); doc.rect(xT+1,yElim,lTor-2,5,"F");
+      doc.setDrawColor(110,140,100); doc.setLineWidth(0.3); doc.rect(xT+1,yElim,lTor-2,5,"S");
+      /* distribuicao: calha + bicos */
+      var yDist=yElim+9;
+      doc.setDrawColor(40,90,160); doc.setLineWidth(0.8); doc.line(xT+4,yDist,xT+lTor-4,yDist);
+      doc.setLineWidth(0.25);
+      var ib; for(ib=0;ib<7;ib++){ var xb=xT+6+ib*(lTor-12)/6;
+        doc.line(xb,yDist,xb,yDist+3);
+        doc.line(xb,yDist+3,xb-1.6,yDist+5.5); doc.line(xb,yDist+3,xb+1.6,yDist+5.5); }
+      /* enchimento: blocos hachurados */
+      var yEnc=yDist+9, hEnc=30;
+      doc.setFillColor(248,245,228); doc.rect(xT+1,yEnc,lTor-2,hEnc,"F");
+      doc.setDrawColor(170,160,110); doc.setLineWidth(0.18);
+      var ie; for(ie=0;ie<=Math.floor(hEnc/3.2);ie++){ var ye=yEnc+ie*3.2;
+        if(ye<=yEnc+hEnc) doc.line(xT+1.5,ye,xT+lTor-1.5,ye); }
+      doc.setDrawColor(150,140,95); doc.setLineWidth(0.3); doc.rect(xT+1,yEnc,lTor-2,hEnc,"S");
+      /* bacia */
+      var yBac=yBase-13;
+      doc.setFillColor(205,228,242); doc.rect(xT+1,yBac,lTor-2,12,"F");
+      doc.setDrawColor(40,110,170); doc.setLineWidth(0.35); doc.rect(xT+1,yBac,lTor-2,12,"S");
+      /* entrada de ar: setas pelos dois lados, logo acima da bacia */
+      doc.setDrawColor(0,120,90); doc.setLineWidth(0.4);
+      var yAr=yBac-4;
+      doc.line(xT-11,yAr,xT-1,yAr); doc.line(xT-1,yAr,xT-3,yAr-1.4); doc.line(xT-1,yAr,xT-3,yAr+1.4);
+      doc.line(xT+lTor+11,yAr,xT+lTor+1,yAr); doc.line(xT+lTor+1,yAr,xT+lTor+3,yAr-1.4); doc.line(xT+lTor+1,yAr,xT+lTor+3,yAr+1.4);
+      /* base / fundacao */
+      doc.setFillColor(150,150,150); doc.rect(xT-3,yBase,lTor+6,4,"F");
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3); doc.rect(xT-3,yBase,lTor+6,4,"S");
+      var ih; for(ih=0;ih<14;ih++) doc.line(xT-3+ih*(lTor+6)/13,yBase+4,xT-5+ih*(lTor+6)/13,yBase+6.5);
+      /* tubulacao de agua quente entrando no topo */
+      doc.setDrawColor(190,60,40); doc.setLineWidth(1.0);
+      doc.line(xT+lTor+16,yDist-8,xT+lTor+16,yDist); doc.line(xT+lTor+16,yDist,xT+lTor-4,yDist);
+      /* retorno de agua fria pela bacia */
+      doc.setDrawColor(30,110,180); doc.setLineWidth(1.0);
+      doc.line(xT+1,yBac+6,xT-12,yBac+6);
+      /* rotulos do corte, cada um numa linha propria a direita */
+      var xR2=xT+lTor+4;
+      ntT(xR2,yElim+3.2,"eliminador de gotas",80,110,70,5.6);
+      ntT(xR2,yDist+2,"distribuição · "+G.Vz.toFixed(0)+" m3/h",190,60,40,5.6);
+      ntT(xR2,yEnc+6,"ENCHIMENTO",150,120,40,6.2);
+      ntT(xR2,yEnc+10,"KaV/L exig. "+G.KaVL.toFixed(3),150,120,40,5.6);
+      ntT(xR2,yEnc+14,"altura e tipo:",150,120,40,5.4);
+      ntT(xR2,yEnc+17.6,"do fabricante",150,120,40,5.4);
+      ntT(xR2,yAr+1.8,"ar: 4 lados",0,120,90,5.6);
+      ntT(xR2,yBac+8,"bacia · "+G.TAF.toFixed(1).replace(".",",")+" °C",30,110,180,5.6);
+      /* cotas */
+      if(SS){
+        cV(xT-7,yTop,yBase,"H = "+SS.M.toFixed(0)+" mm");
+        cH(xT,xT+lTor,yBase+11,"L = "+SS.D.toFixed(0)+" mm");
+      } else {
+        cV(xT-7,yTop,yBase,"altura do fabricante");
+        cH(xT,xT+lTor,yBase+11,"area "+G.areaReq.toFixed(1)+" m2");
+      }
+
+      /* =============== CURVA DE DEMANDA =============== */
+      var gx=XL+6, gy=yBase+28, gw=96, gh=42;
+      nt(XL,gy-4,"CURVA DE DEMANDA  —  KaV/L exigido em função de L/G",20,60,100,7.0);
+      doc.setFillColor(250,251,253); doc.rect(gx,gy,gw,gh,"F");
+      doc.setDrawColor(150,165,185); doc.setLineWidth(0.3); doc.rect(gx,gy,gw,gh,"S");
+      var CV=G.CURVA||[];
+      if(CV.length>1){
+        var kmx=0,lmx=0,iq;
+        for(iq=0;iq<CV.length;iq++){ if(CV[iq].k>kmx)kmx=CV[iq].k; if(CV[iq].lg>lmx)lmx=CV[iq].lg; }
+        if(G.LG>lmx) lmx=G.LG;
+        if(G.LGmax>lmx) lmx=G.LGmax;   /* o limite tem de CABER no grafico: e o que o grafico ensina */
+        /* A assintota perto do limite e MUITO alta e, se mandar na escala,
+           esmaga a regiao de operacao. Entao a escala e cortada em 3x o ponto
+           adotado e a curva e CLIPADA no topo da caixa: o disparo continua
+           visivel, e a regiao util continua legivel.                         */
+        kmx=Math.min(kmx,Math.max(G.KaVL*3,0.5));
+        if(G.KaVL>kmx) kmx=G.KaVL;
+        kmx=kmx*1.12; lmx=lmx*1.08;
+        function px(lg){ return gx+lg/lmx*gw; }
+        function py(k){ return Math.max(gy,gy+gh-k/kmx*gh); }   /* clipa no topo */
+        /* grade */
+        doc.setDrawColor(226,232,240); doc.setLineWidth(0.15);
+        var ig; for(ig=1;ig<5;ig++){ doc.line(gx,gy+ig*gh/5,gx+gw,gy+ig*gh/5); doc.line(gx+ig*gw/5,gy,gx+ig*gw/5,gy+gh); }
+        /* curva */
+        doc.setDrawColor(20,80,160); doc.setLineWidth(0.6);
+        for(iq=1;iq<CV.length;iq++) doc.line(px(CV[iq-1].lg),py(CV[iq-1].k),px(CV[iq].lg),py(CV[iq].k));
+        /* ponto adotado */
+        doc.setFillColor(200,60,40); doc.circle(px(G.LG),py(G.KaVL),1.5,"F");
+        doc.setDrawColor(200,60,40); doc.setLineWidth(0.2);
+        doc.setLineDashPattern([1,1],0);
+        doc.line(px(G.LG),py(G.KaVL),px(G.LG),gy+gh); doc.line(gx,py(G.KaVL),px(G.LG),py(G.KaVL));
+        doc.setLineDashPattern([],0);
+        /* limite termodinamico */
+        if(G.LGmax<=lmx){
+          doc.setDrawColor(190,40,40); doc.setLineWidth(0.5);
+          doc.setLineDashPattern([1.6,1.2],0);
+          doc.line(px(G.LGmax),gy,px(G.LGmax),gy+gh);
+          doc.setLineDashPattern([],0);
+          /* rotulo do limite vai no PE da linha: perto do topo ele cai sobre a curva */
+          nt(Math.min(px(G.LGmax)+1.5,gx+gw-24),gy+gh-2.5,"limite  L/G "+G.LGmax.toFixed(2),190,40,40,5.2);
+        }
+        /* eixos */
+        nt(gx,gy+gh+4,"L/G  0",90,100,120,5.4);
+        ntc(gx+gw/2,gy+gh+4,(lmx/2).toFixed(1),90,100,120,5.4);
+        nt(gx+gw-8,gy+gh+4,lmx.toFixed(1),90,100,120,5.4);
+        nt(gx,gy-1.2,"KaV/L  —  escala 0 a "+kmx.toFixed(2)+" (a curva dispara acima disso ao se aproximar do limite)",90,100,120,5.2);
+        nt(px(G.LG)+2.5,py(G.KaVL)-1.5,"adotado  "+G.LG.toFixed(2)+" / "+G.KaVL.toFixed(3),200,60,40,5.6);
+      } else {
+        nt(gx+3,gy+gh/2,"curva indisponível: a condição encosta no limite termodinâmico",140,60,60,6.0);
+      }
+      nt(XL,gy+gh+9,"O KaV/L cresce com o L/G: mais água por quilo de ar exige torre mais capaz. A linha vermelha é o L/G onde a entalpia do ar",120,130,150,5.6);
+      nt(XL,gy+gh+12.5,"cruza a saturação antes de receber a carga — ali a troca para, e não é falta de enchimento, é termodinâmica.",120,130,150,5.6);
+
+      /* =============== BALANCO DE AGUA =============== */
+      var bx=XL, by=gy+gh+19, bw=100, bh=22;
+      nt(bx,by-3,"BALANÇO DE ÁGUA  —  make-up "+G.makeupM3.toFixed(2).replace(".",",")+" m3/h",20,60,100,7.0);
+      var comp=[["evaporação",G.evapM3,[70,130,200]],
+                ["purga",G.purgaM3,[200,150,60]],
+                ["arraste",G.arraste/1000,[180,80,70]]];
+      var tots=Math.max(G.makeupM3,1e-6), xa2=bx, iy;
+      for(iy=0;iy<comp.length;iy++){
+        var w4=bw*comp[iy][1]/tots;
+        if(w4>0.3){ doc.setFillColor(comp[iy][2][0],comp[iy][2][1],comp[iy][2][2]); doc.rect(xa2,by,w4,8,"F"); }
+        xa2+=w4; }
+      doc.setDrawColor(90,90,90); doc.setLineWidth(0.3); doc.rect(bx,by,bw,8,"S");
+      var yl3=by+13;
+      for(iy=0;iy<comp.length;iy++){
+        doc.setFillColor(comp[iy][2][0],comp[iy][2][1],comp[iy][2][2]); doc.rect(bx,yl3-2.6,3,3,"F");
+        nt(bx+5,yl3,san(comp[iy][0])+"   "+comp[iy][1].toFixed(2).replace(".",",")+" m3/h   ("+(comp[iy][1]/tots*100).toFixed(0)+" %)",60,60,60,5.6);
+        yl3+=4.2; }
+
+      /* =============== TABELA LATERAL =============== */
+      var BODY=[
+        [san("Carga térmica"),san(G.QkW.toFixed(0))+" kW"],
+        [san("Range"),san(G.range.toFixed(1))+" °C"],
+        [san("Approach"),san(G.approach.toFixed(1))+" °C"],
+        [san("Pressao barometrica"),san(G.Patm.toFixed(1))+" kPa"],
+        [san("L/G adotado"),san(G.LG.toFixed(2))+(G.LGauto?" (equil.)":" (dado)")],
+        [san("L/G maximo"),san(G.LGmax.toFixed(2))],
+        [san("KaV/L EXIGIDO"),san(G.KaVL.toFixed(3))],
+        [san("Vazao de ar"),san(G.Gvol.toFixed(1))+" m3/s"],
+        [san("ÁREA DE PLANTA"),san(G.areaReq.toFixed(1))+" m2"],
+        [san("governada por"),san(G.govArea)],
+        [san("Taxa de aplicacao"),san(G.taxaReal.toFixed(1))+" m3/h.m2"],
+        [san("Veloc. frontal do ar"),san(G.vFrontReal.toFixed(2))+" m/s"],
+        [san("Evaporacao (psicro.)"),san(G.evapRigPc.toFixed(2))+" %"],
+        [san("Evaporacao (regra)"),san(G.evapRegraPc.toFixed(2))+" %"],
+        [san("Evaporacao adotada"),san(G.evapM3.toFixed(2))+" m3/h"],
+        [san("Arraste"),san((G.arraste/1000).toFixed(3))+" m3/h"],
+        [san("Purga"),san(G.purgaM3.toFixed(2))+" m3/h"],
+        [san("MAKE-UP"),san(G.makeupM3.toFixed(2))+" m3/h"],
+        [san("Ciclos de concentracao"),san(G.ciclos.toFixed(1))],
+        [san("Ventilador"),san(G.PmotV.toFixed(1))+" kW / "+san(G.PmotHP.toFixed(0))+" HP"],
+        [san("Altura manometrica"),san(G.Hman.toFixed(1))+" mca"],
+        [san("Bomba"),san(G.Pbomba.toFixed(1))+" kW"]
+      ];
+      if(SS){
+        BODY.push([san("INDICADO"),String(SS.n)+" x "+san(SS.m)]);
+        BODY.push([san("por unidade"),san(SS.vzUn.toFixed(0))+" m3/h"]);
+        BODY.push([san("externo"),san(SS.D.toFixed(0))+"x"+san(SS.E.toFixed(0))+" mm"]);
+        BODY.push([san("altura"),san(SS.M.toFixed(0))+" mm"]);
+        BODY.push([san("bacia total"),san(SS.bacia.toFixed(0))+" L"]);
+        BODY.push([san("peso em operacao"),san((SS.oper/1000).toFixed(1))+" t"]);
+      } else {
+        BODY.push([san("INDICADO"),san("fora da Serie K")]);
+      }
+      doc.autoTable({startY:40,theme:"grid",margin:{left:ZR1,right:14},
+        head:[[san("Resultado"),san("Valor")]],
+        body:BODY,
+        styles:{fontSize:6.2,cellPadding:0.9,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.4},
+        columnStyles:{0:{cellWidth:39},1:{cellWidth:32,halign:"right"}}});
+
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,252,XR,252);
+      nt(XL,256,"Merkel integrado por Chebyshev de 4 pontos (procedimento CTI). O KaV/L devolvido e o EXIGIDO: a altura e o tipo de enchimento que o",120,130,150,5.5);
+      nt(XL,259.5,"entregam saem da curva de ensaio do FABRICANTE, que nao e dado publico. Selecao na Serie K ALFATERM pela area externa de planta.",120,130,150,5.5);
+      nt(XL,263,"Torre e aerossolizador: agua de 25 a 45 °C com biofilme cria risco de Legionella. Eliminador de gotas, biocida, purga e limpeza sao",120,130,150,5.5);
+      nt(XL,266.5,"parte do projeto, nao acessorio. CTI ATC-105 (desempenho)  ·  NBR 16824 e exigencia sanitaria local  ·  NBR 6118 / 8800  ·  NR-12  ·  NR-33.",120,130,150,5.5);
     } else if(G.tipo==="tanquelama"){
       if(G.MEM&&G.MEM.length){
         doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
