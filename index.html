@@ -1000,14 +1000,67 @@ function planoCargas(itens){
 }
 
 
+/* ============================================================================
+   VALIDAÇÃO DE ENTRADA COM MENSAGEM NOMEANDO O CAMPO
+   ----------------------------------------------------------------------------
+   Antes, qualquer um de até 14 campos fora de faixa devolvia null e a tela
+   mostrava sempre a mesma frase genérica — o usuário tinha de caçar no olho qual
+   campo reprovou, entre dezenas. Agora o guard registra o campo e a faixa, e a
+   interface mostra isso. O retorno continua sendo null, então nada mais muda:
+   quem chama segue testando if(!r).
+   ========================================================================== */
+var CALC_ERRO="";
+function rotCampo(id){
+  try{
+    for(var k in CALCS){
+      var cs=(CALCS[k]&&CALCS[k].campos)||[];
+      for(var i=0;i<cs.length;i++){
+        if(cs[i].id===id) return "“"+cs[i].label+"”"+(cs[i].unidade?" ("+cs[i].unidade+")":"");
+      }
+    }
+  }catch(e){}
+  return "“"+id+"”";
+}
+function nFmtE(x){
+  if(!isFinite(x)) return String(x);
+  var a=Math.abs(x);
+  if(a>=1e6||(a>0&&a<1e-3)) return x.toExponential(2).replace(".",",");
+  return String(Math.round(x*1000)/1000).replace(".",",");
+}
+/* lista de {id, v, gt, lt, min, max} — devolve false e preenche CALC_ERRO */
+function reqOK(lista){
+  CALC_ERRO="";
+  for(var i=0;i<lista.length;i++){
+    var c=lista[i], v=c.v, nome=rotCampo(c.id);
+    if(v===undefined||v===null||v===""||isNaN(v)||!isFinite(v)){
+      CALC_ERRO="O campo "+nome+" está vazio ou não é um número válido."; return false; }
+    if(c.gt!==undefined&&!(v>c.gt)){
+      CALC_ERRO="O campo "+nome+" está em "+nFmtE(v)+" e precisa ser MAIOR que "+nFmtE(c.gt)+"."; return false; }
+    if(c.lt!==undefined&&!(v<c.lt)){
+      CALC_ERRO="O campo "+nome+" está em "+nFmtE(v)+" e precisa ser MENOR que "+nFmtE(c.lt)+"."; return false; }
+    if(c.min!==undefined&&v<c.min){
+      CALC_ERRO="O campo "+nome+" está em "+nFmtE(v)+", abaixo do mínimo aceito de "+nFmtE(c.min)+"."; return false; }
+    if(c.max!==undefined&&v>c.max){
+      CALC_ERRO="O campo "+nome+" está em "+nFmtE(v)+", acima do máximo aceito de "+nFmtE(c.max)+"."; return false; }
+  }
+  return true;
+}
+/* relação entre dois campos (ex.: a boca não pode ser maior que a seção) */
+function reqRel(ok,idA,idB,texto){
+  if(ok) return true;
+  CALC_ERRO="O campo "+rotCampo(idA)+" "+texto+" "+rotCampo(idB)+".";
+  return false;
+}
+
 function coneVibCalc(CVCIRC){
       var g=9.80665;
       var A=num("cvA")/1000, B=num("cvB")/1000, H=num("cvH")/1000, C=num("cvC")/1000, D=num("cvD")/1000;
       var rho=num("cvRho"), phi=num("cvPhi"), phw=num("cvDelta"), coes=num("cvCoes"), d50=num("cvD50");
       var esp=num("cvEsp"), pctRef=num("cvRef");
-      if([A,B,H,C,D,rho,phi,phw,coes,d50,esp,pctRef].some(function(x){return isNaN(x);})) return null;
-      if(A<=0||B<=0||H<=0||C<=0||D<=0||rho<=0||phi<=0||phi>=90) return null;
-      if(C>=A||D>=B) return null;
+      if(!reqOK([{id:"cvA",v:A,gt:0},{id:"cvB",v:B,gt:0},{id:"cvH",v:H,gt:0},{id:"cvC",v:C,gt:0},{id:"cvD",v:D,gt:0},{id:"cvRho",v:rho,gt:0},{id:"cvPhi",v:phi,gt:0,lt:90},{id:"cvDelta",v:phw},{id:"cvCoes",v:coes},{id:"cvD50",v:d50},{id:"cvEsp",v:esp},{id:"cvRef",v:pctRef}])) return null;
+      /* relação entre campos: a boca de saída não pode ser maior que a seção */
+      if(!reqRel(C<A,"cvC","cvA","precisa ser MENOR que")) return null;
+      if(!reqRel(D<B,"cvD","cvB","precisa ser MENOR que")) return null;
       var circ=CVCIRC;
       function area(a,b){ return circ?(Math.PI/4*a*b):(a*b); }
       function perim(a,b){ return circ?(Math.PI*(3*(a+b)/2-Math.sqrt(a*b))/2*2):(2*(a+b)); }
@@ -1283,8 +1336,7 @@ function alimCorreiaCalc(){
       var Dt=num("acDt"),eta=num("acEta");
       var abras=$("#acAbras").value, tipoC=$("#acTipo").value, Ky=parseFloat($("#acKy").value);
       var kxM=$("#acKxM").value, K=parseFloat($("#acK").value), FS=parseFloat($("#acFS").value);
-      if([Q,rhoT,theta,fm,fsm,Fmax,V,L2,L1,L3,L,H,Dt,eta].some(function(x){return isNaN(x);})) return null;
-      if(Q<=0||rhoT<=0||V<=0||L<=0||L2<=0||Dt<=0||eta<=0||eta>1||theta<=0||theta>=90) return null;
+      if(!reqOK([{id:"acQ",v:Q,gt:0},{id:"acRho",v:rhoT,gt:0},{id:"acTheta",v:theta,gt:0,lt:90},{id:"acFm",v:fm},{id:"acFsm",v:fsm},{id:"acFmax",v:Fmax},{id:"acV",v:V,gt:0},{id:"acL2",v:L2,gt:0},{id:"acL1",v:L1},{id:"acL3",v:L3},{id:"acL",v:L,gt:0},{id:"acH",v:H},{id:"acDt",v:Dt,gt:0},{id:"acEta",v:eta,gt:0,max:1}])) return null;
       var gama=rhoT*1000;                                  // kgf/m³  (γ do manual)
       /* ---- Largura da correia e abertura das guias ---- */
       var LARG=[16,20,24,30,36,42,48,54,60,72,84];
@@ -1328,7 +1380,14 @@ function alimCorreiaCalc(){
       var Pfs=D*gama*Ka*fsm*((2.4*B-D)*L1 + D*L3) + 8.93*L;                // atrito nas guias laterais
       var Ph=B*D*gama*H;                                                   // elevação
       var Te=Pe+P1+Ps+Pfs+Ph;                                              // kgf
-      if(!isFinite(Te)||Te<=0) return null;
+      /* Te é RESULTADO, não entrada: se der zero ou negativo, a combinação de
+         geometria e carga não forma um alimentador fisicamente consistente.    */
+      if(!isFinite(Te)||Te<=0){
+        CALC_ERRO="A tensão efetiva calculada ficou em "+nFmtE(Te)+" kgf, que não é fisicamente possível. "+
+          "Isso acontece quando a combinação de comprimentos, largura e inclinação não fecha — rever "+
+          rotCampo("acLh1")+", "+rotCampo("acLi")+", "+rotCampo("acLh2")+" e "+rotCampo("acB")+".";
+        return null;
+      }
       var pctPe=100*Pe/Te,pctP1=100*P1/Te,pctPs=100*Ps/Te,pctPfs=100*Pfs/Te,pctPh=100*Ph/Te;
       /* ---- Potência e acionamento ---- */
       var Pkw=Te*9.80665*V/1000;                          // kW no tambor
@@ -10482,7 +10541,7 @@ const CALCS={
     ],
     calcular:function(){
       const Qm=num("Qm"),rho=num("rho"),L=num("L"),H=num("H"),carga=num("carga"),n=num("n"),lam=num("lambda");
-      if([Qm,rho,L,H,carga,n,lam].some(x=>isNaN(x))||rho<=0||n<=0) return null;
+      if(!reqOK([{id:"Qm",v:Qm},{id:"rho",v:rho,gt:0},{id:"L",v:L},{id:"H",v:H},{id:"carga",v:carga},{id:"n",v:n,gt:0},{id:"lambda",v:lam}])) return null;
       const Cv=Qm/rho;                                  // m³/h volumétrico requerido
       const Dcalc=Math.cbrt(Cv/(47.12*carga*n));        // m (passo = D)
       const Dstd=nextStd(Dcalc*1000);                   // mm padrão
@@ -10726,8 +10785,7 @@ const CALCS={
       /* ================= ENTRADAS ================= */
       var Q=num("btQ"), rho=num("btRho"), L=num("btL"), H=num("btH"), v=num("btV"),
           Lg=num("btLg"), lump=num("btLump"), Dt=num("btDt"), Pc=num("btPc"), Tu=num("btTu");
-      if([Q,rho,L,H,v,Lg,lump,Dt,Pc,Tu].some(function(x){return isNaN(x);})) return null;
-      if(rho<=0||v<=0||L<=0||Dt<=0) return null;
+      if(!reqOK([{id:"btQ",v:Q},{id:"btRho",v:rho,gt:0},{id:"btL",v:L,gt:0},{id:"btH",v:H},{id:"btV",v:v,gt:0},{id:"btLg",v:Lg},{id:"btLump",v:lump},{id:"btDt",v:Dt,gt:0},{id:"btPc",v:Pc},{id:"btTu",v:Tu}])) return null;
       var matK=$("#btMat").value, MAT=FACO_MAT[matK]||FACO_MAT.fe_britado;
       var cfg=$("#btCfg").value, alfa=parseInt($("#btAlfa").value,10), gf=parseFloat($("#btGran").value);
       var classe=$("#btClasse").value, reg=$("#btReg").value, inst=$("#btInst").value;
@@ -11341,8 +11399,7 @@ const CALCS={
       var Q=num("siQ"),t=num("siT"),eta=num("siEta");
       var rho=num("siRho"),phi=num("siPhi"),delta=num("siDelta"),c=num("siCoes"),d50=num("siD50");
       var scMed=num("siSc"),s1=num("siS1"),D=num("siD");
-      if([Q,t,eta,rho,phi,delta,c,d50,s1,D].some(function(x){return isNaN(x);})) return null;
-      if(Q<=0||t<=0||eta<=0||eta>1||rho<=0||phi<=0||phi>=90||delta<=0||delta>=90||s1<=0||D<=0) return null;
+      if(!reqOK([{id:"siQ",v:Q,gt:0},{id:"siT",v:t,gt:0},{id:"siEta",v:eta,gt:0,max:1},{id:"siRho",v:rho,gt:0},{id:"siPhi",v:phi,gt:0,lt:90},{id:"siDelta",v:delta,gt:0,lt:90},{id:"siCoes",v:c},{id:"siD50",v:d50},{id:"siS1",v:s1,gt:0},{id:"siD",v:D,gt:0}])) return null;
       // Etapa 2 — capacidade
       var massa=Q*t;
       var V=massa/(rho*eta);
@@ -11698,8 +11755,7 @@ const CALCS={
       var Q=num("siQ"),t=num("siT"),eta=num("siEta");
       var rho=num("siRho"),phi=num("siPhi"),deltaIn=num("siDelta"),c=num("siCoes"),d50=num("siD50");
       var scMed=num("siSc"),s1=num("siS1"),a=num("rA"),b=num("rB");
-      if([Q,t,eta,rho,phi,deltaIn,c,d50,s1,a,b].some(function(x){return isNaN(x);})) return null;
-      if(Q<=0||t<=0||eta<=0||eta>1||rho<=0||phi<=0||phi>=90||deltaIn<=0||deltaIn>=90||s1<=0||a<=0||b<=0) return null;
+      if(!reqOK([{id:"siQ",v:Q,gt:0},{id:"siT",v:t,gt:0},{id:"siEta",v:eta,gt:0,max:1},{id:"siRho",v:rho,gt:0},{id:"siPhi",v:phi,gt:0,lt:90},{id:"siDelta",v:deltaIn,gt:0,lt:90},{id:"siCoes",v:c},{id:"siD50",v:d50},{id:"siS1",v:s1,gt:0},{id:"rA",v:a,gt:0},{id:"rB",v:b,gt:0}])) return null;
       var massa=Q*t, V=massa/(rho*eta), gamma=rho*g;
       var pr=phi*Math.PI/180;
       /* ===== ETAPA 3a — REVESTIMENTO: altera o atrito de parede φw ===== */
@@ -12428,7 +12484,7 @@ const CALCS={
       var g=9.81, eta=0.85;
       var Q=num("tcQ"),rho=num("tcRho"),Lh1=num("tcLh1"),Li=num("tcLi"),theta=num("tcTheta"),Lh2=num("tcLh2"),Nb=num("tcNb"),fillPc=num("tcFill"),dim=num("tcDim");
       var mum=parseFloat($("#tcMum").value),muc=parseFloat($("#tcMuc").value),SF=parseFloat($("#tcSF").value);
-      if([Q,rho,Lh1,Li,theta,Lh2,Nb,fillPc].some(function(x){return isNaN(x);})||Q<=0||rho<=0||Lh1<0||Li<0||Lh2<0||theta<0||theta>90||Nb<0||fillPc<=0||fillPc>100) return null;
+      if(!reqOK([{id:"tcQ",v:Q,gt:0},{id:"tcRho",v:rho,gt:0},{id:"tcLh1",v:Lh1,min:0},{id:"tcLi",v:Li,min:0},{id:"tcTheta",v:theta,min:0,max:90},{id:"tcLh2",v:Lh2,min:0},{id:"tcNb",v:Nb,min:0},{id:"tcFill",v:fillPc,gt:0,max:100}])) return null;
       if(isNaN(dim)||dim<0)dim=0;
       var KLUMP=3;   // Ø interno recomendado >= 3 x dimensional (passagem livre da peça no tubo)
       var fill=fillPc/100;
@@ -12704,7 +12760,7 @@ const CALCS={
       var g=9.81, eta=0.9;
       var Q=num("ecQ"),rho=num("ecRho"),H=num("ecH"),D=num("ecD");
       var fill=parseFloat($("#ecFill").value),disc=$("#ecDisc").value,trac=$("#ecTrac").value,SF=parseFloat($("#ecSF").value);
-      if([Q,rho,H,D].some(function(x){return isNaN(x);})||Q<=0||rho<=0||H<=0||D<=0) return null;
+      if(!reqOK([{id:"ecQ",v:Q,gt:0},{id:"ecRho",v:rho,gt:0},{id:"ecH",v:H,gt:0},{id:"ecD",v:D,gt:0}])) return null;
       var BK=[
         {n:"C2",Vb:2.0,hb:0.16,w:0.20},{n:"C5",Vb:5.0,hb:0.20,w:0.30},{n:"C10",Vb:10,hb:0.25,w:0.40},
         {n:"C20",Vb:20,hb:0.32,w:0.50},{n:"C40",Vb:40,hb:0.40,w:0.65},{n:"C80",Vb:80,hb:0.50,w:0.80}
@@ -12807,7 +12863,7 @@ const CALCS={
       var Q=num("pnQ"),rho=num("pnRho"),ab=num("pnAb"),over=num("pnOver"),half=num("pnHalf"),P=num("pnP"),S=num("pnS");
       var Q2=parseFloat($("#pnForma").value),Q4=parseFloat($("#pnUmidade").value),Q5=parseFloat($("#pnTela").value),Q1=parseFloat($("#pnDecks").value);
       var umido=$("#pnUmido").value;
-      if([Q,rho,ab,over,half,P,S].some(function(x){return isNaN(x);})||Q<=0||rho<=0||ab<=0||P<=0||S<=0) return null;
+      if(!reqOK([{id:"pnQ",v:Q,gt:0},{id:"pnRho",v:rho,gt:0},{id:"pnAb",v:ab,gt:0},{id:"pnOver",v:over},{id:"pnHalf",v:half},{id:"pnP",v:P,gt:0},{id:"pnS",v:S,gt:0}])) return null;
       function interp(t,x){ if(x<=t[0][0])return t[0][1]; if(x>=t[t.length-1][0])return t[t.length-1][1]; for(var i=1;i<t.length;i++){ if(x<=t[i][0]){ var f=(x-t[i-1][0])/(t[i][0]-t[i-1][0]); return t[i-1][1]+f*(t[i][1]-t[i-1][1]); } } return t[t.length-1][1]; }
       // Gráfico B — capacidade básica C (m³/h·m²) x abertura (mm)
       var TC=[[0.838,3.5],[1.168,4.5],[1.651,5.5],[2.362,6.5],[3.327,8],[4.699,10],[6.35,12],[9.525,16],[12.70,20],[15.875,24],[19.05,27],[22.2,30],[25.4,33],[38.1,43],[50.8,49],[63.5,55],[76.2,60],[88.9,65],[101.6,69],[114.3,72],[127,76],[139.7,80],[152.4,85],[165.1,92],[177.8,101]];
@@ -12931,7 +12987,7 @@ const CALCS={
       var Q=num("piQ"),rho=num("piRho"),ab=num("piAb"),over=num("piOver"),half=num("piHalf"),P=num("piP"),S=num("piS"),incl=num("piIncl");
       var Q2=parseFloat($("#piForma").value),Q4=parseFloat($("#piUmidade").value),Q5=parseFloat($("#piTela").value),Q1=parseFloat($("#piDecks").value);
       var umido=$("#piUmido").value;
-      if([Q,rho,ab,over,half,P,S,incl].some(function(x){return isNaN(x);})||Q<=0||rho<=0||ab<=0||P<=0||S<=0) return null;
+      if(!reqOK([{id:"piQ",v:Q,gt:0},{id:"piRho",v:rho,gt:0},{id:"piAb",v:ab,gt:0},{id:"piOver",v:over},{id:"piHalf",v:half},{id:"piP",v:P,gt:0},{id:"piS",v:S,gt:0},{id:"piIncl",v:incl}])) return null;
       function interp(t,x){ if(x<=t[0][0])return t[0][1]; if(x>=t[t.length-1][0])return t[t.length-1][1]; for(var i=1;i<t.length;i++){ if(x<=t[i][0]){ var f=(x-t[i-1][0])/(t[i][0]-t[i-1][0]); return t[i-1][1]+f*(t[i][1]-t[i-1][1]); } } return t[t.length-1][1]; }
       var TC=[[0.838,3.5],[1.168,4.5],[1.651,5.5],[2.362,6.5],[3.327,8],[4.699,10],[6.35,12],[9.525,16],[12.70,20],[15.875,24],[19.05,27],[22.2,30],[25.4,33],[38.1,43],[50.8,49],[63.5,55],[76.2,60],[88.9,65],[101.6,69],[114.3,72],[127,76],[139.7,80],[152.4,85],[165.1,92],[177.8,101]];
       var TM=[[0,0.92],[10,0.97],[20,1.0],[30,1.04],[40,1.10],[50,1.18],[60,1.28],[65,1.35],[70,1.46],[75,1.60],[78,1.80],[80,2.0],[85,2.7],[90,3.8]];
@@ -13074,7 +13130,7 @@ const CALCS={
       var Q=num("pbQ"),rho=num("pbRho"),ab=num("pbAb"),over=num("pbOver"),half=num("pbHalf"),P=num("pbP"),S=num("pbS"),inclE=num("pbInclE"),inclS=num("pbInclS");
       var Q2=parseFloat($("#pbForma").value),Q4=parseFloat($("#pbUmidade").value),Q5=parseFloat($("#pbTela").value),Q1=parseFloat($("#pbDecks").value);
       var umido=$("#pbUmido").value;
-      if([Q,rho,ab,over,half,P,S].some(function(x){return isNaN(x);})||Q<=0||rho<=0||ab<=0||P<=0||S<=0) return null;
+      if(!reqOK([{id:"pbQ",v:Q,gt:0},{id:"pbRho",v:rho,gt:0},{id:"pbAb",v:ab,gt:0},{id:"pbOver",v:over},{id:"pbHalf",v:half},{id:"pbP",v:P,gt:0},{id:"pbS",v:S,gt:0}])) return null;
       function interp(t,x){ if(x<=t[0][0])return t[0][1]; if(x>=t[t.length-1][0])return t[t.length-1][1]; for(var i=1;i<t.length;i++){ if(x<=t[i][0]){ var f=(x-t[i-1][0])/(t[i][0]-t[i-1][0]); return t[i-1][1]+f*(t[i][1]-t[i-1][1]); } } return t[t.length-1][1]; }
       var TC=[[0.838,3.5],[1.168,4.5],[1.651,5.5],[2.362,6.5],[3.327,8],[4.699,10],[6.35,12],[9.525,16],[12.70,20],[15.875,24],[19.05,27],[22.2,30],[25.4,33],[38.1,43],[50.8,49],[63.5,55],[76.2,60],[88.9,65],[101.6,69],[114.3,72],[127,76],[139.7,80],[152.4,85],[165.1,92],[177.8,101]];
       var TM=[[0,0.92],[10,0.97],[20,1.0],[30,1.04],[40,1.10],[50,1.18],[60,1.28],[65,1.35],[70,1.46],[75,1.60],[78,1.80],[80,2.0],[85,2.7],[90,3.8]];
@@ -13339,7 +13395,7 @@ const CALCS={
     calcular:function(){
       var Q=num("cvQ"),rho=num("cvRho"),Fmax=num("cvFmax"),amp=num("cvAmp"),rpm=num("cvRpm");
       var f1=parseFloat($("#cvGran").value),f2=parseFloat($("#cvUmid").value),incl=parseFloat($("#cvIncl").value);
-      if([Q,rho,Fmax,amp,rpm].some(function(x){return isNaN(x);})||Q<=0||rho<=0||amp<=0||rpm<=0) return null;
+      if(!reqOK([{id:"cvQ",v:Q,gt:0},{id:"cvRho",v:rho,gt:0},{id:"cvFmax",v:Fmax},{id:"cvAmp",v:amp,gt:0},{id:"cvRpm",v:rpm,gt:0}])) return null;
       // Curva de velocidade V (m/s) — linhas por amplitude (mm) × rotação (rpm) — gráfico do manual
       var RP=[500,600,700,800,900];
       var VA={3:[0.07,0.11,0.17,0.22,0.27],4:[0.10,0.15,0.21,0.25,0.28],5:[0.13,0.18,0.23,0.28,0.31],6:[0.15,0.21,0.26,0.30,0.34],7:[0.23,0.29,0.33,0.37,0.40]};
@@ -13577,7 +13633,7 @@ const CALCS={
     calcular:function(){
       var Fmax=num("bcFmax"),F80=num("bcF80"),CSS=num("bcCSS"),Q=num("bcQ"),rho=num("bcRho"),Wi=num("bcWi");
       var cham=$("#bcCham").value;
-      if([Fmax,F80,CSS,Q,rho,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||CSS<=0||Q<=0||rho<=0||Wi<=0) return null;
+      if(!reqOK([{id:"bcFmax",v:Fmax,gt:0},{id:"bcF80",v:F80,gt:0},{id:"bcCSS",v:CSS,gt:0},{id:"bcQ",v:Q,gt:0},{id:"bcRho",v:rho,gt:0},{id:"bcWi",v:Wi,gt:0}])) return null;
       // Catálogo Nordberg cônicos HP/MP — boca da câmara (mm), potência (kW) e capacidade (t/h) × APF (ref. 1,6 t/m³)
       // MP800/MP1000: pontos médios da tabela do Manual de Britagem (Metso/FAÇO)
       var CN=[
@@ -13661,7 +13717,7 @@ const CALCS={
     ],
     calcular:function(){
       var Fmax=num("bjFmax"),F80=num("bjF80"),CSS=num("bjCSS"),Q=num("bjQ"),rho=num("bjRho"),Wi=num("bjWi");
-      if([Fmax,F80,CSS,Q,rho,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||CSS<=0||Q<=0||rho<=0||Wi<=0) return null;
+      if(!reqOK([{id:"bjFmax",v:Fmax,gt:0},{id:"bjF80",v:F80,gt:0},{id:"bjCSS",v:CSS,gt:0},{id:"bjQ",v:Q,gt:0},{id:"bjRho",v:rho,gt:0},{id:"bjWi",v:Wi,gt:0}])) return null;
       // Catálogo Metso Nordberg Série C — capacidade (t/h) × APF (mm), densidade ref. 1,6 t/m³
       var SC=[
         {n:"C63",W:630,G:440,kw:45,cap:[[40,40],[50,55],[60,65],[70,80],[80,95],[90,110],[100,120]]},
@@ -13757,7 +13813,7 @@ const CALCS={
     calcular:function(){
       var Fmax=num("biFmax"),F80=num("biF80"),P80=num("biP80"),Q=num("biQ"),rho=num("biRho"),Vper=num("biVper"),Wi=num("biWi");
       var rng=$("#biRange").value;
-      if([Fmax,F80,P80,Q,rho,Vper,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||P80<=0||Q<=0||rho<=0||Vper<=0||Wi<=0) return null;
+      if(!reqOK([{id:"biFmax",v:Fmax,gt:0},{id:"biF80",v:F80,gt:0},{id:"biP80",v:P80,gt:0},{id:"biQ",v:Q,gt:0},{id:"biRho",v:rho,gt:0},{id:"biVper",v:Vper,gt:0},{id:"biWi",v:Wi,gt:0}])) return null;
       var NP=[
         {n:"NP1110",rng:"sec",fo:"1020×820",Fmax:600,Drot:1100,Wrot:1000,kw:160,kwmax:200,cap:190},
         {n:"NP1213",rng:"sec",fo:"1320×879",Fmax:600,Drot:1200,Wrot:1300,kw:200,kwmax:250,cap:250},
@@ -13843,7 +13899,7 @@ const CALCS={
     calcular:function(){
       var Fmax=num("bhFmax"),F80=num("bhF80"),grelha=num("bhGrelha"),Q=num("bhQ"),rho=num("bhRho"),Vper=num("bhVper"),Wi=num("bhWi");
       var dur=$("#bhDur").value;
-      if([Fmax,F80,grelha,Q,rho,Vper,Wi].some(function(x){return isNaN(x);})||Fmax<=0||F80<=0||grelha<=0||Q<=0||rho<=0||Vper<=0||Wi<=0) return null;
+      if(!reqOK([{id:"bhFmax",v:Fmax,gt:0},{id:"bhF80",v:F80,gt:0},{id:"bhGrelha",v:grelha,gt:0},{id:"bhQ",v:Q,gt:0},{id:"bhRho",v:rho,gt:0},{id:"bhVper",v:Vper,gt:0},{id:"bhWi",v:Wi,gt:0}])) return null;
       var HC=[
         {n:"HM400",D:400,L:300,Fmax:80,kw:15,cap:8},{n:"HM600",D:600,L:400,Fmax:120,kw:30,cap:20},{n:"HM800",D:800,L:600,Fmax:180,kw:55,cap:50},
         {n:"HM1000",D:1000,L:800,Fmax:250,kw:90,cap:90},{n:"HM1200",D:1200,L:1000,Fmax:400,kw:160,cap:160},
@@ -14654,7 +14710,7 @@ function openItem(i){
 function runCalc(id,soft){
   const calc=CALCS[id];const r=calc.calcular();
   const box=$("#results");
-  if(!r){if(soft&&box.querySelector("table.res"))return;box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">Verifique os dados de entrada (valores positivos).</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
+  if(!r){if(soft&&box.querySelector("table.res"))return;box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">${CALC_ERRO?CALC_ERRO:"Verifique os dados de entrada (valores positivos)."}</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
   const rows=r.map(x=> x.sec
     ? `<tr><td colspan="2" style="padding:16px 6px 6px;color:var(--teal-d);font-weight:700;font-size:.74rem;letter-spacing:.05em;border-bottom:2px solid var(--teal)">${capNorm(x.sec)}</td></tr>`
     : `<tr class="${x.hi?"highlight":""}"><td class="k">${capNorm(x.k)}</td><td class="v">${capNorm(x.v)}</td></tr>`).join("");
@@ -14725,7 +14781,7 @@ function inputVal(f){var el=document.getElementById(f.id);if(!el)return "";if(f.
 function gerarRelatorio(){
   if(!CUR_EQ){return;}
   var calc=CALCS[CUR_EQ.calculadora]; var r=calc.calcular();
-  if(!r){alert("Preencha os dados e clique em Calcular antes de gerar o relatório.");return;}
+  if(!r){alert(CALC_ERRO?("Não dá para gerar o relatório ainda:\n\n"+CALC_ERRO):"Preencha os dados e clique em Calcular antes de gerar o relatório.");return;}
   if(!window.jspdf||!window.jspdf.jsPDF){alert("Biblioteca de PDF ainda carregando — tente novamente em instantes.");return;}
   var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}); var W=210;
   doc.setFillColor(14,27,46); doc.rect(0,0,W,26,"F");
@@ -17486,7 +17542,7 @@ function gerarRelatorio(){
         doc.line(x1,y,x2,y); doc.line(x1,y-1.5,x1,y+1.5); doc.line(x2,y-1.5,x2,y+1.5);
         ntc((x1+x2)/2,y-1.6,t,30,90,170,5.8); }
       function cV(x,y1,y2,t){ doc.setDrawColor(30,90,170); doc.setLineWidth(0.25);
-        var xc=Math.max(XL+2,Math.min(XR-2,x));
+        var xc=Math.max(XL+2,Math.min(118,x));   /* teto em 118: a tabela lateral comeca em 126 */
         doc.line(xc,y1,xc,y2); doc.line(xc-1.5,y1,xc+1.5,y1); doc.line(xc-1.5,y2,xc+1.5,y2);
         doc.setTextColor(30,90,170); doc.setFontSize(5.8);
         var alt=Math.abs(y2-y1), cmp=doc.getTextWidth(san(t));
@@ -17502,7 +17558,12 @@ function gerarRelatorio(){
       if(escF>16) escF=16;
       var hPl=Math.max(20,Math.min(G.lado*escF,46));
       var yPl=62, yBase=yPl+hPl;
-      var Lpack=Math.min(G.compPack*escF,64);
+      /* O pacote desenhado tem de caber na COLUNA da esquerda: a tabela lateral
+         começa em x=126, e depois do pacote ainda vêm prato móvel, cilindro,
+         haste e a cota da placa — cerca de 40 mm. Com a quantidade de placas
+         agora informada pelo usuário o pacote ficou bem mais comprido, e o
+         limite antigo de 64 mm jogava o desenho dentro da tabela.            */
+      var Lpack=Math.min(G.compPack*escF,48);
       var xCab=x0+10;
       /* cabecote fixo */
       doc.setFillColor(150,160,175); doc.setDrawColor(40,40,40); doc.setLineWidth(0.5);
