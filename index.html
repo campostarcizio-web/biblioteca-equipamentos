@@ -10423,26 +10423,32 @@ var CH_FURO=[
 ];
 function chFuro(v){ for(var i=0;i<CH_FURO.length;i++) if(CH_FURO[i].v===v) return CH_FURO[i]; return CH_FURO[0]; }
 
-function chapaTracCalc(){
+function chapaTracCalc(OV){
   var GA1=1.10, GA2=1.35;
+  /* OV permite recalcular a ligacao com um campo trocado, sem mexer na tela.
+     E o que alimenta a busca pela configuracao minima la embaixo. Sem OV o
+     caminho e exatamente o de antes: N e S caem em num e selv.           */
+  function N(id){ return (OV&&OV[id]!==undefined)?OV[id]:num(id); }
+  function S(id,pad){ return (OV&&OV[id]!==undefined)?OV[id]:selv(id,pad); }
+  var RAPIDO=!!(OV&&OV.__rapido);
 
   /* ===================== 1. ENTRADAS ===================== */
-  var arranjo=selv("chArranjo","EMENDA");            /* EMENDA (corte duplo) | SOBREP (simples) */
-  var t1=num("chT1"), t2=num("chT2");                /* mm — chapa principal e cada tala */
-  var bCh=num("chB");                                /* mm — largura da chapa */
-  var nLin=Math.round(num("chNLin")), nCol=Math.round(num("chNCol"));
-  var e1=num("chE1"), p1=num("chP1"), e2=num("chE2"), g=num("chG");
-  var espV=selv("chEspec","A307"), ESP=pfEspec(espV);
-  var diaV=selv("chDiam","P0.500"), DIA=pfDiam(diaV);
-  var fubIn=num("chFub");
-  var roscaV=selv("chRosca","N");
-  var furoV=selv("chFuro","PAD"), FUR=chFuro(furoV);
-  var fy=num("chFy"), fu=num("chFu");
-  var defLim=selv("chDefLim","SIM");                 /* deformacao e limitacao de projeto? */
-  var CtIn=num("chCt");
-  var atritoV=selv("chAtrito","NAO");                /* NAO | ELU | ELS */
-  var supV=selv("chSuperf","A"), SUP=chSup(supV);
-  var Nsd=num("chNsd");
+  var arranjo=S("chArranjo","EMENDA");            /* EMENDA (corte duplo) | SOBREP (simples) */
+  var t1=N("chT1"), t2=N("chT2");                /* mm — chapa principal e cada tala */
+  var bCh=N("chB");                                /* mm — largura da chapa */
+  var nLin=Math.round(N("chNLin")), nCol=Math.round(N("chNCol"));
+  var e1=N("chE1"), p1=N("chP1"), e2=N("chE2"), g=N("chG");
+  var espV=S("chEspec","A307"), ESP=pfEspec(espV);
+  var diaV=S("chDiam","P0.500"), DIA=pfDiam(diaV);
+  var fubIn=N("chFub");
+  var roscaV=S("chRosca","N");
+  var furoV=S("chFuro","PAD"), FUR=chFuro(furoV);
+  var fy=N("chFy"), fu=N("chFu");
+  var defLim=S("chDefLim","SIM");                 /* deformacao e limitacao de projeto? */
+  var CtIn=N("chCt");
+  var atritoV=S("chAtrito","NAO");                /* NAO | ELU | ELS */
+  var supV=S("chSuperf","A"), SUP=chSup(supV);
+  var Nsd=N("chNsd");
 
   if(!isFinite(t1)||t1<=0) t1=9.5;
   if(!isFinite(t2)||t2<0) t2=0;
@@ -10578,6 +10584,9 @@ function chapaTracCalc(){
   var Rd=Infinity,gov=null,iC;
   for(iC=0;iC<CAND.length;iC++) if(CAND[iC].r<Rd){ Rd=CAND[iC].r; gov=CAND[iC]; }
   var okN=(Nsd<=0)||(Nsd<=Rd);
+  /* Na varredura de configuracao minima nao interessa o memorial, so o Rd.
+     Sair aqui evita montar centenas de relatorios inteiros a toa.        */
+  if(RAPIDO) return {Rd:Rd,gov:gov?gov.n:"—",okN:okN};
 
   /* ===================== 8. DISPOSIÇÕES CONSTRUTIVAS ===================== */
   var espMin=3*DIA.mm;
@@ -10636,6 +10645,16 @@ function chapaTracCalc(){
 
   var nR=0,nV=0; MEM.forEach(function(m){ if(m[5]==="REPROVADO")nR++; else if(m[5]==="VERIFICAR")nV++; });
 
+  /* Configuracao minima: so faz sentido quando ha solicitacao declarada E a
+     ligacao nao passa. Com a ligacao aprovada nao ha minimo a procurar.   */
+  var MIN=null;
+  if(Nsd>0&&!okN&&!RAPIDO){
+    MIN=chapaTracMinimos({chArranjo:arranjo,chT1:t1,chT2:t2,chB:bCh,chNLin:nLin,chNCol:nCol,
+      chE1:e1,chP1:p1,chE2:e2,chG:g,chEspec:espV,chDiam:diaV,chFub:fubIn,chRosca:roscaV,
+      chFuro:furoV,chFy:fy,chFu:fu,chCt:CtIn,chDefLim:defLim,chAtrito:atritoV,
+      chSuperf:supV,chNsd:Nsd},Nsd);
+  }
+
   /* ===================== 10. SAIDA ===================== */
   var OUT=[
     {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
@@ -10692,7 +10711,47 @@ function chapaTracCalc(){
     {k:"⚠ Atrito costuma governar com folga",v:"A resistência por atrito não depende da ruptura do parafuso, e sim da protensão e do coeficiente da superfície — e costuma ficar bem abaixo. No exercício de referência, o mesmo parafuso que resistia 31,25 kN ao corte segurava apenas 9,03 kN por atrito. Se a ligação é por atrito, é quase sempre o deslizamento que define o número de parafusos.",hi:true},
     {k:"Preparação da superfície não é detalhe",v:"Classe B (jateada sem pintura) tem μ = 0,50 contra 0,30 da classe A: 67 % a mais de resistência pela mesma ligação. Em compensação exige controle de execução e uma região mínima sem pintura (6.3.4.3). Especificar classe B e pintar a superfície em obra anula o cálculo."}
   ]:[]).concat([
-    {sec:"6 — DISPOSIÇÕES CONSTRUTIVAS"},
+    {sec:(MIN?"6 — CONFIGURAÇÃO MÍNIMA PARA APROVAR":"6 — MARGEM")},
+    (MIN
+      ?{k:"⚠ A ligação não passa",v:"Faltam "+vt(Nsd-Rd,1)+" kN ("+vt((Nsd/Rd-1)*100,0)+" % acima da resistência). A lista abaixo mostra, campo a campo, o MENOR valor que faz a ligação passar mantendo todo o resto como está. Cada linha é uma alternativa isolada, não uma receita a somar.",hi:true}
+      :{k:"Folga da ligação",v:(Nsd>0
+          ?("Nsd = "+vt(Nsd,1)+" kN contra Rd = "+vt(Rd,1)+" kN  →  "+vt(Nsd/Rd*100,0)+" % de aproveitamento, folga de "+vt(Rd-Nsd,1)+" kN. Governa "+(gov?gov.n:"—")+", que é por onde a ligação vai ceder se a carga subir.")
+          :"Informe a tração solicitante Nsd para ver o aproveitamento e, se não passar, a configuração mínima de cada campo.")})
+  ]).concat(MIN?MIN.map(function(m){
+      var txt;
+      if(m.min){
+        txt="atual "+(m.atual===""?"—":m.atual)+(m.unid?(" "+m.unid):"")+"   →   BASTA "+m.min+
+            (m.unid?(" "+m.unid):"")+"   ·   "+m.obs;
+      } else if(m.neutro){
+        txt="atual "+(m.atual===""?"—":m.atual)+"   →   NÃO ADIANTA MEXER AQUI. A ligação está travada por "+
+            (gov?gov.n.toLowerCase():"outro estado-limite")+", que não depende deste campo: aumentá-lo mantém os mesmos "+
+            vt(Rd,1)+" kN.";
+      } else if(m.piora){
+        txt="atual "+(m.atual===""?"—":m.atual)+"   →   AUMENTAR PIORA: o melhor valor da faixa dá "+
+            vt(m.topo,1)+" kN, abaixo dos "+vt(Rd,1)+" kN de agora. Campo contraindicado nesta geometria.";
+      } else if(m.reverte){
+        txt="atual "+(m.atual===""?"—":m.atual)+(m.unid?(" "+m.unid):"")+"   →   melhora até "+m.revV+
+            " (teto "+vt(m.topo,1)+" kN, trava "+(m.govTopo||"outro estado-limite")+") e DEPOIS PIORA: acima disso o furo maior tira mais seção da chapa do que o parafuso acrescenta. Não basta sozinho, faltariam "+
+            vt(Nsd-m.topo,1)+" kN.";
+      } else if(m.topo!==null&&m.topo!==undefined){
+        txt="atual "+(m.atual===""?"—":m.atual)+(m.unid?(" "+m.unid):"")+"   →   não basta sozinho: leva no máximo a "+
+            vt(m.topo,1)+" kN, e aí passa a travar "+(m.govTopo||"outro estado-limite")+
+            "   (faltariam "+vt(Nsd-m.topo,1)+" kN)";
+      } else {
+        txt="atual "+(m.atual===""?"—":m.atual)+"   →   sem alternativa calculável nesta faixa";
+      }
+      return {k:(m.min?"✓ ":(m.piora?"⚠ ":(m.reverte?"◐ ":(m.neutro?"– ":"○ "))))+m.campo,v:txt,hi:!!m.min||!!m.piora};
+  }):[]).concat(MIN?[
+    {k:"Por que a busca é por varredura, e não por fórmula",v:"Quase nenhuma destas grandezas é monotônica. Aumentar o diâmetro aumenta a área do parafuso mas também o furo, que derruba a área líquida da chapa — em certas geometrias o diâmetro maior REPROVA onde o menor passava. Mais linhas de parafusos resistem mais ao corte e tiram mais seção. Uma fórmula invertida mentiria nesses casos; a varredura testa valor a valor e só reporta o que de fato passou.",hi:true},
+    {k:"Quando NENHUM campo resolve sozinho",v:(function(){
+        var n=0,i; for(i=0;i<MIN.length;i++) if(MIN[i].min) n++;
+        if(n>0) return n+" dos "+MIN.length+" campos resolvem isoladamente — são as linhas marcadas com ✓. As demais mostram até onde cada uma leva e quem passa a travar, para você escolher onde mexer.";
+        return "Nenhum campo isolado chega a "+vt(Nsd,1)+" kN, e isso tem um significado: o gargalo é DUPLO. Veja na seção 1 que há pelo menos dois estados-limites abaixo da solicitação, então aliviar um só transfere o problema para o outro. O caminho é combinar duas mudanças — tipicamente mais parafusos junto com chapa mais larga ou mais espessa. Cada linha acima diz qual teto aquele campo alcança e quem trava ali, que é a informação para montar a combinação.";
+      })(),hi:true},
+    {k:"A legenda das marcas",v:"✓ resolve sozinho   ·   ○ melhora mas não basta, e a linha diz até onde vai e quem passa a travar   ·   – não muda nada, porque o gargalo não depende daquele campo   ·   ◐ melhora até certo ponto e depois piora   ·   ⚠ aumentar piora. As marcas – e ⚠ são as mais úteis na prática: elas dizem onde NÃO gastar aço."},
+    {k:"As linhas marcadas com ⚠ e ◐",v:"São campos em que aumentar piora. O caso típico é o diâmetro: um parafuso maior resiste mais ao corte, mas abre um furo maior, e a área líquida da chapa cai mais do que o parafuso ganha. Se a chapa já governa, subir o diâmetro reduz a resistência da ligação. É contraintuitivo e é exatamente por isso que a busca aqui é por varredura."}
+  ]:[]).concat([
+    {sec:"7 — DISPOSIÇÕES CONSTRUTIVAS"},
     {k:"Espaçamento entre furos",v:"mínimo 3·db = "+vt(espMin,1)+" mm"+(nCol>1?("   ·   p₁ = "+vt(p1,1)+" mm "+(okP1?"✓":"⚠")):"")+
        (nLin>1?("   ·   g = "+vt(g,1)+" mm "+(okG?"✓":"⚠")):""),hi:!(okP1&&okG)},
     {k:"Distância à borda",v:"mínimo "+vt(eMinB,1)+" mm (Tabela 16)   ·   e₁ = "+vt(e1,1)+" "+(okE1?"✓":"⚠")+
@@ -10709,7 +10768,7 @@ function chapaTracCalc(){
     BLOCOS:BLOCOS,blocoGov:blocoGov?blocoGov.n:null,blocoPlanos:blocoGov?blocoGov.planos:2,
     R_parafuso:R_parafuso,R_contato:R_contato,R_chapa:R_chapa,R_bloco:R_bloco,R_desliz:R_desliz,
     atrito:atritoV,mu:SUP.mu,ftb:ftb,Rd:Rd,gov:gov?gov.n:"—",govRef:gov?gov.ref:"",
-    Nsd:Nsd,okN:okN,CAND:CAND,MEM:MEM,nRep:nR,nVer:nV,Lv:Lv,eMinB:eMinB,espMin:espMin};
+    Nsd:Nsd,okN:okN,CAND:CAND,MIN:MIN,MEM:MEM,nRep:nR,nVer:nV,Lv:Lv,eMinB:eMinB,espMin:espMin};
   return OUT;
 }
 
@@ -10724,6 +10783,165 @@ function chapaTracCalc(){
    Sobre a planta vai desenhado o CAMINHO DE RUPTURA do bloco que governou,
    com as partes cisalhadas e a tracionada em cores distintas.
    ------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   CONFIGURAÇÃO MÍNIMA PARA APROVAR
+   Para cada campo, qual o menor valor que faz a ligação passar, mantendo todo
+   o resto como está.
+
+   A busca é por VARREDURA, não por fórmula invertida, e a razão é que quase
+   nenhuma destas grandezas é monotônica. Aumentar o diâmetro aumenta a área
+   do parafuso mas também o furo, que derruba a área líquida — em certas
+   geometrias o diâmetro maior REPROVA onde o menor passava. Mesma coisa com o
+   número de linhas: mais parafusos resistem mais ao corte e tiram mais seção
+   da chapa. Fórmula invertida mentiria nesses casos; a varredura não.
+   ------------------------------------------------------------------------- */
+function chapaTracMinimos(BASE,Nsd){
+  var salvo=CALC_ERRO;
+  function calc(ov){
+    var p={},k;
+    for(k in BASE) p[k]=BASE[k];
+    for(k in ov) p[k]=ov[k];
+    p.__rapido=1;
+    var r=null;
+    try{ r=chapaTracCalc(p); }catch(e){ r=null; }
+    return (r&&isFinite(r.Rd))?r:null;
+  }
+  var R0=calc({}); var Rd0=R0?R0.Rd:0;   /* resistencia atual, base da comparacao */
+  var L=[];
+  /* Quando o campo nao resolve sozinho, o que interessa nao e o "nao": e ate
+     onde ele leva e QUEM passa a travar. Sem isso o usuario fica sem saber se
+     faltou pouco ou se mexeu na alavanca errada. E ha o caso perverso em que
+     mexer PIORA — diametro maior abre furo maior e derruba a area liquida —
+     e esse precisa aparecer com todas as letras.                          */
+  function registra(campo,atual,unid,achado,obs,topo,govTopo,piora,reverte,revV,neutro){
+    L.push({campo:campo,atual:atual,unid:unid||"",min:achado,obs:obs||"",
+            topo:topo,govTopo:govTopo||"",piora:!!piora,reverte:!!reverte,
+            revV:revV||"",neutro:!!neutro});
+  }
+  /* Tres desfechos possiveis, e eles precisam ser distinguidos:
+       - resolve: algum valor chega a Nsd
+       - piora:   nem o melhor valor supera a resistencia ATUAL
+       - reverte: existe um otimo no meio e depois dele a resistencia cai
+     Comparar com o primeiro item da lista, e nao com a resistencia atual,
+     foi o que fez a primeira versao rotular "piora" onde havia melhora.  */
+  function varreLista(campo,chave,lista,atualRot,extra){
+    var i,v,r,best=-1,bestGov="",bestV="",ult=null;
+    for(i=0;i<lista.length;i++){
+      v=lista[i];
+      var ov={}; ov[chave]=v.v;
+      if(extra) extra(ov,v);
+      r=calc(ov);
+      if(!r) continue;
+      ult=r.Rd;
+      if(r.Rd>best+1e-9){ best=r.Rd; bestGov=r.gov; bestV=v.t; }
+      if(r.Rd>=Nsd){
+        registra(campo,atualRot,"",v.t,"resistência passa a "+r.Rd.toFixed(1).replace(".",",")+" kN",null,"",false);
+        return;
+      }
+    }
+    var piorou=(best>0&&best<Rd0-1e-6);
+    var neutro=(best>0&&Math.abs(best-Rd0)<=1e-6);
+    var revert=(!piorou&&!neutro&&ult!==null&&best>0&&ult<best-1e-6);
+    registra(campo,atualRot,"",null,"",best>0?best:null,bestGov,piorou,revert,bestV,neutro);
+  }
+  function varreNum(campo,chave,de,ate,passo,unid,dec,ajuste){
+    var v,r,n=0,best=-1,bestGov="",bestV="",ult=null;
+    for(v=de;v<=ate+1e-9&&n<600;v+=passo,n++){
+      var ov={}; ov[chave]=Math.round(v*1000)/1000;
+      if(ajuste) ajuste(ov);
+      r=calc(ov);
+      if(!r) continue;
+      ult=r.Rd;
+      if(r.Rd>best+1e-9){ best=r.Rd; bestGov=r.gov; bestV=ov[chave].toFixed(dec===undefined?1:dec).replace(".",",")+" "+unid; }
+      if(r.Rd>=Nsd){
+        registra(campo,BASE[chave],unid,ov[chave].toFixed(dec===undefined?1:dec).replace(".",","),
+                 "resistência passa a "+r.Rd.toFixed(1).replace(".",",")+" kN",null,"",false);
+        return;
+      }
+    }
+    var piorou=(best>0&&best<Rd0-1e-6);
+    var neutro=(best>0&&Math.abs(best-Rd0)<=1e-6);
+    var revert=(!piorou&&!neutro&&ult!==null&&best>0&&ult<best-1e-6);
+    registra(campo,BASE[chave]+" "+unid,"",null,"",best>0?best:null,bestGov,piorou,revert,bestV,neutro);
+  }
+
+  var DI=pfDiam(BASE.chDiam), ESP=pfEspec(BASE.chEspec);
+  var dbA=DI.mm, tA=Math.max(BASE.chT1,1);
+
+  /* 1. parafusos na direção da força */
+  var lcol=[],i;
+  for(i=Math.round(BASE.chNCol)+1;i<=16;i++) lcol.push({v:i,t:i+" colunas"});
+  varreLista("COLUNAS de furos (eixo x)","chNCol",lcol,BASE.chNCol+" colunas");
+  /* 2. linhas transversais — pode piorar a área líquida, por isso varre */
+  var llin=[];
+  for(i=Math.round(BASE.chNLin)+1;i<=12;i++) llin.push({v:i,t:i+" linhas"});
+  varreLista("LINHAS de furos (eixo y)","chNLin",llin,BASE.chNLin+" linhas",
+             function(ov,v){ ov.chB=Math.max(BASE.chB,2*BASE.chE2+(v.v-1)*BASE.chG); });
+  /* 3. diâmetro — maior furo derruba a área líquida, não é monotônico */
+  var ldia=[];
+  for(i=0;i<PF_DIAM.length;i++){
+    if(PF_DIAM[i].sis!==DI.sis) continue;
+    if(PF_DIAM[i].mm<=dbA+1e-6) continue;
+    ldia.push({v:PF_DIAM[i].v,t:PF_DIAM[i].t,mm:PF_DIAM[i].mm});
+  }
+  ldia.sort(function(a,b){return a.mm-b.mm;});
+  varreLista("DIÂMETRO do parafuso","chDiam",ldia,DI.t);
+  /* 4. especificação do parafuso */
+  var lesp=[];
+  for(i=0;i<PF_ESPEC.length;i++){
+    var E=PF_ESPEC[i];
+    if(E.v==="OUTRO"||E.fub===null) continue;
+    if(E.fub<=ESP.fub+1e-9) continue;
+    if(E.sis!==DI.sis) continue;
+    lesp.push({v:E.v,t:E.t.replace(/ — .*/,""),fub:E.fub});
+  }
+  lesp.sort(function(a,b){return a.fub-b.fub;});
+  varreLista("ESPECIFICAÇÃO do parafuso","chEspec",lesp,ESP.t.replace(/ — .*/,""));
+  /* 5. arranjo: simples -> duplo */
+  if(BASE.chArranjo==="SOBREP"){
+    var rA=calc({chArranjo:"EMENDA"});
+    registra("ARRANJO","superposição (corte simples)","",
+        (rA&&rA.Rd>=Nsd)?"emenda com talas (corte duplo)":null,
+        (rA&&rA.Rd>=Nsd)?("resistência passa a "+rA.Rd.toFixed(1).replace(".",",")+" kN"):"",
+        rA?rA.Rd:null,rA?rA.gov:"",false);
+  }
+  /* 6. espessuras */
+  varreNum("ESPESSURA da chapa","chT1",BASE.chT1+0.5,Math.min(80,BASE.chT1*5+20),0.5,"mm",1);
+  if(BASE.chArranjo==="EMENDA")
+    varreNum("ESPESSURA de cada tala","chT2",BASE.chT2+0.5,Math.min(80,BASE.chT2*5+20),0.5,"mm",1);
+  /* 7. largura */
+  varreNum("LARGURA da chapa","chB",BASE.chB+2,Math.min(1200,BASE.chB*3+200),2,"mm",0);
+  /* 8. distâncias na direção da força */
+  varreNum("e₁ — borda na direção da força","chE1",BASE.chE1+1,Math.min(200,12*tA,Math.max(BASE.chE1*4,10*dbA)),1,"mm",0);
+  if(BASE.chNCol>1)
+    varreNum("p₁ — espaçamento entre colunas","chP1",BASE.chP1+1,Math.min(Math.min(24*tA,300),Math.max(BASE.chP1*4,14*dbA)),1,"mm",0);
+  /* 9. transversais — crescem junto com a largura, senão a geometria não fecha */
+  varreNum("e₂ — borda transversal","chE2",BASE.chE2+1,Math.min(200,12*tA,BASE.chE2*4),1,"mm",0,
+           function(ov){ ov.chB=Math.max(BASE.chB,2*ov.chE2+(BASE.chNLin-1)*BASE.chG); });
+  if(BASE.chNLin>1)
+    varreNum("g — gabarito entre linhas","chG",BASE.chG+1,Math.min(300,BASE.chG*4),1,"mm",0,
+             function(ov){ ov.chB=Math.max(BASE.chB,2*BASE.chE2+(BASE.chNLin-1)*ov.chG); });
+  /* 10. aço da chapa */
+  var ACOS=[{fy:25,fu:40,t:"ASTM A36  (fy 250 / fu 400 MPa)"},
+            {fy:30,fu:41.5,t:"ASTM A572 Gr.42  (fy 300 / fu 415 MPa)"},
+            {fy:34.5,fu:45,t:"ASTM A572 Gr.50  (fy 345 / fu 450 MPa)"},
+            {fy:34.5,fu:48.5,t:"ASTM A588  (fy 345 / fu 485 MPa)"},
+            {fy:41.5,fu:55,t:"ASTM A572 Gr.60  (fy 415 / fu 550 MPa)"}];
+  var achouAco=null,obsAco="",topoAco=-1,govAco="",iA;
+  for(iA=0;iA<ACOS.length;iA++){
+    if(ACOS[iA].fu<=BASE.chFu+1e-9&&ACOS[iA].fy<=BASE.chFy+1e-9) continue;
+    var rAco=calc({chFy:ACOS[iA].fy,chFu:ACOS[iA].fu});
+    if(!rAco) continue;
+    if(rAco.Rd>topoAco){ topoAco=rAco.Rd; govAco=rAco.gov; }
+    if(rAco.Rd>=Nsd){ achouAco=ACOS[iA].t; obsAco="resistência passa a "+rAco.Rd.toFixed(1).replace(".",",")+" kN"; break; }
+  }
+  registra("AÇO da chapa","fy "+BASE.chFy.toFixed(1).replace(".",",")+" / fu "+BASE.chFu.toFixed(1).replace(".",",")+" kN/cm²",
+      "",achouAco,obsAco,achouAco?null:(topoAco>0?topoAco:null),govAco,false);
+
+  CALC_ERRO=salvo;
+  return L;
+}
+
 function chapaTracCroqui(G){
   /* Plano da folha, em posicoes nomeadas. A primeira versao usou offsets
      soltos e o detalhe do lf estourou a largura, a seta da forca cruzou as
