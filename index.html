@@ -138,6 +138,10 @@
   .sec-t{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin:0 0 12px}
   .field{margin-bottom:13px}
   .field label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:4px}
+  .croqui-tela{margin:16px 0 4px;padding:10px 8px 6px;background:#fbfcfe;border:1px solid var(--line);border-radius:8px}
+  .croqui-tela svg{display:block;width:100%;height:auto}
+  .croqui-cap{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin-bottom:6px}
+  @media (prefers-color-scheme:dark){.croqui-tela{background:#f7f9fc}}
   .fhead{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:3px}
   .field .u{color:#9aa6b2;font-weight:400}
   .field input,.field select{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 10px;font-size:.92rem;color:var(--ink);background:#fff}
@@ -9790,6 +9794,523 @@ function torreResfCalc(){
   return OUT;
 }
 
+/* ============================================================================
+   DESENHO — uma descrição, dois renderizadores
+   ----------------------------------------------------------------------------
+   O croqui é descrito UMA única vez, como lista de primitivas em coordenadas
+   de desenho. Dois adaptadores o desenham: SVG na tela, ao lado dos campos, e
+   jsPDF no relatório.
+
+   O motivo de existir esta camada: escrever o desenho duas vezes é o caminho
+   curto para a cota estar certa no PDF e errada na tela. Quando isso acontece
+   o croqui passa a atrapalhar mais do que ajuda, porque o usuário não sabe em
+   qual dos dois acreditar. Com uma descrição só, a correção vale para os dois
+   de uma vez.
+
+   Coordenadas: origem no canto superior esquerdo, y para baixo, unidade
+   arbitrária definida por D.w e D.h. Cada renderizador aplica a sua escala.
+   ========================================================================== */
+
+function Desenho(w,h){
+  var D={w:w,h:h,ops:[]};
+  function add(o){ D.ops.push(o); return D; }
+  D.linha  =function(x1,y1,x2,y2,o){ o=o||{}; return add({t:"linha",x1:x1,y1:y1,x2:x2,y2:y2,
+                                        c:o.c||[60,80,110],e:o.e||0.3,tr:o.tr||0}); };
+  D.ret    =function(x,y,w2,h2,o){ o=o||{}; return add({t:"ret",x:x,y:y,w:w2,h:h2,
+                                        f:o.f||null,c:o.c||[60,80,110],e:o.e||0.35}); };
+  D.circ   =function(x,y,r,o){ o=o||{}; return add({t:"circ",x:x,y:y,r:r,
+                                        f:o.f||null,c:o.c||[60,80,110],e:o.e||0.3}); };
+  D.txt    =function(x,y,s,o){ o=o||{}; return add({t:"txt",x:x,y:y,s:String(s),
+                                        c:o.c||[40,55,75],fs:o.fs||6,al:o.al||"left",
+                                        b:!!o.b,ang:o.ang||0}); };
+  D.seta   =function(x1,y1,x2,y2,o){ o=o||{}; return add({t:"seta",x1:x1,y1:y1,x2:x2,y2:y2,
+                                        c:o.c||[200,60,40],e:o.e||0.45}); };
+  D.cotaH  =function(x1,x2,y,s,o){ o=o||{}; return add({t:"cotaH",x1:x1,x2:x2,y:y,s:String(s),
+                                        c:o.c||[30,90,170]}); };
+  D.cotaV  =function(x,y1,y2,s,o){ o=o||{}; return add({t:"cotaV",x:x,y1:y1,y2:y2,s:String(s),
+                                        c:o.c||[30,90,170]}); };
+  D.hach   =function(x,y,w2,h2,o){ o=o||{}; return add({t:"hach",x:x,y:y,w:w2,h:h2,
+                                        c:o.c||[150,165,185],p:o.p||2.2,e:o.e||0.18}); };
+  return D;
+}
+
+/* ---------------------------------------------------------------- SVG (tela) */
+function svgDe(D,larguraCSS){
+  function rgb(c){ return "rgb("+c[0]+","+c[1]+","+c[2]+")"; }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  var K=4;                         /* fator de ampliação: o SVG usa viewBox próprio */
+  var o,i,p=[];
+  for(i=0;i<D.ops.length;i++){
+    o=D.ops[i];
+    if(o.t==="linha"){
+      p.push('<line x1="'+(o.x1*K)+'" y1="'+(o.y1*K)+'" x2="'+(o.x2*K)+'" y2="'+(o.y2*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'"'+
+             (o.tr?' stroke-dasharray="'+(o.tr*K)+','+(o.tr*K)+'"':'')+'/>');
+    } else if(o.t==="ret"){
+      p.push('<rect x="'+(o.x*K)+'" y="'+(o.y*K)+'" width="'+(o.w*K)+'" height="'+(o.h*K)+
+             '" fill="'+(o.f?rgb(o.f):"none")+'" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'"/>');
+    } else if(o.t==="circ"){
+      p.push('<circle cx="'+(o.x*K)+'" cy="'+(o.y*K)+'" r="'+(o.r*K)+
+             '" fill="'+(o.f?rgb(o.f):"none")+'" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'"/>');
+    } else if(o.t==="txt"){
+      var anc=o.al==="center"?"middle":(o.al==="right"?"end":"start");
+      p.push('<text x="'+(o.x*K)+'" y="'+(o.y*K)+'" fill="'+rgb(o.c)+'" font-size="'+(o.fs*K*0.42)+
+             '" text-anchor="'+anc+'" font-family="ui-sans-serif,system-ui,sans-serif"'+
+             (o.b?' font-weight="700"':'')+
+             (o.ang?' transform="rotate('+(-o.ang)+','+(o.x*K)+','+(o.y*K)+')"':'')+
+             '>'+esc(o.s)+'</text>');
+    } else if(o.t==="seta"){
+      var ang=Math.atan2(o.y2-o.y1,o.x2-o.x1), L=1.6;
+      p.push('<line x1="'+(o.x1*K)+'" y1="'+(o.y1*K)+'" x2="'+(o.x2*K)+'" y2="'+(o.y2*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'"/>');
+      p.push('<polygon points="'+(o.x2*K)+','+(o.y2*K)+' '+
+             ((o.x2-L*Math.cos(ang-0.4))*K)+','+((o.y2-L*Math.sin(ang-0.4))*K)+' '+
+             ((o.x2-L*Math.cos(ang+0.4))*K)+','+((o.y2-L*Math.sin(ang+0.4))*K)+
+             '" fill="'+rgb(o.c)+'"/>');
+    } else if(o.t==="cotaH"){
+      p.push('<line x1="'+(o.x1*K)+'" y1="'+(o.y*K)+'" x2="'+(o.x2*K)+'" y2="'+(o.y*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<line x1="'+(o.x1*K)+'" y1="'+((o.y-1.3)*K)+'" x2="'+(o.x1*K)+'" y2="'+((o.y+1.3)*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<line x1="'+(o.x2*K)+'" y1="'+((o.y-1.3)*K)+'" x2="'+(o.x2*K)+'" y2="'+((o.y+1.3)*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<text x="'+((o.x1+o.x2)/2*K)+'" y="'+((o.y-1.9)*K)+'" fill="'+rgb(o.c)+
+             '" font-size="'+(5.4*K*0.42)+'" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif">'+
+             esc(o.s)+'</text>');
+    } else if(o.t==="cotaV"){
+      p.push('<line x1="'+(o.x*K)+'" y1="'+(o.y1*K)+'" x2="'+(o.x*K)+'" y2="'+(o.y2*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<line x1="'+((o.x-1.3)*K)+'" y1="'+(o.y1*K)+'" x2="'+((o.x+1.3)*K)+'" y2="'+(o.y1*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<line x1="'+((o.x-1.3)*K)+'" y1="'+(o.y2*K)+'" x2="'+((o.x+1.3)*K)+'" y2="'+(o.y2*K)+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(0.22*K)+'"/>');
+      p.push('<text x="'+((o.x-1.9)*K)+'" y="'+((o.y1+o.y2)/2*K)+'" fill="'+rgb(o.c)+
+             '" font-size="'+(5.4*K*0.42)+'" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif"'+
+             ' transform="rotate(-90,'+((o.x-1.9)*K)+','+((o.y1+o.y2)/2*K)+')">'+esc(o.s)+'</text>');
+    } else if(o.t==="hach"){
+      var j,n=Math.floor((o.w+o.h)/o.p);
+      p.push('<clipPath id="cp'+i+'"><rect x="'+(o.x*K)+'" y="'+(o.y*K)+'" width="'+(o.w*K)+
+             '" height="'+(o.h*K)+'"/></clipPath><g clip-path="url(#cp'+i+')">');
+      for(j=0;j<=n;j++){
+        var xx=o.x+j*o.p-o.h;
+        p.push('<line x1="'+(xx*K)+'" y1="'+((o.y+o.h)*K)+'" x2="'+((xx+o.h)*K)+'" y2="'+(o.y*K)+
+               '" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'"/>');
+      }
+      p.push('</g>');
+    }
+  }
+  return '<svg viewBox="0 0 '+(D.w*K)+' '+(D.h*K)+'" width="100%" '+
+         (larguraCSS?'style="max-width:'+larguraCSS+'"':'')+
+         ' preserveAspectRatio="xMidYMid meet" role="img">'+p.join("")+'</svg>';
+}
+
+/* ------------------------------------------------------- jsPDF (relatório) */
+function pdfDe(D,doc,ox,oy,esc){
+  esc=esc||1;
+  function X(v){ return ox+v*esc; }
+  function Y(v){ return oy+v*esc; }
+  var o,i;
+  for(i=0;i<D.ops.length;i++){
+    o=D.ops[i];
+    if(o.t==="linha"){
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      if(o.tr) doc.setLineDashPattern([o.tr*esc,o.tr*esc],0);
+      doc.line(X(o.x1),Y(o.y1),X(o.x2),Y(o.y2));
+      if(o.tr) doc.setLineDashPattern([],0);
+    } else if(o.t==="ret"){
+      if(o.f){ doc.setFillColor(o.f[0],o.f[1],o.f[2]); doc.rect(X(o.x),Y(o.y),o.w*esc,o.h*esc,"F"); }
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      doc.rect(X(o.x),Y(o.y),o.w*esc,o.h*esc,"S");
+    } else if(o.t==="circ"){
+      if(o.f){ doc.setFillColor(o.f[0],o.f[1],o.f[2]); doc.circle(X(o.x),Y(o.y),o.r*esc,"F"); }
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      doc.circle(X(o.x),Y(o.y),o.r*esc,"S");
+    } else if(o.t==="txt"){
+      doc.setTextColor(o.c[0],o.c[1],o.c[2]); doc.setFontSize(o.fs);
+      doc.setFont("helvetica",o.b?"bold":"normal");
+      var op={}; if(o.al==="center")op.align="center"; if(o.al==="right")op.align="right";
+      if(o.ang)op.angle=o.ang;
+      doc.text(san(o.s),X(o.x),Y(o.y),op);
+      doc.setFont("helvetica","normal");
+    } else if(o.t==="seta"){
+      var ang=Math.atan2(o.y2-o.y1,o.x2-o.x1), L=1.6;
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      doc.line(X(o.x1),Y(o.y1),X(o.x2),Y(o.y2));
+      doc.line(X(o.x2),Y(o.y2),X(o.x2-L*Math.cos(ang-0.4)),Y(o.y2-L*Math.sin(ang-0.4)));
+      doc.line(X(o.x2),Y(o.y2),X(o.x2-L*Math.cos(ang+0.4)),Y(o.y2-L*Math.sin(ang+0.4)));
+    } else if(o.t==="cotaH"){
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(0.22*esc);
+      doc.line(X(o.x1),Y(o.y),X(o.x2),Y(o.y));
+      doc.line(X(o.x1),Y(o.y-1.3),X(o.x1),Y(o.y+1.3));
+      doc.line(X(o.x2),Y(o.y-1.3),X(o.x2),Y(o.y+1.3));
+      doc.setTextColor(o.c[0],o.c[1],o.c[2]); doc.setFontSize(5.4);
+      doc.text(san(o.s),X((o.x1+o.x2)/2),Y(o.y-1.9),{align:"center"});
+    } else if(o.t==="cotaV"){
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(0.22*esc);
+      doc.line(X(o.x),Y(o.y1),X(o.x),Y(o.y2));
+      doc.line(X(o.x-1.3),Y(o.y1),X(o.x+1.3),Y(o.y1));
+      doc.line(X(o.x-1.3),Y(o.y2),X(o.x+1.3),Y(o.y2));
+      doc.setTextColor(o.c[0],o.c[1],o.c[2]); doc.setFontSize(5.4);
+      doc.text(san(o.s),X(o.x-1.9),Y((o.y1+o.y2)/2),{angle:90,align:"center"});
+    } else if(o.t==="hach"){
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      var j,n=Math.floor((o.w+o.h)/o.p),x1,y1b,x2,y2b;
+      for(j=0;j<=n;j++){
+        x1=o.x+j*o.p-o.h; y1b=o.y+o.h; x2=x1+o.h; y2b=o.y;
+        /* recorte manual no retangulo, porque jsPDF nao tem clip simples */
+        if(x2<o.x||x1>o.x+o.w) continue;
+        if(x1<o.x){ y1b=o.y+o.h-(o.x-x1); x1=o.x; }
+        if(x2>o.x+o.w){ y2b=o.y+(x2-o.x-o.w); x2=o.x+o.w; }
+        doc.line(X(x1),Y(y1b),X(x2),Y(y2b));
+      }
+    }
+  }
+}
+
+/* ============================================================================
+   PARAFUSO — resistência à tração e ao cisalhamento
+   ----------------------------------------------------------------------------
+   ABNT NBR 8800:2024, item 6.3. Devolve área bruta, área efetiva, resistência
+   de cálculo à tração e ao cisalhamento, as razões solicitante/resistente e a
+   equação de interação do item 6.3.3.4.
+
+   Duas coisas que esta calculadora NÃO faz, de propósito:
+
+   1. NÃO devolve torque de aperto. O item 6.8.4.4.1 da NBR 8800:2024 é
+      explícito: "não existe uma relação geral entre força de protensão em
+      parafusos e torque aplicado... NÃO PODEM SER USADAS TABELAS DE TORQUE".
+      Calculadora que entrega torque contraria a norma. Os métodos admitidos
+      são rotação da porca, chave calibrada aferida diariamente, parafuso com
+      controle de tração e indicador direto de tração.
+
+   2. NÃO verifica a chapa. Pressão de contato, rasgamento, área líquida e
+      cisalhamento de bloco dependem da geometria da ligação, não do parafuso,
+      e têm calculadora própria. Um parafuso aprovado aqui pode reprovar lá.
+   ========================================================================== */
+
+/* Tabela A.3 da NBR 8800:2024 — fub e fyb em kN/cm2, faixa de diametro em mm.
+   "comum" = parafuso comum: pelo item 6.3.3.2 usa 0,45 em QUALQUER situacao,
+   independente de a rosca estar ou nao no plano de corte.                   */
+var PF_ESPEC=[
+ {v:"A307",   t:"ASTM A307 — comum",                        fub:41.5,  fyb:null, dmin:12.7, dmax:101.6, sis:"pol", comum:true,  fonte:"Tabela A.3"},
+ {v:"ISO46",  t:"ISO 4016 classe 4.6 — comum",              fub:40.0,  fyb:23.5, dmin:12,   dmax:36,    sis:"met", comum:true,  fonte:"Tabela A.3"},
+ {v:"A325",   t:"ASTM F3125 A325 / F1852 — alta resist.",   fub:83.0,  fyb:63.5, dmin:12.7, dmax:38.1,  sis:"pol", comum:false, fonte:"Tabela A.3"},
+ {v:"ISO88",  t:"ISO 4016 classe 8.8 — alta resistência",   fub:80.0,  fyb:64.0, dmin:12,   dmax:36,    sis:"met", comum:false, fonte:"Tabela A.3"},
+ {v:"A490",   t:"ASTM F3125 A490 / F2280 — alta resist.",   fub:104.0, fyb:89.5, dmin:12.7, dmax:38.1,  sis:"pol", comum:false, fonte:"Tabela A.3"},
+ {v:"ISO109", t:"ISO 4016 classe 10.9 — alta resistência",  fub:100.0, fyb:90.0, dmin:12,   dmax:36,    sis:"met", comum:false, fonte:"Tabela A.3"},
+ {v:"OUTRO",  t:"Outro — informar fub",                     fub:null,  fyb:null, dmin:0,    dmax:1e9,   sis:"amb", comum:false, fonte:"informado"}
+];
+function pfEspec(v){ for(var i=0;i<PF_ESPEC.length;i++) if(PF_ESPEC[i].v===v) return PF_ESPEC[i]; return PF_ESPEC[2]; }
+
+/* Diametros comerciais. mm e o diametro nominal db usado em Ab = pi*db^2/4. */
+var PF_DIAM=[
+ {v:"P0.500",t:'1/2"',    mm:12.70, sis:"pol"},
+ {v:"P0.625",t:'5/8"',    mm:15.875,sis:"pol"},
+ {v:"P0.750",t:'3/4"',    mm:19.05, sis:"pol"},
+ {v:"P0.875",t:'7/8"',    mm:22.225,sis:"pol"},
+ {v:"P1.000",t:'1"',      mm:25.40, sis:"pol"},
+ {v:"P1.125",t:'1 1/8"',  mm:28.575,sis:"pol"},
+ {v:"P1.250",t:'1 1/4"',  mm:31.75, sis:"pol"},
+ {v:"P1.375",t:'1 3/8"',  mm:34.925,sis:"pol"},
+ {v:"P1.500",t:'1 1/2"',  mm:38.10, sis:"pol"},
+ {v:"P1.750",t:'1 3/4"',  mm:44.45, sis:"pol"},
+ {v:"P2.000",t:'2"',      mm:50.80, sis:"pol"},
+ {v:"M12",   t:"M12",     mm:12,    sis:"met"},
+ {v:"M14",   t:"M14",     mm:14,    sis:"met"},
+ {v:"M16",   t:"M16",     mm:16,    sis:"met"},
+ {v:"M18",   t:"M18",     mm:18,    sis:"met"},
+ {v:"M20",   t:"M20",     mm:20,    sis:"met"},
+ {v:"M22",   t:"M22",     mm:22,    sis:"met"},
+ {v:"M24",   t:"M24",     mm:24,    sis:"met"},
+ {v:"M27",   t:"M27",     mm:27,    sis:"met"},
+ {v:"M30",   t:"M30",     mm:30,    sis:"met"},
+ {v:"M33",   t:"M33",     mm:33,    sis:"met"},
+ {v:"M36",   t:"M36",     mm:36,    sis:"met"}
+];
+function pfDiam(v){ for(var i=0;i<PF_DIAM.length;i++) if(PF_DIAM[i].v===v) return PF_DIAM[i]; return PF_DIAM[2]; }
+
+/* Forca de protensao minima F_Tb, Tabela 19 da NBR 8800:2024, em kN.
+   So existe para A325/F1852 e A490/F2280 — e so interessa em ligacao com
+   protensao inicial. Entra aqui apenas como informacao de montagem.         */
+var PF_FTB={ "P0.500":[53,67], "P0.625":[85,106], "P0.750":[125,157], "P0.875":[173,217],
+             "P1.000":[227,285], "P1.125":[286,358], "P1.250":[363,455], "P1.375":[433,542],
+             "P1.500":[527,660],
+             "M16":[91,114], "M20":[142,178], "M22":[176,221], "M24":[205,257],
+             "M27":[267,334], "M30":[326,408], "M36":[475,595] };
+
+function parafusoCalc(){
+  var GA1=1.10, GA2=1.35;
+
+  /* ===================== 1. ENTRADAS ===================== */
+  var espV=selv("pfEspec","A325"), ESP=pfEspec(espV);
+  var diaV=selv("pfDiam","P0.625"), DIA=pfDiam(diaV);
+  var fubIn=num("pfFub");  if(!isFinite(fubIn)||fubIn<=0) fubIn=0;
+  var np=num("pfPlanos");  if(!isFinite(np)||np<=0) np=1; np=Math.round(np);
+  var roscaV=selv("pfRosca","N");
+  var FtSd=num("pfFtSd");  if(!isFinite(FtSd)||FtSd<0) FtSd=0;
+  var FvSd=num("pfFvSd");  if(!isFinite(FvSd)||FvSd<0) FvSd=0;
+  var pega=num("pfPega");  if(!isFinite(pega)||pega<0) pega=0;   /* 0 = nao verificar */
+
+  if(!reqOK([{id:"pfPlanos",v:np,gt:0,lt:13}])) return null;
+  var fub=(espV==="OUTRO")?fubIn:ESP.fub;
+  if(espV==="OUTRO"&&!reqOK([{id:"pfFub",v:fubIn,gt:0,lt:200}])) return null;
+
+  var db=DIA.mm/10;                       /* cm */
+  var Ab=Math.PI*db*db/4;                 /* cm2 */
+  var Abe=0.75*Ab;
+
+  /* ===================== 2. RESISTENCIAS ===================== */
+  /* Parafuso comum usa 0,45 sempre (6.3.3.2). So o de alta resistencia ganha
+     0,56 quando o plano de corte NAO passa pela rosca.                      */
+  var roscaNoPlano=(ESP.comum)?true:(roscaV==="N");
+  var coefV=roscaNoPlano?0.45:0.56;
+  var FtRd=Abe*fub/GA2;
+  var FvRd1=coefV*Ab*fub/GA2;             /* por plano de corte */
+  var FvRd=FvRd1*np;
+
+  /* Conectores longos (6.3.7): pega > 5db reduz 1 % a cada 1,5 mm de excesso.
+     Nao se aplica a alta resistencia com protensao inicial.                 */
+  var pegaLim=5*DIA.mm, redPc=0, FvRdRed=FvRd;
+  if(pega>0&&pega>pegaLim){
+    redPc=Math.min(100,(pega-pegaLim)/1.5);
+    FvRdRed=FvRd*(1-redPc/100);
+  }
+
+  /* ===================== 3. VERIFICACAO ===================== */
+  var rT=(FtRd>0)?FtSd/FtRd:0;
+  var rV=(FvRdRed>0)?FvSd/FvRdRed:0;
+  var inter=rT*rT+rV*rV;                  /* 6.3.3.4 */
+  var temT=(FtSd>0), temV=(FvSd>0), temAmbos=(temT&&temV);
+  var okT=(rT<=1.0), okV=(rV<=1.0), okI=(inter<=1.0);
+  var okGeral=okT&&okV&&(temAmbos?okI:true);
+
+  /* faixa de diametro da especificacao, Tabela A.3 */
+  var faixaOK=(DIA.mm>=ESP.dmin-0.05&&DIA.mm<=ESP.dmax+0.05);
+  var sisOK=(ESP.sis==="amb")||(DIA.sis===ESP.sis);
+
+  /* ===================== 4. TABELA DE TODOS OS DIAMETROS ===================== */
+  var TAB=[],i,d2,Ab2,Abe2,Ft2,Fv2,in2;
+  for(i=0;i<PF_DIAM.length;i++){
+    d2=PF_DIAM[i];
+    if(ESP.sis!=="amb"&&d2.sis!==ESP.sis) continue;
+    Ab2=Math.PI*(d2.mm/10)*(d2.mm/10)/4; Abe2=0.75*Ab2;
+    Ft2=Abe2*fub/GA2; Fv2=coefV*Ab2*fub/GA2*np;
+    in2=(FtSd/Ft2)*(FtSd/Ft2)+(FvSd/Fv2)*(FvSd/Fv2);
+    TAB.push({t:d2.t, mm:d2.mm, Ab:Ab2, Abe:Abe2, Ft:Ft2, Fv:Fv2, inter:in2,
+              ok:(in2<=1.0&&FtSd<=Ft2&&FvSd<=Fv2),
+              faixa:(d2.mm>=ESP.dmin-0.05&&d2.mm<=ESP.dmax+0.05),
+              sel:(d2.v===diaV)});
+  }
+  /* menor diametro que atende, dentro da faixa valida da especificacao */
+  var sugerido=null;
+  for(i=0;i<TAB.length;i++){ if(TAB[i].ok&&TAB[i].faixa){ sugerido=TAB[i]; break; } }
+
+  var FTB=PF_FTB[diaV]||null;
+  var ftb=null;
+  if(FTB){ if(espV==="A325") ftb=FTB[0]; else if(espV==="A490") ftb=FTB[1]; }
+
+  /* ===================== 5. MEMORIAL ===================== */
+  function vt(x,d){
+    if(!isFinite(x)) return "—";
+    var t=x.toFixed(d===undefined?2:d),pt=t.split("."),ii=pt[0],sg="";
+    if(ii.charAt(0)==="-"){sg="-";ii=ii.slice(1);}
+    ii=ii.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sg+ii+(pt[1]?(","+pt[1]):"");
+  }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+
+  var MEM=[
+   ["1","Especificação do parafuso","NBR 8800:2024 Tabela A.3",ESP.t.replace(/ — .*/,"")+"   ·   fub = "+vt(fub,1)+" kN/cm²",
+      (espV==="OUTRO")?"fub informado pelo usuário":"valor de tabela","—"],
+   ["1","Diâmetro nominal db","comercial",DIA.t+" = "+vt(DIA.mm,2)+" mm",
+      (ESP.sis==="amb")?"sem restrição":("faixa da especificação: "+vt(ESP.dmin,1)+" a "+vt(ESP.dmax,1)+" mm"),
+      (faixaOK&&sisOK)?"APROVADO":"REPROVADO"],
+   ["2","Área bruta","Ab = π·db²/4",vt(Ab,4)+" cm²","seção do fuste","—"],
+   ["2","Área efetiva","Abe = 0,75·Ab",vt(Abe,4)+" cm²","desconta a rosca (6.3.2.2)","—"],
+   ["3","RESISTÊNCIA À TRAÇÃO","Ft,Rd = Abe·fub/γa2",vt(FtRd,2)+" kN","γa2 = 1,35","—"],
+   ["3","Coeficiente de cisalhamento",(ESP.comum?"parafuso comum: 0,45 sempre":"rosca "+(roscaNoPlano?"NO":"FORA do")+" plano"),
+      vt(coefV,2),(ESP.comum?"6.3.3.2 — comum não ganha o 0,56":"0,45 com rosca no plano · 0,56 sem"),"—"],
+   ["3","RESISTÊNCIA AO CISALHAMENTO","Fv,Rd = "+vt(coefV,2)+"·Ab·fub/γa2 · n",vt(FvRd,2)+" kN",
+      vt(FvRd1,2)+" kN por plano × "+np+" plano(s)","—"],
+   ["4","Tração solicitante","Ft,Sd / Ft,Rd",vt(FtSd,2)+" / "+vt(FtRd,2)+" = "+vt(rT,3),"≤ 1,00",temT?st(okT):"—"],
+   ["4","Cisalhamento solicitante","Fv,Sd / Fv,Rd",vt(FvSd,2)+" / "+vt(FvRdRed,2)+" = "+vt(rV,3),"≤ 1,00",temV?st(okV):"—"],
+   ["4","INTERAÇÃO TRAÇÃO-CISALHAMENTO","(Ft,Sd/Ft,Rd)² + (Fv,Sd/Fv,Rd)²",vt(inter,3),"≤ 1,00 (6.3.3.4)",temAmbos?st(okI):"—"]
+  ];
+  if(pega>0) MEM.push(["5","Conector longo","pega vs 5·db",vt(pega,1)+" mm contra "+vt(pegaLim,1)+" mm",
+      (redPc>0?("redução de "+vt(redPc,1)+" % no cisalhamento (6.3.7)"):"sem redução"),redPc>0?"VERIFICAR":"APROVADO"]);
+  if(ftb) MEM.push(["5","Protensão mínima F_Tb","Tabela 19",vt(ftb,0)+" kN",
+      "só se a ligação exigir protensão inicial","VERIFICAR"]);
+
+  var nR=0,nV=0; MEM.forEach(function(m){ if(m[5]==="REPROVADO")nR++; else if(m[5]==="VERIFICAR")nV++; });
+
+  /* ===================== 6. SAIDA ===================== */
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(okGeral&&faixaOK&&sisOK?"✓ parafuso APROVADO":"⚠ parafuso REPROVADO")+
+       "   ·   "+nV+" item(ns) a confirmar   ·   "+MEM.length+" verificações",hi:!(okGeral&&faixaOK&&sisOK)}
+  ].concat(MEM.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+    {sec:"1 — O PARAFUSO"},
+    {k:"ESPECIFICAÇÃO",v:ESP.t+"   ·   fub = "+vt(fub,1)+" kN/cm² = "+vt(fub*10,0)+" MPa"+
+       (ESP.fyb?("   ·   fyb = "+vt(ESP.fyb,1)+" kN/cm²"):"")+"   ·   "+ESP.fonte,hi:true},
+    {k:"DIÂMETRO",v:DIA.t+" = "+vt(DIA.mm,2)+" mm = "+vt(db,4)+" cm"+
+       ((!faixaOK||!sisOK)?("   ⚠ FORA DA FAIXA: a Tabela A.3 cobre "+vt(ESP.dmin,1)+" a "+vt(ESP.dmax,1)+
+        " mm para esta especificação. Parafuso fora dessa faixa não existe nela — o cálculo abaixo é aritmética, não um produto que se compra."):""),hi:!faixaOK||!sisOK},
+    {k:"Área bruta e efetiva",v:"Ab = π·db²/4 = "+vt(Ab,4)+" cm²   ·   Abe = 0,75·Ab = "+vt(Abe,4)+" cm²   —  a efetiva desconta a rosca, e é ela que vale na tração. No cisalhamento usa-se a BRUTA, com o desconto embutido no coeficiente."},
+
+    {sec:"2 — RESISTÊNCIAS DE CÁLCULO"},
+    {k:"TRAÇÃO   Ft,Rd",v:vt(FtRd,2)+" kN   =   Abe·fub/γa2 = "+vt(Abe,4)+"·"+vt(fub,1)+"/1,35",hi:true},
+    {k:"CISALHAMENTO   Fv,Rd",v:vt(FvRd,2)+" kN   =   "+vt(coefV,2)+"·Ab·fub/γa2 × "+np+" plano(s)   =   "+vt(FvRd1,2)+" kN por plano"+
+       (redPc>0?("   ⚠ já reduzido em "+vt(redPc,1)+" % por conector longo"):""),hi:true},
+    {k:"⚠ POR QUE 0,45 E 0,56, E POR QUE ISSO IMPORTA",v:
+       "O coeficiente embute o desconto da rosca. Com a rosca no plano de corte a seção resistente é a da raiz da rosca, e o valor é 0,45; sem a rosca no plano é o fuste cheio, e sobe para 0,56 — "+vt((0.56/0.45-1)*100,0)+" % a mais. "+
+       (ESP.comum
+         ? "Mas este é um parafuso COMUM, e o item 6.3.3.2 manda usar 0,45 em qualquer situação: a posição da rosca não é controlada em obra para parafuso comum, então a norma não concede o ganho."
+         : "Esta é a entrada que mais muda o resultado nesta calculadora, e ela só vale se o comprimento do parafuso de fato mantiver a rosca fora do plano DEPOIS de montado. Declarar X no cálculo e montar N em obra é um erro silencioso, porque a ligação parece aprovada."),hi:true},
+
+    {sec:"3 — VERIFICAÇÃO"},
+    {k:"Tração",v:temT?(vt(FtSd,2)+" / "+vt(FtRd,2)+" = "+vt(rT,3)+(okT?"   ✓":"   ⚠ EXCEDE")):"não solicitada",hi:temT&&!okT},
+    {k:"Cisalhamento",v:temV?(vt(FvSd,2)+" / "+vt(FvRdRed,2)+" = "+vt(rV,3)+(okV?"   ✓":"   ⚠ EXCEDE")):"não solicitado",hi:temV&&!okV},
+    {k:"INTERAÇÃO",v:temAmbos
+        ?("(Ft,Sd/Ft,Rd)² + (Fv,Sd/Fv,Rd)² = "+vt(rT,3)+"² + "+vt(rV,3)+"² = "+vt(inter,3)+(okI?"   ✓ ≤ 1,00":"   ⚠ EXCEDE 1,00"))
+        :("não se aplica — há apenas "+(temT?"tração":(temV?"cisalhamento":"nenhuma solicitação"))),hi:temAmbos&&!okI},
+    {k:"Por que a interação é quadrática",v:"A curva do item 6.3.3.4 é elíptica e foi determinada EXPERIMENTALMENTE, não deduzida. Por isso ela é mais generosa que a soma linear das razões: com 0,7 de tração e 0,7 de cisalhamento a soma linear daria 1,4 e reprovaria, enquanto a quadrática dá 0,98 e aprova. A norma admite ainda, em alternativa, a Tabela 11 com as verificações isoladas — caminho diferente, resultado próximo."},
+    {k:"VEREDITO",v:(okGeral?"Parafuso "+DIA.t+" "+ESP.t.replace(/ — .*/,"")+" APROVADO para Ft,Sd = "+vt(FtSd,2)+" kN e Fv,Sd = "+vt(FvSd,2)+" kN"
+        :"Parafuso REPROVADO"+(sugerido?(" — o menor diâmetro que atende nesta especificação é "+sugerido.t):" — nenhum diâmetro da especificação atende; rever o número de parafusos, os planos de corte ou a especificação")),hi:true},
+
+    {sec:"4 — TABELA DE DIÂMETROS  ·  "+ESP.t.replace(/ — .*/,"")+"  ·  "+np+" plano(s) de corte  ·  coeficiente "+vt(coefV,2)}
+  ]).concat(TAB.map(function(x){
+      return {k:(x.sel?"► ":"")+x.t+(x.sel?"   (selecionado)":"")+(x.faixa?"":"   (fora da Tabela A.3)"),
+        v:"Ab "+vt(x.Ab,3)+" cm²   ·   Abe "+vt(x.Abe,3)+" cm²   ·   Ft,Rd "+vt(x.Ft,1)+" kN   ·   Fv,Rd "+vt(x.Fv,1)+
+          " kN   ·   interação "+vt(x.inter,3)+"   ·   "+(x.faixa?(x.ok?"✓ atende":"⚠ não atende"):"— fora da faixa"),
+        hi:x.sel};
+  })).concat([
+    {sec:"5 — O QUE ESTA CALCULADORA NÃO RESOLVE"},
+    {k:"⚠ NÃO EXISTE TABELA DE TORQUE",v:
+       "A NBR 8800:2024, item 6.8.4.4.1, é literal: \"não existe uma relação geral entre força de protensão em parafusos e torque aplicado durante o aperto da porca... NÃO PODEM SER USADAS TABELAS DE TORQUE baseadas em experiências passadas ou fornecidas em literatura técnica\". "+
+       "Por isso esta calculadora não devolve N·m, e qualquer ferramenta que devolva está contrariando a norma. O aperto com protensão inicial se controla por rotação da porca (Tabela 20), chave calibrada aferida uma vez por dia por diâmetro, parafuso com espiga que rompe, ou arruela indicadora de tração.",hi:true},
+    {k:"A chapa não foi verificada",v:"Pressão de contato, rasgamento, área líquida e cisalhamento de bloco dependem da geometria da ligação — espessura, distância à borda, espaçamento — e não do parafuso. Um parafuso aprovado aqui reprova lá com frequência: no exercício de emenda da referência, o parafuso dava 140 kN e a chapa tracionada 194,8 kN, mas invertendo a especificação a chapa passou a governar. Essas verificações têm calculadora própria.",hi:true},
+    {k:"Quando a protensão inicial é obrigatória",v:"Pelo item 6.1.11.1, exige-se solda ou parafuso de alta resistência COM protensão em: ligações sujeitas a impacto ou tensões reversas; ligações sujeitas a ações que afrouxem os parafusos; e ligações sujeitas à fadiga sem tensões reversas. E por 6.3.1, o aperto normal não é permitido em A490 tracionado, nem em A325 tracionado quando afrouxamento ou fadiga por vibração precisam ser considerados."+
+       (ftb?("   Para este parafuso, F_Tb = "+vt(ftb,0)+" kN (Tabela 19)."):"")},
+    {k:"Ligação por atrito é outro cálculo",v:"Se o deslizamento for estado-limite, a resistência não é esta: passa a ser Ff,Rd = 1,13·μ·Ce·F_Tb·ns/γe·(1 − Ft,Sd/1,13F_Tb), que depende da classe da superfície e da protensão, não da ruptura do parafuso. E costuma dar bem menos: no exercício da referência, o mesmo parafuso que resistia 31,25 kN ao corte só segurava 9,03 kN por atrito."}
+  ]);
+
+  OUT.geo={tipo:"parafuso",espec:espV,especT:ESP.t,comum:ESP.comum,fub:fub,fyb:ESP.fyb,
+    diam:diaV,diamT:DIA.t,dbmm:DIA.mm,db:db,Ab:Ab,Abe:Abe,np:np,rosca:roscaV,
+    roscaNoPlano:roscaNoPlano,coefV:coefV,FtRd:FtRd,FvRd:FvRd,FvRd1:FvRd1,FvRdRed:FvRdRed,
+    FtSd:FtSd,FvSd:FvSd,rT:rT,rV:rV,inter:inter,okT:okT,okV:okV,okI:okI,okGeral:okGeral,
+    faixaOK:faixaOK&&sisOK,dmin:ESP.dmin,dmax:ESP.dmax,TAB:TAB,sugerido:sugerido,
+    pega:pega,pegaLim:pegaLim,redPc:redPc,ftb:ftb,MEM:MEM,nRep:nR,nVer:nV};
+  return OUT;
+}
+
+/* ---------------------------------------------------------------------------
+   CROQUI — descrito uma vez, desenhado na tela e no PDF pelo mesmo código.
+   Mostra a junta em corte com os n+1 elementos, o parafuso atravessando, a
+   rosca hachurada e CADA plano de corte marcado. É o desenho que responde à
+   pergunta que a tabela não responde: onde fica o plano de corte, e a rosca
+   passa por ele?
+   ------------------------------------------------------------------------- */
+function parafusoCroqui(G){
+  /* Plano vertical do desenho, em posicoes nomeadas. Deixar as alturas como
+     offsets soltos foi o que fez a cota cair em cima do rodape na primeira
+     versao; com os y declarados juntos, a colisao fica visivel aqui.      */
+  var W=132, H=92, D=Desenho(W,H);
+  var n=Math.max(1,Math.min(8,G.np));     /* planos de corte */
+  var nCh=n+1;                            /* elementos ligados */
+  var tCh=Math.max(5,Math.min(11,52/nCh));
+  var larg=nCh*tCh;
+  var x0=(W-larg)/2, yC=44, hCh=28;
+  var rB=Math.max(2.6,Math.min(5.2,G.dbmm/7));
+
+  /* ---- chapas ---- */
+  var i,x;
+  for(i=0;i<nCh;i++){
+    x=x0+i*tCh;
+    D.ret(x,yC-hCh/2,tCh,hCh,{f:[226,233,242],c:[70,92,122],e:0.4});
+    D.hach(x+0.6,yC-hCh/2+0.6,tCh-1.2,hCh-1.2,{c:[196,208,222],p:3.0,e:0.15});
+  }
+  /* Setas de tracao DENTRO das chapas, alternando o lado e a altura: e esse
+     par de forcas opostas que gera o cisalhamento no plano entre elas. Ficam
+     fora da faixa do parafuso para nao disputar espaco com ele.            */
+  for(i=0;i<nCh;i++){
+    x=x0+i*tCh+tCh/2;
+    var pra=(i%2===0)?-1:1;
+    var y=(i%2===0)?(yC-hCh/4):(yC+hCh/4);
+    D.seta(x-pra*1.5,y,x+pra*(tCh/2+5),y,{c:[200,60,40],e:0.4});
+  }
+
+  /* ---- parafuso ---- */
+  var xCab=x0-7.5, xPorca=x0+larg+3.4, xFim=xPorca+3.6;
+  D.ret(xCab,yC-rB*1.7,7.5,rB*3.4,{f:[150,166,186],c:[55,72,96],e:0.4});
+  D.ret(xPorca,yC-rB*1.7,3.6,rB*3.4,{f:[150,166,186],c:[55,72,96],e:0.4});
+  /* Com rosca NO plano ela invade o pacote; com rosca FORA ela para antes do
+     primeiro plano. E essa diferenca que o desenho tem de deixar obvia.    */
+  var xRoscaIni = G.roscaNoPlano ? (x0 + tCh*0.35) : (x0 + larg + 0.6);
+  D.ret(xCab+7.5,yC-rB,xFim-(xCab+7.5),rB*2,{f:[205,216,230],c:[55,72,96],e:0.3});
+  if(xRoscaIni<xFim){
+    D.ret(xRoscaIni,yC-rB,xFim-xRoscaIni,rB*2,{f:[246,226,180],c:[150,122,60],e:0.3});
+    var j,nr=Math.floor((xFim-xRoscaIni)/1.5);
+    for(j=0;j<=nr;j++){
+      var xr=xRoscaIni+j*1.5;
+      if(xr<=xFim) D.linha(xr,yC-rB,xr+0.8,yC+rB,{c:[150,122,60],e:0.18});
+    }
+  }
+
+  /* ---- planos de corte ---- */
+  var algumNaRosca=false, algumNoFuste=false;
+  for(i=1;i<=n;i++){
+    x=x0+i*tCh;
+    var naRosca=(x>=xRoscaIni);
+    if(naRosca) algumNaRosca=true; else algumNoFuste=true;
+    D.linha(x,yC-hCh/2-2.5,x,yC+hCh/2+2.5,{c:naRosca?[200,60,40]:[0,130,95],e:0.45,tr:1.1});
+    D.circ(x,yC+hCh/2+5.4,1.9,{f:naRosca?[253,230,228]:[224,243,236],
+                               c:naRosca?[200,60,40]:[0,130,95],e:0.3});
+    D.txt(x,yC+hCh/2+6.2,String(i),{c:naRosca?[200,60,40]:[0,110,80],fs:5.0,al:"center",b:true});
+  }
+
+  /* ---- titulos: duas linhas no maximo, para nao estourar a largura ---- */
+  D.txt(W/2,8.5,G.diamT+"   ·   "+G.especT.replace(/ — .*/,"")+"   ·   "+n+" plano(s) de corte",
+        {c:[25,55,90],fs:7.4,al:"center",b:true});
+  D.txt(W/2,14.5,(G.roscaNoPlano?"rosca NO plano de corte   —   coeficiente 0,45"
+                                :"rosca FORA do plano de corte   —   coeficiente 0,56"),
+        {c:G.roscaNoPlano?[175,70,45]:[0,110,80],fs:6.4,al:"center"});
+  if(G.comum) D.txt(W/2,19.6,"parafuso comum: a norma impõe 0,45 em qualquer situação (6.3.3.2)",
+        {c:[140,100,40],fs:5.6,al:"center"});
+
+  /* ---- faixas horizontais abaixo das chapas, sem sobreposicao ---- */
+  var yBot=yC+hCh/2;        /* 58  base das chapas                        */
+  var yCota=yBot+12;        /* 70  cota horizontal                        */
+  var yLeg =yBot+19;        /* 77  legenda das cores                      */
+  var yFt1 =yBot+26;        /* 84  rodape, linha 1                        */
+  var yFt2 =yBot+30.5;      /* 88,5 rodape, linha 2                       */
+
+  D.cotaV(x0-12.5,yC-hCh/2,yBot,"db = "+G.dbmm.toFixed(2).replace(".",",")+" mm");
+  D.cotaH(x0,x0+larg,yCota,nCh+" elemento(s) ligado(s)");
+
+  var xL=x0-6;
+  if(algumNaRosca){
+    D.circ(xL,yLeg-1.0,1.5,{f:[253,230,228],c:[200,60,40],e:0.3});
+    D.txt(xL+3,yLeg,"plano atravessa a ROSCA",{c:[175,70,45],fs:5.4});
+    xL+=44;
+  }
+  if(algumNoFuste){
+    D.circ(xL,yLeg-1.0,1.5,{f:[224,243,236],c:[0,130,95],e:0.3});
+    D.txt(xL+3,yLeg,"plano no FUSTE cheio",{c:[0,110,80],fs:5.4});
+  }
+
+  D.txt(W/2,yFt1,"Ab = "+G.Ab.toFixed(3).replace(".",",")+" cm²   ·   Abe = "+
+        G.Abe.toFixed(3).replace(".",",")+" cm²",{c:[70,85,105],fs:5.6,al:"center"});
+  D.txt(W/2,yFt2,"Ft,Rd = "+G.FtRd.toFixed(1).replace(".",",")+" kN   ·   Fv,Rd = "+
+        G.FvRd.toFixed(1).replace(".",",")+" kN"+
+        (G.redPc>0?("  (já com −"+G.redPc.toFixed(1).replace(".",",")+" % de conector longo)"):""),
+        {c:[40,60,90],fs:6.0,al:"center",b:true});
+  return D;
+}
+
 const CALCS={
   fundacao:{
     titulo:"Fundação de eletrocentro — sapata, bloco sobre estacas e tubulão pelo pior apoio",
@@ -14328,6 +14849,43 @@ const CALCS={
     ],
     calcular:torreResfCalc
   },
+  parafuso_resistencia:{
+    titulo:"Parafuso — resistência à tração e ao cisalhamento",
+    referencia:"Resistências de cálculo de parafusos e barras redondas rosqueadas conforme ABNT NBR 8800:2024, item 6.3. Área bruta Ab = π·db²/4 e área efetiva Abe = 0,75·Ab pelo item 6.3.2.2. Tração pelo item 6.3.3.1 com Ft,Rd = Abe·fub/γa2. Cisalhamento pelo item 6.3.3.2, com coeficiente 0,45 quando o plano de corte passa pela rosca e para parafusos comuns em qualquer situação, e 0,56 quando o plano de corte não passa pela rosca, multiplicado pelo número de planos de corte. Interação entre tração e cisalhamento pela equação quadrática do item 6.3.3.4, determinada experimentalmente, com a alternativa da Tabela 11 registrada no relatório. Especificações e resistências dos materiais pela Tabela A.3, abrangendo ASTM A307, ASTM F3125 graus A325/F1852 e A490/F2280 e ISO 4016 classes 4.6, 8.8 e 10.9. Força de protensão mínima pela Tabela 19 e exigências de protensão inicial pelos itens 6.1.11 e 6.3.1. Redução por conector longo pelo item 6.3.7. Coeficientes de ponderação γa1 = 1,10 e γa2 = 1,35. Esta calculadora não devolve torque de aperto, porque o item 6.8.4.4.1 veda expressamente o uso de tabelas de torque.",
+    campos:[
+      {tipo:"head",label:"Parafuso"},
+      {id:"pfEspec",label:"ESPECIFICAÇÃO do parafuso",tipo:"select",valor:"A325",opcoes:[
+        {v:"A307",t:"ASTM A307 — comum  (fub 415 MPa)"},
+        {v:"ISO46",t:"ISO 4016 classe 4.6 — comum  (fub 400 MPa)"},
+        {v:"A325",t:"ASTM F3125 A325 / F1852  (fub 830 MPa)"},
+        {v:"ISO88",t:"ISO 4016 classe 8.8  (fub 800 MPa)"},
+        {v:"A490",t:"ASTM F3125 A490 / F2280  (fub 1040 MPa)"},
+        {v:"ISO109",t:"ISO 4016 classe 10.9  (fub 1000 MPa)"},
+        {v:"OUTRO",t:"Outro — informar fub abaixo"}]},
+      {id:"pfFub",label:"fub do material  (só quando a especificação for OUTRO)",unidade:"kN/cm²",tipo:"number",valor:0,step:"0.5"},
+      {id:"pfDiam",label:"DIÂMETRO nominal db",tipo:"select",valor:"P0.625",opcoes:[
+        {v:"P0.500",t:"1/2 pol  (12,70 mm)"},{v:"P0.625",t:"5/8 pol  (15,88 mm)"},
+        {v:"P0.750",t:"3/4 pol  (19,05 mm)"},{v:"P0.875",t:"7/8 pol  (22,23 mm)"},
+        {v:"P1.000",t:"1 pol  (25,40 mm)"},{v:"P1.125",t:"1 1/8 pol  (28,58 mm)"},
+        {v:"P1.250",t:"1 1/4 pol  (31,75 mm)"},{v:"P1.375",t:"1 3/8 pol  (34,93 mm)"},
+        {v:"P1.500",t:"1 1/2 pol  (38,10 mm)"},{v:"P1.750",t:"1 3/4 pol  (44,45 mm)"},
+        {v:"P2.000",t:"2 pol  (50,80 mm)"},
+        {v:"M12",t:"M12"},{v:"M14",t:"M14"},{v:"M16",t:"M16"},{v:"M18",t:"M18"},
+        {v:"M20",t:"M20"},{v:"M22",t:"M22"},{v:"M24",t:"M24"},{v:"M27",t:"M27"},
+        {v:"M30",t:"M30"},{v:"M33",t:"M33"},{v:"M36",t:"M36"}]},
+      {tipo:"head",label:"Configuração da ligação"},
+      {id:"pfPlanos",label:"PLANOS DE CORTE por parafuso  (1 = corte simples, 2 = corte duplo)",unidade:"un",tipo:"number",valor:1,step:"1"},
+      {id:"pfRosca",label:"POSIÇÃO DA ROSCA em relação ao plano de corte",tipo:"select",valor:"N",opcoes:[
+        {v:"N",t:"Na rosca — o plano de corte PASSA pela rosca  (coef. 0,45)"},
+        {v:"X",t:"Fora da rosca — o plano NÃO passa pela rosca  (coef. 0,56)"}]},
+      {id:"pfPega",label:"PEGA do parafuso  (0 = não verificar conector longo)",unidade:"mm",tipo:"number",valor:0,step:"1"},
+      {tipo:"head",label:"Solicitações de cálculo POR PARAFUSO"},
+      {id:"pfFtSd",label:"TRAÇÃO solicitante  Ft,Sd",unidade:"kN",tipo:"number",valor:54.13,step:"1"},
+      {id:"pfFvSd",label:"CISALHAMENTO solicitante  Fv,Sd",unidade:"kN",tipo:"number",valor:31.25,step:"1"}
+    ],
+    croqui:parafusoCroqui,
+    calcular:parafusoCalc
+  },
 };
 
 /* Restaura todos os campos de uma calculadora aos valores padrão do registro CALCS */
@@ -15076,6 +15634,7 @@ function openItem(i){
       <button class="close" onclick="closeModal()">×</button></div>
     <div class="calcbody">
       <div class="inputs"><div class="sec-t">Dados de entrada</div>${campos}
+        ${calc.croqui?'<div id="croqui-tela" class="croqui-tela"></div>':''}
         <button class="btn" onclick="runCalc('${e.calculadora}')">Calcular</button>
         <button class="btn btn2" onclick="gerarRelatorio()">Gerar relatório (PDF)</button>
         <button class="btn btn2" onclick="resetCampos('${e.calculadora}')" title="Restaura todos os campos aos valores padrão da calculadora">Restaurar padrões</button>
@@ -15091,6 +15650,16 @@ function openItem(i){
 function runCalc(id,soft){
   const calc=CALCS[id];const r=calc.calcular();
   const box=$("#results");
+  /* O croqui da tela e redesenhado a cada recalculo, a partir da MESMA
+     descricao que o PDF usa. Se o calculo nao fecha, o croqui some em vez de
+     ficar mostrando a geometria antiga, que seria pior do que nenhuma.     */
+  const cq=$("#croqui-tela");
+  if(cq){
+    if(r&&r.geo&&calc.croqui){
+      try{ cq.innerHTML='<div class="croqui-cap">Croqui — de onde sai cada valor</div>'+svgDe(calc.croqui(r.geo)); }
+      catch(err){ cq.innerHTML=""; }
+    } else { cq.innerHTML=""; }
+  }
   if(!r){if(soft&&box.querySelector("table.res"))return;box.innerHTML=`<div class="sec-t">Resultados</div><div class="placeholder">${CALC_ERRO?CALC_ERRO:"Verifique os dados de entrada (valores positivos)."}</div><div class="note">Referência: ${calc.referencia}</div>`;return;}
   const rows=r.map(x=> x.sec
     ? `<tr><td colspan="2" style="padding:16px 6px 6px;color:var(--teal-d);font-weight:700;font-size:.74rem;letter-spacing:.05em;border-bottom:2px solid var(--teal)">${capNorm(x.sec)}</td></tr>`
@@ -18039,6 +18608,84 @@ function gerarRelatorio(){
       nt(XL,258,"Volume de câmaras pelo CICLO, não pela vazão instantanea. Tempo de filtração por Ruth, com a resistência específica da torta,",120,130,150,5.6);
       nt(XL,261.5,"que e grandeza de ENSAIO DE FOLHA. Sem esse ensaio, o ciclo, a área e o número de placas são estimativa.",120,130,150,5.6);
       nt(XL,265,"NR-12 (protecoes e intertravamento de abertura)  ·  NBR 6118 (fundacao)  ·  NBR 8800 (portico)  ·  NBR 10004 (classe da torta).",120,130,150,5.6);
+
+    } else if(G.tipo==="parafuso"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CÁLCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificação reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   "+G.nVer+" item(ns) a confirmar"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equação / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.4,cellPadding:1.2,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.6},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:36},3:{cellWidth:38},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195;
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL,Math.min(XR-w2,x)),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+
+      ntc(105,28,"PARAFUSO  "+G.diamT+"  ·  "+G.especT.replace(/ — .*/,"")+"  ·  fub "+G.fub.toFixed(1).replace(".",",")+" kN/cm2",20,60,100,9.5);
+      ntc(105,33.5,(G.okGeral?"APROVADO":"REPROVADO")+"   ·   Ft,Rd "+G.FtRd.toFixed(1).replace(".",",")+
+          " kN   ·   Fv,Rd "+G.FvRd.toFixed(1).replace(".",",")+" kN   ·   interacao "+G.inter.toFixed(3).replace(".",","),
+          G.okGeral?20:170,G.okGeral?110:40,G.okGeral?80:40,8.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,37,XR,37);
+
+      /* ---- croqui: MESMA descricao usada na tela, so muda o renderizador ---- */
+      var DP=parafusoCroqui(G);
+      pdfDe(DP,doc,XL,42,(XR-XL)/DP.w);
+
+      /* ---- tabela de diametros ----
+         Com a especificacao "Outro" a tabela traz os 22 diametros das duas
+         series e nao cabe embaixo do croqui. Em vez de deixar o autoTable
+         paginar e largar o rodape numa pagina solta, a tabela ganha pagina
+         propria quando nao couber.                                        */
+      var yT=42+DP.h*((XR-XL)/DP.w)+6;
+      var altLinha=6.4*0.62+2*1.1, altTab=(G.TAB.length+1)*altLinha;
+      if(yT+altTab>250){
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Tabela de diâmetros — "+CUR_EQ.modelo),60,12);
+        doc.setFont("helvetica","normal");
+        yT=26;
+      }
+      doc.autoTable({startY:yT,theme:"grid",margin:{left:XL,right:15},
+        head:[[san("Diametro"),san("Ab (cm2)"),san("Abe (cm2)"),san("Ft,Rd (kN)"),san("Fv,Rd (kN)"),san("Interacao"),san("Status")]],
+        body:G.TAB.map(function(x){ return [
+          san((x.sel?"> ":"")+x.t), san(x.Ab.toFixed(3)), san(x.Abe.toFixed(3)),
+          san(x.Ft.toFixed(1)), san(x.Fv.toFixed(1)), san(x.inter.toFixed(3)),
+          san(x.faixa?(x.ok?"atende":"nao atende"):"fora da Tabela A.3") ]; }),
+        styles:{fontSize:6.4,cellPadding:1.1,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.5},
+        columnStyles:{0:{cellWidth:24},1:{cellWidth:24,halign:"right"},2:{cellWidth:24,halign:"right"},
+                      3:{cellWidth:26,halign:"right"},4:{cellWidth:26,halign:"right"},
+                      5:{cellWidth:24,halign:"right"},6:{cellWidth:32,halign:"center"}},
+        didParseCell:function(d){
+          if(d.section==="body"&&String(d.row.raw[0]).indexOf(">")===0){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[232,241,250]; }
+          else if(d.section==="body"&&String(d.row.raw[6])==="nao atende"){ d.cell.styles.textColor=[150,30,30]; } }});
+
+      /* rodape ancorado no fim real da tabela, nunca num y fixo */
+      var yR=Math.min(258,Math.max((doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY:yT+altTab)+8,180));
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,yR,XR,yR);
+      nt(XL,yR+4,"NBR 8800:2024 item 6.3  ·  Ab = pi.db2/4  ·  Abe = 0,75.Ab  ·  Ft,Rd = Abe.fub/1,35  ·  Fv,Rd = coef.Ab.fub/1,35 por plano de corte.",120,130,150,5.5);
+      nt(XL,yR+7.5,"Coeficiente 0,45 com rosca no plano e para parafuso comum em qualquer situacao; 0,56 sem rosca no plano. Interacao quadratica do item 6.3.3.4.",120,130,150,5.5);
+      nt(XL,yR+11,"NAO HA TABELA DE TORQUE: o item 6.8.4.4.1 veda. Aperto por rotacao da porca, chave calibrada, espiga que rompe ou arruela indicadora.",150,60,45,5.5);
+      nt(XL,yR+14.5,"A chapa nao foi verificada aqui: pressao de contato, rasgamento, area liquida e cisalhamento de bloco dependem da geometria da ligacao.",120,130,150,5.5);
 
     } else if(G.tipo==="torreresf"){
       if(G.MEM&&G.MEM.length){

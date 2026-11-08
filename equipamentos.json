@@ -1,8 +1,8 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "2.10.0",
-    "atualizado_em": "2026-11-04",
+    "versao": "2.11.0",
+    "atualizado_em": "2026-11-08",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
       {
@@ -113,6 +113,12 @@
         "subgrupos": [
           "Fundação de Eletrocentro (sapata, estaca e tubulão)"
         ]
+      },
+      {
+        "grupo": "Ligações",
+        "subgrupos": [
+          "Parafuso — tração e cisalhamento"
+        ]
       }
     ],
     "i18n": {
@@ -129,7 +135,8 @@
         "Tratamento de Lama": "Sludge Treatment",
         "Tanques de Agitadores": "Agitated Tanks",
         "Mecanismos de Forno": "Furnace Mechanisms",
-        "Torres de Resfriamento": "Cooling Towers"
+        "Torres de Resfriamento": "Cooling Towers",
+        "Ligações": "Connections"
       },
       "subgrupos": {
         "Correia Transportadora Convencional": "Conventional Belt Conveyor",
@@ -163,7 +170,8 @@
         "Tanque Agitador Retangular": "Rectangular Agitated Tank",
         "Sistema de Elevação de Porta": "Door Hoisting System",
         "Lavador Úmido (torre, Venturi e separador)": "Wet Scrubber (quench, Venturi and separator)",
-        "Torre de Resfriamento de Água (tiragem induzida)": "Water Cooling Tower (induced draft)"
+        "Torre de Resfriamento de Água (tiragem induzida)": "Water Cooling Tower (induced draft)",
+        "Parafuso — tração e cisalhamento": "Bolt — tension and shear"
       }
     }
   },
@@ -978,7 +986,29 @@
       "resumo_en": "Cooling tower: Merkel by Chebyshev giving the required KaV/L and demand curve, L/G at the balanced point and the thermodynamic limit, plan area, water balance by two routes, fan, pump, sanitary design and Series K selection.",
       "grupo_en": "Cooling Towers",
       "subgrupo_en": "Water Cooling Tower (induced draft)"
+    },
+    {
+      "id": "ligacao-parafuso-resistencia",
+      "grupo": "Ligações",
+      "subgrupo": "Parafuso — tração e cisalhamento",
+      "subtipo": "Resistência de cálculo do parafuso à tração, ao cisalhamento e à ação combinada, conforme NBR 8800:2024 item 6.3",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Parafuso — Resistência à Tração e ao Cisalhamento",
+      "calculadora": "parafuso_resistencia",
+      "descricao": "Primeira calculadora da família de ligações metálicas. Devolve a área bruta, a área efetiva, a resistência de cálculo à tração e ao cisalhamento de um parafuso, e confronta as duas com as solicitações informadas pela equação de interação da norma. A escolha que mais muda o resultado é a posição da rosca em relação ao plano de corte: com a rosca no plano o coeficiente é 0,45, sem ela é 0,56, e a diferença é de 24 % na resistência ao cisalhamento — mas esse ganho só é real se o comprimento do parafuso de fato mantiver a rosca fora do plano depois de montado, e por isso o croqui desenha a rosca na posição declarada e marca cada plano de corte na cor que diz se ele atravessa rosca ou fuste. Para parafuso comum o ganho não existe: a norma manda usar 0,45 em qualquer situação, porque a posição da rosca não se controla em obra. A tabela de diâmetros mostra todos os bitolas da especificação de uma vez, para que o próximo diâmetro que resolve fique visível quando o escolhido reprova, e marca quais estão fora da faixa coberta pela Tabela A.3 — porque um A325 de duas polegadas é aritmética válida e produto inexistente. A calculadora não devolve torque de aperto, por decisão normativa e não por omissão: o item 6.8.4.4.1 proíbe o uso de tabelas de torque, já que não existe relação geral entre protensão e torque aplicado.",
+      "referencia": "ABNT NBR 8800:2024 item 6.3 para as resistências de parafusos e barras redondas rosqueadas. Área bruta e efetiva pelo item 6.3.2.2; tração pelo 6.3.3.1; cisalhamento pelo 6.3.3.2; interação quadrática pelo 6.3.3.4, com a alternativa da Tabela 11 registrada no relatório. Materiais e faixas de diâmetro pela Tabela A.3, cobrindo ASTM A307, ASTM F3125 graus A325/F1852 e A490/F2280 e ISO 4016 classes 4.6, 8.8 e 10.9. Força de protensão mínima pela Tabela 19; exigências de protensão inicial pelos itens 6.1.11 e 6.3.1; redução por conector longo pelo item 6.3.7; vedação ao uso de tabelas de torque pelo item 6.8.4.4.1. Coeficientes γa1 = 1,10 e γa2 = 1,35.",
+      "resumo": "Parafuso: área bruta e efetiva, resistência à tração e ao cisalhamento por plano de corte, interação quadrática, tabela de todos os diâmetros da especificação e croqui que mostra a rosca na posição declarada.",
+      "normas": [
+        "NBR 8800:2024",
+        "ASTM F3125",
+        "ASTM A307",
+        "ISO 4016"
+      ],
+      "modelo_en": "Bolt — Tension and Shear Resistance",
+      "resumo_en": "Bolt: gross and effective area, design tension and shear resistance per shear plane, quadratic interaction, full diameter table and a sketch showing the thread in the declared position.",
+      "grupo_en": "Connections",
+      "subgrupo_en": "Bolt — tension and shear"
     }
   ],
-  "versao": "2.10.0"
+  "versao": "2.11.0"
 }
