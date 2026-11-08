@@ -10002,31 +10002,53 @@ var PF_ESPEC=[
 ];
 function pfEspec(v){ for(var i=0;i<PF_ESPEC.length;i++) if(PF_ESPEC[i].v===v) return PF_ESPEC[i]; return PF_ESPEC[2]; }
 
-/* Diametros comerciais. mm e o diametro nominal db usado em Ab = pi*db^2/4. */
+/* Diametros comerciais. mm e o diametro nominal db usado em Ab = pi*db^2/4.
+   "p" e o passo da rosca grossa: metrica ISO 261/262 em mm, UNC em fios por
+   polegada (tpi). O passo entra no calculo da area de tracao REAL da rosca,
+   que a partir de certo ponto diverge do 0,75.Ab da norma — ver nota em
+   parafusoCalc.                                                            */
 var PF_DIAM=[
- {v:"P0.500",t:'1/2"',    mm:12.70, sis:"pol"},
- {v:"P0.625",t:'5/8"',    mm:15.875,sis:"pol"},
- {v:"P0.750",t:'3/4"',    mm:19.05, sis:"pol"},
- {v:"P0.875",t:'7/8"',    mm:22.225,sis:"pol"},
- {v:"P1.000",t:'1"',      mm:25.40, sis:"pol"},
- {v:"P1.125",t:'1 1/8"',  mm:28.575,sis:"pol"},
- {v:"P1.250",t:'1 1/4"',  mm:31.75, sis:"pol"},
- {v:"P1.375",t:'1 3/8"',  mm:34.925,sis:"pol"},
- {v:"P1.500",t:'1 1/2"',  mm:38.10, sis:"pol"},
- {v:"P1.750",t:'1 3/4"',  mm:44.45, sis:"pol"},
- {v:"P2.000",t:'2"',      mm:50.80, sis:"pol"},
- {v:"M12",   t:"M12",     mm:12,    sis:"met"},
- {v:"M14",   t:"M14",     mm:14,    sis:"met"},
- {v:"M16",   t:"M16",     mm:16,    sis:"met"},
- {v:"M18",   t:"M18",     mm:18,    sis:"met"},
- {v:"M20",   t:"M20",     mm:20,    sis:"met"},
- {v:"M22",   t:"M22",     mm:22,    sis:"met"},
- {v:"M24",   t:"M24",     mm:24,    sis:"met"},
- {v:"M27",   t:"M27",     mm:27,    sis:"met"},
- {v:"M30",   t:"M30",     mm:30,    sis:"met"},
- {v:"M33",   t:"M33",     mm:33,    sis:"met"},
- {v:"M36",   t:"M36",     mm:36,    sis:"met"}
+ {v:"P0.250",t:'1/4"',    mm:6.35,  sis:"pol", tpi:20},
+ {v:"P0.3125",t:'5/16"',  mm:7.9375,sis:"pol", tpi:18},
+ {v:"P0.375",t:'3/8"',    mm:9.525, sis:"pol", tpi:16},
+ {v:"P0.4375",t:'7/16"',  mm:11.1125,sis:"pol",tpi:14},
+ {v:"P0.500",t:'1/2"',    mm:12.70, sis:"pol", tpi:13},
+ {v:"P0.625",t:'5/8"',    mm:15.875,sis:"pol", tpi:11},
+ {v:"P0.750",t:'3/4"',    mm:19.05, sis:"pol", tpi:10},
+ {v:"P0.875",t:'7/8"',    mm:22.225,sis:"pol", tpi:9},
+ {v:"P1.000",t:'1"',      mm:25.40, sis:"pol", tpi:8},
+ {v:"P1.125",t:'1 1/8"',  mm:28.575,sis:"pol", tpi:7},
+ {v:"P1.250",t:'1 1/4"',  mm:31.75, sis:"pol", tpi:7},
+ {v:"P1.375",t:'1 3/8"',  mm:34.925,sis:"pol", tpi:6},
+ {v:"P1.500",t:'1 1/2"',  mm:38.10, sis:"pol", tpi:6},
+ {v:"P1.750",t:'1 3/4"',  mm:44.45, sis:"pol", tpi:5},
+ {v:"P2.000",t:'2"',      mm:50.80, sis:"pol", tpi:4.5},
+ {v:"M4",    t:"M4",      mm:4,     sis:"met", p:0.70},
+ {v:"M5",    t:"M5",      mm:5,     sis:"met", p:0.80},
+ {v:"M6",    t:"M6",      mm:6,     sis:"met", p:1.00},
+ {v:"M8",    t:"M8",      mm:8,     sis:"met", p:1.25},
+ {v:"M10",   t:"M10",     mm:10,    sis:"met", p:1.50},
+ {v:"M12",   t:"M12",     mm:12,    sis:"met", p:1.75},
+ {v:"M14",   t:"M14",     mm:14,    sis:"met", p:2.00},
+ {v:"M16",   t:"M16",     mm:16,    sis:"met", p:2.00},
+ {v:"M18",   t:"M18",     mm:18,    sis:"met", p:2.50},
+ {v:"M20",   t:"M20",     mm:20,    sis:"met", p:2.50},
+ {v:"M22",   t:"M22",     mm:22,    sis:"met", p:2.50},
+ {v:"M24",   t:"M24",     mm:24,    sis:"met", p:3.00},
+ {v:"M27",   t:"M27",     mm:27,    sis:"met", p:3.00},
+ {v:"M30",   t:"M30",     mm:30,    sis:"met", p:3.50},
+ {v:"M33",   t:"M33",     mm:33,    sis:"met", p:3.50},
+ {v:"M36",   t:"M36",     mm:36,    sis:"met", p:4.00}
 ];
+/* Area de tracao efetiva REAL da rosca, em cm2.
+   Metrica  As = pi/4*(d - 0,9382*p)^2      (ISO 898-1)
+   UNC      As = pi/4*(d - 0,9743/n)^2      (ASME B1.1, em polegada)       */
+function pfAreaTracao(DI){
+  var d,As;
+  if(DI.sis==="met"){ d=DI.mm; As=Math.PI/4*Math.pow(d-0.9382*DI.p,2); }
+  else { d=DI.mm/25.4; As=Math.PI/4*Math.pow(d-0.9743/DI.tpi,2)*25.4*25.4; }
+  return As/100;                          /* mm2 -> cm2 */
+}
 function pfDiam(v){ for(var i=0;i<PF_DIAM.length;i++) if(PF_DIAM[i].v===v) return PF_DIAM[i]; return PF_DIAM[2]; }
 
 /* Forca de protensao minima F_Tb, Tabela 19 da NBR 8800:2024, em kN.
@@ -10057,7 +10079,20 @@ function parafusoCalc(){
 
   var db=DIA.mm/10;                       /* cm */
   var Ab=Math.PI*db*db/4;                 /* cm2 */
-  var Abe=0.75*Ab;
+  var AbeN=0.75*Ab;                       /* area efetiva pela NBR 8800 */
+  var As=pfAreaTracao(DIA);               /* area de tracao real da rosca */
+  /* O 0,75 da norma e uma simplificacao calibrada para a faixa estrutural.
+     Abaixo dela o fator real cai: num 1/4" UNC a area de tracao verdadeira e
+     65 % da bruta, nao 75 %, e usar 0,75 superestima a tracao em 16 %.
+     Por isso o usuario escolhe a base, e o padrao continua sendo a norma.  */
+  var baseA=selv("pfBaseA","NBR");
+  var Abe=(baseA==="REAL")?As:AbeN;
+  var difAs=(As>0)?(AbeN/As-1)*100:0;     /* >0 = a norma superestima */
+  /* O alerta so vale FORA da faixa da Tabela A.3. Dentro dela a diferenca
+     existe (3,8 % num 1/2" UNC) mas e a simplificacao que a norma assume de
+     propria conta — alertar ali seria gritar lobo em parafuso estrutural
+     corriqueiro. Fora da faixa o usuario esta extrapolando um fator alem da
+     calibracao dele, e ai o aviso tem conteudo.                            */
 
   /* ===================== 2. RESISTENCIAS ===================== */
   /* Parafuso comum usa 0,45 sempre (6.3.3.2). So o de alta resistencia ganha
@@ -10087,16 +10122,19 @@ function parafusoCalc(){
   /* faixa de diametro da especificacao, Tabela A.3 */
   var faixaOK=(DIA.mm>=ESP.dmin-0.05&&DIA.mm<=ESP.dmax+0.05);
   var sisOK=(ESP.sis==="amb")||(DIA.sis===ESP.sis);
+  var alertaAs=(difAs>1.0)&&!faixaOK&&(baseA!=="REAL");
 
   /* ===================== 4. TABELA DE TODOS OS DIAMETROS ===================== */
   var TAB=[],i,d2,Ab2,Abe2,Ft2,Fv2,in2;
   for(i=0;i<PF_DIAM.length;i++){
     d2=PF_DIAM[i];
     if(ESP.sis!=="amb"&&d2.sis!==ESP.sis) continue;
-    Ab2=Math.PI*(d2.mm/10)*(d2.mm/10)/4; Abe2=0.75*Ab2;
+    Ab2=Math.PI*(d2.mm/10)*(d2.mm/10)/4;
+    var As2=pfAreaTracao(d2);
+    Abe2=(baseA==="REAL")?As2:(0.75*Ab2);
     Ft2=Abe2*fub/GA2; Fv2=coefV*Ab2*fub/GA2*np;
     in2=(FtSd/Ft2)*(FtSd/Ft2)+(FvSd/Fv2)*(FvSd/Fv2);
-    TAB.push({t:d2.t, mm:d2.mm, Ab:Ab2, Abe:Abe2, Ft:Ft2, Fv:Fv2, inter:in2,
+    TAB.push({t:d2.t, mm:d2.mm, Ab:Ab2, Abe:Abe2, As:As2, Ft:Ft2, Fv:Fv2, inter:in2,
               ok:(in2<=1.0&&FtSd<=Ft2&&FvSd<=Fv2),
               faixa:(d2.mm>=ESP.dmin-0.05&&d2.mm<=ESP.dmax+0.05),
               sel:(d2.v===diaV)});
@@ -10126,7 +10164,13 @@ function parafusoCalc(){
       (ESP.sis==="amb")?"sem restrição":("faixa da especificação: "+vt(ESP.dmin,1)+" a "+vt(ESP.dmax,1)+" mm"),
       (faixaOK&&sisOK)?"APROVADO":"REPROVADO"],
    ["2","Área bruta","Ab = π·db²/4",vt(Ab,4)+" cm²","seção do fuste","—"],
-   ["2","Área efetiva","Abe = 0,75·Ab",vt(Abe,4)+" cm²","desconta a rosca (6.3.2.2)","—"],
+   ["2","Área efetiva adotada",(baseA==="REAL")?"As real da rosca":"Abe = 0,75·Ab (NBR 6.3.2.2)",
+      vt(Abe,4)+" cm²",(baseA==="REAL")?"área de tração da rosca, fora da simplificação da norma":"simplificação normativa","—"],
+   ["2","Área de tração REAL da rosca",(DIA.sis==="met")?"π/4·(d − 0,9382·p)²":"π/4·(d − 0,9743/n)²",
+      vt(As,4)+" cm²   (passo "+((DIA.sis==="met")?(vt(DIA.p,2)+" mm"):(vt(DIA.tpi,1)+" fios/pol"))+")",
+      ((difAs>0)?("0,75·Ab excede a área real em "+vt(difAs,1)+" %"):("0,75·Ab é conservador em "+vt(-difAs,1)+" %"))+
+      (faixaOK?" — dentro da faixa da norma, é a simplificação que ela assume":" — FORA da faixa da norma"),
+      alertaAs?"VERIFICAR":"APROVADO"],
    ["3","RESISTÊNCIA À TRAÇÃO","Ft,Rd = Abe·fub/γa2",vt(FtRd,2)+" kN","γa2 = 1,35","—"],
    ["3","Coeficiente de cisalhamento",(ESP.comum?"parafuso comum: 0,45 sempre":"rosca "+(roscaNoPlano?"NO":"FORA do")+" plano"),
       vt(coefV,2),(ESP.comum?"6.3.3.2 — comum não ganha o 0,56":"0,45 com rosca no plano · 0,56 sem"),"—"],
@@ -10159,7 +10203,18 @@ function parafusoCalc(){
     {k:"DIÂMETRO",v:DIA.t+" = "+vt(DIA.mm,2)+" mm = "+vt(db,4)+" cm"+
        ((!faixaOK||!sisOK)?("   ⚠ FORA DA FAIXA: a Tabela A.3 cobre "+vt(ESP.dmin,1)+" a "+vt(ESP.dmax,1)+
         " mm para esta especificação. Parafuso fora dessa faixa não existe nela — o cálculo abaixo é aritmética, não um produto que se compra."):""),hi:!faixaOK||!sisOK},
-    {k:"Área bruta e efetiva",v:"Ab = π·db²/4 = "+vt(Ab,4)+" cm²   ·   Abe = 0,75·Ab = "+vt(Abe,4)+" cm²   —  a efetiva desconta a rosca, e é ela que vale na tração. No cisalhamento usa-se a BRUTA, com o desconto embutido no coeficiente."},
+    {k:"Área bruta e efetiva",v:"Ab = π·db²/4 = "+vt(Ab,4)+" cm²   ·   área efetiva adotada = "+vt(Abe,4)+" cm²"+
+       ((baseA==="REAL")?"  (As real da rosca)":"  (0,75·Ab, NBR 6.3.2.2)")+
+       "   —  a efetiva desconta a rosca, e é ela que vale na tração. No cisalhamento usa-se a BRUTA, com o desconto embutido no coeficiente."},
+    {k:(alertaAs?"⚠ ":"")+"O 0,75·Ab contra a área de tração real",v:
+       "O fator 0,75 da norma é uma simplificação, não a geometria da rosca. A área de tração real deste parafuso, pelo passo, é "+vt(As,4)+" cm², contra "+vt(AbeN,4)+" cm² que o 0,75·Ab dá — "+
+       ((difAs>0)?("a norma SUPERESTIMA em "+vt(difAs,1)+" %."):("a norma é conservadora em "+vt(-difAs,1)+" %."))+
+       "   A simplificação é calibrada para a faixa que a Tabela A.3 cobre, de 1/2\" e M12 para cima, onde ela acerta ou sobra. Abaixo disso o fator real despenca: num 1/4\" UNC a área de tração é 65 % da bruta, e usar 0,75 superestima a tração em quase 16 %. "+
+       (alertaAs
+         ?("⚠ Este diâmetro está FORA da faixa da Tabela A.3, então aqui o 0,75 está sendo extrapolado além da calibração dele, e é otimista em "+vt(difAs,1)+" %. Troque a base da área efetiva para a área real da rosca no campo de entrada, ou aceite a diferença conscientemente.")
+         :(faixaOK
+            ?"Este diâmetro está dentro da faixa da Tabela A.3, onde a diferença é a simplificação que a própria norma assume — não é motivo de alarme."
+            :"Neste caso o 0,75·Ab não é otimista.")),hi:alertaAs},
 
     {sec:"2 — RESISTÊNCIAS DE CÁLCULO"},
     {k:"TRAÇÃO   Ft,Rd",v:vt(FtRd,2)+" kN   =   Abe·fub/γa2 = "+vt(Abe,4)+"·"+vt(fub,1)+"/1,35",hi:true},
@@ -10184,7 +10239,7 @@ function parafusoCalc(){
     {sec:"4 — TABELA DE DIÂMETROS  ·  "+ESP.t.replace(/ — .*/,"")+"  ·  "+np+" plano(s) de corte  ·  coeficiente "+vt(coefV,2)}
   ]).concat(TAB.map(function(x){
       return {k:(x.sel?"► ":"")+x.t+(x.sel?"   (selecionado)":"")+(x.faixa?"":"   (fora da Tabela A.3)"),
-        v:"Ab "+vt(x.Ab,3)+" cm²   ·   Abe "+vt(x.Abe,3)+" cm²   ·   Ft,Rd "+vt(x.Ft,1)+" kN   ·   Fv,Rd "+vt(x.Fv,1)+
+        v:"Ab "+vt(x.Ab,3)+" cm²   ·   Ae usada "+vt(x.Abe,3)+"   ·   As real "+vt(x.As,3)+" cm²   ·   Ft,Rd "+vt(x.Ft,1)+" kN   ·   Fv,Rd "+vt(x.Fv,1)+
           " kN   ·   interação "+vt(x.inter,3)+"   ·   "+(x.faixa?(x.ok?"✓ atende":"⚠ não atende"):"— fora da faixa"),
         hi:x.sel};
   })).concat([
@@ -10199,7 +10254,8 @@ function parafusoCalc(){
   ]);
 
   OUT.geo={tipo:"parafuso",espec:espV,especT:ESP.t,comum:ESP.comum,fub:fub,fyb:ESP.fyb,
-    diam:diaV,diamT:DIA.t,dbmm:DIA.mm,db:db,Ab:Ab,Abe:Abe,np:np,rosca:roscaV,
+    diam:diaV,diamT:DIA.t,dbmm:DIA.mm,db:db,Ab:Ab,Abe:Abe,AbeN:AbeN,As:As,
+    baseA:baseA,difAs:difAs,alertaAs:alertaAs,np:np,rosca:roscaV,
     roscaNoPlano:roscaNoPlano,coefV:coefV,FtRd:FtRd,FvRd:FvRd,FvRd1:FvRd1,FvRdRed:FvRdRed,
     FtSd:FtSd,FvSd:FvSd,rT:rT,rV:rV,inter:inter,okT:okT,okV:okV,okI:okI,okGeral:okGeral,
     faixaOK:faixaOK&&sisOK,dmin:ESP.dmin,dmax:ESP.dmax,TAB:TAB,sugerido:sugerido,
@@ -14863,13 +14919,19 @@ const CALCS={
         {v:"ISO109",t:"ISO 4016 classe 10.9  (fub 1000 MPa)"},
         {v:"OUTRO",t:"Outro — informar fub abaixo"}]},
       {id:"pfFub",label:"fub do material  (só quando a especificação for OUTRO)",unidade:"kN/cm²",tipo:"number",valor:0,step:"0.5"},
+      {id:"pfBaseA",label:"BASE DA ÁREA EFETIVA na tração",tipo:"select",valor:"NBR",opcoes:[
+        {v:"NBR",t:"0,75·Ab — simplificação da NBR 8800 (padrão)"},
+        {v:"REAL",t:"As real da rosca — pelo passo (ISO 898 / ASME B1.1)"}]},
       {id:"pfDiam",label:"DIÂMETRO nominal db",tipo:"select",valor:"P0.625",opcoes:[
+        {v:"P0.250",t:"1/4 pol  (6,35 mm)"},{v:"P0.3125",t:"5/16 pol  (7,94 mm)"},
+        {v:"P0.375",t:"3/8 pol  (9,53 mm)"},{v:"P0.4375",t:"7/16 pol  (11,11 mm)"},
         {v:"P0.500",t:"1/2 pol  (12,70 mm)"},{v:"P0.625",t:"5/8 pol  (15,88 mm)"},
         {v:"P0.750",t:"3/4 pol  (19,05 mm)"},{v:"P0.875",t:"7/8 pol  (22,23 mm)"},
         {v:"P1.000",t:"1 pol  (25,40 mm)"},{v:"P1.125",t:"1 1/8 pol  (28,58 mm)"},
         {v:"P1.250",t:"1 1/4 pol  (31,75 mm)"},{v:"P1.375",t:"1 3/8 pol  (34,93 mm)"},
         {v:"P1.500",t:"1 1/2 pol  (38,10 mm)"},{v:"P1.750",t:"1 3/4 pol  (44,45 mm)"},
         {v:"P2.000",t:"2 pol  (50,80 mm)"},
+        {v:"M4",t:"M4"},{v:"M5",t:"M5"},{v:"M6",t:"M6"},{v:"M8",t:"M8"},{v:"M10",t:"M10"},
         {v:"M12",t:"M12"},{v:"M14",t:"M14"},{v:"M16",t:"M16"},{v:"M18",t:"M18"},
         {v:"M20",t:"M20"},{v:"M22",t:"M22"},{v:"M24",t:"M24"},{v:"M27",t:"M27"},
         {v:"M30",t:"M30"},{v:"M33",t:"M33"},{v:"M36",t:"M36"}]},
@@ -18654,7 +18716,7 @@ function gerarRelatorio(){
          paginar e largar o rodape numa pagina solta, a tabela ganha pagina
          propria quando nao couber.                                        */
       var yT=42+DP.h*((XR-XL)/DP.w)+6;
-      var altLinha=6.4*0.62+2*1.1, altTab=(G.TAB.length+1)*altLinha;
+      var altLinha=6.1*0.62+2*1.0, altTab=(G.TAB.length+1)*altLinha;
       if(yT+altTab>250){
         doc.addPage();
         doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
@@ -18665,19 +18727,20 @@ function gerarRelatorio(){
         yT=26;
       }
       doc.autoTable({startY:yT,theme:"grid",margin:{left:XL,right:15},
-        head:[[san("Diametro"),san("Ab (cm2)"),san("Abe (cm2)"),san("Ft,Rd (kN)"),san("Fv,Rd (kN)"),san("Interacao"),san("Status")]],
+        head:[[san("Diametro"),san("Ab (cm2)"),san("Ae usada"),san("As real"),san("Ft,Rd (kN)"),san("Fv,Rd (kN)"),san("Interacao"),san("Status")]],
         body:G.TAB.map(function(x){ return [
-          san((x.sel?"> ":"")+x.t), san(x.Ab.toFixed(3)), san(x.Abe.toFixed(3)),
+          san((x.sel?"> ":"")+x.t), san(x.Ab.toFixed(3)), san(x.Abe.toFixed(3)), san(x.As.toFixed(3)),
           san(x.Ft.toFixed(1)), san(x.Fv.toFixed(1)), san(x.inter.toFixed(3)),
           san(x.faixa?(x.ok?"atende":"nao atende"):"fora da Tabela A.3") ]; }),
-        styles:{fontSize:6.4,cellPadding:1.1,lineColor:[205,215,228],lineWidth:0.15},
-        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.5},
-        columnStyles:{0:{cellWidth:24},1:{cellWidth:24,halign:"right"},2:{cellWidth:24,halign:"right"},
-                      3:{cellWidth:26,halign:"right"},4:{cellWidth:26,halign:"right"},
-                      5:{cellWidth:24,halign:"right"},6:{cellWidth:32,halign:"center"}},
+        styles:{fontSize:6.1,cellPadding:1.0,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.2},
+        columnStyles:{0:{cellWidth:20},1:{cellWidth:20,halign:"right"},2:{cellWidth:20,halign:"right"},
+                      3:{cellWidth:20,halign:"right"},4:{cellWidth:24,halign:"right"},
+                      5:{cellWidth:24,halign:"right"},6:{cellWidth:22,halign:"right"},
+                      7:{cellWidth:30,halign:"center"}},
         didParseCell:function(d){
           if(d.section==="body"&&String(d.row.raw[0]).indexOf(">")===0){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[232,241,250]; }
-          else if(d.section==="body"&&String(d.row.raw[6])==="nao atende"){ d.cell.styles.textColor=[150,30,30]; } }});
+          else if(d.section==="body"&&String(d.row.raw[7])==="nao atende"){ d.cell.styles.textColor=[150,30,30]; } }});
 
       /* rodape ancorado no fim real da tabela, nunca num y fixo */
       var yR=Math.min(258,Math.max((doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY:yT+altTab)+8,180));
