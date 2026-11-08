@@ -9829,6 +9829,10 @@ function Desenho(w,h){
                                         c:o.c||[30,90,170]}); };
   D.cotaV  =function(x,y1,y2,s,o){ o=o||{}; return add({t:"cotaV",x:x,y1:y1,y2:y2,s:String(s),
                                         c:o.c||[30,90,170]}); };
+  /* polilinha ou poligono: usado para desenhar caminho de ruptura, que nao e
+     retangular e por isso nao cabe nas primitivas anteriores.             */
+  D.poly   =function(pts,o){ o=o||{}; return add({t:"poly",p:pts,f:o.f||null,
+                                        c:o.c||[60,80,110],e:o.e||0.4,fech:!!o.fech,tr:o.tr||0}); };
   D.hach   =function(x,y,w2,h2,o){ o=o||{}; return add({t:"hach",x:x,y:y,w:w2,h:h2,
                                         c:o.c||[150,165,185],p:o.p||2.2,e:o.e||0.18}); };
   return D;
@@ -9887,6 +9891,11 @@ function svgDe(D,larguraCSS){
       p.push('<text x="'+((o.x-1.9)*K)+'" y="'+((o.y1+o.y2)/2*K)+'" fill="'+rgb(o.c)+
              '" font-size="'+(5.4*K*0.42)+'" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif"'+
              ' transform="rotate(-90,'+((o.x-1.9)*K)+','+((o.y1+o.y2)/2*K)+')">'+esc(o.s)+'</text>');
+    } else if(o.t==="poly"){
+      var pp=o.p.map(function(q){return (q[0]*K)+","+(q[1]*K);}).join(" ");
+      p.push('<poly'+(o.fech?"gon":"line")+' points="'+pp+'" fill="'+(o.f?rgb(o.f):"none")+
+             '" stroke="'+rgb(o.c)+'" stroke-width="'+(o.e*K)+'" stroke-linejoin="round"'+
+             (o.tr?' stroke-dasharray="'+(o.tr*K)+','+(o.tr*K)+'"':'')+'/>');
     } else if(o.t==="hach"){
       var j,n=Math.floor((o.w+o.h)/o.p);
       p.push('<clipPath id="cp'+i+'"><rect x="'+(o.x*K)+'" y="'+(o.y*K)+'" width="'+(o.w*K)+
@@ -9952,6 +9961,14 @@ function pdfDe(D,doc,ox,oy,esc){
       doc.line(X(o.x-1.3),Y(o.y2),X(o.x+1.3),Y(o.y2));
       doc.setTextColor(o.c[0],o.c[1],o.c[2]); doc.setFontSize(5.4);
       doc.text(san(o.s),X(o.x-1.9),Y((o.y1+o.y2)/2),{angle:90,align:"center"});
+    } else if(o.t==="poly"){
+      doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
+      if(o.f) doc.setFillColor(o.f[0],o.f[1],o.f[2]);
+      if(o.tr) doc.setLineDashPattern([o.tr*esc,o.tr*esc],0);
+      var k2,ptos=o.p;
+      for(k2=1;k2<ptos.length;k2++) doc.line(X(ptos[k2-1][0]),Y(ptos[k2-1][1]),X(ptos[k2][0]),Y(ptos[k2][1]));
+      if(o.fech&&ptos.length>2) doc.line(X(ptos[ptos.length-1][0]),Y(ptos[ptos.length-1][1]),X(ptos[0][0]),Y(ptos[0][1]));
+      if(o.tr) doc.setLineDashPattern([],0);
     } else if(o.t==="hach"){
       doc.setDrawColor(o.c[0],o.c[1],o.c[2]); doc.setLineWidth(o.e*esc);
       var j,n=Math.floor((o.w+o.h)/o.p),x1,y1b,x2,y2b;
@@ -10364,6 +10381,519 @@ function parafusoCroqui(G){
         G.FvRd.toFixed(1).replace(".",",")+" kN"+
         (G.redPc>0?("  (já com −"+G.redPc.toFixed(1).replace(".",",")+" % de conector longo)"):""),
         {c:[40,60,90],fs:6.0,al:"center",b:true});
+  return D;
+}
+
+/* ============================================================================
+   LIGAÇÃO DE CHAPAS TRACIONADAS — emenda ou superposição parafusada
+   ----------------------------------------------------------------------------
+   ABNT NBR 8800:2024. Determina a força normal resistente da ligação pelo MENOR
+   entre cinco estados-limites, e diz qual deles governa:
+
+     1. cisalhamento dos parafusos                       6.3.3.2
+     2. pressão de contato e rasgamento na chapa         6.3.3.3
+     3. chapa tracionada: escoamento bruto e ruptura     5.2.2 e 5.2.3
+     4. cisalhamento de bloco                            6.5.6
+     5. deslizamento, quando a ligação é por atrito      6.3.4
+
+   O que mais confunde nesta verificação é de onde sai cada distância. O ℓf da
+   pressão de contato é medido da BORDA DO FURO — não do centro — até a
+   extremidade da chapa, na direção da força, e usa o diâmetro REAL do furo. Já
+   a área líquida usa um diâmetro FICTÍCIO, maior, que desconta o dano do
+   puncionamento. São dois diâmetros diferentes no mesmo cálculo, e o croqui
+   desenha os dois.
+   ========================================================================== */
+
+/* Tabela 13 da NBR 8800:2024 — coeficiente de atrito por classe de superficie */
+var CH_SUPERF=[
+ {v:"A", t:"Classe A — superfície limpa, isenta de óleo (jateada ou não)", mu:0.30},
+ {v:"B", t:"Classe B — jateada sem pintura ou com tinta classe B",         mu:0.50},
+ {v:"C", t:"Classe C — galvanizada a quente e rugosa",                     mu:0.30},
+ {v:"GV",t:"Galvanizada lisa",                                             mu:0.20}
+];
+function chSup(v){ for(var i=0;i<CH_SUPERF.length;i++) if(CH_SUPERF[i].v===v) return CH_SUPERF[i]; return CH_SUPERF[0]; }
+
+/* Tabela 14 — acrescimo ao diametro do furo REAL, em mm, por tipo de furo.
+   O furo muito alongado tem 2,5.db e e tratado a parte.                    */
+var CH_FURO=[
+ {v:"PAD", t:"Padrão",                     add:1.5,  cpc:[1.2,2.4], lbl:"padrão"},
+ {v:"ALA", t:"Alargado",                   add:5.0,  cpc:[1.2,2.4], lbl:"alargado"},
+ {v:"PAL", t:"Pouco alongado",             add:6.0,  cpc:[1.2,2.4], lbl:"pouco alongado"},
+ {v:"MAL", t:"Muito alongado (perpend. à força)", add:null, cpc:[1.0,2.0], lbl:"muito alongado"}
+];
+function chFuro(v){ for(var i=0;i<CH_FURO.length;i++) if(CH_FURO[i].v===v) return CH_FURO[i]; return CH_FURO[0]; }
+
+function chapaTracCalc(){
+  var GA1=1.10, GA2=1.35;
+
+  /* ===================== 1. ENTRADAS ===================== */
+  var arranjo=selv("chArranjo","EMENDA");            /* EMENDA (corte duplo) | SOBREP (simples) */
+  var t1=num("chT1"), t2=num("chT2");                /* mm — chapa principal e cada tala */
+  var bCh=num("chB");                                /* mm — largura da chapa */
+  var nLin=Math.round(num("chNLin")), nCol=Math.round(num("chNCol"));
+  var e1=num("chE1"), p1=num("chP1"), e2=num("chE2"), g=num("chG");
+  var espV=selv("chEspec","A307"), ESP=pfEspec(espV);
+  var diaV=selv("chDiam","P0.500"), DIA=pfDiam(diaV);
+  var fubIn=num("chFub");
+  var roscaV=selv("chRosca","N");
+  var furoV=selv("chFuro","PAD"), FUR=chFuro(furoV);
+  var fy=num("chFy"), fu=num("chFu");
+  var defLim=selv("chDefLim","SIM");                 /* deformacao e limitacao de projeto? */
+  var CtIn=num("chCt");
+  var atritoV=selv("chAtrito","NAO");                /* NAO | ELU | ELS */
+  var supV=selv("chSuperf","A"), SUP=chSup(supV);
+  var Nsd=num("chNsd");
+
+  if(!isFinite(t1)||t1<=0) t1=9.5;
+  if(!isFinite(t2)||t2<0) t2=0;
+  if(!isFinite(nLin)||nLin<1) nLin=1;
+  if(!isFinite(nCol)||nCol<1) nCol=1;
+  if(!isFinite(e1)||e1<=0) e1=45;
+  if(!isFinite(p1)||p1<0) p1=0;
+  if(!isFinite(e2)||e2<=0) e2=25;
+  if(!isFinite(g)||g<0) g=0;
+  if(!isFinite(fy)||fy<=0) fy=25;
+  if(!isFinite(fu)||fu<=0) fu=40;
+  if(!isFinite(CtIn)||CtIn<=0) CtIn=1.0;
+  if(!isFinite(Nsd)||Nsd<0) Nsd=0;
+  if(!isFinite(fubIn)||fubIn<=0) fubIn=0;
+
+  if(!reqOK([{id:"chT1",v:t1,gt:0,lt:200},{id:"chNLin",v:nLin,gt:0,lt:21},
+             {id:"chNCol",v:nCol,gt:0,lt:21},{id:"chE1",v:e1,gt:0},
+             {id:"chE2",v:e2,gt:0},{id:"chFy",v:fy,gt:0,lt:100},
+             {id:"chFu",v:fu,gt:0,lt:200},{id:"chCt",v:CtIn,gt:0,lt:1.001}])) return null;
+  if(nCol>1&&!reqOK([{id:"chP1",v:p1,gt:0}])) return null;
+  if(nLin>1&&!reqOK([{id:"chG",v:g,gt:0}])) return null;
+  var fub=(espV==="OUTRO")?fubIn:ESP.fub;
+  if(espV==="OUTRO"&&!reqOK([{id:"chFub",v:fubIn,gt:0,lt:200}])) return null;
+
+  /* largura: se nao informada, sai da propria furacao */
+  var bCalc=2*e2+(nLin-1)*g;
+  if(!isFinite(bCh)||bCh<=0) bCh=bCalc;
+  if(!reqRel(bCh>=bCalc-0.01,"chB","chE2","precisa comportar a furação (2·e₂ + (n−1)·g = "+
+      bCalc.toFixed(1).replace(".",",")+" mm)")) return null;
+
+  var nb=nLin*nCol;                                   /* parafusos de um lado da emenda */
+  var nPlanos=(arranjo==="EMENDA")?2:1;
+  var db=DIA.mm/10;                                   /* cm */
+  var Ab=Math.PI*db*db/4;
+
+  /* Diametro REAL do furo (rasgamento) e FICTICIO (area liquida).
+     Sao grandezas distintas: o real e a furacao; o ficticio desconta ainda o
+     dano do puncionamento na borda, 2 mm alem do real.                     */
+  var dhR=(furoV==="MAL")?(2.5*DIA.mm):(DIA.mm+FUR.add);   /* mm */
+  var ddF=DIA.mm+( (furoV==="MAL")?(2.5*DIA.mm-DIA.mm+2.0):(FUR.add+2.0) ); /* mm */
+  var dh=dhR/10, dd=ddF/10;                            /* cm */
+
+  /* espessura que governa cada verificacao */
+  var tTalas=(arranjo==="EMENDA")?(2*t2):0;
+  var tGov=(arranjo==="EMENDA")?Math.min(t1,tTalas):Math.min(t1,(t2>0?t2:t1));
+  var tc=tGov/10, tp=t1/10;                            /* cm */
+  var bc=bCh/10, E1=e1/10, P1=p1/10, E2=e2/10, G=g/10;
+
+  /* ===================== 2. CISALHAMENTO DOS PARAFUSOS ===================== */
+  var coefV=(ESP.comum)?0.45:((roscaV==="N")?0.45:0.56);
+  var Fv1=coefV*Ab*fub/GA2;                            /* por plano */
+  var FvPar=Fv1*nPlanos;                               /* por parafuso */
+  var R_parafuso=FvPar*nb;
+
+  /* ===================== 3. PRESSÃO DE CONTATO E RASGAMENTO ===================== */
+  /* Resistencia e a SOMA furo a furo. O ℓf muda: no furo de extremidade e
+     medido ate a borda da chapa; nos internos, de borda a borda de furo.   */
+  var c1=(defLim==="SIM")?FUR.cpc[0]:(FUR.cpc[0]*1.25);
+  var c2=(defLim==="SIM")?FUR.cpc[1]:(FUR.cpc[1]*1.25);
+  var lfBorda=E1-dh/2, lfEntre=(nCol>1)?(P1-dh):null;
+  var FcBorda=Math.min(c1*lfBorda*tc*fu/GA2, c2*db*tc*fu/GA2);
+  var FcEntre=(nCol>1)?Math.min(c1*lfEntre*tc*fu/GA2, c2*db*tc*fu/GA2):0;
+  var R_contato=nLin*(FcBorda+(nCol-1)*FcEntre);
+  var govBorda=(c1*lfBorda<c2*db);                     /* rasgamento governa no furo de borda? */
+  var lfNeg=(lfBorda<=0)||(nCol>1&&lfEntre<=0);
+
+  /* ===================== 4. CHAPA TRACIONADA ===================== */
+  var Ag=bc*tp;
+  var An=(bc-nLin*dd)*tp;
+  var Ct=CtIn;
+  var Ae=Ct*An;
+  var capTala=(arranjo==="EMENDA");                    /* chapa de emenda: Ae <= 0,85 Ag */
+  var AeLim=0.85*Ag, AeUsada=capTala?Math.min(Ae,AeLim):Ae;
+  var capAtivo=(capTala&&Ae>AeLim);
+  var R_esb=Ag*fy/GA1;
+  var R_rsl=(An>0)?(AeUsada*fu/GA2):0;
+  var R_chapa=Math.min(R_esb,R_rsl);
+  var AnNeg=(An<=0);
+
+  /* ===================== 5. CISALHAMENTO DE BLOCO ===================== */
+  /* Dois caminhos de ruptura, os mesmos do exercicio de referencia. O valor
+     que vale e o MENOR dos dois; qual deles governa depende da geometria, e
+     e por isso que o croqui desenha o caminho vencedor.                    */
+  var Lv=E1+(nCol-1)*P1;                               /* comprimento cisalhado */
+  var nFurosV=nCol-0.5;                                /* furos no plano de corte */
+  var BLOCOS=[];
+  /* caminho 1: as duas faixas de borda arrancam (dois planos de corte) */
+  var A1gv=2*Lv*tp, A1nv=A1gv-2*nFurosV*dd*tp, A1nt=(2*E2-dd)*tp;
+  BLOCOS.push({n:"duas faixas de borda",Agv:A1gv,Anv:A1nv,Ant:A1nt,planos:2});
+  /* caminho 2: bloco em L, um plano de corte, traciona ate a borda oposta */
+  var A2gv=Lv*tp, A2nv=A2gv-nFurosV*dd*tp, A2nt=(E2+(nLin-1)*G-(nLin-0.5)*dd)*tp;
+  BLOCOS.push({n:"bloco em L, um lado",Agv:A2gv,Anv:A2nv,Ant:A2nt,planos:1});
+  /* caminho 3: bloco central entre as linhas extremas (so com 2+ linhas) */
+  if(nLin>=2){
+    var A3nt=((nLin-1)*G-(nLin-1)*dd)*tp;
+    BLOCOS.push({n:"bloco central entre as linhas",Agv:A1gv,Anv:A1nv,Ant:A3nt,planos:2});
+  }
+  var Cts=1.0;                                         /* tracao uniforme na chapa de emenda */
+  var iB,B,R_bloco=Infinity,blocoGov=null;
+  for(iB=0;iB<BLOCOS.length;iB++){
+    B=BLOCOS[iB];
+    if(B.Anv<=0||B.Ant<=0){ B.R=null; continue; }
+    B.Rrup=(0.60*fu*B.Anv+Cts*fu*B.Ant)/GA2;
+    B.Rlim=(0.60*fy*B.Agv+Cts*fu*B.Ant)/GA2;
+    B.R=Math.min(B.Rrup,B.Rlim);
+    if(B.R<R_bloco){ R_bloco=B.R; blocoGov=B; }
+  }
+  if(!isFinite(R_bloco)) R_bloco=0;
+
+  /* ===================== 6. DESLIZAMENTO ===================== */
+  var FTB=PF_FTB[diaV]||null, ftb=null;
+  if(FTB){ if(espV==="A325"||espV==="ISO88") ftb=FTB[0]; else if(espV==="A490"||espV==="ISO109") ftb=FTB[1]; }
+  var R_desliz=null, desMsg="", ge=1.20;
+  if(atritoV!=="NAO"){
+    if(!ftb){ desMsg="sem F_Tb na Tabela 19 para "+DIA.t+" "+ESP.t.replace(/ — .*/,"")+" — ligação por atrito exige parafuso de alta resistência protendido"; }
+    else if(atritoV==="ELU"){
+      R_desliz=1.13*SUP.mu*1.0*ftb*nPlanos/ge*nb;
+      desMsg="deslizamento como ESTADO-LIMITE ÚLTIMO (6.3.4.2), γe = "+ge.toFixed(2).replace(".",",");
+    } else {
+      var Rk=0.80*SUP.mu*1.0*ftb*nPlanos*nb;
+      R_desliz=Rk/0.70;
+      desMsg="deslizamento como ESTADO-LIMITE DE SERVIÇO (6.3.4.4): Rk = "+Rk.toFixed(2).replace(".",",")+
+             " kN comparado a 70 % da solicitação de cálculo, logo Rd = Rk/0,70";
+    }
+  }
+
+  /* ===================== 7. GOVERNANTE ===================== */
+  var CAND=[{n:"Cisalhamento dos parafusos",r:R_parafuso,ref:"6.3.3.2"},
+            {n:"Pressão de contato e rasgamento",r:R_contato,ref:"6.3.3.3"},
+            {n:"Chapa tracionada",r:R_chapa,ref:"5.2.2 e 5.2.3"},
+            {n:"Cisalhamento de bloco",r:R_bloco,ref:"6.5.6"}];
+  if(R_desliz!==null) CAND.push({n:"Deslizamento",r:R_desliz,ref:(atritoV==="ELU")?"6.3.4.2":"6.3.4.4"});
+  var Rd=Infinity,gov=null,iC;
+  for(iC=0;iC<CAND.length;iC++) if(CAND[iC].r<Rd){ Rd=CAND[iC].r; gov=CAND[iC]; }
+  var okN=(Nsd<=0)||(Nsd<=Rd);
+
+  /* ===================== 8. DISPOSIÇÕES CONSTRUTIVAS ===================== */
+  var espMin=3*DIA.mm;
+  var okP1=(nCol<2)||(p1>=espMin-0.01);
+  var okG =(nLin<2)||(g>=espMin-0.01);
+  var eMinB=(DIA.mm<=12.7)?19:(DIA.mm<=15.875?22:(DIA.mm<=19.05?26:(DIA.mm<=22.225?28:
+            (DIA.mm<=25.4?34:(DIA.mm<=28.575?38:(DIA.mm<36?1.25*DIA.mm:1.25*DIA.mm))))));
+  var okE1=(e1>=eMinB-0.01), okE2=(e2>=eMinB-0.01);
+  var pMax=Math.min(24*tGov,300), okPMax=(nCol<2)||(p1<=pMax+0.01);
+  var eMax=Math.min(12*tGov,150), okEMax=(e1<=eMax+0.01)&&(e2<=eMax+0.01);
+
+  /* ===================== 9. MEMORIAL ===================== */
+  function vt(x,d){
+    if(!isFinite(x)) return "—";
+    var t=x.toFixed(d===undefined?2:d),pt=t.split("."),ii=pt[0],sg="";
+    if(ii.charAt(0)==="-"){sg="-";ii=ii.slice(1);}
+    ii=ii.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sg+ii+(pt[1]?(","+pt[1]):"");
+  }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+
+  var MEM=[
+   ["1","Arranjo da ligação",(arranjo==="EMENDA")?"emenda com talas":"superposição",
+      nPlanos+" plano(s) de corte · "+nb+" parafusos "+DIA.t,
+      "chapa "+vt(t1,1)+" mm"+((arranjo==="EMENDA")?(" + 2 talas de "+vt(t2,1)+" mm"):""),"—"],
+   ["1","Espessura que governa o contato","min(chapa; soma das talas)",vt(tGov,2)+" mm",
+      (arranjo==="EMENDA")?("min("+vt(t1,1)+"; 2×"+vt(t2,1)+" = "+vt(tTalas,1)+")"):"chapa mais fina","—"],
+   ["1","Diâmetro REAL do furo","furo "+FUR.lbl,vt(dhR,2)+" mm","usado no rasgamento","—"],
+   ["1","Diâmetro FICTÍCIO do furo","real + 2 mm de dano",vt(ddF,2)+" mm","usado na área líquida (5.2.4.1)","—"],
+   ["2","Cisalhamento dos parafusos",vt(coefV,2)+"·Ab·fub/γa2 × "+nPlanos+" × "+nb,
+      vt(R_parafuso,1)+" kN",vt(FvPar,2)+" kN por parafuso","—"],
+   ["3","ℓf no furo de extremidade","e₁ − dh/2",vt(lfBorda*10,2)+" mm",
+      "da BORDA DO FURO à extremidade, na direção da força",lfNeg?"REPROVADO":"APROVADO"],
+   ["3","ℓf entre furos",(nCol>1)?"p₁ − dh":"—",(nCol>1)?(vt(lfEntre*10,2)+" mm"):"—",
+      (nCol>1)?"de borda a borda de furo":"coluna única","—"],
+   ["3","Pressão de contato e rasgamento","Σ min("+vt(c1,2)+"·ℓf·t·fu ; "+vt(c2,2)+"·db·t·fu)/γa2",
+      vt(R_contato,1)+" kN",govBorda?"rasgamento governa no furo de extremidade":"pressão de contato governa","—"],
+   ["4","Área bruta e líquida","Ag = b·t  ·  An = (b − n·dd)·t",
+      vt(Ag,3)+" / "+vt(An,3)+" cm²",(capAtivo?"Ae limitado a 0,85·Ag (5.2.3)":"Ae = Ct·An, Ct = "+vt(Ct,2)),AnNeg?"REPROVADO":"APROVADO"],
+   ["4","Escoamento da seção bruta","Ag·fy/γa1",vt(R_esb,1)+" kN","γa1 = 1,10","—"],
+   ["4","Ruptura da seção líquida","Ae·fu/γa2",vt(R_rsl,1)+" kN","γa2 = 1,35","—"],
+   ["5","Cisalhamento de bloco","(0,60·fu·Anv + Cts·fu·Ant)/γa2 ≤ (0,60·fy·Agv + Cts·fu·Ant)/γa2",
+      vt(R_bloco,1)+" kN",blocoGov?("governa o caminho: "+blocoGov.n):"nenhum caminho válido",blocoGov?"—":"REPROVADO"],
+   ["6","Espaçamento mínimo entre furos","3·db = "+vt(espMin,1)+" mm",
+      (nCol>1?("p₁ = "+vt(p1,1)):"—")+(nLin>1?("   g = "+vt(g,1)):"")+" mm","6.3.9",(okP1&&okG)?"APROVADO":"REPROVADO"],
+   ["6","Distância mínima à borda","Tabela 16: "+vt(eMinB,1)+" mm",
+      "e₁ = "+vt(e1,1)+"   e₂ = "+vt(e2,1)+" mm","6.3.11",(okE1&&okE2)?"APROVADO":"REPROVADO"],
+   ["6","Distâncias máximas","p ≤ min(24t;300) = "+vt(pMax,0)+"   ·   borda ≤ min(12t;150) = "+vt(eMax,0),
+      "p₁ = "+vt(p1,1)+"   e = "+vt(Math.max(e1,e2),1)+" mm","6.3.10 e 6.3.12",(okPMax&&okEMax)?"APROVADO":"REPROVADO"]
+  ];
+  if(R_desliz!==null) MEM.push(["7","Deslizamento",(atritoV==="ELU")?"1,13·μ·Ce·F_Tb·ns/γe × n":"0,80·μ·Ce·F_Tb·ns × n ÷ 0,70",
+      vt(R_desliz,1)+" kN","μ = "+vt(SUP.mu,2)+" ("+SUP.v+")   F_Tb = "+(ftb?vt(ftb,0)+" kN":"—"),ftb?"—":"REPROVADO"]);
+  MEM.push(["8","RESISTÊNCIA DA LIGAÇÃO","menor entre os estados-limites",vt(Rd,1)+" kN",
+      "governa: "+(gov?gov.n+" ("+gov.ref+")":"—"),(Nsd>0?st(okN):"VERIFICAR")]);
+  if(Nsd>0) MEM.push(["8","Verificação","Nsd / Rd",vt(Nsd,1)+" / "+vt(Rd,1)+" = "+vt(Nsd/Rd,3),"≤ 1,00",st(okN)]);
+
+  var nR=0,nV=0; MEM.forEach(function(m){ if(m[5]==="REPROVADO")nR++; else if(m[5]==="VERIFICAR")nV++; });
+
+  /* ===================== 10. SAIDA ===================== */
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:"RESISTÊNCIA DA LIGAÇÃO = "+vt(Rd,1)+" kN   ·   governa: "+(gov?gov.n:"—")+
+       (Nsd>0?("   ·   Nsd = "+vt(Nsd,1)+" kN → "+(okN?"✓ APROVADO":"⚠ REPROVADO")):"")+
+       "   ·   "+nR+" reprovação(ões)",hi:(nR>0||(Nsd>0&&!okN))}
+  ].concat(MEM.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+    {sec:"1 — RESISTÊNCIA DA LIGAÇÃO"},
+    {k:"RESISTÊNCIA DE CÁLCULO",v:vt(Rd,1)+" kN   —  governada por "+(gov?(gov.n+", item "+gov.ref):"—")+
+       (Nsd>0?("   ·   solicitação "+vt(Nsd,1)+" kN  →  "+vt(Nsd/Rd*100,0)+" % da resistência"):""),hi:true}
+  ]).concat(CAND.map(function(c){
+      return {k:(c===gov?"► ":"")+c.n,v:vt(c.r,1)+" kN"+(c===gov?"   ◄ GOVERNA":"   ("+vt(c.r/Rd,2)+"× o governante)")+"   ·   "+c.ref,hi:(c===gov)};
+  })).concat([
+    {k:"Como ler esta lista",v:"A ligação vale o MENOR dos estados-limites, não a média nem o do elemento que parece mais frágil. Trocar o parafuso por um mais resistente só adianta enquanto o parafuso governa: passado esse ponto quem manda é a chapa, e a ligação para de melhorar. No exercício de referência isso acontece literalmente — com A307 a ligação vale 140 kN pelo parafuso, e trocando para A325 ela sobe só até 195 kN, porque aí a seção líquida assume."},
+
+    {sec:"2 — PRESSÃO DE CONTATO E RASGAMENTO"},
+    {k:"⚠ DE ONDE SAI O ℓf",v:"Medido da BORDA DO FURO — não do centro — até a extremidade da chapa, na direção da força. No furo de extremidade, ℓf = e₁ − dh/2 = "+vt(e1,1)+" − "+vt(dhR,2)+"/2 = "+vt(lfBorda*10,2)+" mm."+
+       ((nCol>1)?("   Entre furos é de borda a borda: ℓf = p₁ − dh = "+vt(p1,1)+" − "+vt(dhR,2)+" = "+vt(lfEntre*10,2)+" mm."):"")+
+       "   Usar a distância de centro a centro é o erro clássico aqui, e ele superestima a resistência.",hi:true},
+    {k:"Resistência por furo",v:"extremidade: "+vt(FcBorda,2)+" kN"+((nCol>1)?("   ·   internos: "+vt(FcEntre,2)+" kN cada"):"")+
+       "   ·   total "+nLin+" × ("+vt(FcBorda,2)+(nCol>1?(" + "+(nCol-1)+"×"+vt(FcEntre,2)):"")+") = "+vt(R_contato,1)+" kN"},
+    {k:"Os dois termos e o que cada um significa",v:"O termo "+vt(c1,2)+"·ℓf·t·fu é o RASGAMENTO: a chapa rompe pela frente do furo até a borda. O termo "+vt(c2,2)+"·db·t·fu é a PRESSÃO DE CONTATO: o furo ovaliza por esmagamento. Vale o menor. "+
+       (govBorda?"Aqui o rasgamento governa, ou seja, a distância à borda é curta em relação ao diâmetro — aumentar e₁ aumenta a resistência.":"Aqui a pressão de contato governa, ou seja, a distância à borda já é suficiente — aumentar e₁ não adianta mais, só aumentar a espessura ou o diâmetro.")},
+    {k:"Critério de deformação",v:(defLim==="SIM")
+        ?("Deformação no furo É limitação de projeto: coeficientes "+vt(c1,2)+" e "+vt(c2,2)+". É a situação usual.")
+        :("Deformação no furo NÃO é limitação de projeto: coeficientes "+vt(c1,2)+" e "+vt(c2,2)+", 25 % maiores. Só cabe quando a ovalização do furo não compromete o uso — por exemplo quando cargas permanentes predominam e há contraflecha.")},
+
+    {sec:"3 — CHAPA TRACIONADA"},
+    {k:"Áreas",v:"Ag = "+vt(bc,2)+" × "+vt(tp,3)+" = "+vt(Ag,3)+" cm²   ·   An = ("+vt(bc,2)+" − "+nLin+"×"+vt(dd,3)+") × "+vt(tp,3)+" = "+vt(An,3)+" cm²   ·   Ae = "+vt(AeUsada,3)+" cm²"+
+       (capAtivo?("   ⚠ limitado por 0,85·Ag = "+vt(AeLim,3)+" cm² (5.2.3, chapa de emenda)"):""),hi:capAtivo},
+    {k:"⚠ DOIS DIÂMETROS DIFERENTES NO MESMO CÁLCULO",v:"O rasgamento usa o diâmetro REAL do furo, "+vt(dhR,2)+" mm. A área líquida usa o diâmetro FICTÍCIO, "+vt(ddF,2)+" mm, que é o real mais 2 mm — o acréscimo representa o material danificado na borda pelo puncionamento, que não conta como seção resistente. Trocar um pelo outro é erro comum e muda a área líquida em "+vt((ddF-dhR)*nLin*tp/An*100,1)+" % neste caso.",hi:true},
+    {k:"Escoamento × ruptura",v:"ESB = "+vt(R_esb,1)+" kN (seção bruta, γa1 = 1,10)   ·   RSL = "+vt(R_rsl,1)+" kN (seção líquida, γa2 = 1,35)   —  "+
+       ((R_esb<R_rsl)?"o escoamento governa, que é o estado-limite dúctil: a chapa avisa antes de romper.":"a RUPTURA governa, que é frágil e não avisa. Vale verificar se dá para alargar a chapa ou reduzir o número de furos na seção.")},
+    {k:"Coeficiente Ct",v:"Adotado "+vt(Ct,2)+". Para chapa plana com a força transmitida por todos os elementos da seção, o item 5.2.5.a dá Ct = 1,0. Perfis ligados só por parte da seção — cantoneira por uma aba, I pelas mesas — têm Ct menor, e aí a área efetiva cai."},
+    {k:"Limitação desta calculadora",v:"A área líquida é calculada com os furos ALINHADOS na seção transversal. Furação escalonada exige o acréscimo s²/4g do item 5.2.3 em cada linha de ruptura em ziguezague, e não está implementada aqui — com furos desencontrados, o resultado desta calculadora é conservador."},
+
+    {sec:"4 — CISALHAMENTO DE BLOCO"},
+    {k:"O que é",v:"Um pedaço da chapa é arrancado inteiro pelos parafusos: cisalha nos planos paralelos à força e traciona no plano normal a ela. A resistência depende do CAMINHO de ruptura, e caminhos diferentes dão valores diferentes — por isso a calculadora testa todos e fica com o menor."}
+  ]).concat(BLOCOS.map(function(B){
+      if(B.R===null) return {k:B.n,v:"caminho geometricamente impossível com esta furação"};
+      return {k:(B===blocoGov?"► ":"")+B.n+(B===blocoGov?"   (governa)":""),
+        v:"Agv "+vt(B.Agv,3)+"   Anv "+vt(B.Anv,3)+"   Ant "+vt(B.Ant,3)+" cm²   ·   ruptura "+vt(B.Rrup,1)+
+          " kN   ·   limite de escoamento "+vt(B.Rlim,1)+" kN   →   "+vt(B.R,1)+" kN",hi:(B===blocoGov)};
+  })).concat([
+    {k:"Cts",v:"Adotado "+vt(Cts,2)+", que é o valor para tração UNIFORME na área líquida — o caso da chapa de emenda simétrica. Em ligação com tração não uniforme, como cantoneira ligada por uma aba ou viga com dupla recorte, o item 6.5.6 manda usar 0,5, e a resistência cai sensivelmente."}
+  ]).concat(atritoV!=="NAO"?[
+    {sec:"5 — DESLIZAMENTO (LIGAÇÃO POR ATRITO)"},
+    {k:"RESISTÊNCIA AO DESLIZAMENTO",v:(R_desliz!==null?(vt(R_desliz,1)+" kN   ·   "+desMsg):("não calculável — "+desMsg)),hi:true},
+    {k:"Parâmetros",v:"μ = "+vt(SUP.mu,2)+" ("+SUP.t+")   ·   Ce = 1,00   ·   F_Tb = "+(ftb?(vt(ftb,0)+" kN (Tabela 19)"):"—")+"   ·   "+nPlanos+" plano(s) × "+nb+" parafusos"},
+    {k:"⚠ Atrito costuma governar com folga",v:"A resistência por atrito não depende da ruptura do parafuso, e sim da protensão e do coeficiente da superfície — e costuma ficar bem abaixo. No exercício de referência, o mesmo parafuso que resistia 31,25 kN ao corte segurava apenas 9,03 kN por atrito. Se a ligação é por atrito, é quase sempre o deslizamento que define o número de parafusos.",hi:true},
+    {k:"Preparação da superfície não é detalhe",v:"Classe B (jateada sem pintura) tem μ = 0,50 contra 0,30 da classe A: 67 % a mais de resistência pela mesma ligação. Em compensação exige controle de execução e uma região mínima sem pintura (6.3.4.3). Especificar classe B e pintar a superfície em obra anula o cálculo."}
+  ]:[]).concat([
+    {sec:"6 — DISPOSIÇÕES CONSTRUTIVAS"},
+    {k:"Espaçamento entre furos",v:"mínimo 3·db = "+vt(espMin,1)+" mm"+(nCol>1?("   ·   p₁ = "+vt(p1,1)+" mm "+(okP1?"✓":"⚠")):"")+
+       (nLin>1?("   ·   g = "+vt(g,1)+" mm "+(okG?"✓":"⚠")):""),hi:!(okP1&&okG)},
+    {k:"Distância à borda",v:"mínimo "+vt(eMinB,1)+" mm (Tabela 16)   ·   e₁ = "+vt(e1,1)+" "+(okE1?"✓":"⚠")+
+       "   ·   e₂ = "+vt(e2,1)+" "+(okE2?"✓":"⚠")+"   —  máximo min(12t; 150) = "+vt(eMax,0)+" mm "+(okEMax?"✓":"⚠"),hi:!(okE1&&okE2&&okEMax)},
+    {k:"Por que existe distância MÁXIMA",v:"Não é por resistência, é por corrosão: furos muito afastados deixam as chapas se separarem entre os parafusos e a água entra. Por isso o limite cai de 24t para 14t em aço resistente à corrosão não pintado."},
+    {k:"O que esta calculadora NÃO verifica",v:"Flambagem da chapa comprimida (esta é a verificação da chapa TRACIONADA), excentricidade da ligação, efeito alavanca, e a resistência dos elementos ligados fora da região da emenda. Furação escalonada e tração não uniforme no bloco também estão fora, como registrado acima."}
+  ]);
+
+  OUT.geo={tipo:"chapatrac",arranjo:arranjo,t1:t1,t2:t2,tGov:tGov,bCh:bCh,nLin:nLin,nCol:nCol,
+    e1:e1,p1:p1,e2:e2,g:g,nb:nb,nPlanos:nPlanos,espec:espV,especT:ESP.t,fub:fub,
+    diam:diaV,diamT:DIA.t,dbmm:DIA.mm,db:db,Ab:Ab,coefV:coefV,dhR:dhR,ddF:ddF,
+    fy:fy,fu:fu,lfBorda:lfBorda,lfEntre:lfEntre,FcBorda:FcBorda,FcEntre:FcEntre,govBorda:govBorda,
+    Ag:Ag,An:An,Ae:AeUsada,Ct:Ct,capAtivo:capAtivo,R_esb:R_esb,R_rsl:R_rsl,
+    BLOCOS:BLOCOS,blocoGov:blocoGov?blocoGov.n:null,blocoPlanos:blocoGov?blocoGov.planos:2,
+    R_parafuso:R_parafuso,R_contato:R_contato,R_chapa:R_chapa,R_bloco:R_bloco,R_desliz:R_desliz,
+    atrito:atritoV,mu:SUP.mu,ftb:ftb,Rd:Rd,gov:gov?gov.n:"—",govRef:gov?gov.ref:"",
+    Nsd:Nsd,okN:okN,CAND:CAND,MEM:MEM,nRep:nR,nVer:nV,Lv:Lv,eMinB:eMinB,espMin:espMin};
+  return OUT;
+}
+
+/* ---------------------------------------------------------------------------
+   CROQUI — a peça mais importante desta calculadora.
+   Três vistas na mesma descrição:
+     (a) PLANTA do lado verificado da emenda, com e1, p1, e2, g e b cotados
+         exatamente onde são medidos;
+     (b) DETALHE do ℓf, ampliado, mostrando que ele sai da BORDA do furo e não
+         do centro, e que usa o diâmetro real;
+     (c) CORTE com o empilhamento das chapas e os planos de corte.
+   Sobre a planta vai desenhado o CAMINHO DE RUPTURA do bloco que governou,
+   com as partes cisalhadas e a tracionada em cores distintas.
+   ------------------------------------------------------------------------- */
+function chapaTracCroqui(G){
+  /* Plano da folha, em posicoes nomeadas. A primeira versao usou offsets
+     soltos e o detalhe do lf estourou a largura, a seta da forca cruzou as
+     cotas e o rotulo da linha de emenda caiu no titulo. Com as faixas
+     declaradas aqui, colisao vira erro visivel no codigo.                 */
+  var W=176, H=152, D=Desenho(W,H);
+  var COR_CIS=[0,130,95], COR_TRA=[200,60,40], COR_AUX=[120,135,155], COR_TIT=[25,55,90];
+
+  var yTitP=13;                      /* titulo da planta            */
+  var yPlT=20,  yPlB=68;             /* faixa vertical da planta    */
+  var xPlL=24,  xPlR=112;            /* faixa horizontal da planta  */
+  var xDetL=122, xDetR=174;          /* faixa do detalhe do lf      */
+  var yCorT=88, yCorB=116;           /* faixa do corte              */
+  var yLegB=130;                     /* legenda do bloco            */
+  var yFt1=140, yFt2=147;            /* rodape                      */
+
+  /* ================= PLANTA ================= */
+  D.txt(xPlL,yTitP,"PLANTA — lado verificado da ligação   ·   cotas em mm",{c:COR_TIT,fs:6.4,b:true});
+  var folgaDir=Math.max(15,G.e1*0.5);
+  var Lreal=G.e1+(G.nCol-1)*G.p1+folgaDir, breal=G.bCh;
+  var es=Math.min((xPlR-xPlL)/Lreal,(yPlB-yPlT)/breal);
+  var xP=xPlL, wP=Lreal*es, hP=breal*es, yP=yPlT+((yPlB-yPlT)-hP)/2;
+
+  D.ret(xP,yP,wP,hP,{f:[232,238,246],c:[70,92,122],e:0.45});
+  D.linha(xP+wP,yP-2,xP+wP,yP+hP+2,{c:COR_AUX,e:0.35,tr:1.2});
+  D.txt(xP+wP+1.2,yP+hP+5.0,"linha de emenda",{c:COR_AUX,fs:4.8});
+
+  var i,j,xf=[],yf=[];
+  for(j=0;j<G.nCol;j++) xf.push(xP+(G.e1+j*G.p1)*es);
+  for(i=0;i<G.nLin;i++) yf.push(yP+(G.e2+i*G.g)*es);
+  var rf=Math.max(1.1,Math.min(3.2,G.dhR/2*es));
+  var xUlt=xf[G.nCol-1];
+
+  /* caminho de ruptura do bloco que governou, por baixo dos furos */
+  if(G.blocoGov){
+    if(G.blocoGov.indexOf("duas faixas")===0){
+      D.linha(xP,yf[0],xUlt,yf[0],{c:COR_CIS,e:1.0});
+      D.linha(xP,yf[G.nLin-1],xUlt,yf[G.nLin-1],{c:COR_CIS,e:1.0});
+      D.linha(xP,yP,xP,yf[0],{c:COR_TRA,e:1.0});
+      D.linha(xP,yf[G.nLin-1],xP,yP+hP,{c:COR_TRA,e:1.0});
+    } else if(G.blocoGov.indexOf("bloco em L")===0){
+      D.linha(xP,yf[0],xUlt,yf[0],{c:COR_CIS,e:1.0});
+      D.linha(xP,yf[0],xP,yP+hP,{c:COR_TRA,e:1.0});
+    } else {
+      D.linha(xP,yf[0],xUlt,yf[0],{c:COR_CIS,e:1.0});
+      D.linha(xP,yf[G.nLin-1],xUlt,yf[G.nLin-1],{c:COR_CIS,e:1.0});
+      D.linha(xP,yf[0],xP,yf[G.nLin-1],{c:COR_TRA,e:1.0});
+    }
+  }
+  for(j=0;j<G.nCol;j++) for(i=0;i<G.nLin;i++){
+    D.circ(xf[j],yf[i],rf,{f:[255,255,255],c:[55,72,96],e:0.3});
+  }
+  /* seta da forca, sozinha a esquerda — nenhuma cota deste lado */
+  D.seta(xP+6,yP+hP/2,xP-13,yP+hP/2,{c:COR_TRA,e:0.6});
+  D.txt(xP-14,yP+hP/2+2.0,"N",{c:COR_TRA,fs:7.4,al:"right",b:true});
+
+  /* cotas: horizontais embaixo, verticais TODAS a direita */
+  /* Com muitos furos as cotas repetidas nao cabem e os rotulos colidem.
+     Acima de tres vaos a cota vira agrupada — "5 x p1 = 50,0" — que e o que
+     um desenhista faria de qualquer forma.                                */
+  var yc=yP+hP+7;
+  D.cotaH(xP,xf[0],yc,"e₁ "+G.e1.toFixed(1).replace(".",","));
+  if(G.nCol>1){
+    if(G.nCol-1<=3){
+      for(j=1;j<G.nCol;j++) D.cotaH(xf[j-1],xf[j],yc,"p₁ "+G.p1.toFixed(1).replace(".",","));
+    } else {
+      D.cotaH(xf[0],xf[G.nCol-1],yc,(G.nCol-1)+" × p₁ = "+G.p1.toFixed(1).replace(".",","));
+    }
+  }
+  var xc1=xP+wP+7, xc2=xP+wP+16;
+  D.cotaV(xc1,yP,yf[0],"e₂ "+G.e2.toFixed(1).replace(".",","));
+  if(G.nLin>1){
+    if(G.nLin-1<=3){
+      for(i=1;i<G.nLin;i++) D.cotaV(xc1,yf[i-1],yf[i],"g "+G.g.toFixed(1).replace(".",","));
+    } else {
+      D.cotaV(xc1,yf[0],yf[G.nLin-1],(G.nLin-1)+" × g = "+G.g.toFixed(1).replace(".",","));
+    }
+  }
+  D.cotaV(xc2,yP,yP+hP,"b = "+G.bCh.toFixed(1).replace(".",","));
+
+  /* ================= DETALHE DO lf ================= */
+  /* Esquematico, FORA de escala de proposito: a mensagem e de onde a cota
+     sai, nao a proporcao. Assim ele cabe sempre, com qualquer geometria.  */
+  D.txt(xDetL,yTitP,"DETALHE do ℓf   (fora de escala)",{c:COR_TIT,fs:6.0,b:true});
+  var wD=xDetR-xDetL-4, hD=13, yD=yPlT+12, xD=xDetL;
+  var xFuro=xD+wD*0.64, rD=wD*0.13;
+  D.ret(xD,yD,wD,hD,{f:[232,238,246],c:[70,92,122],e:0.4});
+  D.circ(xFuro,yD+hD/2,rD,{f:[255,255,255],c:[55,72,96],e:0.35});
+  /* lf em vermelho, ACIMA: da borda da chapa ate a BORDA do furo */
+  var yA=yD-4.0;
+  D.linha(xD,yA,xFuro-rD,yA,{c:COR_TRA,e:0.5});
+  D.linha(xD,yA-1.6,xD,yA+1.6,{c:COR_TRA,e:0.4});
+  D.linha(xFuro-rD,yA-1.6,xFuro-rD,yA+1.6,{c:COR_TRA,e:0.4});
+  D.txt((xD+xFuro-rD)/2,yA-2.2,"ℓf = "+(G.lfBorda*10).toFixed(1).replace(".",","),
+        {c:COR_TRA,fs:5.6,al:"center",b:true});
+  /* e1 em cinza, ABAIXO: da borda ate o CENTRO do furo */
+  var yB=yD+hD+4.5;
+  D.linha(xD,yB,xFuro,yB,{c:COR_AUX,e:0.35,tr:0.9});
+  D.linha(xD,yB-1.4,xD,yB+1.4,{c:COR_AUX,e:0.3});
+  D.linha(xFuro,yB-1.4,xFuro,yB+1.4,{c:COR_AUX,e:0.3});
+  D.txt((xD+xFuro)/2,yB+4.0,"e₁ = "+G.e1.toFixed(1).replace(".",",")+"  (ao CENTRO)",
+        {c:COR_AUX,fs:5.0,al:"center"});
+  D.linha(xFuro,yD+hD/2,xFuro,yB-1.4,{c:COR_AUX,e:0.2,tr:0.7});
+  D.txt(xD,yB+10.5,"dh REAL = "+G.dhR.toFixed(2).replace(".",",")+" mm  → rasgamento",{c:[90,105,125],fs:5.0});
+  D.txt(xD,yB+15.0,"dd FICTÍCIO = "+G.ddF.toFixed(2).replace(".",",")+" mm  → área líquida",{c:[90,105,125],fs:5.0});
+  D.txt(xD,yB+19.5,"são dois diâmetros no mesmo cálculo",{c:COR_TRA,fs:4.8});
+
+  /* ================= CORTE ================= */
+  D.txt(xPlL,yCorT-4,"CORTE — empilhamento e planos de corte",{c:COR_TIT,fs:6.4,b:true});
+  var xS=xPlL+4, LS=84, yM=(yCorT+yCorB)/2;
+  var tEsc=Math.min(1.9,16/Math.max(G.t1+2*G.t2,1));
+  var h1=Math.max(2.6,G.t1*tEsc), h2=Math.max(1.9,G.t2*tEsc);
+  if(G.arranjo==="EMENDA"){
+    /* chapa principal entra pela esquerda e para na linha de emenda */
+    D.ret(xS,yM-h1/2,LS*0.52,h1,{f:[226,233,242],c:[70,92,122],e:0.4});
+    D.ret(xS+LS*0.54,yM-h1/2,LS*0.46,h1,{f:[226,233,242],c:[70,92,122],e:0.4});
+    D.linha(xS+LS*0.53,yM-h1/2-6,xS+LS*0.53,yM+h1/2+6,{c:COR_AUX,e:0.3,tr:1.0});
+    /* talas atravessam a emenda nos dois lados */
+    D.ret(xS+2,yM-h1/2-h2-0.4,LS-4,h2,{f:[205,220,238],c:[70,92,122],e:0.35});
+    D.ret(xS+2,yM+h1/2+0.4,LS-4,h2,{f:[205,220,238],c:[70,92,122],e:0.35});
+    D.txt(xS+LS+2,yM+1.2,"chapa "+G.t1.toFixed(1).replace(".",",")+" mm",{c:[70,85,105],fs:5.0});
+    D.txt(xS+LS+2,yM-h1/2-h2-1.2,"talas 2 × "+G.t2.toFixed(1).replace(".",",")+" mm",{c:[70,85,105],fs:5.0});
+    D.linha(xS+2,yM-h1/2-0.2,xS+LS-4,yM-h1/2-0.2,{c:COR_TRA,e:0.5,tr:0.9});
+    D.linha(xS+2,yM+h1/2+0.2,xS+LS-4,yM+h1/2+0.2,{c:COR_TRA,e:0.5,tr:0.9});
+    D.txt(xS+LS+2,yM+h1/2+h2+3.2,"2 planos de corte",{c:COR_TRA,fs:5.0});
+  } else {
+    D.ret(xS,yM-h1,LS*0.62,h1,{f:[226,233,242],c:[70,92,122],e:0.4});
+    D.ret(xS+LS*0.38,yM,LS*0.62,h1,{f:[205,220,238],c:[70,92,122],e:0.4});
+    D.linha(xS+LS*0.38,yM,xS+LS*0.62,yM,{c:COR_TRA,e:0.6,tr:0.9});
+    D.txt(xS+LS+2,yM-h1/2,"chapa "+G.t1.toFixed(1).replace(".",",")+" mm",{c:[70,85,105],fs:5.0});
+    D.txt(xS+LS+2,yM+h1/2+2.5,"1 plano de corte",{c:COR_TRA,fs:5.0});
+  }
+  /* Parafusos no corte. Na emenda aparecem os DOIS grupos, espelhados na
+     linha de emenda, porque e assim que a ligacao existe — mostrar so um
+     lado faz o desenho mentir sobre a peca. Na superposicao eles ficam
+     dentro da regiao sobreposta, que e a unica onde cabem.               */
+  var hTot=(G.arranjo==="EMENDA")?(h1+2*h2+0.8):(2*h1);
+  var Lgrupo=G.e1+(G.nCol-1)*G.p1+folgaDir;
+  function parafusoCorte(xb){
+    D.ret(xb-0.9,yM-hTot/2-1.8,1.8,hTot+3.6,{f:[170,184,202],c:[55,72,96],e:0.28});
+  }
+  if(G.arranjo==="EMENDA"){
+    var xEm=xS+LS*0.53, esS=(LS*0.50)/Math.max(Lgrupo,1);
+    for(j=0;j<G.nCol;j++){
+      var dx=(folgaDir+(G.nCol-1-j)*G.p1)*esS;   /* medido a partir da emenda */
+      parafusoCorte(xEm-dx);
+      parafusoCorte(xEm+dx);
+    }
+  } else {
+    var xA=xS+LS*0.40, xB=xS+LS*0.60;
+    for(j=0;j<G.nCol;j++){
+      parafusoCorte(xA+(G.nCol>1?(j*(xB-xA)/(G.nCol-1)):((xB-xA)/2)));
+    }
+  }
+
+  /* ================= LEGENDA DO BLOCO ================= */
+  D.txt(xPlL,yLegB-5,"CISALHAMENTO DE BLOCO — caminho que governou: "+(G.blocoGov||"—"),
+        {c:COR_TIT,fs:6.2,b:true});
+  D.linha(xPlL,yLegB,xPlL+11,yLegB,{c:COR_CIS,e:1.0});
+  D.txt(xPlL+13,yLegB+1.3,"planos CISALHADOS (Agv, Anv)",{c:[0,110,80],fs:5.3});
+  D.linha(xPlL+82,yLegB,xPlL+93,yLegB,{c:COR_TRA,e:1.0});
+  D.txt(xPlL+95,yLegB+1.3,"plano TRACIONADO (Ant)",{c:[175,70,45],fs:5.3});
+
+  /* ================= RODAPE ================= */
+  D.txt(W/2,yFt1,"parafusos "+G.R_parafuso.toFixed(0)+"   ·   contato e rasgamento "+G.R_contato.toFixed(0)+
+        "   ·   chapa "+G.R_chapa.toFixed(0)+"   ·   bloco "+G.R_bloco.toFixed(0)+
+        (G.R_desliz!==null?("   ·   deslizamento "+G.R_desliz.toFixed(0)):"")+"   kN",
+        {c:[90,105,125],fs:5.6,al:"center"});
+  D.txt(W/2,yFt2,"RESISTÊNCIA DA LIGAÇÃO = "+G.Rd.toFixed(1).replace(".",",")+" kN   —   governa "+G.gov,
+        {c:COR_TIT,fs:7.4,al:"center",b:true});
   return D;
 }
 
@@ -14948,6 +15478,78 @@ const CALCS={
     croqui:parafusoCroqui,
     calcular:parafusoCalc
   },
+  chapa_tracionada:{
+    titulo:"Ligação de chapas tracionadas — emenda ou superposição parafusada",
+    referencia:"Força normal resistente de ligação parafusada de chapas tracionadas pelo menor entre cinco estados-limites, conforme ABNT NBR 8800:2024. Cisalhamento dos parafusos pelo item 6.3.3.2, com coeficiente 0,45 ou 0,56 conforme a posição da rosca e 0,45 sempre para parafuso comum. Pressão de contato e rasgamento pelo item 6.3.3.3, somados furo a furo, com ℓf medido da borda do furo à extremidade da chapa na direção da força e diâmetro real da furação, e coeficientes 1,2 e 2,4 quando a deformação no furo é limitação de projeto ou 1,5 e 3,0 quando não é. Chapa tracionada pelos itens 5.2.2 e 5.2.3, com escoamento da seção bruta sobre γa1 e ruptura da seção líquida efetiva sobre γa2, área líquida pelo diâmetro fictício do item 5.2.4.1 e limitação Ae ≤ 0,85·Ag para chapa de emenda. Cisalhamento de bloco pelo item 6.5.6, testando os caminhos de ruptura possíveis e adotando o menor. Deslizamento em ligação por atrito pelos itens 6.3.4.2 como estado-limite último e 6.3.4.4 como estado-limite de serviço, com coeficiente de atrito pela Tabela 13 e força de protensão pela Tabela 19. Disposições construtivas pelos itens 6.3.9 a 6.3.12 e Tabelas 14 e 16. Coeficientes γa1 = 1,10, γa2 = 1,35 e γe = 1,20.",
+    campos:[
+      {tipo:"head",label:"Arranjo da ligação"},
+      {id:"chArranjo",label:"TIPO DE LIGAÇÃO",tipo:"select",valor:"EMENDA",opcoes:[
+        {v:"EMENDA",t:"Emenda com talas nos dois lados — corte DUPLO"},
+        {v:"SOBREP",t:"Superposição de duas chapas — corte SIMPLES"}]},
+      {id:"chT1",label:"Espessura da CHAPA PRINCIPAL",unidade:"mm",tipo:"number",valor:9.5,step:"0.1"},
+      {id:"chT2",label:"Espessura de CADA TALA (ou da segunda chapa, na superposição)",unidade:"mm",tipo:"number",valor:6.3,step:"0.1"},
+      {id:"chB",label:"LARGURA da chapa  (0 = calcular por 2·e₂ + (n−1)·g)",unidade:"mm",tipo:"number",valor:101.6,step:"1"},
+      {tipo:"head",label:"Furação — quantas e onde"},
+      {id:"chNCol",label:"COLUNAS de furos NA DIREÇÃO DA FORÇA  (eixo x)",unidade:"un",tipo:"number",valor:2,step:"1"},
+      {id:"chNLin",label:"LINHAS de furos TRANSVERSAIS à força  (eixo y)",unidade:"un",tipo:"number",valor:2,step:"1"},
+      {id:"chE1",label:"e₁ — do furo de extremidade à BORDA, na direção da força",unidade:"mm",tipo:"number",valor:45,step:"1"},
+      {id:"chP1",label:"p₁ — espaçamento entre COLUNAS, na direção da força",unidade:"mm",tipo:"number",valor:50,step:"1"},
+      {id:"chE2",label:"e₂ — do furo à BORDA, transversal à força",unidade:"mm",tipo:"number",valor:25,step:"1"},
+      {id:"chG",label:"g — gabarito entre LINHAS, transversal à força",unidade:"mm",tipo:"number",valor:51.6,step:"1"},
+      {id:"chFuro",label:"TIPO DE FURO",tipo:"select",valor:"PAD",opcoes:[
+        {v:"PAD",t:"Padrão — db + 1,5 mm"},
+        {v:"ALA",t:"Alargado — db + 5 mm"},
+        {v:"PAL",t:"Pouco alongado — db + 6 mm"},
+        {v:"MAL",t:"Muito alongado, perpendicular à força — 2,5·db"}]},
+      {tipo:"head",label:"Parafusos"},
+      {id:"chEspec",label:"ESPECIFICAÇÃO",tipo:"select",valor:"A307",opcoes:[
+        {v:"A307",t:"ASTM A307 — comum  (fub 415 MPa)"},
+        {v:"ISO46",t:"ISO 4016 classe 4.6 — comum  (fub 400 MPa)"},
+        {v:"A325",t:"ASTM F3125 A325 / F1852  (fub 830 MPa)"},
+        {v:"ISO88",t:"ISO 4016 classe 8.8  (fub 800 MPa)"},
+        {v:"A490",t:"ASTM F3125 A490 / F2280  (fub 1040 MPa)"},
+        {v:"ISO109",t:"ISO 4016 classe 10.9  (fub 1000 MPa)"},
+        {v:"OUTRO",t:"Outro — informar fub abaixo"}]},
+      {id:"chFub",label:"fub  (só quando a especificação for OUTRO)",unidade:"kN/cm²",tipo:"number",valor:0,step:"0.5"},
+      {id:"chDiam",label:"DIÂMETRO nominal db",tipo:"select",valor:"P0.500",opcoes:[
+        {v:"P0.250",t:"1/4 pol  (6,35 mm)"},{v:"P0.3125",t:"5/16 pol  (7,94 mm)"},
+        {v:"P0.375",t:"3/8 pol  (9,53 mm)"},{v:"P0.4375",t:"7/16 pol  (11,11 mm)"},
+        {v:"P0.500",t:"1/2 pol  (12,70 mm)"},{v:"P0.625",t:"5/8 pol  (15,88 mm)"},
+        {v:"P0.750",t:"3/4 pol  (19,05 mm)"},{v:"P0.875",t:"7/8 pol  (22,23 mm)"},
+        {v:"P1.000",t:"1 pol  (25,40 mm)"},{v:"P1.125",t:"1 1/8 pol  (28,58 mm)"},
+        {v:"P1.250",t:"1 1/4 pol  (31,75 mm)"},{v:"P1.375",t:"1 3/8 pol  (34,93 mm)"},
+        {v:"P1.500",t:"1 1/2 pol  (38,10 mm)"},{v:"P1.750",t:"1 3/4 pol  (44,45 mm)"},
+        {v:"P2.000",t:"2 pol  (50,80 mm)"},
+        {v:"M4",t:"M4"},{v:"M5",t:"M5"},{v:"M6",t:"M6"},{v:"M8",t:"M8"},{v:"M10",t:"M10"},
+        {v:"M12",t:"M12"},{v:"M14",t:"M14"},{v:"M16",t:"M16"},{v:"M18",t:"M18"},
+        {v:"M20",t:"M20"},{v:"M22",t:"M22"},{v:"M24",t:"M24"},{v:"M27",t:"M27"},
+        {v:"M30",t:"M30"},{v:"M33",t:"M33"},{v:"M36",t:"M36"}]},
+      {id:"chRosca",label:"POSIÇÃO DA ROSCA no plano de corte",tipo:"select",valor:"N",opcoes:[
+        {v:"N",t:"Na rosca — plano PASSA pela rosca  (coef. 0,45)"},
+        {v:"X",t:"Fora da rosca  (coef. 0,56)"}]},
+      {tipo:"head",label:"Aço da chapa e critérios"},
+      {id:"chFy",label:"fy do aço da chapa",unidade:"kN/cm²",tipo:"number",valor:25,step:"0.5"},
+      {id:"chFu",label:"fu do aço da chapa",unidade:"kN/cm²",tipo:"number",valor:40,step:"0.5"},
+      {id:"chCt",label:"Ct — coeficiente de redução da área líquida",unidade:"0 a 1",tipo:"number",valor:1,step:"0.05"},
+      {id:"chDefLim",label:"A DEFORMAÇÃO no furo é limitação de projeto?",tipo:"select",valor:"SIM",opcoes:[
+        {v:"SIM",t:"Sim — coeficientes 1,2 e 2,4  (situação usual)"},
+        {v:"NAO",t:"Não — coeficientes 1,5 e 3,0"}]},
+      {tipo:"head",label:"Ligação por atrito"},
+      {id:"chAtrito",label:"VERIFICAR DESLIZAMENTO?",tipo:"select",valor:"NAO",opcoes:[
+        {v:"NAO",t:"Não — ligação por contato"},
+        {v:"ELS",t:"Sim — deslizamento como estado-limite de SERVIÇO"},
+        {v:"ELU",t:"Sim — deslizamento como estado-limite ÚLTIMO"}]},
+      {id:"chSuperf",label:"CLASSE DA SUPERFÍCIE de contato",tipo:"select",valor:"A",opcoes:[
+        {v:"A",t:"Classe A — limpa, isenta de óleo  (μ = 0,30)"},
+        {v:"B",t:"Classe B — jateada sem pintura  (μ = 0,50)"},
+        {v:"C",t:"Classe C — galvanizada rugosa  (μ = 0,30)"},
+        {v:"GV",t:"Galvanizada lisa  (μ = 0,20)"}]},
+      {tipo:"head",label:"Solicitação"},
+      {id:"chNsd",label:"FORÇA NORMAL solicitante Nsd  (0 = só calcular a resistência)",unidade:"kN",tipo:"number",valor:0,step:"5"}
+    ],
+    croqui:chapaTracCroqui,
+    calcular:chapaTracCalc
+  },
 };
 
 /* Restaura todos os campos de uma calculadora aos valores padrão do registro CALCS */
@@ -18670,6 +19272,64 @@ function gerarRelatorio(){
       nt(XL,258,"Volume de câmaras pelo CICLO, não pela vazão instantanea. Tempo de filtração por Ruth, com a resistência específica da torta,",120,130,150,5.6);
       nt(XL,261.5,"que e grandeza de ENSAIO DE FOLHA. Sem esse ensaio, o ciclo, a área e o número de placas são estimativa.",120,130,150,5.6);
       nt(XL,265,"NR-12 (protecoes e intertravamento de abertura)  ·  NBR 6118 (fundacao)  ·  NBR 8800 (portico)  ·  NBR 10004 (classe da torta).",120,130,150,5.6);
+
+    } else if(G.tipo==="chapatrac"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CÁLCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificação reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+"   -   resistencia da ligacao "+G.Rd.toFixed(1)+" kN"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equação / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.2,cellPadding:1.1,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.4},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:33},2:{cellWidth:38},3:{cellWidth:34},4:{cellWidth:40},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195;
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL,Math.min(XR-w2,x)),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+
+      ntc(105,28,(G.arranjo==="EMENDA"?"EMENDA COM TALAS":"SUPERPOSICAO")+"   ·   "+G.nb+" parafusos "+G.diamT+
+          " "+G.especT.replace(/ — .*/,"")+"   ·   chapa "+G.t1.toFixed(1).replace(".",",")+" mm",20,60,100,9.0);
+      ntc(105,33.5,"RESISTENCIA DA LIGACAO "+G.Rd.toFixed(1).replace(".",",")+" kN   ·   governa: "+G.gov+
+          (G.Nsd>0?("   ·   Nsd "+G.Nsd.toFixed(1).replace(".",",")+" kN  "+(G.okN?"OK":"REPROVADO")):""),
+          (G.Nsd>0&&!G.okN)?170:20,(G.Nsd>0&&!G.okN)?40:110,(G.Nsd>0&&!G.okN)?40:80,8.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,37,XR,37);
+
+      var DP=chapaTracCroqui(G);
+      pdfDe(DP,doc,XL,41,(XR-XL)/DP.w);
+
+      var yT=41+DP.h*((XR-XL)/DP.w)+5;
+      var LIN=G.CAND.map(function(c){ return [ san((c.n===G.gov?"> ":"")+c.n), san(c.ref),
+        san(c.r.toFixed(1))+" kN", san(c.n===G.gov?"GOVERNA":(c.r/G.Rd).toFixed(2)+"x") ]; });
+      doc.autoTable({startY:yT,theme:"grid",margin:{left:XL,right:15},
+        head:[[san("Estado-limite"),san("Item NBR 8800:2024"),san("Resistencia"),san("Relacao")]],
+        body:LIN,
+        styles:{fontSize:6.6,cellPadding:1.3,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.7},
+        columnStyles:{0:{cellWidth:72},1:{cellWidth:40},2:{cellWidth:34,halign:"right"},3:{cellWidth:34,halign:"center"}},
+        didParseCell:function(d){
+          if(d.section==="body"&&String(d.row.raw[0]).indexOf(">")===0){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[232,241,250]; } }});
+
+      var yR=Math.min(258,((doc.lastAutoTable&&doc.lastAutoTable.finalY)?doc.lastAutoTable.finalY:yT+30)+7);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,yR,XR,yR);
+      nt(XL,yR+4,"A ligacao vale o MENOR dos estados-limites. ELF medido da BORDA do furo ate a extremidade da chapa, na direcao da forca, com o diametro REAL "+G.dhR.toFixed(2)+" mm.",120,130,150,5.5);
+      nt(XL,yR+7.5,"A area liquida usa o diametro FICTICIO "+G.ddF.toFixed(2)+" mm (real + 2 mm de dano de puncionamento, item 5.2.4.1). Sao dois diametros diferentes no mesmo calculo.",120,130,150,5.5);
+      nt(XL,yR+11,"Cisalhamento de bloco: "+(G.BLOCOS?G.BLOCOS.length:0)+" caminhos de ruptura testados, adotado o menor. Governou: "+(G.blocoGov||"-")+".",120,130,150,5.5);
+      nt(XL,yR+14.5,"NAO verificados aqui: furacao escalonada (s2/4g), tracao nao uniforme no bloco (Cts = 0,5), flambagem da chapa comprimida e excentricidade da ligacao.",150,60,45,5.5);
 
     } else if(G.tipo==="parafuso"){
       if(G.MEM&&G.MEM.length){
