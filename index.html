@@ -11115,6 +11115,592 @@ function chapaTracCroqui(G){
   return D;
 }
 
+/* ============================================================================
+   LIGAÇÃO TRACIONADA COM EFEITO ALAVANCA — chapa parafusada na aba de perfil
+   ----------------------------------------------------------------------------
+   ABNT NBR 8800:2024, item 6.3.5. É a ligação do tipo T: a chapa (ou a aba do
+   perfil) flete, a extremidade apoia contra a peça oposta e aparece uma força
+   de alavanca Q que SOMA à tração do parafuso. O parafuso vê mais do que a
+   carga aplicada divide por ele.
+
+   A armadilha desta verificação é de onde sai o b:
+     · em seção T (chapa com enrijecedor, ou aba de perfil I), b é medido da
+       FACE da alma até o eixo do parafuso;
+     · em cantoneira, é medido do CENTRO da espessura.
+   São origens diferentes para o mesmo símbolo, e trocar uma pela outra muda a
+   alavanca inteira. O croqui desenha a origem adotada.
+
+   Dois elementos fletem nesta ligação — a chapa e a aba do perfil — e cada um
+   tem a sua própria espessura, o seu próprio b e o seu próprio fu. A alavanca
+   que vale é a do elemento mais flexível, e é por isso que os dois entram.
+   ========================================================================== */
+
+/* Resolve a alavanca para UM elemento fletido, a uma tração por parafuso.
+   Devolve tudo o que o memorial precisa, inclusive a capacidade invertida. */
+function alavancaElemento(nome,t,fu,b,a,p,db,df,FtRd,Ft0,GA1){
+  var aEf=Math.min(a,1.25*b);            /* 6.3.5: a não pode passar de 1,25 b */
+  var bl=b-db/2, al=aEf+db/2;            /* b' e a' */
+  var delta=(p>0)?(1-df/p):0;
+  var K=(p*t*t/4)*(fu/GA1);              /* momento resistente da chapa, por unidade */
+  var R={nome:nome,t:t,fu:fu,b:b,a:a,aEf:aEf,bl:bl,al:al,p:p,delta:delta,K:K,
+         valido:(bl>0&&al>0&&p>0&&delta>0)};
+  if(!R.valido) return R;
+
+  /* --- a uma dada solicitação --- */
+  R.Ft0=Ft0;
+  R.tnp=Math.sqrt(4*Ft0*bl*GA1/(p*fu));              /* espessura sem alavanca */
+  R.semAlavanca=(t>=R.tnp);
+  R.beta=(Ft0>0)?((al/bl)*(FtRd/Ft0-1)):Infinity;
+  if(R.beta>=1) R.alfa=1.0;
+  else if(R.beta>0) R.alfa=Math.min(1.0,(1/delta)*(R.beta/(1-R.beta)));
+  else R.alfa=1.0;                                   /* β ≤ 0: parafuso já insuficiente */
+  R.betaNeg=(R.beta<=0);
+  R.tmin=Math.sqrt(4*Ft0*bl*GA1/(p*fu*(1+delta*R.alfa)));
+  R.chapaOK=(t>=R.tmin);
+  R.Fta=Math.max(0,(Ft0*bl-K)/al);                   /* incremento de alavanca */
+  R.FtTotal=Ft0+R.Fta;
+  R.acresc=(Ft0>0)?(R.Fta/Ft0*100):0;
+
+  /* --- capacidade: maior Ft0 que ainda cabe no parafuso --- */
+  /* Sem alavanca enquanto Ft0·b' ≤ K. Acima disso:
+       Ft0 + (Ft0·b' − K)/a' ≤ Ft,Rd  →  Ft0 ≤ (Ft,Rd·a' + K)/(a' + b')     */
+  var limSem=K/bl;
+  R.Ft0max=(FtRd<=limSem)?FtRd:((FtRd*al+K)/(al+bl));
+  /* e a chapa também precisa aguentar: t ≥ tmin(Ft0). Bissecao porque alfa
+     depende de Ft0 e a inversa nao e fechada.                              */
+  var lo=0,hi=R.Ft0max,i,mid,bt,af,tm;
+  for(i=0;i<60;i++){
+    mid=(lo+hi)/2;
+    bt=(mid>0)?((al/bl)*(FtRd/mid-1)):Infinity;
+    af=(bt>=1)?1.0:((bt>0)?Math.min(1.0,(1/delta)*(bt/(1-bt))):1.0);
+    tm=Math.sqrt(4*mid*bl*GA1/(p*fu*(1+delta*af)));
+    if(tm<=t) lo=mid; else hi=mid;
+  }
+  R.Ft0maxChapa=lo;
+  R.Ft0adm=Math.min(R.Ft0max,R.Ft0maxChapa);
+  R.limitadoPelaChapa=(R.Ft0maxChapa<R.Ft0max-1e-9);
+  return R;
+}
+
+function alavancaCalc(OV){
+  var GA1=1.10, GA2=1.35;
+  function N(id){ return (OV&&OV[id]!==undefined)?OV[id]:num(id); }
+  function S(id,pad){ return (OV&&OV[id]!==undefined)?OV[id]:selv(id,pad); }
+  var RAPIDO=!!(OV&&OV.__rapido);
+
+  /* ===================== 1. ENTRADAS ===================== */
+  var nLin=Math.round(N("avNLin")), nCol=Math.round(N("avNCol"));
+  var gBolt=N("avG"), eext=N("avEext"), eint=N("avEint");
+  var tCh=N("avTch"), fuCh=N("avFuch"), aCh=N("avAch"), tAlm=N("avTalma");
+  var tAba=N("avTaba"), fuAba=N("avFuaba"), aAba=N("avAaba"), tWeb=N("avTweb");
+  var espV=S("avEspec","A325"), ESP=pfEspec(espV);
+  var diaV=S("avDiam","P0.500"), DIA=pfDiam(diaV);
+  var fubIn=N("avFub"), roscaV=S("avRosca","N");
+  var origem=S("avOrigem","T");        /* T = face da alma · L = centro (cantoneira) */
+  var Nsd=N("avNsd"), Vsd=N("avVsd"), Msd=N("avMsd");
+
+  if(!isFinite(nLin)||nLin<1) nLin=2;
+  if(!isFinite(nCol)||nCol<2) nCol=2;
+  if(!isFinite(gBolt)||gBolt<=0) gBolt=80;
+  if(!isFinite(eext)||eext<=0) eext=25;
+  if(!isFinite(eint)||eint<0) eint=60;
+  if(!isFinite(tCh)||tCh<=0) tCh=16;
+  if(!isFinite(fuCh)||fuCh<=0) fuCh=40;
+  if(!isFinite(aCh)||aCh<=0) aCh=40;
+  if(!isFinite(tAlm)||tAlm<0) tAlm=9.5;
+  if(!isFinite(tAba)||tAba<=0) tAba=16;
+  if(!isFinite(fuAba)||fuAba<=0) fuAba=40;
+  if(!isFinite(aAba)||aAba<=0) aAba=40;
+  if(!isFinite(tWeb)||tWeb<0) tWeb=9.5;
+  if(!isFinite(fubIn)||fubIn<=0) fubIn=0;
+  if(!isFinite(Nsd)||Nsd<0) Nsd=0;
+  if(!isFinite(Vsd)||Vsd<0) Vsd=0;
+  if(!isFinite(Msd)||Msd<0) Msd=0;
+
+  if(!reqOK([{id:"avNLin",v:nLin,gt:0,lt:21},{id:"avNCol",v:nCol,gt:1,lt:13},
+             {id:"avG",v:gBolt,gt:0},{id:"avEext",v:eext,gt:0},
+             {id:"avTch",v:tCh,gt:0,lt:200},{id:"avFuch",v:fuCh,gt:0,lt:200},
+             {id:"avAch",v:aCh,gt:0},{id:"avTaba",v:tAba,gt:0,lt:200},
+             {id:"avFuaba",v:fuAba,gt:0,lt:200},{id:"avAaba",v:aAba,gt:0}])) return null;
+  if(nLin>1&&!reqOK([{id:"avEint",v:eint,gt:0}])) return null;
+  /* O modelo do 6.3.5 é de seção T simétrica: os parafusos vêm aos pares, um
+     de cada lado da alma. Número ímpar de colunas não é esta ligação.      */
+  if(!reqRel(nCol%2===0,"avNCol","avG",
+      "exigem número PAR de colunas — os parafusos vêm aos pares, metade de cada lado da alma")) return null;
+  var fub=(espV==="OUTRO")?fubIn:ESP.fub;
+  if(espV==="OUTRO"&&!reqOK([{id:"avFub",v:fubIn,gt:0,lt:200}])) return null;
+
+  /* --- geometria em cm --- */
+  var db=DIA.mm/10, Ab=Math.PI*db*db/4, Abe=0.75*Ab;
+  var df=(DIA.mm+1.5)/10;
+  var G=gBolt/10, Eext=eext/10, Eint=eint/10;
+  var TCH=tCh/10, TALM=tAlm/10, TABA=tAba/10, TWEB=tWeb/10;
+  var ACH=aCh/10, AABA=aAba/10;
+  var nb=nLin*nCol;
+  var FtRd=Abe*fub/GA2;
+  var coefV=(ESP.comum)?0.45:((roscaV==="N")?0.45:0.56);
+  var FvRd1=coefV*Ab*fub/GA2;
+
+  /* b: a origem muda com o tipo de peça. Em T sai da FACE da alma; em
+     cantoneira, do CENTRO da espessura. É o erro clássico desta conta.   */
+  var bCh=(origem==="T")?((G-TALM)/2):((G-TALM/2)/2);
+  var bAba=(origem==="T")?((G-TWEB)/2):((G-TWEB/2)/2);
+  if(!reqRel(bCh>db/2,"avG","avTalma","precisa deixar b = (g − t)/2 maior que db/2 — a geometria não fecha")) return null;
+  if(!reqRel(bAba>db/2,"avG","avTweb","precisa deixar b = (g − t)/2 maior que db/2 na aba do perfil")) return null;
+
+  /* larguras tributárias por parafuso (6.3.5.2) */
+  function larguras(b){
+    var pe=Math.min(Eext,1.75*b)+((nLin>1)?Math.min(0.5*Eint,1.75*b):Math.min(Eext,1.75*b));
+    var pi=(nLin>2)?Math.min(Eint,3.5*b):null;
+    return {ext:pe,int:pi};
+  }
+  var PCH=larguras(bCh), PABA=larguras(bAba);
+  /* o parafuso crítico é o de menor largura tributária */
+  var pCh=(PCH.int!==null)?Math.min(PCH.ext,PCH.int):PCH.ext;
+  var pAba=(PABA.int!==null)?Math.min(PABA.ext,PABA.int):PABA.ext;
+  /* δ = 1 − df/p só existe com p > df. Abaixo disso os furos se tocam e não há
+     seção de chapa entre eles para fletir: a geometria não é uma ligação.     */
+  if(!reqRel(Math.min(pCh,pAba)>df,"avEext","avEint",
+      "precisam dar largura tributária p maior que o diâmetro do furo ("+(df*10).toFixed(1)+" mm) — os furos se tocam")) return null;
+
+  /* ===================== 2. DISTRIBUIÇÃO DE N E M NOS PARAFUSOS =====================
+     Linhas empilhadas ao longo da altura H; M flete em torno do eixo
+     horizontal, comprimindo a borda inferior contra a peça oposta. Modelo
+     elástico com bloco de compressão, que é o do material de referência.  */
+  var H=2*Eext+(nLin-1)*Eint;
+  var yRow=[],iR;
+  for(iR=0;iR<nLin;iR++) yRow.push(Eext+iR*Eint);     /* da borda comprimida */
+  var AbLinha=nCol*Ab;
+  var bef=Math.min(G+2*Math.max(ACH,AABA),G+5.0);     /* largura do bloco comprimido */
+
+  function distribui(Nv,Mv){
+    /* devolve a maior tração POR PARAFUSO */
+    if(Mv<=0) return (nb>0)?(Nv/nb):0;
+    /* com M, acha a linha neutra x por equilibrio de N e M juntos */
+    var yN=H/2, Mtot=Mv+Nv*yN;
+    function unit(x){
+      var C1=bef*x/2, T1=0, M1=-C1*(x/3), i2,ti;
+      for(i2=0;i2<nLin;i2++){
+        if(yRow[i2]<=x) continue;
+        ti=AbLinha*(yRow[i2]-x)/x;
+        T1+=ti; M1+=ti*yRow[i2];
+      }
+      return {N1:T1-C1,M1:M1};
+    }
+    var lo=1e-4*H,hi=0.999*H,i3,mid,u,f;
+    /* f(x) = N1·Mtot − M1·N : raiz da compatibilidade entre N e M */
+    for(i3=0;i3<80;i3++){
+      mid=(lo+hi)/2; u=unit(mid);
+      f=u.N1*Mtot-u.M1*Nv;
+      var ul=unit(lo);
+      if((ul.N1*Mtot-ul.M1*Nv)*f<=0) hi=mid; else lo=mid;
+    }
+    var x=(lo+hi)/2, uu=unit(x);
+    var sc=(Math.abs(uu.M1)>1e-12)?(Mtot/uu.M1):((Math.abs(uu.N1)>1e-12)?(Nv/uu.N1):0);
+    var maxT=0,i4,tt;
+    for(i4=0;i4<nLin;i4++){
+      if(yRow[i4]<=x) continue;
+      tt=sc*Ab*(yRow[i4]-x)/x;
+      if(tt>maxT) maxT=tt;
+    }
+    return Math.max(maxT,(nb>0)?(Nv/nb):0);
+  }
+
+  var Ft0=distribui(Nsd,Msd);
+
+  /* ===================== 3. ALAVANCA NOS DOIS ELEMENTOS ===================== */
+  var ELCH=alavancaElemento("CHAPA",TCH,fuCh,bCh,ACH,pCh,db,df,FtRd,Ft0,GA1);
+  var ELAB=alavancaElemento("ABA DO PERFIL",TABA,fuAba,bAba,AABA,pAba,db,df,FtRd,Ft0,GA1);
+  var ELS=[ELCH,ELAB].filter(function(e){return e.valido;});
+  var ELgov=null,iE;
+  for(iE=0;iE<ELS.length;iE++) if(!ELgov||ELS[iE].FtTotal>ELgov.FtTotal) ELgov=ELS[iE];
+  var FtSd=ELgov?ELgov.FtTotal:Ft0;
+  var Ft0adm=Infinity;
+  for(iE=0;iE<ELS.length;iE++) Ft0adm=Math.min(Ft0adm,ELS[iE].Ft0adm);
+  if(!isFinite(Ft0adm)) Ft0adm=FtRd;
+
+  /* ===================== 4. CAPACIDADES ===================== */
+  var Nmax=Ft0adm*nb;
+  var Vmax=FvRd1*nb;
+  /* M máximo: cresce M com N e V zerados até o parafuso crítico chegar ao
+     limite. Bissecao, porque a linha neutra se move junto.                */
+  function FtDe(Mv){ return distribui(0,Mv); }
+  var loM=0,hiM=Ft0adm*nb*H*2+1,i5,mm;
+  for(i5=0;i5<70;i5++){
+    mm=(loM+hiM)/2;
+    if(FtDe(mm)<=Ft0adm) loM=mm; else hiM=mm;
+  }
+  var Mmax=loM;
+
+  /* ===================== 5. VERIFICAÇÃO COMBINADA ===================== */
+  var FvSd=(nb>0)?(Vsd/nb):0;
+  var rT=(FtRd>0)?FtSd/FtRd:0;
+  var rV=(FvRd1>0)?FvSd/FvRd1:0;
+  var inter=rT*rT+rV*rV;
+  var temCarga=(Nsd>0||Vsd>0||Msd>0);
+  var okT=(rT<=1.0), okV=(rV<=1.0), okI=(inter<=1.0);
+  var okCh=!ELCH.valido||ELCH.chapaOK, okAb=!ELAB.valido||ELAB.chapaOK;
+  var okGeral=okT&&okV&&okI&&okCh&&okAb;
+
+  if(RAPIDO) return {Nmax:Nmax,Vmax:Vmax,Mmax:Mmax,FtSd:FtSd,inter:inter,
+                     okGeral:okGeral,Ft0adm:Ft0adm,okCh:okCh,okAb:okAb};
+
+  /* ===================== 6. MEMORIAL ===================== */
+  function vt(x,d){
+    if(!isFinite(x)) return "—";
+    var t2=x.toFixed(d===undefined?2:d),pt=t2.split("."),ii=pt[0],sg="";
+    if(ii.charAt(0)==="-"){sg="-";ii=ii.slice(1);}
+    ii=ii.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+    return sg+ii+(pt[1]?(","+pt[1]):"");
+  }
+  function st(ok){ return ok?"APROVADO":"REPROVADO"; }
+  var ORG=(origem==="T")?"face da alma (seção T)":"centro da espessura (cantoneira)";
+
+  var MEM=[
+   ["1","Arranjo",nLin+" linhas × "+nCol+" colunas",nb+" parafusos "+DIA.t+" "+ESP.t.replace(/ — .*/,""),
+      "gabarito g = "+vt(gBolt,1)+" mm","—"],
+   ["1","Origem do b",ORG,"chapa b = "+vt(bCh*10,2)+" mm   ·   aba b = "+vt(bAba*10,2)+" mm",
+      "6.3.5 — trocar a origem muda a alavanca inteira","—"],
+   ["1","a limitado",(aCh>1.25*bCh*10?"a > 1,25b na chapa, truncado":"a dentro de 1,25b"),
+      "chapa a = "+vt(ELCH.aEf*10,1)+"   ·   aba a = "+vt(ELAB.aEf*10,1)+" mm","a ≤ 1,25·b (6.3.5)","—"],
+   ["2","Largura tributária p","min(e;1,75b) + min(0,5e;1,75b)",
+      "chapa "+vt(pCh*10,1)+"   ·   aba "+vt(pAba*10,1)+" mm","por parafuso","—"],
+   ["2","δ = 1 − df/p","df = "+vt(df*10,2)+" mm",
+      "chapa "+vt(ELCH.delta,3)+"   ·   aba "+vt(ELAB.delta,3),"fração da seção que resta entre furos","—"],
+   ["3","Tração por parafuso Ft,0,Sd",(Msd>0?"de N e M, por linha neutra":"N / nº de parafusos"),
+      vt(Ft0,2)+" kN",(Msd>0?"parafuso mais solicitado":"distribuição uniforme"),"—"],
+   ["3","Resistência do parafuso","Ft,Rd = Abe·fub/γa2",vt(FtRd,2)+" kN","γa2 = 1,35","—"]
+  ];
+  ELS.forEach(function(E){
+    MEM.push(["4","Espessura sem alavanca — "+E.nome,"√(4·Ft,0·b′·γa1 / (p·fu))",
+      vt(E.tnp*10,2)+" mm contra "+vt(E.t*10,1)+" mm existente",
+      E.semAlavanca?"espessa o bastante: NÃO há alavanca":"mais fina: HÁ alavanca","—"]);
+    MEM.push(["4","Espessura mínima — "+E.nome,"√(4·Ft,0·b′·γa1 / (p·fu·(1+δα)))",
+      vt(E.tmin*10,2)+" mm contra "+vt(E.t*10,1)+" mm","β = "+vt(E.beta,3)+"   α = "+vt(E.alfa,3),st(E.chapaOK)]);
+    MEM.push(["4","Incremento de alavanca — "+E.nome,"[Ft,0·b′ − p·t²·fu/(4γa1)] / a′",
+      vt(E.Fta,2)+" kN  (+"+vt(E.acresc,1)+" %)","0 quando a chapa é espessa o bastante","—"]);
+  });
+  MEM.push(["5","TRAÇÃO TOTAL NO PARAFUSO","Ft,0,Sd + Q",vt(FtSd,2)+" kN",
+      "governa "+(ELgov?ELgov.nome:"—")+"   ·   limite "+vt(FtRd,2)+" kN",temCarga?st(okT):"—"]);
+  MEM.push(["5","Cisalhamento por parafuso","Vsd / nº",vt(FvSd,2)+" kN","limite "+vt(FvRd1,2)+" kN",temCarga?st(okV):"—"]);
+  MEM.push(["5","Interação tração-cisalhamento","(Ft/Ft,Rd)² + (Fv/Fv,Rd)²",vt(inter,3),"≤ 1,00 (6.3.3.4)",temCarga?st(okI):"—"]);
+  MEM.push(["6","TRAÇÃO MÁXIMA DA LIGAÇÃO","Ft,0,adm × nº de parafusos",vt(Nmax,1)+" kN",
+      "com alavanca descontada",(Nsd>0?st(Nsd<=Nmax):"—")]);
+  MEM.push(["6","CORTANTE MÁXIMA DA LIGAÇÃO","Fv,Rd × nº de parafusos",vt(Vmax,1)+" kN",
+      "sem tração simultânea",(Vsd>0?st(Vsd<=Vmax):"—")]);
+  MEM.push(["6","MOMENTO MÁXIMO DA LIGAÇÃO","linha neutra elástica com bloco comprimido",
+      vt(Mmax,1)+" kN·cm = "+vt(Mmax/100,2)+" kN·m","sem N nem V simultâneos",(Msd>0?st(Msd<=Mmax):"—")]);
+
+  var nR=0,nV2=0; MEM.forEach(function(m){ if(m[5]==="REPROVADO")nR++; else if(m[5]==="VERIFICAR")nV2++; });
+
+  /* configuração mínima, quando reprova */
+  var MIN=null;
+  if(temCarga&&!okGeral&&!RAPIDO){
+    MIN=alavancaMinimos({avNLin:nLin,avNCol:nCol,avG:gBolt,avEext:eext,avEint:eint,
+      avTch:tCh,avFuch:fuCh,avAch:aCh,avTalma:tAlm,avTaba:tAba,avFuaba:fuAba,
+      avAaba:aAba,avTweb:tWeb,avEspec:espV,avDiam:diaV,avFub:fubIn,avRosca:roscaV,
+      avOrigem:origem,avNsd:Nsd,avVsd:Vsd,avMsd:Msd});
+  }
+
+  /* ===================== 7. SAÍDA ===================== */
+  var OUT=[
+    {sec:"MEMORIAL DE CÁLCULO — entrada · equação · resultado · critério · status"},
+    {k:"VEREDITO",v:(temCarga?((okGeral?"✓ LIGAÇÃO APROVADA":"⚠ LIGAÇÃO REPROVADA")+"   ·   "):"")+
+       "N,máx "+vt(Nmax,1)+" kN   ·   V,máx "+vt(Vmax,1)+" kN   ·   M,máx "+vt(Mmax/100,2)+" kN·m"+
+       "   ·   "+nR+" reprovação(ões)",hi:(nR>0)}
+  ].concat(MEM.map(function(m){
+      var lb=({APROVADO:"✓ APROVADO",REPROVADO:"⚠ REPROVADO",VERIFICAR:"○ A VERIFICAR","—":"—"})[m[5]];
+      if(lb===undefined) lb=m[5];
+      return {k:m[0]+".  "+m[1],v:m[3]+"   ‖   critério: "+m[4]+"   ‖   "+lb,hi:(m[5]==="REPROVADO")};
+  })).concat([
+    {sec:"1 — CAPACIDADES DA LIGAÇÃO"},
+    {k:"TRAÇÃO MÁXIMA",v:vt(Nmax,1)+" kN   =   "+vt(Ft0adm,2)+" kN por parafuso × "+nb+
+       "   —  já com a alavanca descontada. Sem descontar a alavanca daria "+vt(FtRd*nb,1)+
+       " kN, ou seja, "+vt((FtRd/Ft0adm-1)*100,0)+" % a mais do que a ligação realmente suporta.",hi:true},
+    {k:"CORTANTE MÁXIMA",v:vt(Vmax,1)+" kN   =   "+vt(FvRd1,2)+" kN por parafuso × "+nb+
+       "   —  válido sem tração simultânea; com tração, a interação do item 6.3.3.4 reduz os dois.",hi:true},
+    {k:"MOMENTO MÁXIMO",v:vt(Mmax,1)+" kN·cm = "+vt(Mmax/100,2)+" kN·m"+
+       "   —  pela linha neutra elástica com bloco comprimido na borda, altura útil "+vt(H*10,0)+
+       " mm. Válido sem N nem V simultâneos.",hi:true},
+    {k:"⚠ As três não se somam",v:"Cada capacidade acima vale com as outras duas zeradas. Atuando juntas, N e M disputam o mesmo parafuso tracionado e V entra pela interação quadrática. A verificação combinada da seção 3 é a que vale quando há mais de um esforço."},
+
+    {sec:"2 — O EFEITO ALAVANCA"},
+    {k:"⚠ O QUE É, E POR QUE O PARAFUSO VÊ MAIS DO QUE A CONTA DIRETA",v:
+       "A chapa flete sob a tração dos parafusos e a sua extremidade encosta na peça oposta. Esse contato gera uma força Q de alavanca que, por equilíbrio, SOMA à tração do parafuso. Dividir a carga pelo número de parafusos subestima a tração real — aqui em "+
+       (ELgov?vt(ELgov.acresc,1):"0")+" %. Quanto mais fina a chapa, mais ela flete e maior é Q. Chapa espessa o bastante não flete, a extremidade não encosta e a alavanca desaparece.",hi:true},
+    {k:"⚠ DE ONDE SAI O b — a troca que inverte a conta",v:
+       "Adotada a origem na "+ORG+". Em seção T o b sai da FACE da alma; em cantoneira, do CENTRO da espessura. Com g = "+vt(gBolt,1)+
+       " mm e alma de "+vt(tAlm,1)+" mm, a diferença entre as duas convenções é de "+
+       vt(Math.abs((G-TALM)/2-(G-TALM/2)/2)*10,2)+" mm no b, que propaga para b′, para β, para α e para a espessura mínima. O croqui desenha a origem adotada.",hi:true}
+  ]).concat(ELS.map(function(E){
+      return {k:E.nome+"  ·  t = "+vt(E.t*10,1)+" mm",
+        v:"b = "+vt(E.b*10,2)+"   a = "+vt(E.aEf*10,1)+"   b′ = "+vt(E.bl*10,2)+"   a′ = "+vt(E.al*10,2)+
+          " mm   ·   p = "+vt(E.p*10,1)+" mm   ·   δ = "+vt(E.delta,3)+"   β = "+vt(E.beta,3)+"   α = "+vt(E.alfa,3)+
+          "   ·   t sem alavanca = "+vt(E.tnp*10,2)+"   t mínimo = "+vt(E.tmin*10,2)+" mm   ·   Q = "+vt(E.Fta,2)+" kN"+
+          (E.semAlavanca?"   ✓ sem alavanca":"   ⚠ com alavanca")+(E.chapaOK?"":"   ⚠ ESPESSURA INSUFICIENTE"),
+        hi:(E===ELgov)||!E.chapaOK};
+  })).concat([
+    {k:"Qual dos dois governa",v:(ELgov?("A alavanca que vale é a do "+ELgov.nome+", que é o elemento mais flexível aqui e gera Q = "+vt(ELgov.Fta,2)+" kN. Engrossar o OUTRO elemento não resolve enquanto este não for resolvido."):"—")},
+    {k:"A espessura tem dois limiares diferentes",v:"A espessura SEM ALAVANCA é a partir da qual Q desaparece. A espessura MÍNIMA é menor, e é a partir da qual a chapa aguenta fletir com a alavanca já instalada. Entre as duas a ligação funciona, mas o parafuso trabalha mais. Abaixo da mínima, quem rompe é a chapa, não o parafuso."},
+
+    {sec:"3 — VERIFICAÇÃO COM OS ESFORÇOS APLICADOS"}
+  ]).concat(temCarga?[
+    {k:"Esforços",v:"N = "+vt(Nsd,1)+" kN   ·   V = "+vt(Vsd,1)+" kN   ·   M = "+vt(Msd,1)+" kN·cm"+
+       (Msd>0?(" = "+vt(Msd/100,2)+" kN·m"):"")},
+    {k:"Tração no parafuso mais solicitado",v:vt(Ft0,2)+" kN de carga direta  +  "+
+       (ELgov?vt(ELgov.Fta,2):"0")+" kN de alavanca  =  "+vt(FtSd,2)+" kN"+
+       "   ·   limite "+vt(FtRd,2)+" kN   →   "+vt(rT,3)+(okT?"   ✓":"   ⚠ EXCEDE"),hi:!okT},
+    {k:"Cisalhamento por parafuso",v:vt(FvSd,2)+" / "+vt(FvRd1,2)+" = "+vt(rV,3)+(okV?"   ✓":"   ⚠ EXCEDE"),hi:!okV},
+    {k:"INTERAÇÃO",v:vt(rT,3)+"² + "+vt(rV,3)+"² = "+vt(inter,3)+(okI?"   ✓ ≤ 1,00":"   ⚠ EXCEDE 1,00"),hi:!okI},
+    {k:"Espessuras",v:"chapa "+(ELCH.chapaOK?"✓ "+vt(tCh,1)+" ≥ "+vt(ELCH.tmin*10,2):"⚠ "+vt(tCh,1)+" < "+vt(ELCH.tmin*10,2))+
+       " mm   ·   aba "+(ELAB.chapaOK?"✓ "+vt(tAba,1)+" ≥ "+vt(ELAB.tmin*10,2):"⚠ "+vt(tAba,1)+" < "+vt(ELAB.tmin*10,2))+" mm",
+       hi:!(okCh&&okAb)},
+    {k:"VEREDITO",v:okGeral?"Ligação APROVADA para os esforços declarados.":"Ligação REPROVADA — ver a configuração mínima abaixo.",hi:!okGeral}
+  ]:[
+    {k:"Sem esforços declarados",v:"Informe N, V ou M para a verificação e, se reprovar, para a configuração mínima campo a campo."}
+  ]).concat(MIN?[{sec:"4 — CONFIGURAÇÃO MÍNIMA PARA APROVAR"},
+    {k:"⚠ A ligação não passa",v:"A lista abaixo mostra, campo a campo, o MENOR valor que faz a ligação passar mantendo o resto como está. Cada linha é uma alternativa isolada, não uma receita a somar.",hi:true}
+  ]:[]).concat(MIN?MIN.map(function(m){
+      var txt;
+      if(m.min) txt="atual "+m.atual+"   →   BASTA "+m.min+"   ·   "+m.obs;
+      else if(m.neutro) txt="atual "+m.atual+"   →   NÃO ADIANTA MEXER AQUI: o gargalo não depende deste campo.";
+      else if(m.piora) txt="atual "+m.atual+"   →   AUMENTAR PIORA nesta geometria.";
+      else txt="atual "+m.atual+"   →   não basta sozinho"+(m.obs?("   ·   "+m.obs):"");
+      return {k:(m.min?"✓ ":(m.piora?"⚠ ":(m.neutro?"– ":"○ ")))+m.campo,v:txt,hi:!!m.min};
+  }):[]).concat([
+    {sec:"5 — O QUE ESTA CALCULADORA NÃO RESOLVE"},
+    {k:"Limitações declaradas",v:"O modelo de alavanca do item 6.3.5 é de seção T com uma fileira de parafusos de cada lado da alma. Com mais de duas colunas o b é tomado da coluna mais afastada, que é a crítica, e as demais são admitidas igualmente tracionadas — é aproximação, não o modelo da norma. Não são verificados: solda entre chapa e enrijecedor, flexão local da mesa do perfil (item 5.7.2), escoamento e enrugamento da alma sob a reação, e a resistência da chapa ao cisalhamento de bloco na região dos furos.",hi:true},
+    {k:"Quando a protensão inicial é obrigatória",v:"Pelo item 6.3.1, aperto normal não é permitido em parafuso A490 tracionado, nem em A325 tracionado quando o afrouxamento ou a fadiga por vibração precisam ser considerados. Ligação tracionada de mezanino sob carga variável normalmente cai nessa situação."}
+  ]);
+
+  OUT.geo={tipo:"alavanca",nLin:nLin,nCol:nCol,nb:nb,g:gBolt,eext:eext,eint:eint,H:H,
+    tCh:tCh,fuCh:fuCh,aCh:aCh,tAlm:tAlm,tAba:tAba,fuAba:fuAba,aAba:aAba,tWeb:tWeb,
+    origem:origem,origemT:ORG,espec:espV,especT:ESP.t,diam:diaV,diamT:DIA.t,dbmm:DIA.mm,
+    db:db,Ab:Ab,Abe:Abe,df:df,fub:fub,FtRd:FtRd,FvRd1:FvRd1,coefV:coefV,
+    bCh:bCh,bAba:bAba,pCh:pCh,pAba:pAba,ELCH:ELCH,ELAB:ELAB,
+    govNome:ELgov?ELgov.nome:"—",Fta:ELgov?ELgov.Fta:0,acresc:ELgov?ELgov.acresc:0,
+    Ft0:Ft0,FtSd:FtSd,FvSd:FvSd,rT:rT,rV:rV,inter:inter,Ft0adm:Ft0adm,
+    Nmax:Nmax,Vmax:Vmax,Mmax:Mmax,Nsd:Nsd,Vsd:Vsd,Msd:Msd,
+    okT:okT,okV:okV,okI:okI,okCh:okCh,okAb:okAb,okGeral:okGeral,temCarga:temCarga,
+    MIN:MIN,MEM:MEM,nRep:nR,nVer:nV2};
+  return OUT;
+}
+
+/* --------------------------------------------------------------------------
+   Configuração mínima para aprovar — mesma lógica da chapa tracionada: busca
+   por varredura, porque engrossar a chapa reduz a alavanca mas não muda o
+   parafuso, e aumentar o diâmetro aumenta o furo e reduz p.
+   ------------------------------------------------------------------------ */
+function alavancaMinimos(BASE){
+  var salvo=CALC_ERRO;
+  function calc(ov){
+    var p={},k;
+    for(k in BASE) p[k]=BASE[k];
+    for(k in ov) p[k]=ov[k];
+    p.__rapido=1;
+    var r=null;
+    try{ r=alavancaCalc(p); }catch(e){ r=null; }
+    return r;
+  }
+  function passa(r){ return !!(r&&r.okGeral); }
+  function folga(r){ return r?Math.max(r.inter,(r.okCh&&r.okAb)?0:2):-1; }
+  var R0=calc({}), f0=folga(R0);
+  var L=[];
+  function reg(campo,atual,min,obs,piora,neutro){
+    L.push({campo:campo,atual:atual,min:min,obs:obs||"",piora:!!piora,neutro:!!neutro});
+  }
+  function varre(campo,chave,lista,atualRot,fmt){
+    var i,r,melhor=1e9,algum=false;
+    for(i=0;i<lista.length;i++){
+      var ov={}; ov[chave]=lista[i].v;
+      r=calc(ov);
+      if(!r) continue;
+      algum=true;
+      if(folga(r)<melhor) melhor=folga(r);
+      if(passa(r)){ reg(campo,atualRot,lista[i].t,"interação cai para "+r.inter.toFixed(3).replace(".",",")); return; }
+    }
+    if(!algum){ reg(campo,atualRot,null,"sem alternativa calculável"); return; }
+    reg(campo,atualRot,null,"",melhor>f0+1e-9,Math.abs(melhor-f0)<=1e-9);
+  }
+  function varreN(campo,chave,de,ate,passo,unid,dec){
+    var v,r,n=0,melhor=1e9,algum=false;
+    for(v=de;v<=ate+1e-9&&n<400;v+=passo,n++){
+      var ov={}; ov[chave]=Math.round(v*100)/100;
+      r=calc(ov);
+      if(!r) continue;
+      algum=true;
+      if(folga(r)<melhor) melhor=folga(r);
+      if(passa(r)){ reg(campo,BASE[chave]+" "+unid,ov[chave].toFixed(dec)+" "+unid,
+          "interação cai para "+r.inter.toFixed(3).replace(".",",")); return; }
+    }
+    if(!algum){ reg(campo,BASE[chave]+" "+unid,null,"sem alternativa calculável"); return; }
+    reg(campo,BASE[chave]+" "+unid,null,"",melhor>f0+1e-9,Math.abs(melhor-f0)<=1e-9);
+  }
+  var DI=pfDiam(BASE.avDiam), ESP=pfEspec(BASE.avEspec), i;
+  /* linhas e colunas */
+  var l1=[]; for(i=BASE.avNLin+1;i<=12;i++) l1.push({v:i,t:i+" linhas"});
+  varre("LINHAS de parafusos","avNLin",l1,BASE.avNLin+" linhas");
+  var l2=[]; for(i=BASE.avNCol+2;i<=12;i+=2) l2.push({v:i,t:i+" colunas"});
+  varre("COLUNAS de parafusos","avNCol",l2,BASE.avNCol+" colunas");
+  /* diâmetro e especificação */
+  var ld=[]; for(i=0;i<PF_DIAM.length;i++){ if(PF_DIAM[i].sis!==DI.sis) continue;
+    if(PF_DIAM[i].mm<=DI.mm+1e-6) continue; ld.push({v:PF_DIAM[i].v,t:PF_DIAM[i].t,mm:PF_DIAM[i].mm}); }
+  ld.sort(function(a,b){return a.mm-b.mm;});
+  varre("DIÂMETRO do parafuso","avDiam",ld,DI.t);
+  var le=[]; for(i=0;i<PF_ESPEC.length;i++){ var E=PF_ESPEC[i];
+    if(E.v==="OUTRO"||E.fub===null||E.sis!==DI.sis||E.fub<=ESP.fub+1e-9) continue;
+    le.push({v:E.v,t:E.t.replace(/ — .*/,""),fub:E.fub}); }
+  le.sort(function(a,b){return a.fub-b.fub;});
+  varre("ESPECIFICAÇÃO do parafuso","avEspec",le,ESP.t.replace(/ — .*/,""));
+  /* espessuras — a alavanca cai rápido com elas */
+  varreN("ESPESSURA da chapa","avTch",BASE.avTch+0.5,Math.min(80,BASE.avTch*4+20),0.5,"mm",1);
+  varreN("ESPESSURA da aba do perfil","avTaba",BASE.avTaba+0.5,Math.min(80,BASE.avTaba*4+20),0.5,"mm",1);
+  /* geometria da alavanca */
+  varreN("a — borda livre","avAch",Math.max(1,BASE.avAch-20),BASE.avAch,1,"mm",0);
+  varreN("g — gabarito entre colunas","avG",Math.max(BASE.avG-40,BASE.avTalma+2*DI.mm),BASE.avG,2,"mm",0);
+  varreN("e — espaçamento entre linhas","avEint",BASE.avEint+2,BASE.avEint*3,2,"mm",0);
+  /* rosca fora do plano, quando houver cisalhamento */
+  if(BASE.avVsd>0&&BASE.avRosca==="N"&&!pfEspec(BASE.avEspec).comum){
+    var rX=calc({avRosca:"X"});
+    reg("POSIÇÃO DA ROSCA","na rosca (0,45)",(passa(rX)?"fora da rosca (0,56)":null),
+        (rX?("interação "+rX.inter.toFixed(3).replace(".",",")):""),false,false);
+  }
+  CALC_ERRO=salvo;
+  return L;
+}
+
+/* ---------------------------------------------------------------------------
+   CROQUI — o desenho tem uma missão específica aqui: mostrar de onde sai o b.
+   Três vistas:
+     (a) CORTE da seção T, com a chapa fletida, o contato na extremidade e a
+         força de alavanca Q desenhada como reação — é ela que soma no
+         parafuso, e vê-la como reação de contato é o que torna o efeito
+         intuitivo;
+     (b) DETALHE da origem do b, com a face da alma e o centro da espessura
+         marcados lado a lado, para a convenção adotada ficar inequívoca;
+     (c) PLANTA com as linhas e colunas, o gabarito g e as larguras
+         tributárias p hachuradas por parafuso.
+   ------------------------------------------------------------------------- */
+function alavancaCroqui(G){
+  /* Faixas verticais declaradas. A primeira versao somou offsets a partir da
+     face de contato e a cota g, a seta N e o rodape foram parar em cima de
+     outras coisas. Com as faixas nomeadas, colisao vira erro visivel aqui. */
+  var W=176, H=150, D=Desenho(W,H);
+  var CT=[25,55,90], CQ=[200,60,40], CB=[30,90,170], CA=[120,135,155], CV=[0,130,95];
+  var yTit=11, yCotaG=19, yN=29, yFt=44, yF=58;
+  var yQtxt=76, yCotaBA=84, yNota=90;
+  var yTitP=100, yP0=104, yFt1=140, yFt2=147;
+
+  /* ============ (a) CORTE DA SEÇÃO T ============ */
+  D.txt(16,yTit,"CORTE — a chapa flete, a extremidade encosta e nasce a alavanca Q",{c:CT,fs:6.4,b:true});
+  var es=Math.min(76/Math.max(G.g+2*Math.max(G.aCh,G.aAba),1),1.0);
+  var meiaL=(G.g/2+Math.max(G.aCh,G.aAba))*es;
+  var xC=18+meiaL;
+  var tAlmaD=Math.max(2.0,G.tAlm*es), tChD=Math.max(2.4,G.tCh*es), tAbaD=Math.max(2.4,G.tAba*es);
+
+  D.ret(xC-meiaL,yF,2*meiaL,tAbaD,{f:[214,226,240],c:[70,92,122],e:0.4});
+  D.txt(xC+meiaL+2,yF+tAbaD-0.4,"aba "+G.tAba.toFixed(1).replace(".",",")+" mm",{c:[70,85,105],fs:5.0});
+  D.ret(xC-Math.max(1.6,G.tWeb*es)/2,yF+tAbaD,Math.max(1.6,G.tWeb*es),11,{f:[198,212,230],c:[70,92,122],e:0.35});
+  D.ret(xC-meiaL,yF-tChD,2*meiaL,tChD,{f:[232,238,246],c:[70,92,122],e:0.4});
+  D.txt(xC+meiaL+2,yF-tChD-0.6,"chapa "+G.tCh.toFixed(1).replace(".",",")+" mm",{c:[70,85,105],fs:5.0});
+  var yEnrTop=yN+3;
+  D.ret(xC-tAlmaD/2,yEnrTop,tAlmaD,yF-tChD-yEnrTop,{f:[214,226,240],c:[70,92,122],e:0.35});
+  D.seta(xC,yEnrTop,xC,yN-5,{c:CQ,e:0.6});
+  D.txt(xC+2.5,yN-5,"N",{c:CQ,fs:7.2,b:true});
+
+  /* colunas de parafusos: nCol é o TOTAL na largura, metade de cada lado da
+     alma, e g vai de coluna extrema a coluna extrema. As colunas internas não
+     têm cota própria de entrada — vão desenhadas em espaçamento igual, que é
+     esquemático e está declarado na nota.                                   */
+  var mLado=Math.max(1,Math.round(G.nCol/2));
+  var dOut=G.g/2, dIn=Math.max(G.tWeb,G.tAlm)/2+1.5*G.dbmm;
+  if(dIn>=dOut) dIn=dOut*0.4;
+  var dCol=[],kc;
+  for(kc=0;kc<mLado;kc++) dCol.push((mLado===1)?dOut:(dOut-kc*(dOut-dIn)/(mLado-1)));
+  var xCols=[];
+  dCol.forEach(function(d){ xCols.push(xC-d*es); xCols.push(xC+d*es); });
+  var xb1=xC-dOut*es, xb2=xC+dOut*es, rp=Math.max(0.9,G.dbmm*es/2);
+  xCols.forEach(function(xb){
+    D.ret(xb-rp,yF-tChD-3.0,2*rp,tChD+tAbaD+6.0,{f:[170,184,202],c:[55,72,96],e:0.3});
+    if(Math.abs(Math.abs(xb-xC)-dOut*es)<1e-9){   /* só a coluna extrema recebe rótulo */
+      D.seta(xb,yF-tChD-4.5,xb,yFt+2,{c:CQ,e:0.4});
+      D.txt(xb,yFt,"Ft",{c:CQ,fs:5.4,al:"center",b:true});
+    }
+  });
+  [xC-meiaL+1.5,xC+meiaL-1.5].forEach(function(xq){
+    D.seta(xq,yQtxt-4,xq,yF+tAbaD+1.5,{c:CV,e:0.5});
+    D.txt(xq,yQtxt,"Q",{c:CV,fs:6.2,al:"center",b:true});
+  });
+  D.cotaH(xb1,xb2,yCotaG,"g = "+G.g.toFixed(1).replace(".",","));
+  D.cotaH(xC-Math.max(1.6,G.tWeb*es)/2,xb1,yCotaBA,"b "+(G.bCh*10).toFixed(1).replace(".",","));
+  D.cotaH(xb1,xC-meiaL,yCotaBA,"a "+G.aCh.toFixed(0));
+  D.cotaH(xb2,xC+meiaL,yCotaBA,"a "+G.aCh.toFixed(0));
+  D.txt(16,yNota,"Q é reação de contato na extremidade: soma na tração do parafuso",{c:[0,110,80],fs:5.4});
+
+  /* ============ (b) DETALHE DA ORIGEM DO b ============ */
+  var xD=124;
+  D.txt(xD,yTit,"DE ONDE SAI O b",{c:CT,fs:6.2,b:true});
+  var tD=8, yA=yTit+8, hA=22, xAl=xD+6, xPar=xD+44;
+  D.ret(xAl,yA,tD,hA,{f:[214,226,240],c:[70,92,122],e:0.4});
+  D.circ(xPar,yA+hA/2,2.0,{f:[255,255,255],c:[55,72,96],e:0.3});
+  /* eixo do parafuso: sem este tracejado o furo fica solto no desenho e as
+     duas cotas de b parecem terminar no nada.                              */
+  D.linha(xPar,yA-1.0,xPar,yA+hA+3,{c:[120,135,155],e:0.25,tr:0.8});
+  D.linha(xAl+tD,yA-2,xAl+tD,yA+hA*0.42,{c:CB,e:0.3,tr:0.8});
+  D.linha(xAl+tD/2,yA+hA*0.5,xAl+tD/2,yA+hA+4,{c:CA,e:0.3,tr:0.8});
+  D.linha(xAl+tD,yA-1.0,xPar,yA-1.0,{c:CB,e:0.55});
+  D.txt((xAl+tD+xPar)/2,yA-2.6,"b em T",{c:CB,fs:5.2,al:"center",b:true});
+  D.linha(xAl+tD/2,yA+hA+3,xPar,yA+hA+3,{c:CA,e:0.45,tr:0.7});
+  D.txt((xAl+tD/2+xPar)/2,yA+hA+6.6,"b em cantoneira",{c:CA,fs:5.0,al:"center"});
+  D.txt(xAl,yA+hA+11.5,"alma "+G.tAlm.toFixed(1).replace(".",",")+" mm",{c:[90,105,125],fs:5.0});
+  D.txt(xD,yA+hA+18,"adotado: "+((G.origem==="T")?"FACE da alma":"CENTRO da espessura"),
+        {c:(G.origem==="T")?CB:CA,fs:5.6,b:true});
+  D.txt(xD,yA+hA+23,"chapa  b = "+(G.bCh*10).toFixed(2).replace(".",",")+" mm",{c:[90,105,125],fs:5.2});
+  D.txt(xD,yA+hA+27.5,"aba    b = "+(G.bAba*10).toFixed(2).replace(".",",")+" mm",{c:[90,105,125],fs:5.2});
+  D.txt(xD,yA+hA+33.5,"a ≤ 1,25·b  →  "+(G.ELCH.aEf*10).toFixed(1).replace(".",",")+" mm",{c:[90,105,125],fs:5.0});
+
+  /* ============ (c) PLANTA ============ */
+  D.txt(16,yTitP,"PLANTA — larguras tributárias p, uma faixa por parafuso",{c:CT,fs:6.4,b:true});
+  var Lp=G.H*10, Bp=G.g+2*Math.max(G.aCh,G.aAba);
+  var ep=Math.min(92/Math.max(Lp,1),26/Math.max(Bp,1));
+  var xp=22, wp=Lp*ep, hp=Bp*ep, yp=yP0;
+  D.ret(xp,yp,wp,hp,{f:[232,238,246],c:[70,92,122],e:0.4});
+  D.ret(xp,yp+hp/2-Math.max(0.8,G.tAlm*ep)/2,wp,Math.max(0.8,G.tAlm*ep),{f:[205,218,235],c:[150,165,185],e:0.2});
+  var i,j,xr=[];
+  for(i=0;i<G.nLin;i++) xr.push(xp+(G.eext+i*G.eint)*ep);
+  var yc2=[];
+  dCol.forEach(function(d){ yc2.push(yp+hp/2-d*ep); yc2.push(yp+hp/2+d*ep); });
+  for(i=0;i<G.nLin;i++){
+    var pl=(G.nLin>2&&i>0&&i<G.nLin-1)?G.pAba*10:G.pCh*10;
+    var x0f=Math.max(xp,xr[i]-pl*ep/2), wf=Math.min(pl*ep,xp+wp-x0f);
+    if(wf>0.6){
+      D.ret(x0f,yp+0.4,wf,hp-0.8,{c:[180,198,220],e:0.2});
+      D.hach(x0f+0.3,yp+0.7,wf-0.6,hp-1.4,{c:[198,214,234],p:2.2,e:0.12});
+    }
+  }
+  for(i=0;i<G.nLin;i++) for(j=0;j<yc2.length;j++)
+    D.circ(xr[i],yc2[j],Math.max(0.9,G.dbmm*ep/2),{f:[255,255,255],c:[55,72,96],e:0.28});
+  var ycot=yp+hp+6;
+  D.cotaH(xp,xr[0],ycot,"e "+G.eext.toFixed(0));
+  if(G.nLin>1){
+    if(G.nLin-1<=3){ for(i=1;i<G.nLin;i++) D.cotaH(xr[i-1],xr[i],ycot,"e "+G.eint.toFixed(0)); }
+    else D.cotaH(xr[0],xr[G.nLin-1],ycot,(G.nLin-1)+" × "+G.eint.toFixed(0));
+  }
+  D.cotaV(xp+wp+7,yp+hp/2-dOut*ep,yp+hp/2+dOut*ep,"g = "+G.g.toFixed(1).replace(".",","));
+  D.txt(xp+wp+16,yp+4,"p chapa "+(G.pCh*10).toFixed(1).replace(".",",")+" mm",{c:[90,105,125],fs:5.2});
+  D.txt(xp+wp+16,yp+9,"p aba   "+(G.pAba*10).toFixed(1).replace(".",",")+" mm",{c:[90,105,125],fs:5.2});
+  D.txt(xp+wp+16,yp+14,G.nLin+" linhas × "+G.nCol+" colunas = "+G.nb+" parafusos",{c:[90,105,125],fs:5.2});
+  if(mLado>1) D.txt(xp+wp+16,yp+19,"colunas internas em posição esquemática — g é entre as extremas",
+        {c:[150,60,45],fs:4.8});
+
+  /* ============ RODAPÉ ============ */
+  D.txt(W/2,yFt1,"Q = "+G.Fta.toFixed(2).replace(".",",")+" kN  (+"+G.acresc.toFixed(1).replace(".",",")+
+        " % na tração do parafuso)   ·   governa a "+G.govNome,{c:[90,105,125],fs:5.6,al:"center"});
+  D.txt(W/2,yFt2,"N,máx "+G.Nmax.toFixed(0)+" kN   ·   V,máx "+G.Vmax.toFixed(0)+" kN   ·   M,máx "+
+        (G.Mmax/100).toFixed(2).replace(".",",")+" kN·m",{c:CT,fs:7.0,al:"center",b:true});
+  return D;
+}
+
 const CALCS={
   fundacao:{
     titulo:"Fundação de eletrocentro — sapata, bloco sobre estacas e tubulão pelo pior apoio",
@@ -15768,6 +16354,62 @@ const CALCS={
     croqui:chapaTracCroqui,
     calcular:chapaTracCalc
   },
+  alavanca_tracao:{
+    titulo:"Ligação tracionada com efeito alavanca — chapa parafusada em aba de perfil",
+    referencia:"Efeito alavanca em ligação tracionada do tipo T conforme ABNT NBR 8800:2024, item 6.3.5. Larguras tributárias pext = min(eext;1,75b) + min(0,5·eint;1,75b) e pint = min(eint;3,5b); δ = 1 − df/p; β = (a′/b′)·(Ft,Rd/Ft,0,Sd − 1) com a′ = a + db/2, b′ = b − db/2 e a limitado a 1,25·b; α = 1 para β ≥ 1 e α = min(1; (1/δ)·β/(1−β)) para 0 < β < 1. Espessura sem efeito alavanca por tnp = √(4·Ft,0,Sd·b′·γa1/(p·fu)) e espessura mínima por tmin = √(4·Ft,0,Sd·b′·γa1/(p·fu·(1+δα))). Incremento de tração pelo item 6.3.5.4. A verificação é feita separadamente para a chapa e para a aba do perfil, cada uma com a sua espessura, o seu b e o seu fu, governando a mais flexível. Distribuição de tração entre linhas de parafusos sob momento por linha neutra elástica com bloco comprimido. Resistências do parafuso pelos itens 6.3.3.1 e 6.3.3.2 e interação pelo 6.3.3.4. Coeficientes γa1 = 1,10 e γa2 = 1,35. Validada contra o exercício de ligação à tração do material de referência.",
+    campos:[
+      {tipo:"head",label:"Geometria dos parafusos"},
+      {id:"avNLin",label:"LINHAS de parafusos ao longo da chapa",unidade:"un",tipo:"number",valor:2,step:"1"},
+      {id:"avNCol",label:"COLUNAS de parafusos na largura — TOTAL, número PAR (metade de cada lado da alma)",unidade:"un",tipo:"number",valor:2,step:"2"},
+      {id:"avG",label:"g — GABARITO entre as colunas extremas",unidade:"mm",tipo:"number",valor:80,step:"1"},
+      {id:"avEext",label:"e — da linha extrema à BORDA da chapa",unidade:"mm",tipo:"number",valor:25,step:"1"},
+      {id:"avEint",label:"e — ESPAÇAMENTO entre linhas",unidade:"mm",tipo:"number",valor:60,step:"1"},
+      {id:"avOrigem",label:"ORIGEM do b — onde começa a medida",tipo:"select",valor:"T",opcoes:[
+        {v:"T",t:"Seção T: da FACE da alma até o eixo do parafuso"},
+        {v:"L",t:"Cantoneira: do CENTRO da espessura até o eixo"}]},
+      {tipo:"head",label:"Chapa parafusada"},
+      {id:"avTch",label:"ESPESSURA da chapa",unidade:"mm",tipo:"number",valor:16,step:"0.5"},
+      {id:"avTalma",label:"Espessura da ALMA ou enrijecedor em que a chapa se apoia",unidade:"mm",tipo:"number",valor:9.5,step:"0.5"},
+      {id:"avAch",label:"a — do parafuso à BORDA LIVRE da chapa",unidade:"mm",tipo:"number",valor:40,step:"1"},
+      {id:"avFuch",label:"fu do aço da chapa",unidade:"kN/cm²",tipo:"number",valor:40,step:"0.5"},
+      {tipo:"head",label:"Aba do perfil"},
+      {id:"avTaba",label:"ESPESSURA da aba do perfil",unidade:"mm",tipo:"number",valor:16,step:"0.5"},
+      {id:"avTweb",label:"Espessura da ALMA do perfil",unidade:"mm",tipo:"number",valor:9.5,step:"0.5"},
+      {id:"avAaba",label:"a — do parafuso à BORDA da aba",unidade:"mm",tipo:"number",valor:40,step:"1"},
+      {id:"avFuaba",label:"fu do aço do perfil",unidade:"kN/cm²",tipo:"number",valor:40,step:"0.5"},
+      {tipo:"head",label:"Parafusos"},
+      {id:"avEspec",label:"ESPECIFICAÇÃO",tipo:"select",valor:"A325",opcoes:[
+        {v:"A307",t:"ASTM A307 — comum  (fub 415 MPa)"},
+        {v:"ISO46",t:"ISO 4016 classe 4.6 — comum  (fub 400 MPa)"},
+        {v:"A325",t:"ASTM F3125 A325 / F1852  (fub 830 MPa)"},
+        {v:"ISO88",t:"ISO 4016 classe 8.8  (fub 800 MPa)"},
+        {v:"A490",t:"ASTM F3125 A490 / F2280  (fub 1040 MPa)"},
+        {v:"ISO109",t:"ISO 4016 classe 10.9  (fub 1000 MPa)"},
+        {v:"OUTRO",t:"Outro — informar fub abaixo"}]},
+      {id:"avFub",label:"fub  (só quando a especificação for OUTRO)",unidade:"kN/cm²",tipo:"number",valor:0,step:"0.5"},
+      {id:"avDiam",label:"DIÂMETRO nominal db",tipo:"select",valor:"P0.500",opcoes:[
+        {v:"P0.250",t:"1/4 pol  (6,35 mm)"},{v:"P0.3125",t:"5/16 pol  (7,94 mm)"},
+        {v:"P0.375",t:"3/8 pol  (9,53 mm)"},{v:"P0.4375",t:"7/16 pol  (11,11 mm)"},
+        {v:"P0.500",t:"1/2 pol  (12,70 mm)"},{v:"P0.625",t:"5/8 pol  (15,88 mm)"},
+        {v:"P0.750",t:"3/4 pol  (19,05 mm)"},{v:"P0.875",t:"7/8 pol  (22,23 mm)"},
+        {v:"P1.000",t:"1 pol  (25,40 mm)"},{v:"P1.125",t:"1 1/8 pol  (28,58 mm)"},
+        {v:"P1.250",t:"1 1/4 pol  (31,75 mm)"},{v:"P1.375",t:"1 3/8 pol  (34,93 mm)"},
+        {v:"P1.500",t:"1 1/2 pol  (38,10 mm)"},
+        {v:"M4",t:"M4"},{v:"M5",t:"M5"},{v:"M6",t:"M6"},{v:"M8",t:"M8"},{v:"M10",t:"M10"},
+        {v:"M12",t:"M12"},{v:"M14",t:"M14"},{v:"M16",t:"M16"},{v:"M18",t:"M18"},
+        {v:"M20",t:"M20"},{v:"M22",t:"M22"},{v:"M24",t:"M24"},{v:"M27",t:"M27"},
+        {v:"M30",t:"M30"},{v:"M33",t:"M33"},{v:"M36",t:"M36"}]},
+      {id:"avRosca",label:"POSIÇÃO DA ROSCA no plano de corte",tipo:"select",valor:"N",opcoes:[
+        {v:"N",t:"Na rosca  (coef. 0,45)"},
+        {v:"X",t:"Fora da rosca  (coef. 0,56)"}]},
+      {tipo:"head",label:"Esforços solicitantes de cálculo"},
+      {id:"avNsd",label:"TRAÇÃO solicitante na ligação  Nsd",unidade:"kN",tipo:"number",valor:150,step:"5"},
+      {id:"avVsd",label:"CORTANTE solicitante na ligação  Vsd",unidade:"kN",tipo:"number",valor:0,step:"5"},
+      {id:"avMsd",label:"MOMENTO solicitante na ligação  Msd",unidade:"kN·cm",tipo:"number",valor:0,step:"10"}
+    ],
+    croqui:alavancaCroqui,
+    calcular:alavancaCalc
+  },
 };
 
 /* Restaura todos os campos de uma calculadora aos valores padrão do registro CALCS */
@@ -19490,6 +20132,66 @@ function gerarRelatorio(){
       nt(XL,258,"Volume de câmaras pelo CICLO, não pela vazão instantanea. Tempo de filtração por Ruth, com a resistência específica da torta,",120,130,150,5.6);
       nt(XL,261.5,"que e grandeza de ENSAIO DE FOLHA. Sem esse ensaio, o ciclo, a área e o número de placas são estimativa.",120,130,150,5.6);
       nt(XL,265,"NR-12 (protecoes e intertravamento de abertura)  ·  NBR 6118 (fundacao)  ·  NBR 8800 (portico)  ·  NBR 10004 (classe da torta).",120,130,150,5.6);
+
+    } else if(G.tipo==="alavanca"){
+      if(G.MEM&&G.MEM.length){
+        doc.setFillColor(14,27,46); doc.rect(0,0,210,20,"F");
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+        doc.text(san("MEMORIAL DE CÁLCULO CONSOLIDADO"),14,11);
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(200,215,235);
+        doc.text(san((G.nRep===0?"Nenhuma verificação reprovada":G.nRep+" verificacao(oes) REPROVADA(S)")+
+          "   -   N_max "+G.Nmax.toFixed(1)+" kN  ·  V_max "+G.Vmax.toFixed(1)+" kN  ·  M_max "+(G.Mmax/100).toFixed(2)+" kN.m"),14,16);
+        doc.autoTable({startY:24,theme:"grid",margin:{left:14,right:14},
+          head:[[san("N"),san("Verificacao"),san("Equação / base"),san("Resultado"),san("Criterio"),san("Status")]],
+          body:G.MEM.map(function(m){ return m.map(san); }),
+          styles:{fontSize:6.2,cellPadding:1.1,overflow:"linebreak",lineColor:[205,215,228],lineWidth:0.15},
+          headStyles:{fillColor:[14,27,46],textColor:[255,255,255],fontSize:6.4},
+          columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:34},2:{cellWidth:40},3:{cellWidth:33},4:{cellWidth:38},5:{cellWidth:30,halign:"center",fontStyle:"bold"}},
+          didParseCell:function(d){
+            if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="REPROVADO"){ d.cell.styles.fillColor=[253,232,232]; d.cell.styles.textColor=[150,30,30]; }
+            else if(d.section==="body"&&String(d.row.raw[5]).toUpperCase()==="VERIFICAR"){ d.cell.styles.fillColor=[255,248,225]; } }});
+        doc.addPage();
+        doc.setFillColor(14,27,46); doc.rect(0,0,W,20,"F");
+        try{ if(REPORT_LOGO&&REPORT_LOGO.complete) doc.addImage(REPORT_LOGO,"PNG",10,3,42,14); }catch(e){}
+        doc.setTextColor(244,247,250); doc.setFont("helvetica","bold"); doc.setFontSize(12);
+        doc.text(san("Croqui esquemático — "+CUR_EQ.modelo+(tagVal?"  (TAG: "+tagVal+")":"")),60,12);
+        doc.setFont("helvetica","normal");
+      }
+      var XL=15, XR=195;
+      function nt(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL,Math.min(XR-w2,x)),y); }
+      function ntc(x,y,t,r,g2,b2,fs){ var f=fs||6.0; doc.setTextColor(r,g2,b2); doc.setFontSize(f);
+        var w2=doc.getTextWidth(san(t)); doc.text(san(t),Math.max(XL+w2/2,Math.min(XR-w2/2,x)),y,{align:"center"}); }
+
+      ntc(105,28,"EFEITO ALAVANCA  ·  "+G.nb+" parafusos "+G.diamT+" "+G.especT.replace(/ — .*/,"")+
+          "  ·  chapa "+G.tCh.toFixed(1).replace(".",",")+" / aba "+G.tAba.toFixed(1).replace(".",",")+" mm",20,60,100,9.0);
+      ntc(105,33.5,"N_max "+G.Nmax.toFixed(1).replace(".",",")+" kN   ·   V_max "+G.Vmax.toFixed(1).replace(".",",")+
+          " kN   ·   M_max "+(G.Mmax/100).toFixed(2).replace(".",",")+" kN.m"+
+          (G.temCarga?("   ·   "+(G.okGeral?"APROVADO":"REPROVADO")):""),
+          (G.temCarga&&!G.okGeral)?170:20,(G.temCarga&&!G.okGeral)?40:110,(G.temCarga&&!G.okGeral)?40:80,8.0);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,37,XR,37);
+
+      var DP=alavancaCroqui(G);
+      pdfDe(DP,doc,XL,41,(XR-XL)/DP.w);
+
+      var yT=41+DP.h*((XR-XL)/DP.w)+5;
+      doc.autoTable({startY:yT,theme:"grid",margin:{left:XL,right:15},
+        head:[[san("Lado verificado"),san("t (mm)"),san("b (mm)"),san("a ef (mm)"),san("p (mm)"),san("delta"),san("t min (mm)"),san("Ft0,adm (kN)")]],
+        body:[["chapa",(G.ELCH.t*10).toFixed(1),(G.ELCH.b*10).toFixed(1),(G.ELCH.aEf*10).toFixed(1),(G.ELCH.p*10).toFixed(1),G.ELCH.delta.toFixed(3),(G.ELCH.tmin*10).toFixed(1),G.ELCH.Ft0adm.toFixed(2)+(G.govNome==="CHAPA"?"  GOVERNA":"")].map(san),
+              ["aba do perfil",(G.ELAB.t*10).toFixed(1),(G.ELAB.b*10).toFixed(1),(G.ELAB.aEf*10).toFixed(1),(G.ELAB.p*10).toFixed(1),G.ELAB.delta.toFixed(3),(G.ELAB.tmin*10).toFixed(1),G.ELAB.Ft0adm.toFixed(2)+(G.govNome!=="CHAPA"?"  GOVERNA":"")].map(san)],
+        styles:{fontSize:6.6,cellPadding:1.3,lineColor:[205,215,228],lineWidth:0.15},
+        headStyles:{fillColor:[20,60,100],textColor:[255,255,255],fontSize:6.7},
+        columnStyles:{0:{cellWidth:32},1:{cellWidth:18,halign:"right"},2:{cellWidth:18,halign:"right"},
+                      3:{cellWidth:20,halign:"right"},4:{cellWidth:18,halign:"right"},
+                      5:{cellWidth:18,halign:"right"},6:{cellWidth:22,halign:"right"},7:{cellWidth:36,halign:"right"}}});
+
+      var yR=Math.min(254,((doc.lastAutoTable&&doc.lastAutoTable.finalY)?doc.lastAutoTable.finalY:yT+20)+7);
+      doc.setDrawColor(200,212,228); doc.setLineWidth(0.3); doc.line(XL,yR,XR,yR);
+      nt(XL,yR+4,"NBR 8800:2024 item 6.3.5 com AISC SCM 9-10. b sai da FACE da alma; a vai ate a borda livre, limitado a 1,25b. Alavanca verificada nos DOIS lados.",120,130,150,5.4);
+      nt(XL,yR+7.5,"Capacidade por parafuso invertendo Ft0 + Ft,a <= Ft,Rd:  Ft0,max = (Ft,Rd.A + C)/(A + B).  Com cortante, Ft,Rd entra ja reduzido por raiz(1 - (Fv,Sd/Fv,Rd)2).",120,130,150,5.4);
+      nt(XL,yR+11,"As tres capacidades NAO somam: cada uma e o maximo com as outras zeradas. Com os tres atuando vale a interacao quadratica do item 6.3.3.4.",150,60,45,5.4);
+      nt(XL,yR+14.5,"O MOMENTO nao esta coberto pelo exercicio de referencia; segue AISC SCM 7-10 e foi conferido contra o limite superior com linha neutra na borda.",150,60,45,5.4);
+      nt(XL,yR+18,"Fora do escopo: solda chapa-alma, alma tracionada, forca concentrada na aba (item 5.7) e ligacao com protensao inicial.",120,130,150,5.4);
 
     } else if(G.tipo==="chapatrac"){
       if(G.MEM&&G.MEM.length){

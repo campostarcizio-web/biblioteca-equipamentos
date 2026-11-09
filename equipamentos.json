@@ -1,7 +1,7 @@
 {
   "meta": {
     "titulo": "ProjectARK · Pré-dimensionamento de Equipamentos",
-    "versao": "2.14.0",
+    "versao": "2.15.0",
     "atualizado_em": "2026-11-08",
     "observacao": "Ferramenta de pré-dimensionamento de equipamentos mecânicos. Os resultados são estimativas iniciais (pré-projeto) e não substituem o cálculo detalhado nem a folha de dados do fabricante.",
     "menu": [
@@ -118,7 +118,8 @@
         "grupo": "Ligações",
         "subgrupos": [
           "Parafuso — tração e cisalhamento",
-          "Chapas Tracionadas (emenda parafusada)"
+          "Chapas Tracionadas (emenda parafusada)",
+          "Tracionada com Efeito Alavanca (chapa em aba de perfil)"
         ]
       }
     ],
@@ -173,7 +174,8 @@
         "Lavador Úmido (torre, Venturi e separador)": "Wet Scrubber (quench, Venturi and separator)",
         "Torre de Resfriamento de Água (tiragem induzida)": "Water Cooling Tower (induced draft)",
         "Parafuso — tração e cisalhamento": "Bolt — tension and shear",
-        "Chapas Tracionadas (emenda parafusada)": "Tension Plate Connection (bolted splice)"
+        "Chapas Tracionadas (emenda parafusada)": "Tension Plate Connection (bolted splice)",
+        "Tracionada com Efeito Alavanca (chapa em aba de perfil)": "Tension Connection with Prying Action"
       }
     }
   },
@@ -1029,7 +1031,27 @@
       "resumo_en": "Tension plates: bolt shear, bearing and tear-out, gross yielding and net rupture, block shear over several paths and slip resistance, with a sketch showing where each dimension is measured.",
       "grupo_en": "Connections",
       "subgrupo_en": "Tension Plate Connection (bolted splice)"
+    },
+    {
+      "id": "ligacao-alavanca-tracao",
+      "grupo": "Ligações",
+      "subgrupo": "Tracionada com Efeito Alavanca (chapa em aba de perfil)",
+      "subtipo": "Chapa parafusada na aba de perfil I, com tração, cortante e momento, verificando o efeito alavanca nos dois lados",
+      "fabricante": "Pré-dimensionamento",
+      "modelo": "Ligação Tracionada com Efeito Alavanca",
+      "calculadora": "alavanca_tracao",
+      "descricao": "A ligação típica de mezanino em que uma chapa é parafusada na aba de um perfil I. A força que puxa a chapa não chega inteira ao parafuso: a chapa flexiona, as bordas se apoiam na aba fazendo alavanca, e essa reação de borda soma na tração do parafuso. No exercício de referência o acréscimo é de 17 %, e ele cresce conforme a chapa afina. A calculadora faz três coisas que o exercício não faz. Verifica a alavanca nos DOIS lados — chapa e aba formam dois T-stubs costas com costas, cada um com o seu b e a sua espessura, e governa o mais fraco; checar só um é metade do problema. Inverte a fórmula do incremento para entregar capacidade e não apenas verificação, de modo que a tração máxima por parafuso sai fechada em vez de por tentativa. E trata cortante e momento junto com a tração, porque a ligação real tem os três — com o cuidado de reduzir a tração disponível pelo cortante ANTES da conta da alavanca, que é a ordem correta e que, invertida, conta o cortante de menos. Devolve a tração máxima, a cortante máxima e o momento máximo da ligação, deixando explícito que as três não somam: cada uma é o teto com as outras zeradas, e com os três atuando vale a interação quadrática. O croqui desenha o corte pelo eixo da alma, que é onde b e a se confundem — b sai da face da alma, a vai até a borda livre — e marca a reação de alavanca Q no lugar em que ela de fato age.",
+      "referencia": "ABNT NBR 8800:2024 item 6.3.5 com AISC SCM 9-10 a 9-13. Largura tributária p_ext = min(e_ext; 1,75b) + min(0,5·e_int; 1,75b) e p_int = min(e_int; 3,5b); δ = 1 − df/p; a ≤ 1,25·b pelo item 6.3.5.2. Espessuras t_np e t_min pelas expressões do item 6.3.5.3 e 6.3.5.4. Acréscimo Ft,a,Sd pelo item 6.3.5.4, invertido para capacidade. Redução da tração pelo cortante por Ft,Rd·√(1 − (Fv,Sd/Fv,Rd)²). Interação pelo item 6.3.3.4. Momento pela distribuição elástica com bloco de compressão do AISC SCM p. 7-10, conferido contra o limite superior com linha neutra na borda. Validada contra o exercício de ligação à tração do material de referência, nos dois casos de espessura.",
+      "resumo": "Efeito alavanca em chapa parafusada na aba de perfil: verificação nos dois T-stubs, tração, cortante e momento máximos da ligação, e configuração mínima para aprovar.",
+      "normas": [
+        "NBR 8800:2024",
+        "AISC SCM"
+      ],
+      "modelo_en": "Tension Connection with Prying Action",
+      "resumo_en": "Prying action on a plate bolted to a flange: both T-stubs checked, maximum tension, shear and moment of the connection, and the minimum configuration to pass.",
+      "grupo_en": "Connections",
+      "subgrupo_en": "Tension Connection with Prying Action"
     }
   ],
-  "versao": "2.14.0"
+  "versao": "2.15.0"
 }
